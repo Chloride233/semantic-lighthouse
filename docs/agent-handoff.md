@@ -1,6 +1,14 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-12 02:00:00 +08:00
+Last updated: 2026-06-12 02:30:00 +08:00
+
+## Git Repository
+
+- **Initialized**: 2026-06-12
+- **Initial commit**: `87c33cc` — `chore: initialize semantic lighthouse repository`
+- **Branch**: `master`
+- **Remote**: not configured (local-only)
+- **.gitignore**: excludes `.venv/`, `.env*` (keeps `.example`), `*.db`, `.tmp/`, `.claude/`, build artifacts, storage volumes
 
 This file is the short-term operating memory for any coding agent taking over Semantic Lighthouse. It should be updated at the end of every meaningful iteration.
 
