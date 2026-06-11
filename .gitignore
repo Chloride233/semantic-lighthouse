@@ -1,0 +1,44 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Environment (keep templates)
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+local_*.db
+
+# Runtime & logs
+logs/
+*.log
+.runtime/
+.tmp/
+
+# Storage volumes
+document-storage/
+upload-tmp/
+knowledge-graph/
+
+# Build artifacts
+*.tar.gz
+*.zip
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code (local agent artifacts, plans, settings)
+.claude/

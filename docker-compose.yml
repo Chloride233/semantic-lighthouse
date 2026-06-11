@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: semantic-lighthouse-postgres
+    environment:
+      POSTGRES_USER: semantic_lighthouse
+      POSTGRES_PASSWORD: semantic_lighthouse
+      POSTGRES_DB: semantic_lighthouse
+    ports:
+      - "5432:5432"
+    volumes:
+      - semantic_lighthouse_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U semantic_lighthouse -d semantic_lighthouse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  semantic_lighthouse_pgdata:

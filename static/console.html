@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Semantic Lighthouse V1 Console</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Semantic Lighthouse V1</p>
+          <h1>认证控制台</h1>
+        </div>
+        <div class="status" id="sessionStatus">未登录</div>
+      </header>
+
+      <section class="grid">
+        <form class="panel" id="registerForm">
+          <div class="panelHeader">
+            <h2>注册</h2>
+            <p>创建一个本地演示用户，密码会以 BCrypt hash 入库。</p>
+          </div>
+          <label>
+            邮箱
+            <input id="registerEmail" type="email" autocomplete="username" required />
+          </label>
+          <label>
+            昵称
+            <input id="registerName" type="text" autocomplete="name" required />
+          </label>
+          <label>
+            密码
+            <input id="registerPassword" type="password" autocomplete="new-password" required minlength="8" />
+          </label>
+          <button type="submit">注册用户</button>
+        </form>
+
+        <form class="panel" id="loginForm">
+          <div class="panelHeader">
+            <h2>登录</h2>
+            <p>登录会返回 15 分钟 Access Token，并设置 httpOnly Refresh Cookie。</p>
+          </div>
+          <label>
+            邮箱
+            <input id="loginEmail" type="email" autocomplete="username" required />
+          </label>
+          <label>
+            密码
+            <input id="loginPassword" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit">登录</button>
+        </form>
+
+        <section class="panel">
+          <div class="panelHeader">
+            <h2>当前用户</h2>
+            <p>调用 <code>/auth/me</code>，验证 Access Token 是否能代表当前身份。</p>
+          </div>
+          <div class="actions">
+            <button type="button" id="loadMeButton">读取 /me</button>
+            <button type="button" id="refreshButton">刷新 Token</button>
+            <button type="button" id="logoutButton" class="secondary">登出</button>
+          </div>
+          <pre id="meOutput">{}</pre>
+        </section>
+
+        <section class="panel eventPanel">
+          <div class="panelHeader">
+            <h2>事件日志</h2>
+            <p>这里显示每次 API 调用的结果，便于观察认证链路。</p>
+          </div>
+          <ol id="eventLog"></ol>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/console.js"></script>
+  </body>
+</html>
