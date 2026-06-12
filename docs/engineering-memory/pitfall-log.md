@@ -1,5 +1,15 @@
 # Pitfall Log
 
+## Phase 0 Baseline: pgvector Smoke Pending Docker Daemon
+
+- Date: 2026-06-12
+- Version: Phase 0
+- Type: pitfall (environment)
+- Context: Phase 0 requires real PostgreSQL + pgvector smoke to verify P1-1 (PGVECTOR_DIMENSION fix) and HNSW index.
+- What happened: Docker client installed but daemon not running.
+- Engineering judgment: SQLite tests prove app logic; pgvector-specific code paths (<=> operator, HNSW index) are untested. Phase 0 cannot be definitively closed without this.
+- Mitigation: When Docker Desktop available, run `docker compose up -d postgres` + cloud smoke playbook. All other gates green.
+
 ## SQLite Tests Cannot Cover PostgreSQL-Specific Code Paths
 
 - Date: 2026-06-12
