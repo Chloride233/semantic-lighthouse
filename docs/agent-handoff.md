@@ -1,22 +1,20 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-12 04:00:00 +08:00
+Last updated: 2026-06-12 05:00:00 +08:00
 
 ## Current Phase
 
-**Phase 0: Complete** — **Phase 1 delivered** — see `docs/project-roadmap.md`.
+**Phases 0–3 delivered** — see `docs/project-roadmap.md`.
 
-**Phase 1**:
-- `GET /search/hybrid?keyword_weight=0.3` — keyword + semantic fusion
-- RAG defaults to `retrieval_method=hybrid`
-- `services/retrieval.py` — score normalization + dedup
-- `docs/eval/queries.json` — 20 eval queries
-- `scripts/eval/evaluate.py` — Recall@K + MRR report
+- **Phase 1**: Hybrid search + retrieval eval
+- **Phase 2**: Archive/unarchive + document lifecycle
+- **Phase 3**: Citation reference guard + confidence override
+  - `sanitize_references()` — out-of-range [N] → "(source unavailable)"
+  - `adjusted_confidence()` — server-side evidence quality caps
+  - `docs/eval/rag-queries.json` — 15 RAG eval queries
+  - 77 tests, ruff clean, 13 commits
 
-Next priority:
-1. Run eval against ingested docs, establish baseline
-2. Tune keyword_weight
-3. Add rerank (Phase 1.5 or 2)
+Next priority: Phase 4 (Agent) or more Phase 3 hardening (rerank, multi-doc RAG).
 
 ## Git Repository
 
