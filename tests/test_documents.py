@@ -637,3 +637,145 @@ startxref
 432
 %%EOF
 """
+
+
+# ── archive / unarchive tests ───────────────────────────────────────────
+
+
+def _chunked_upload_complete(client, group_id, headers, content, chunk_size=8):
+    file_hash = sha256(content).hexdigest()
+    init = client.post(
+        f"/groups/{group_id}/documents/uploads/init",
+        json={"file_name": "test.md", "file_size": len(content), "file_hash": file_hash, "chunk_size": chunk_size},
+        headers=headers,
+    )
+    upload_id = init.json()["upload_id"]
+    for start in range(0, len(content), chunk_size):
+        end = min(start + chunk_size, len(content))
+        client.put(
+            f"/groups/{group_id}/documents/uploads/{upload_id}/chunks/{start // chunk_size}",
+            files={"file": (f"{start // chunk_size}.part", content[start:end], "application/octet-stream")},
+            headers=headers,
+        )
+    return client.post(f"/groups/{group_id}/documents/uploads/{upload_id}/complete", headers=headers)
+
+
+def test_archive_ready_document_excludes_from_search(client, tmp_path):
+    _, _, h = register_and_login(client, "o@t.com")
+    gid = _create_group(client, h)
+    _override_settings(client, tmp_path)
+    complete = _chunked_upload_complete(client, gid, h, b"# Archive\n\narchive test keyword")
+    doc_id = complete.json()["id"]
+
+    s = client.get(f"/groups/{gid}/documents/search", params={"q": "archive test"}, headers=h)
+    assert len(s.json()) >= 1
+
+    r = client.post(f"/groups/{gid}/documents/{doc_id}/archive", headers=h)
+    assert r.status_code == 200
+    assert r.json()["status"] == "archived"
+
+    s2 = client.get(f"/groups/{gid}/documents/search", params={"q": "archive test"}, headers=h)
+    assert len(s2.json()) == 0
+
+
+def test_unarchive_restores_search(client, tmp_path):
+    _, _, h = register_and_login(client, "o@t.com")
+    gid = _create_group(client, h)
+    _override_settings(client, tmp_path)
+    complete = _chunked_upload_complete(client, gid, h, b"# Unarchive\n\nunarchive content")
+    doc_id = complete.json()["id"]
+
+    client.post(f"/groups/{gid}/documents/{doc_id}/archive", headers=h)
+    client.post(f"/groups/{gid}/documents/{doc_id}/unarchive", headers=h)
+
+    doc = client.get(f"/groups/{gid}/documents/{doc_id}", headers=h).json()
+    assert doc["status"] == "ready"
+    s = client.get(f"/groups/{gid}/documents/search", params={"q": "unarchive"}, headers=h)
+    assert len(s.json()) >= 1
+
+
+def test_cannot_archive_processing_document(client, db_session, tmp_path):
+    _, _, h = register_and_login(client, "o@t.com")
+    gid = _create_group(client, h)
+    _override_settings(client, tmp_path)
+
+    from semantic_lighthouse.models import Document as Doc
+    from semantic_lighthouse.services.document_ingestion import hash_text
+    doc = Doc(
+        group_id=gid, title="P", file_name="p.md", source_path="upload:p.md",
+        content_hash=hash_text("# P\nc"), raw_content="# P\nc",
+        status="processing", created_by="t",
+    )
+    db_session.add(doc)
+    db_session.commit()
+
+    r = client.post(f"/groups/{gid}/documents/{doc.id}/archive", headers=h)
+    assert r.status_code == 409
+
+
+def test_member_cannot_archive(client, tmp_path):
+    _, _, oh = register_and_login(client, "o@t.com")
+    _, _, mh = register_and_login(client, "m@t.com")
+    gid = _create_group(client, oh)
+    _join_group(client, gid, oh, mh)
+    _override_settings(client, tmp_path)
+    complete = _chunked_upload_complete(client, gid, oh, b"# Mem\n\nmember test")
+    doc_id = complete.json()["id"]
+
+    r = client.post(f"/groups/{gid}/documents/{doc_id}/archive", headers=mh)
+    assert r.status_code == 403
+
+
+def test_archive_excluded_from_hybrid_search(client, tmp_path):
+    _, _, h = register_and_login(client, "o@t.com")
+    gid = _create_group(client, h)
+    _override_settings(client, tmp_path)
+    complete = _chunked_upload_complete(client, gid, h, b"# Hy\n\nhybrid exclude")
+    doc_id = complete.json()["id"]
+
+    client.post(f"/groups/{gid}/documents/{doc_id}/archive", headers=h)
+    r = client.get(f"/groups/{gid}/documents/search/hybrid", params={"q": "hybrid exclude"}, headers=h)
+    assert len(r.json()) == 0
+
+
+def test_archive_cross_group_isolation(client, tmp_path):
+    _, _, ha = register_and_login(client, "a@t.com")
+    _, _, hb = register_and_login(client, "b@t.com")
+    ga = _create_group(client, ha, "A")
+    gb = _create_group(client, hb, "B")
+    _override_settings(client, tmp_path)
+    complete = _chunked_upload_complete(client, ga, ha, b"# Iso\n\niso")
+    doc_id = complete.json()["id"]
+
+    r = client.post(f"/groups/{gb}/documents/{doc_id}/archive", headers=hb)
+    assert r.status_code == 404
+
+
+def test_instant_upload_new_doc_for_archived(client, tmp_path):
+    _, _, h = register_and_login(client, "o@t.com")
+    gid = _create_group(client, h)
+    _override_settings(client, tmp_path)
+    content = b"# Instant\n\ninstant dedup test"
+    file_hash = sha256(content).hexdigest()
+
+    complete = _chunked_upload_complete(client, gid, h, content)
+    doc_id = complete.json()["id"]
+    client.post(f"/groups/{gid}/documents/{doc_id}/archive", headers=h)
+
+    init = client.post(
+        f"/groups/{gid}/documents/uploads/init",
+        json={"file_name": "i.md", "file_size": len(content), "file_hash": file_hash},
+        headers=h,
+    )
+    assert init.json()["type"] == "UPLOAD_SESSION"
+
+
+def test_unarchive_non_archived_returns_409(client, tmp_path):
+    _, _, h = register_and_login(client, "o@t.com")
+    gid = _create_group(client, h)
+    _override_settings(client, tmp_path)
+    complete = _chunked_upload_complete(client, gid, h, b"# Ready\n\nnot archived")
+    doc_id = complete.json()["id"]
+
+    r = client.post(f"/groups/{gid}/documents/{doc_id}/unarchive", headers=h)
+    assert r.status_code == 409

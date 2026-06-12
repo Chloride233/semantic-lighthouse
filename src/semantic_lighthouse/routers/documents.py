@@ -447,6 +447,55 @@ def get_ingestion_job(
     return _ingestion_job_detail_response(job)
 
 
+# ── archive / unarchive ──────────────────────────────────────────────────
+
+
+@router.post("/{document_id}/archive", response_model=DocumentResponse)
+def archive_document(
+    group_id: str,
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DocumentResponse:
+    require_group_role(db, current_user.id, group_id, {"owner", "admin"})
+    document = db.scalar(
+        select(Document).where(Document.id == document_id, Document.group_id == group_id)
+    )
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if document.status not in ("ready", "failed"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot archive document with status '{document.status}'",
+        )
+    document.status = "archived"
+    db.commit()
+    return _document_response(document)
+
+
+@router.post("/{document_id}/unarchive", response_model=DocumentResponse)
+def unarchive_document(
+    group_id: str,
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DocumentResponse:
+    require_group_role(db, current_user.id, group_id, {"owner", "admin"})
+    document = db.scalar(
+        select(Document).where(Document.id == document_id, Document.group_id == group_id)
+    )
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if document.status != "archived":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot unarchive document with status '{document.status}'",
+        )
+    document.status = "ready"
+    db.commit()
+    return _document_response(document)
+
+
 # ── document list / search ─────────────────────────────────────────────
 
 
