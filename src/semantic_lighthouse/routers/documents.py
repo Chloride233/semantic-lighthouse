@@ -547,25 +547,7 @@ def hybrid_search_documents(
     from semantic_lighthouse.services.retrieval import hybrid_search
 
     results = hybrid_search(db, group_id, q, limit, keyword_weight, settings)
-    return [
-        SemanticSearchResult(
-            document_id=item.document.id,
-            chunk_id=item.chunk.id,
-            title=item.document.title,
-            source_path=item.document.source_path,
-            file_name=item.document.file_name,
-            chunk_index=item.chunk.chunk_index,
-            heading_path=item.chunk.heading_path,
-            snippet=snippet(item.chunk.content, q),
-            entity_type=item.document.frontmatter.get("entityType") if item.document.frontmatter else None,
-            document_type=item.document.frontmatter.get("documentType") if item.document.frontmatter else None,
-            source=item.document.frontmatter.get("source") if item.document.frontmatter else None,
-            status=item.document.frontmatter.get("status") if item.document.frontmatter else None,
-            score=item.score,
-            retrieval_method="hybrid",
-        )
-        for item in results
-    ]
+    return [_semantic_result(item.chunk, item.document, q, item.score, retrieval_method="hybrid") for item in results]
 
 
 @router.get("/semantic-search", response_model=list[SemanticSearchResult])
@@ -669,8 +651,17 @@ def _upload_session_response(upload_session: DocumentUploadSession) -> UploadSes
     )
 
 
+def _frontmatter_fields(frontmatter: dict | None) -> dict:
+    fm = frontmatter or {}
+    return {
+        "entity_type": fm.get("entityType"),
+        "document_type": fm.get("documentType"),
+        "source": fm.get("source"),
+        "status": fm.get("status"),
+    }
+
+
 def _search_result(chunk: DocumentChunk, document: Document, query: str) -> DocumentSearchResult:
-    frontmatter = document.frontmatter or {}
     return DocumentSearchResult(
         document_id=document.id,
         chunk_id=chunk.id,
@@ -680,10 +671,7 @@ def _search_result(chunk: DocumentChunk, document: Document, query: str) -> Docu
         chunk_index=chunk.chunk_index,
         heading_path=chunk.heading_path,
         snippet=snippet(chunk.content, query),
-        entity_type=frontmatter.get("entityType"),
-        document_type=frontmatter.get("documentType"),
-        source=frontmatter.get("source"),
-        status=frontmatter.get("status"),
+        **_frontmatter_fields(document.frontmatter),
     )
 
 
@@ -692,10 +680,12 @@ def _semantic_result(
     document: Document,
     query: str,
     score: float,
+    retrieval_method: str = "semantic",
 ) -> SemanticSearchResult:
     return SemanticSearchResult(
         **_search_result(chunk, document, query).model_dump(),
         score=score,
+        retrieval_method=retrieval_method,
     )
 
 

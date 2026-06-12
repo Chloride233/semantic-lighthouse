@@ -14,11 +14,10 @@ from sqlalchemy.orm import Session
 
 from semantic_lighthouse.config import Settings
 from semantic_lighthouse.models import Document, DocumentChunk
+from semantic_lighthouse.routers._shared import PGVECTOR_DIMENSION
 from semantic_lighthouse.services.embeddings import EmbeddingError, cosine_similarity, create_embedding_client
 
 logger = logging.getLogger(__name__)
-
-_PGVECTOR_DIMENSION = 1024
 
 
 @dataclass(frozen=True)
@@ -154,7 +153,7 @@ def _semantic_postgres(
     vector_literal = "[" + ",".join(str(float(v)) for v in query_vector) + "]"
     distance_expr = cast(
         DocumentChunk.embedding.op("<=>")(
-            cast(bindparam("query_vector"), Vector(_PGVECTOR_DIMENSION))
+            cast(bindparam("query_vector"), Vector(PGVECTOR_DIMENSION))
         ),
         Float,
     ).label("distance")
