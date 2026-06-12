@@ -1,0 +1,17 @@
+[
+  {"question": "What is the ETL pipeline architecture?", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["ETL", "pipeline"]},
+  {"question": "How does chunked upload handle large files?", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["chunk", "upload"]},
+  {"question": "What is group_id isolation used for?", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["group_id", "permission"]},
+  {"question": "How does hybrid search combine results?", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["keyword", "semantic", "weight"]},
+  {"question": "How to deploy to production?", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["Docker", "ECS"]},
+  {"question": "What happens when embedding fails during ETL?", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["retry", "attempt"]},
+  {"question": "How do archived documents affect search?", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["archive", "search"]},
+  {"question": "How does JWT refresh token rotation work?", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["refresh", "rotation"]},
+  {"question": "What is confidence scoring in RAG?", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["confidence"]},
+  {"question": "How does ingestion retry with backoff work?", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["retry", "backoff"]},
+  {"question": "What server spec for production?", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["ECS", "2 GiB"]},
+  {"question": "What movie should I watch tonight?", "expect_citations_min": 0, "expect_confidence": "low", "expect_contains": ["evidence"]},
+  {"question": "How do I cook pasta?", "expect_citations_min": 0, "expect_confidence": "low", "expect_contains": ["evidence"]},
+  {"question": "Compare keyword, semantic, and hybrid search", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["keyword", "semantic", "hybrid"]},
+  {"question": "What lessons from V3.4 hardening?", "expect_citations_min": 1, "expect_confidence_not": "low", "expect_contains": ["SQLite", "pgvector"]}
+]

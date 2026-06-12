@@ -145,3 +145,49 @@ def _parse_generated_answer(content: str) -> GeneratedAnswer:
         return GeneratedAnswer.model_validate(data)
     except (json.JSONDecodeError, ValidationError) as exc:
         raise ChatError("Chat provider did not return valid answer JSON") from exc
+
+
+def sanitize_references(answer: str, citations: list[RagCitation]) -> str:
+    """Replace out-of-range ``[N]`` citation markers in *answer*.
+
+    Scans for ``[1]``, ``[99]`` patterns; replaces any where N < 1 or
+    N > len(citations) with ``"(source unavailable)"``.  Deterministic —
+    no model involvement.
+    """
+    import re
+
+    max_n = len(citations)
+
+    def _replace(m: re.Match[str]) -> str:
+        n = int(m.group(1))
+        return m.group(0) if 1 <= n <= max_n else "(source unavailable)"
+
+    return re.sub(r"\[(\d+)\]", _replace, answer)
+
+
+def adjusted_confidence(model_confidence: str, citations: list[RagCitation]) -> str:
+    """Server-side confidence downgrade based on evidence quality.
+
+    - 0 citations → ``"low"``
+    - 1 citation  → capped at ``"medium"``
+    - All scores < 0.3 → ``"low"``
+    - All scores < 0.5 → capped at ``"medium"``
+    - Otherwise → model-reported confidence
+    """
+    order = {"low": 0, "medium": 1, "high": 2}
+
+    if len(citations) == 0:
+        return "low"
+
+    scores = [c.score for c in citations if c.score is not None]
+
+    if len(citations) == 1:
+        return model_confidence if order[model_confidence] < order["medium"] else "medium"
+
+    if scores and all(s < 0.3 for s in scores):
+        return "low"
+
+    if scores and all(s < 0.5 for s in scores):
+        return model_confidence if order[model_confidence] < order["medium"] else "medium"
+
+    return model_confidence

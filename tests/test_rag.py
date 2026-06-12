@@ -269,3 +269,79 @@ def test_non_member_cannot_read_rag_run_history(client, tmp_path):
 
     assert runs.status_code == 403
     assert detail.status_code == 403
+
+
+# ── citation sanitization + confidence override tests ────────────────────
+
+
+def test_sanitize_removes_out_of_range_refs():
+    from semantic_lighthouse.schemas import RagCitation
+    from semantic_lighthouse.services.chat import sanitize_references
+
+    citations = [
+        RagCitation(document_id="a", chunk_id="c1", title="T1", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s1", retrieval_method="hybrid"),
+        RagCitation(document_id="a", chunk_id="c2", title="T2", source_path="s", file_name="f",
+                     chunk_index=1, heading_path=None, snippet="s2", retrieval_method="hybrid"),
+    ]
+    result = sanitize_references("See [1] and [5] and [0] for details.", citations)
+    assert "[1]" in result
+    assert "[5]" not in result
+    assert "[0]" not in result
+    assert "(source unavailable)" in result
+
+
+def test_sanitize_keeps_all_valid_refs():
+    from semantic_lighthouse.schemas import RagCitation
+    from semantic_lighthouse.services.chat import sanitize_references
+
+    citations = [
+        RagCitation(document_id="a", chunk_id="c1", title="T1", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s1", retrieval_method="keyword"),
+    ]
+    result = sanitize_references("Only source [1] is valid.", citations)
+    assert result == "Only source [1] is valid."
+
+
+def test_sanitize_no_op_when_no_refs():
+    from semantic_lighthouse.services.chat import sanitize_references
+
+    result = sanitize_references("Just an answer with no citations.", [])
+    assert result == "Just an answer with no citations."
+
+
+def test_adjusted_confidence_capped_medium_for_single_citation():
+    from semantic_lighthouse.schemas import RagCitation
+    from semantic_lighthouse.services.chat import adjusted_confidence
+
+    citations = [
+        RagCitation(document_id="a", chunk_id="c1", title="T", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s", score=0.9, retrieval_method="hybrid"),
+    ]
+    assert adjusted_confidence("high", citations) == "medium"
+
+
+def test_adjusted_confidence_low_for_weak_scores():
+    from semantic_lighthouse.schemas import RagCitation
+    from semantic_lighthouse.services.chat import adjusted_confidence
+
+    citations = [
+        RagCitation(document_id="a", chunk_id="c1", title="T1", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s1", score=0.1, retrieval_method="hybrid"),
+        RagCitation(document_id="a", chunk_id="c2", title="T2", source_path="s", file_name="f",
+                     chunk_index=1, heading_path=None, snippet="s2", score=0.2, retrieval_method="hybrid"),
+    ]
+    assert adjusted_confidence("high", citations) == "low"
+
+
+def test_adjusted_confidence_preserves_high_for_strong_scores():
+    from semantic_lighthouse.schemas import RagCitation
+    from semantic_lighthouse.services.chat import adjusted_confidence
+
+    citations = [
+        RagCitation(document_id="a", chunk_id="c1", title="T1", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s1", score=0.9, retrieval_method="hybrid"),
+        RagCitation(document_id="a", chunk_id="c2", title="T2", source_path="s", file_name="f",
+                     chunk_index=1, heading_path=None, snippet="s2", score=0.8, retrieval_method="hybrid"),
+    ]
+    assert adjusted_confidence("high", citations) == "high"

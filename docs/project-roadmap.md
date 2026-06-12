@@ -134,7 +134,41 @@
 
 ---
 
-## Explicitly Out of Scope (for now)
+## Phase 7: Frontend Engineering Console
+
+**Goal**: Build a real, maintainable frontend console after the backend/RAG chain is stable.
+
+| # | Task | Acceptance |
+|---|------|------------|
+| 7.1 | Operator console information architecture | Auth, groups, documents, ingestion jobs, retrieval eval, RAG runs are navigable |
+| 7.2 | Document and ingestion management UI | Upload, progress, retry, archive, failure reason visible without Swagger |
+| 7.3 | Retrieval and RAG evaluation UI | Query, citations, scores, confidence, knowledge gaps shown clearly |
+| 7.4 | Permission-aware UI states | Owner/Admin/Member see only allowed actions |
+| 7.5 | Frontend smoke and regression checks | Key flows verified by browser tests |
+
+**Acceptance**: A reviewer can complete the core demo from the browser without using Swagger.
+
+---
+
+## Phase 8: Advanced Agent Orchestration
+
+**Goal**: Upgrade from controlled multi-turn RAG to explainable, auditable Agent workflows.
+
+| # | Task | Acceptance |
+|---|------|------------|
+| 8.1 | Agent tool registry and permission policy | Every tool has input schema, role requirement, group boundary |
+| 8.2 | Workflow planning with explicit state | Agent steps are planned, executed, and audited as separate records |
+| 8.3 | Long-term memory governance | Memory has scope, retention, deletion, and citation rules |
+| 8.4 | Human-in-the-loop checkpoints | Risky actions require approval before execution |
+| 8.5 | Agent evaluation set | Multi-step tasks measured for success, citation quality, and failure handling |
+
+**Acceptance**: A multi-step enterprise AI consulting workflow can be replayed, audited, and explained.
+
+---
+
+## Explicitly Out of Scope (current phases only)
+
+These items are not permanently rejected. They are deferred until the earlier engineering foundations are stable.
 
 - Real-time collaboration (WebSocket, multi-user editing)
 - Fine-tuning embedding or chat models
@@ -142,7 +176,8 @@
 - Kubernetes, service mesh, multi-region
 - SSO / OAuth / SAML
 - Billing, usage quotas, rate limiting
-- Frontend SPA beyond the current `/console` demo page
+- Complex frontend SPA before Phase 7
+- Open-ended complex Agent before Phase 8
 - Mobile app
 - Multilingual RAG (current focus: English + Chinese where noted)
 

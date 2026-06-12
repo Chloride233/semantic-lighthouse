@@ -16,7 +16,7 @@ from semantic_lighthouse.schemas import (
     RagRunDetail,
     RagRunSummary,
 )
-from semantic_lighthouse.services.chat import ChatError, create_chat_client
+from semantic_lighthouse.services.chat import ChatError, adjusted_confidence, create_chat_client, sanitize_references
 from semantic_lighthouse.services.embeddings import EmbeddingError, create_embedding_client
 
 from ._shared import snippet, validate_pgvector_dimension
@@ -54,11 +54,14 @@ def answer_question(
     except ChatError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
+    sanitized = sanitize_references(answer.answer, citations)
+    confidence = adjusted_confidence(answer.confidence, citations)
+
     response = RagAnswerResponse(
         run_id="",
         question=request.question,
-        answer=answer.answer,
-        confidence=answer.confidence,
+        answer=sanitized,
+        confidence=confidence,
         knowledge_gaps=answer.knowledge_gaps,
         next_steps=answer.next_steps,
         citations=citations,
