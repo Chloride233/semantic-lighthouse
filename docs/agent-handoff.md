@@ -1,16 +1,22 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-12 03:00:00 +08:00
+Last updated: 2026-06-12 04:00:00 +08:00
 
 ## Current Phase
 
-**Phase 0: Engineering Baseline Stabilization** — see `docs/project-roadmap.md` for the full 6-phase plan.
+**Phase 0: Complete** — **Phase 1 delivered** — see `docs/project-roadmap.md`.
 
-Next priority tasks (Phase 0):
-1. V3.4 ETL final verification (pytest + ruff + Alembic)
-2. PostgreSQL + pgvector real smoke (local Docker or cloud ECS)
-3. .gitignore audit for secrets, artifacts, runtime data
-4. Cloud smoke playbook review
+**Phase 1**:
+- `GET /search/hybrid?keyword_weight=0.3` — keyword + semantic fusion
+- RAG defaults to `retrieval_method=hybrid`
+- `services/retrieval.py` — score normalization + dedup
+- `docs/eval/queries.json` — 20 eval queries
+- `scripts/eval/evaluate.py` — Recall@K + MRR report
+
+Next priority:
+1. Run eval against ingested docs, establish baseline
+2. Tune keyword_weight
+3. Add rerank (Phase 1.5 or 2)
 
 ## Git Repository
 
