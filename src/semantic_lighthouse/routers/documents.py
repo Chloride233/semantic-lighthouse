@@ -533,6 +533,41 @@ def rebuild_document_embeddings(
     )
 
 
+@router.get("/search/hybrid", response_model=list[SemanticSearchResult])
+def hybrid_search_documents(
+    group_id: str,
+    q: str = Query(min_length=1, max_length=200),
+    limit: int = Query(default=10, ge=1, le=50),
+    keyword_weight: float = Query(default=0.3, ge=0.0, le=1.0),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> list[SemanticSearchResult]:
+    get_membership_or_404(db, current_user.id, group_id)
+    from semantic_lighthouse.services.retrieval import hybrid_search
+
+    results = hybrid_search(db, group_id, q, limit, keyword_weight, settings)
+    return [
+        SemanticSearchResult(
+            document_id=item.document.id,
+            chunk_id=item.chunk.id,
+            title=item.document.title,
+            source_path=item.document.source_path,
+            file_name=item.document.file_name,
+            chunk_index=item.chunk.chunk_index,
+            heading_path=item.chunk.heading_path,
+            snippet=snippet(item.chunk.content, q),
+            entity_type=item.document.frontmatter.get("entityType") if item.document.frontmatter else None,
+            document_type=item.document.frontmatter.get("documentType") if item.document.frontmatter else None,
+            source=item.document.frontmatter.get("source") if item.document.frontmatter else None,
+            status=item.document.frontmatter.get("status") if item.document.frontmatter else None,
+            score=item.score,
+            retrieval_method="hybrid",
+        )
+        for item in results
+    ]
+
+
 @router.get("/semantic-search", response_model=list[SemanticSearchResult])
 def semantic_search_documents(
     group_id: str,

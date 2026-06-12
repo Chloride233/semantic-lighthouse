@@ -187,7 +187,19 @@ def _retrieve(
             return _semantic_search(db, group_id, question, limit, settings), "semantic"
         except EmbeddingError as exc:
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    if retrieval_method == "hybrid":
+        from semantic_lighthouse.services.retrieval import hybrid_search as hs
 
+        results = hs(db, group_id, question, limit, keyword_weight=0.3, settings=settings)
+        return [
+            RetrievedChunk(
+                chunk=item.chunk, document=item.document,
+                score=item.score, retrieval_method="hybrid",
+            )
+            for item in results
+        ], "hybrid"
+
+    # "auto" — try semantic first, fall back to keyword
     try:
         semantic_results = _semantic_search(db, group_id, question, limit, settings)
     except EmbeddingError:

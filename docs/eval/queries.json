@@ -1,0 +1,142 @@
+[
+  {
+    "id": "q01",
+    "query": "ETL pipeline architecture",
+    "category": "keyword",
+    "expected_keywords": ["ETL", "pipeline", "Extract"],
+    "notes": "Should match project-roadmap or engineering-memory ETL docs"
+  },
+  {
+    "id": "q02",
+    "query": "chunked upload complete",
+    "category": "keyword",
+    "expected_keywords": ["chunked", "upload", "complete"],
+    "notes": "Should match V2.2 upload docs"
+  },
+  {
+    "id": "q03",
+    "query": "group_id permission isolation",
+    "category": "keyword",
+    "expected_keywords": ["group_id", "isolation", "permission"],
+    "notes": "Should match auth/group docs or CLAUDE.md"
+  },
+  {
+    "id": "q04",
+    "query": "pgvector HNSW index m ef_construction",
+    "category": "keyword",
+    "expected_keywords": ["pgvector", "HNSW", "m=16"],
+    "notes": "Should match roadmap or pitfall-log HNSW entry"
+  },
+  {
+    "id": "q05",
+    "query": "JWT refresh token rotation replay detection",
+    "category": "keyword",
+    "expected_keywords": ["JWT", "refresh", "rotation", "replay"],
+    "notes": "Should match V1 auth docs or engineering-memory"
+  },
+  {
+    "id": "q06",
+    "query": "how does the system handle large file uploads without losing progress",
+    "category": "semantic",
+    "expected_keywords": ["resumable", "chunk", "session"],
+    "notes": "Paraphrased query about V2.2 upload reliability"
+  },
+  {
+    "id": "q07",
+    "query": "what happens when embedding API fails during document ingestion",
+    "category": "semantic",
+    "expected_keywords": ["retry", "EmbeddingError", "attempt"],
+    "notes": "Should match pitfall-log EmbeddingError retry entry"
+  },
+  {
+    "id": "q08",
+    "query": "how are user passwords protected in the database",
+    "category": "semantic",
+    "expected_keywords": ["BCrypt", "hash", "password"],
+    "notes": "Should match V1 auth docs"
+  },
+  {
+    "id": "q09",
+    "query": "ways to measure search result quality",
+    "category": "semantic",
+    "expected_keywords": ["Recall", "MRR", "evaluation", "metric"],
+    "notes": "Should match retrieval eval docs (self-referential)"
+  },
+  {
+    "id": "q10",
+    "query": "recovering from a server crash during document processing",
+    "category": "semantic",
+    "expected_keywords": ["recovery", "orphaned", "startup", "crash"],
+    "notes": "Should match ETL startup recovery docs"
+  },
+  {
+    "id": "q11",
+    "query": "compare keyword search and semantic search approaches",
+    "category": "multi",
+    "expected_keywords": ["keyword", "ILIKE", "semantic", "cosine", "pgvector"],
+    "notes": "Should match both V2 and V2.1 docs"
+  },
+  {
+    "id": "q12",
+    "query": "document lifecycle from upload to RAG answer",
+    "category": "multi",
+    "expected_keywords": ["upload", "ETL", "chunk", "embedding", "RAG", "answer"],
+    "notes": "End-to-end pipeline across V2.2+V3.4+V3"
+  },
+  {
+    "id": "q13",
+    "query": "security model for multi-tenant document access",
+    "category": "multi",
+    "expected_keywords": ["group_id", "permission", "Owner", "Admin", "Member", "isolation"],
+    "notes": "Cross-cutting: auth + groups + documents + RAG"
+  },
+  {
+    "id": "q14",
+    "query": "database schema for ingestion tracking",
+    "category": "multi",
+    "expected_keywords": ["ingestion_jobs", "step_log", "status", "attempt"],
+    "notes": "V3.4 ETL job model"
+  },
+  {
+    "id": "q15",
+    "query": "how embedding and chat cloud providers are configured",
+    "category": "multi",
+    "expected_keywords": ["DASHSCOPE", "DEEPSEEK", "Aliyun", "embedding", "chat", "provider"],
+    "notes": "V2.1+V3 cloud provider abstraction"
+  },
+  {
+    "id": "q16",
+    "query": "a",
+    "category": "edge",
+    "expected_keywords": [],
+    "notes": "Single-character query — should return results or clean empty"
+  },
+  {
+    "id": "q17",
+    "query": "what is the hardware requirement for deploying to Alibaba Cloud ECS with Docker Compose and PostgreSQL pgvector with 2 vCPU and 2 GiB RAM and 3 Mbps bandwidth and Ubuntu 24.04 operating system",
+    "category": "edge",
+    "expected_keywords": ["ECS", "2 GiB", "swap", "Docker"],
+    "notes": "Very long query — should not crash or timeout"
+  },
+  {
+    "id": "q18",
+    "query": "",
+    "category": "edge",
+    "expected_keywords": [],
+    "notes": "Empty query — API should reject with 422 (validation)"
+  },
+  {
+    "id": "q19",
+    "query": "xyzzy_nonexistent_term_12345",
+    "category": "edge",
+    "expected_keywords": [],
+    "notes": "Zero-result expected — check no crash, empty list returned"
+  },
+  {
+    "id": "q20",
+    "query": "Chinese query about semantic and keyword search",
+    "category": "edge",
+    "expected_keywords": ["semantic", "keyword"],
+    "notes": "Mixed-language query — should handle multi-language content"
+  }
+]
