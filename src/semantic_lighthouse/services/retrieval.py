@@ -113,7 +113,13 @@ def _semantic_search(
     except EmbeddingError:
         logger.warning("Embedding failed for query; semantic contribution skipped")
         return []
+    return _semantic_search_with_vector(db, group_id, query_vector, limit)
 
+
+def _semantic_search_with_vector(
+    db: Session, group_id: str, query_vector: list[float], limit: int
+) -> list[ScoredChunk]:
+    """Run semantic search with a pre-computed query vector (caller handles errors)."""
     if db.bind is not None and db.bind.dialect.name == "postgresql":
         return _semantic_postgres(db, group_id, query_vector, limit)
     return _semantic_python(db, group_id, query_vector, limit)

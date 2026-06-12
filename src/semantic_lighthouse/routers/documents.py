@@ -1,8 +1,7 @@
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile, status
-from pgvector.sqlalchemy import Vector
-from sqlalchemy import Float, bindparam, cast, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from semantic_lighthouse.config import Settings, get_settings
@@ -45,9 +44,9 @@ from semantic_lighthouse.services.document_uploads import (
     uploaded_chunk_indexes,
     write_upload_chunk,
 )
-from semantic_lighthouse.services.embeddings import EmbeddingError, cosine_similarity, create_embedding_client
+from semantic_lighthouse.services.embeddings import EmbeddingError, create_embedding_client
 
-from ._shared import PGVECTOR_DIMENSION, snippet, validate_pgvector_dimension
+from ._shared import snippet, validate_pgvector_dimension
 
 router = APIRouter(prefix="/groups/{group_id}/documents", tags=["documents"])
 
@@ -567,9 +566,12 @@ def semantic_search_documents(
     except EmbeddingError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
-    if db.bind is not None and db.bind.dialect.name == "postgresql":
-        return _semantic_search_postgres(db, group_id, query_vector, q, limit)
-    return _semantic_search_python(db, group_id, query_vector, q, limit)
+    from semantic_lighthouse.services.retrieval import _semantic_search_with_vector
+
+    return [
+        _semantic_result(item.chunk, item.document, q, item.score)
+        for item in _semantic_search_with_vector(db, group_id, query_vector, limit)
+    ]
 
 
 @router.get("/{document_id}", response_model=DocumentDetailResponse)
@@ -687,62 +689,6 @@ def _semantic_result(
         score=score,
         retrieval_method=retrieval_method,
     )
-
-
-def _semantic_search_python(
-    db: Session,
-    group_id: str,
-    query_vector: list[float],
-    query: str,
-    limit: int,
-) -> list[SemanticSearchResult]:
-    rows = db.execute(
-        select(DocumentChunk, Document)
-        .join(Document, Document.id == DocumentChunk.document_id)
-        .where(
-            DocumentChunk.group_id == group_id,
-            Document.group_id == group_id,
-            Document.status == "ready",
-            DocumentChunk.embedding.is_not(None),
-        )
-    ).all()
-    scored = [
-        (cosine_similarity(query_vector, chunk.embedding or []), chunk, document)
-        for chunk, document in rows
-    ]
-    scored.sort(key=lambda item: item[0], reverse=True)
-    return [_semantic_result(chunk, document, query, score) for score, chunk, document in scored[:limit]]
-
-
-def _semantic_search_postgres(
-    db: Session,
-    group_id: str,
-    query_vector: list[float],
-    query: str,
-    limit: int,
-) -> list[SemanticSearchResult]:
-    vector_literal = "[" + ",".join(str(float(item)) for item in query_vector) + "]"
-    distance_expr = cast(
-        DocumentChunk.embedding.op("<=>")(cast(bindparam("query_vector"), Vector(PGVECTOR_DIMENSION))),
-        Float,
-    ).label("distance")
-    rows = db.execute(
-        select(DocumentChunk, Document, distance_expr)
-        .join(Document, Document.id == DocumentChunk.document_id)
-        .where(
-            DocumentChunk.group_id == group_id,
-            Document.group_id == group_id,
-            Document.status == "ready",
-            DocumentChunk.embedding.is_not(None),
-        )
-        .order_by(distance_expr.asc())
-        .limit(limit)
-        .params(query_vector=vector_literal)
-    ).all()
-    return [
-        _semantic_result(chunk, document, query, 1.0 - float(distance))
-        for chunk, document, distance in rows
-    ]
 
 
 def _ingestion_job_response(job: IngestionJob) -> IngestionJobResponse:

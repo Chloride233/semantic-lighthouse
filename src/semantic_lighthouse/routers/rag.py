@@ -2,8 +2,7 @@ from dataclasses import dataclass
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pgvector.sqlalchemy import Vector
-from sqlalchemy import Float, bindparam, cast, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from semantic_lighthouse.config import Settings, get_settings
@@ -18,9 +17,9 @@ from semantic_lighthouse.schemas import (
     RagRunSummary,
 )
 from semantic_lighthouse.services.chat import ChatError, create_chat_client
-from semantic_lighthouse.services.embeddings import EmbeddingError, cosine_similarity, create_embedding_client
+from semantic_lighthouse.services.embeddings import EmbeddingError, create_embedding_client
 
-from ._shared import PGVECTOR_DIMENSION, snippet, validate_pgvector_dimension
+from ._shared import snippet, validate_pgvector_dimension
 
 router = APIRouter(prefix="/groups/{group_id}/rag", tags=["rag"])
 
@@ -249,70 +248,13 @@ def _semantic_search(
     validate_pgvector_dimension(db, settings)
     client = create_embedding_client(settings)
     query_vector = client.embed_texts([query]).vectors[0]
-    if db.bind is not None and db.bind.dialect.name == "postgresql":
-        return _semantic_search_postgres(db, group_id, query_vector, limit)
-    return _semantic_search_python(db, group_id, query_vector, limit)
 
+    from semantic_lighthouse.services.retrieval import _semantic_search_with_vector
 
-def _semantic_search_python(
-    db: Session,
-    group_id: str,
-    query_vector: list[float],
-    limit: int,
-) -> list[RetrievedChunk]:
-    rows = db.execute(
-        select(DocumentChunk, Document)
-        .join(Document, Document.id == DocumentChunk.document_id)
-        .where(
-            DocumentChunk.group_id == group_id,
-            Document.group_id == group_id,
-            Document.status == "ready",
-            DocumentChunk.embedding.is_not(None),
-        )
-    ).all()
-    scored = [
-        (cosine_similarity(query_vector, chunk.embedding or []), chunk, document)
-        for chunk, document in rows
-    ]
-    scored.sort(key=lambda item: item[0], reverse=True)
+    results = _semantic_search_with_vector(db, group_id, query_vector, limit)
     return [
-        RetrievedChunk(chunk=chunk, document=document, score=score, retrieval_method="semantic")
-        for score, chunk, document in scored[:limit]
-    ]
-
-
-def _semantic_search_postgres(
-    db: Session,
-    group_id: str,
-    query_vector: list[float],
-    limit: int,
-) -> list[RetrievedChunk]:
-    vector_literal = "[" + ",".join(str(float(item)) for item in query_vector) + "]"
-    distance_expr = cast(
-        DocumentChunk.embedding.op("<=>")(cast(bindparam("query_vector"), Vector(PGVECTOR_DIMENSION))),
-        Float,
-    ).label("distance")
-    rows = db.execute(
-        select(DocumentChunk, Document, distance_expr)
-        .join(Document, Document.id == DocumentChunk.document_id)
-        .where(
-            DocumentChunk.group_id == group_id,
-            Document.group_id == group_id,
-            Document.status == "ready",
-            DocumentChunk.embedding.is_not(None),
-        )
-        .order_by(distance_expr.asc())
-        .limit(limit)
-        .params(query_vector=vector_literal)
-    ).all()
-    return [
-        RetrievedChunk(
-            chunk=chunk,
-            document=document,
-            score=1.0 - float(distance),
-            retrieval_method="semantic",
-        )
-        for chunk, document, distance in rows
+        RetrievedChunk(chunk=r.chunk, document=r.document, score=r.score, retrieval_method="semantic")
+        for r in results
     ]
 
 
