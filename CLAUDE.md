@@ -34,6 +34,9 @@ Before changing code, read these files in order:
 - Do not add speculative abstractions for future versions.
 - Keep group-scoped data isolation as a hard invariant.
 - Update project memory after every meaningful iteration.
+- **Every meaningful change must be committed to Git** (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`).
+- Before committing: verify `pytest` and `ruff check src tests` pass.
+- Never commit `.env*` (except `.example`), `*.db`, `.venv/`, `.claude/`, `__pycache__/`, build artifacts, or storage volumes.
 
 ## ECC / MCP Context Budget
 
