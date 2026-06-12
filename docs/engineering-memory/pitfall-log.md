@@ -4,11 +4,11 @@
 
 - Date: 2026-06-12
 - Version: Phase 0
-- Type: pitfall (environment)
-- Context: Phase 0 requires real PostgreSQL + pgvector smoke to verify P1-1 (PGVECTOR_DIMENSION fix) and HNSW index.
-- What happened: Docker client installed but daemon not running.
-- Engineering judgment: SQLite tests prove app logic; pgvector-specific code paths (<=> operator, HNSW index) are untested. Phase 0 cannot be definitively closed without this.
-- Mitigation: When Docker Desktop available, run `docker compose up -d postgres` + cloud smoke playbook. All other gates green.
+- Type: pitfall (environment) → **RESOLVED**
+- Context: Phase 0 required real PostgreSQL + pgvector smoke to verify P1-1 and HNSW index.
+- Resolution: Docker Desktop started successfully. Full smoke chain ran: register → login → group → upload → keyword search → semantic search. PGVECTOR_DIMENSION import verified — No NameError on real pgvector. HNSW index `m=16, ef_construction=200` confirmed in `pg_indexes`. Alembic reached `0006 (head)` on PostgreSQL.
+- Verification: Semantic search endpoint exercised the `<=>` operator path without error. Keyword search returned expected result. Upload → ETL → ready completed successfully.
+- Interview version: I confirmed the dialect-specific code path on real PostgreSQL after fixing a NameError that SQLite tests couldn't catch. SQLite tests are fast; PostgreSQL smoke is the deployment gate.
 
 ## SQLite Tests Cannot Cover PostgreSQL-Specific Code Paths
 
