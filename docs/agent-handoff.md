@@ -1,6 +1,16 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-12 02:30:00 +08:00
+Last updated: 2026-06-12 03:00:00 +08:00
+
+## Current Phase
+
+**Phase 0: Engineering Baseline Stabilization** — see `docs/project-roadmap.md` for the full 6-phase plan.
+
+Next priority tasks (Phase 0):
+1. V3.4 ETL final verification (pytest + ruff + Alembic)
+2. PostgreSQL + pgvector real smoke (local Docker or cloud ECS)
+3. .gitignore audit for secrets, artifacts, runtime data
+4. Cloud smoke playbook review
 
 ## Git Repository
 
