@@ -2,44 +2,49 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { panel } from '../components/panel.js';
 import { statusBadge } from '../components/badge.js';
+import { esc } from '../util/esc.js';
 
 export async function render(container, params) {
   const gid = params.gid || state.currentGroupId;
-  if (!gid) { container.innerHTML = '<p>Please select a group first.</p>'; return; }
+  if (!gid) { container.innerHTML = '<p>请先选择工作区。</p>'; return; }
 
-  container.innerHTML = '<h1 class="pageTitle">Documents</h1><p class="pageMeta">Upload, search, and manage knowledge base</p><div class="loading"><span class="spinner"></span>Loading documents...</div>';
+  container.innerHTML = '<h1 class="pageTitle">知识库</h1><p class="pageMeta">上传、导入和管理当前工作区的知识文档。</p><div class="loading"><span class="spinner"></span>正在加载文档...</div>';
 
   let docs = [];
   try {
-    const res = await api(`/groups/${gid}/documents/search?q=a&limit=50`);
+    const res = await api(`/groups/${gid}/documents`);
     docs = res || [];
   } catch (err) {
-    container.innerHTML = `<h1 class="pageTitle">Documents</h1><div class="errorCard"><p class="errorTitle">Failed to load</p><p class="errorDetail">${esc(err.detail)}</p><button onclick="location.reload()">Retry</button></div>`;
+    container.innerHTML = `<h1 class="pageTitle">知识库</h1><div class="errorCard"><p class="errorTitle">加载失败</p><p class="errorDetail">${esc(err.detail)}</p><button onclick="location.reload()">重试</button></div>`;
     return;
   }
 
   const role = state.currentRole;
   const canManage = role === 'owner' || role === 'admin';
 
-  const uploadForm = panel('Upload Markdown', `
-    <label>File <input type="file" id="docFileInput" accept=".md,.txt" /></label>
-    <button id="uploadDocBtn">Upload</button>
+  const uploadForm = canManage ? panel('导入知识', `
+    <label>文档文件 <input type="file" id="docFileInput" accept=".md,.txt,.pdf,.docx" multiple /></label>
+    <div class="actions">
+      <button id="uploadDocBtn">上传选中文件</button>
+      <button id="importLocalBtn" class="secondary">导入本地知识库</button>
+    </div>
     <p id="uploadMsg" class="muted" style="margin-top:8px"></p>
-  `);
+    <div id="uploadQueue" class="uploadQueue"></div>
+  `) : '';
 
-  const docList = panel('Documents', docs.length === 0
-    ? '<div class="emptyState"><div class="emptyIcon">&#x1f4c4;</div><p class="emptyTitle">No documents</p><p class="emptyHint">Upload a Markdown file to populate the knowledge base.</p></div>'
+  const docList = panel('文档列表', docs.length === 0
+    ? '<div class="emptyState"><div class="emptyIcon">文</div><p class="emptyTitle">还没有文档</p><p class="emptyHint">上传 Markdown、TXT、PDF 或 DOCX 文档，或者直接导入本地知识库。</p></div>'
     : `<table class="dataTable">
-        <thead><tr><th>Title</th><th>Status</th><th>Size</th>${canManage ? '<th>Actions</th>' : ''}</tr></thead>
+        <thead><tr><th>标题</th><th>状态</th><th>大小</th>${canManage ? '<th>操作</th>' : ''}</tr></thead>
         <tbody>
           ${docs.map((d) => `
             <tr>
-              <td><strong>${esc(d.title)}</strong><br><span class="muted">${esc(d.file_name)}</span></td>
+              <td><strong>${esc(d.title)}</strong><br><span class="muted">${esc(d.file_name || d.source_path || '')}</span></td>
               <td>${statusBadge(d.status)}${d.ingestion_error ? `<br><span class="muted">${esc(d.ingestion_error.substring(0, 80))}</span>` : ''}</td>
               <td>${d.file_size ? Math.round(d.file_size / 1024) + ' KB' : '-'}</td>
               ${canManage ? `<td>
-                ${d.status === 'ready' ? `<button class="secondary small archiveBtn" data-id="${d.id}">Archive</button>` : ''}
-                ${d.status === 'archived' ? `<button class="secondary small unarchiveBtn" data-id="${d.id}">Unarchive</button>` : ''}
+                ${d.status === 'ready' ? `<button class="secondary small archiveBtn" data-id="${d.id}">归档</button>` : ''}
+                ${d.status === 'archived' ? `<button class="secondary small unarchiveBtn" data-id="${d.id}">恢复</button>` : ''}
               </td>` : ''}
             </tr>
           `).join('')}
@@ -49,25 +54,77 @@ export async function render(container, params) {
 
   container.innerHTML = `${uploadForm}${docList}`;
 
-  document.getElementById('uploadDocBtn').addEventListener('click', async () => {
+  document.getElementById('uploadDocBtn')?.addEventListener('click', async () => {
     const fileInput = document.getElementById('docFileInput');
     const msgEl = document.getElementById('uploadMsg');
-    const file = fileInput.files?.[0];
-    if (!file) { msgEl.textContent = 'Please select a file.'; return; }
-    msgEl.textContent = 'Uploading...';
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const headers = state.accessToken ? { Authorization: `Bearer ${state.accessToken}` } : {};
-      const res = await fetch(`/groups/${gid}/documents/upload`, { method: 'POST', headers, body: formData, credentials: 'include' });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || 'Upload failed');
+    const queueEl = document.getElementById('uploadQueue');
+    const uploadBtn = document.getElementById('uploadDocBtn');
+    const importBtn = document.getElementById('importLocalBtn');
+    const selectedFiles = Array.from(fileInput.files || []);
+    const skippedFiles = selectedFiles.filter(shouldSkipUploadFile);
+    const files = selectedFiles.filter((file) => !shouldSkipUploadFile(file));
+    if (files.length === 0) {
+      msgEl.textContent = selectedFiles.length === 0 ? '请至少选择一个文件。' : '选中的都是索引或模板文件，已跳过。';
+      renderUploadQueue(queueEl, [], skippedFiles);
+      return;
+    }
+
+    uploadBtn.disabled = true;
+    importBtn.disabled = true;
+    const results = files.map((file) => ({ file, status: 'pending', message: '' }));
+    renderUploadQueue(queueEl, results, skippedFiles);
+
+    let uploadedCount = 0;
+    for (let i = 0; i < results.length; i += 1) {
+      const item = results[i];
+      item.status = 'uploading';
+      msgEl.textContent = `正在上传 ${i + 1}/${results.length}...`;
+      renderUploadQueue(queueEl, results, skippedFiles);
+      try {
+        const formData = new FormData();
+        formData.append('file', item.file);
+        const headers = state.accessToken ? { Authorization: `Bearer ${state.accessToken}` } : {};
+        const res = await fetch(`/groups/${gid}/documents/upload`, { method: 'POST', headers, body: formData, credentials: 'include' });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || '上传失败');
+        }
+        item.status = 'done';
+        item.message = '已上传';
+        uploadedCount += 1;
+      } catch (err) {
+        item.status = 'failed';
+        item.message = err.message;
       }
-      msgEl.textContent = 'Uploaded! Refreshing...';
+      renderUploadQueue(queueEl, results, skippedFiles);
+    }
+
+    const failedCount = results.length - uploadedCount;
+    msgEl.textContent = failedCount === 0
+      ? `已上传 ${uploadedCount} 个文件，正在刷新...`
+      : `已上传 ${uploadedCount}/${results.length}，失败 ${failedCount} 个。`;
+    uploadBtn.disabled = false;
+    importBtn.disabled = false;
+    if (uploadedCount > 0) {
+      setTimeout(() => render(container, params), 500);
+    }
+  });
+
+  document.getElementById('importLocalBtn')?.addEventListener('click', async () => {
+    const msgEl = document.getElementById('uploadMsg');
+    const uploadBtn = document.getElementById('uploadDocBtn');
+    const importBtn = document.getElementById('importLocalBtn');
+    uploadBtn.disabled = true;
+    importBtn.disabled = true;
+    msgEl.textContent = '正在导入本地知识库...';
+    try {
+      const res = await api(`/groups/${gid}/documents/import-local`, { method: 'POST' });
+      msgEl.textContent = `已导入 ${res.imported_count} 个，跳过 ${res.skipped_count} 个，正在刷新...`;
       setTimeout(() => render(container, params), 500);
     } catch (err) {
-      msgEl.textContent = `Error: ${err.message}`;
+      msgEl.textContent = `错误：${err.detail || err.message}`;
+      uploadBtn.disabled = false;
+      importBtn.disabled = false;
     }
   });
 
@@ -79,17 +136,41 @@ export async function render(container, params) {
       try {
         await api(`/groups/${gid}/documents/${docId}/archive`, { method: 'POST' });
         render(container, params);
-      } catch (err) { alert(err.detail || 'Archive failed'); }
+      } catch (err) { alert(err.detail || '归档失败'); }
     }
     if (btn.classList.contains('unarchiveBtn')) {
       try {
         await api(`/groups/${gid}/documents/${docId}/unarchive`, { method: 'POST' });
         render(container, params);
-      } catch (err) { alert(err.detail || 'Unarchive failed'); }
+      } catch (err) { alert(err.detail || '恢复失败'); }
     }
   });
 }
 
-function esc(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function shouldSkipUploadFile(file) {
+  const name = (file.name || '').toLowerCase();
+  return name === 'index.md' || name === 'auto_index.md' || name === 'schema.md' || name === '_template.md';
+}
+
+function renderUploadQueue(queueEl, results, skippedFiles = []) {
+  if (!queueEl) return;
+  const labels = {
+    pending: '等待上传',
+    uploading: '上传中',
+    done: '已上传',
+    failed: '失败',
+  };
+  const rows = results.map((item) => `
+    <li class="uploadQueueItem uploadQueueItem--${esc(item.status)}">
+      <span>${esc(item.file.name)}</span>
+      <strong>${esc(item.message || labels[item.status] || item.status)}</strong>
+    </li>
+  `);
+  const skipped = skippedFiles.map((file) => `
+    <li class="uploadQueueItem uploadQueueItem--skipped">
+      <span>${esc(file.name)}</span>
+      <strong>已跳过</strong>
+    </li>
+  `);
+  queueEl.innerHTML = rows.length || skipped.length ? `<ul>${rows.join('')}${skipped.join('')}</ul>` : '';
 }
