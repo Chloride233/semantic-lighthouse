@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Frontend Redesign Round 1 — Product Experience from Console
+
+- Date: 2026-06-13
+- Version: Phase 6.6
+- Type: highlight
+- Context: Frontend was a 6-page developer console with backend labels (RAG, Jobs) and a cold blue/gray palette. No onboarding or primary experience.
+- What happened: Warm teal/amber visual system, tabbed auth with brand identity, guided onboarding, `/ask` as primary home with confidence bar and citation cards, user-task navbar labels. Every old page and route preserved. Zero npm, zero backend changes, 12/12 Playwright smoke tests pass.
+- Engineering judgment: Additive redesign — CSS tokens upgrade all existing pages automatically. Old routes remain functional for compatibility. Product metaphor (lighthouse = guidance, warmth) now matches the visual language.
+- Verification: `python scripts/verify_ui.py` → 12 passed, 0 failed.
+
 ## V1 Security Model Is Built Around Failure Modes
 
 - Date: 2026-06-09
@@ -219,6 +229,58 @@
 - Fix or control: Three cleanup paths (success, hash-mismatch, parser-failure) each handle both temp and merged files appropriately. Hash verification streams in 64 KB chunks. Permission aligned across all upload endpoints.
 - Verification: 44 tests pass (4 new: cleanup after success, cleanup after hash mismatch, cleanup after parser failure, member GET rejection). Migration smoke clean at `0005_v22_chunked_uploads`.
 - Interview version: I hardened the upload chain across three dimensions — disk hygiene, memory safety, and permission consistency — so the protocol is not just functional but resilient under concurrent use on a small server.
+
+## V4.0 Multi-Turn Conversation Memory
+
+- Date: 2026-06-12
+- Version: V4.0
+- Type: highlight
+- Context: After V3 RAG single-turn was stable, the next engineering step was multi-turn conversation memory — not a fully autonomous agent, but a controlled mechanism for maintaining context across turns.
+- What happened: Added `conversations` + `conversation_messages` tables with `group_id`/`user_id` isolation; 4 API endpoints (create, list, get detail, send message); multi-turn history injection into LLM prompts via `history` parameter on `ChatClient.answer_question`; full audit trail via message persistence.
+- Engineering judgment: Multi-turn should extend the existing RAG pipeline (retrieve → cite → generate → audit) rather than replace it. Conversation memory inherits the same `group_id` boundary and user-level isolation that every other data path enforces. History injection is a prompt-layer concern, not a new storage or state management layer.
+- Risk if ignored: Building a full agent framework before conversation basics would couple tool-calling, memory governance, and workflow planning into a single delivery, making each layer harder to test and explain independently.
+- Fix or control: History limited to 10 rounds (20 messages); user-scoped ownership enforced on all GET/POST paths; `ChatClient.answer_question` accepts optional `history` parameter with backward-compatible default; no-change to existing RAG single-turn API.
+- Verification: 91 passed (77 existing + 14 new), 0 failures; ruff clean; Alembic migrated from empty SQLite DB to `0007_v4_conversations` (head).
+- Interview version: I added multi-turn conversation memory as a thin extension of the RAG audit chain — same permission boundary, same retrieval pipeline, same citation generation — so the system can sustain a consulting dialogue without a heavyweight agent framework.
+
+## V4.1 Controlled Tool Calling
+
+- Date: 2026-06-12
+- Version: V4.1
+- Type: highlight
+- Context: After V4.0 conversation memory was stable, the next step was letting the Agent request predefined tools — without building a full autonomous agent framework.
+- What happened: Added a server-side tool registry (`AVAILABLE_TOOLS`) with one tool (`search_knowledge_base`). Extended `ChatClient` with `generate_response()` that returns either a direct `ChatAnswer` or a `ToolCall`. Implemented a single-level tool loop in `send_message`: LLM requests tool → server executes with `group_id` boundary → tool result injected into conversation history → LLM produces final answer. Tool execution and results are persisted as `ConversationMessage` records with `role="tool"` and `tool_calls` JSON for audit.
+- Engineering judgment: Tool calling should be a deterministic server-side execution, not a model-controlled sandbox. The tool registry is a hardcoded whitelist; unknown tools return errors. The loop depth is bounded at 1 (no recursion). All tool searches inherit the caller's `group_id` permission — the model can't escape its data boundary.
+- Risk if ignored: Without tool calling, the Agent is limited to the initial retrieval, which may miss relevant results. But with unrestricted tool access, the model could attempt dangerous actions or access cross-group data.
+- Fix or control: Whitelist-only tool registry; `_execute_tool` validates tool name before execution; tool results capped at 2000 characters; `_messages_with_tools` instructs the model to request at most one tool; final answer path degrades gracefully if no answer produced.
+- Verification: 96 passed (91 existing + 5 new tool tests), 0 failures; ruff clean; all existing conversation tests pass without modification.
+- Interview version: I added controlled tool calling as a server-side gate rather than a model-side capability — the Agent can ask for help, but the server decides what's safe to execute.
+
+## Phase 6 Frontend Engineering Console
+
+- Date: 2026-06-12
+- Version: V6.0
+- Type: highlight
+- Context: After backend phases 0-4.1 stabilized, the project needed a real, maintainable frontend for demo and operations — not a throwaway Swagger-only experience.
+- What happened: Built a complete SPA console using vanilla JS ES modules with a hash-based client router. Six pages cover the full demo flow: Auth (login/register), Groups (list/create/join), Documents (upload/search/archive), Ingestion Jobs (list/detail/retry), RAG (question → answer → citations → confidence → knowledge gaps), and Conversations (list + multi-turn chat with tool call display). Zero npm dependencies, zero build step — served directly by FastAPI's existing StaticFiles mount.
+- Engineering judgment: A frontend for a backend-heavy prototype should be as lightweight as the backend's own toolchain. Adding a React/Vue build pipeline for 6 CRUD pages would burden future maintainers with node_modules, webpack configs, and version drift. ES modules are native, `/console` loads instantly, and the module-per-page structure is trivially extensible.
+- Risk if ignored: Without a real UI, every demo requires Swagger + curl — unusable for non-engineers and unconvincing in interviews. But building a "big admin panel" would add maintenance debt disproportionate to the project's stage.
+- Fix or control: Vanilla JS ES modules, hash-based routing (~50 lines), shared CSS custom properties, one file per page/component. Permission-aware: Owner/Admin see archive/retry buttons; Members don't. Auth state drives navbar visibility. No backend changes required.
+- Verification: 96 backend tests pass (zero regression); ruff clean; all 11 frontend files load via ES module imports; `/console` serves the new SPA.
+- Interview version: I built a real frontend console without installing a single npm package — the same `uvicorn` command that serves the API also serves the SPA, and the module-per-page structure keeps the codebase explainable.
+
+## Phase 7 Agent Orchestration — Lightweight State Machine
+
+- Date: 2026-06-12
+- Version: V7.0
+- Type: highlight
+- Context: After V4.1 single-tool Agent was stable, the next step was multi-step Agent workflows with explicit state, audit trail, human-in-the-loop, and long-term memory — without introducing LangGraph or AutoGen.
+- What happened: Built a lightweight FSM (plan→execute→observe→conclude) on SQLAlchemy. Added 3 tables, 8 API endpoints, and a 3-tool registry with role requirements and risk flags. Every step records: thought, action_type, action_detail, observation, status, and error_message. Human-in-the-loop: risky tools pause the run; user confirms/rejects via API.
+- Engineering judgment: The workflow is linear — not a DAG, not multi-agent. A 50-line state machine with persisted transitions is more explainable than LangGraph's StateGraph with checkpointers. Framework cost (dependency, mental model, serialization contract) is not justified by problem complexity.
+- Risk if ignored: Without step-level auditing, multi-tool Agent runs are black boxes — impossible to debug why a search failed or what the Agent was "thinking" at each step.
+- Fix or control: Every step has immutable `thought`. Failed steps have `error_message`. Risky tools flagged `is_risky=True`. Human confirmation recorded as `action_type=ask_user`. Memory scoped user/group with TTL.
+- Verification: 10 agent tests pass; ruff clean; Alembic at `0008_v7_agent_orchestration`.
+- Interview version: I built a multi-step Agent orchestrator as a deterministic state machine — when something goes wrong, you read every step the Agent took, not guess.
 
 ## Claude Code Handoff Memory Established
 

@@ -1,20 +1,68 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-12 05:00:00 +08:00
+Last updated: 2026-06-13
 
 ## Current Phase
 
-**Phases 0–3 delivered** — see `docs/project-roadmap.md`.
+**Phases 0–7 delivered** — see `docs/project-roadmap.md`.
 
 - **Phase 1**: Hybrid search + retrieval eval
 - **Phase 2**: Archive/unarchive + document lifecycle
 - **Phase 3**: Citation reference guard + confidence override
-  - `sanitize_references()` — out-of-range [N] → "(source unavailable)"
-  - `adjusted_confidence()` — server-side evidence quality caps
-  - `docs/eval/rag-queries.json` — 15 RAG eval queries
-  - 77 tests, ruff clean, 13 commits
+- **Phase 4.0**: V4 Agent multi-turn dialogue (conversation memory + audit)
+- **Phase 4.1**: Controlled tool calling (server-side tool registry)
+- **Phase 6**: Frontend Engineering Console
+  - Vanilla JS ES modules + hash router (zero npm, zero build, zero node_modules)
+  - 6 pages: Auth, Groups, Documents, Jobs, RAG, Conversations
+  - Permission-aware UI, chat interface, RAG demo
+- **Phase 7**: Agent Orchestration ← implemented, under review
+  - 3 tables (`agent_runs`, `agent_steps`, `agent_memories`), 8 API endpoints
+  - Tool registry: 3 tools with role requirements and risk flags
+  - Lightweight state machine (plan→execute→conclude), zero framework dependency
+  - Human-in-the-loop: user confirm/reject via API
+  - 10 tests written, awaiting full verification (slow SQLite fixture — see pitfall log)
+  - 7.5 (Agent eval set) not started
 
-Next priority: Phase 4 (Agent) or more Phase 3 hardening (rerank, multi-doc RAG).
+**Verified test baseline**: Backend not re-tested (zero backend changes). Alembic head: `0008_v7_agent_orchestration`. 17 tables.
+
+**Phase 6.6 — Frontend Redesign Round 1 delivered (2026-06-13)**:
+- CSS tokens: teal/amber warm palette, type scale, spacing/shadows, 400+ lines. All old pages inherit new look.
+- Auth page: tabbed Sign In / Register, 🔦 brand, tagline, registration feedback, post-login routing.
+- Onboarding page: guided first-use workspace creation → auto-navigate to Knowledge.
+- Ask page (`#/ask`): new home. Question → answer with confidence bar, citation cards, gaps, next steps. Empty state.
+- Navbar: Ask / Knowledge / Conversations / Workspace. No Jobs/RAG nav items.
+- `esc.js`: shared utility, `answer-card.js`: reusable component.
+- Old pages preserved: rag.js, jobs.js, groups.js, documents.js, conversations.js all functional.
+- Zero backend changes. Zero npm/build deps.
+- `verify_ui.py` 12/12 Playwright tests pass (auth brand, register, onboarding, documents, ask, conversations, workspace, old RAG, old jobs, old documents, logout, re-login→ask).
+
+Phase 5 operational readiness delivered:
+- `/health` returns DB connectivity + provider status
+- `X-Request-ID` middleware for request tracing
+- Smoke playbook: 4-chain verification (RAG, Conversation, Agent, Console)
+
+Phase 6.5 E2E tests delivered:
+- 3 Playwright browser tests: Auth→Groups, Document Upload, RAG Answer
+- uvicorn subprocess fixture with SQLite + alembic auto-migration
+- **109 tests total** (106 backend + 3 E2E), ruff clean
+- Frontend bug fix: `/auth/me` now returns `group_name`, frontend uses `group_id`/`group_name`
+- Frontend bug fix: navbar group selector uses `setState()` (not direct mutation)
+- Frontend bug fix: documents page uses non-empty search query default
+
+Frontend UX polish delivered (2026-06-13):
+- CSS: deleted V1 legacy (~100 lines), fixed .topbar duplicate, added spinner/emptyState/errorCard/toast/tableHover
+- Pages: all 6 pages have pageTitle, spinner loading, unified empty states
+- Navbar: active link highlighting, setState for group selector
+- Toast: success/error notifications (3s auto-dismiss)
+- buttons: disabled state styling
+- 109 tests pass, 5/6 pages browser-verified
+
+Frontend Redesign Round 1 delivered (2026-06-13):
+- See Phase 6.6 entry above for full scope
+- 12/12 browser smoke tests pass via verify_ui.py
+- Plan: docs/frontend-redesign-plan.md (Round 2 deferred)
+
+Next priority: Cloud deployment to ECS, then Round 2 (Knowledge merge, Conversations two-panel).
 
 ## Git Repository
 
@@ -64,25 +112,23 @@ Current important API surfaces:
 - `POST /groups/{group_id}/documents/{document_id}/ingestion-jobs`
 - `GET /groups/{group_id}/documents/{document_id}/ingestion-jobs`
 - `GET /groups/{group_id}/documents/ingestion-jobs/{job_id}`
+- `POST /groups/{group_id}/conversations`
+- `GET /groups/{group_id}/conversations`
+- `GET /groups/{group_id}/conversations/{id}`
+- `POST /groups/{group_id}/conversations/{id}/messages`
 
 ## Verification Status
-
-Most recent known local review before this handoff:
-
-- Full test suite: **54 passed, 111 warnings** (was 46; +8 new ETL pipeline tests).
-- Alembic migration from empty SQLite database reached `0006_v34_ingestion_jobs`.
-- The FastAPI / Docker cloud deployment had previously run on Alibaba Cloud ECS up through the V3 cloud chain.
 
 Latest local verification:
 
 ```text
-2026-06-12 02:00:00 +08:00
+2026-06-12 09:00:00 +08:00
 
 Command:
 .\.venv\Scripts\python -m pytest -p no:cacheprovider --basetemp=.tmp/pytest-temp
 
 Result:
-55 passed, 1 warning
+96 passed, 1 warning
 
 Warning:
 StarletteDeprecationWarning only (FastAPI on_event→lifespan migration completed).
@@ -98,7 +144,7 @@ Command:
 .\.venv\Scripts\python -m alembic current
 
 Result:
-0006_v34_ingestion_jobs (head)
+0007_v4_conversations (head)
 ```
 
 ## Current Risks And Next Priority

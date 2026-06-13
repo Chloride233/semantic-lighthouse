@@ -1,15 +1,17 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 from pathlib import Path
+from uuid import uuid4
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import select, text
 
+from semantic_lighthouse.config import get_settings
 from semantic_lighthouse.database import SessionLocal
 from semantic_lighthouse.models import Document, IngestionJob, utc_now
-from semantic_lighthouse.routers import auth, documents, groups, rag
+from semantic_lighthouse.routers import agent, auth, conversations, documents, groups, rag
 
 
 def _recover_orphaned_jobs() -> None:
@@ -67,14 +69,39 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    @app.middleware("http")
+    async def _request_id_middleware(request: Request, call_next) -> Response:
+        request_id = request.headers.get("X-Request-ID", str(uuid4()))
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
     @app.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+    def health() -> dict:
+        result: dict = {"status": "ok", "database": "unknown", "chat_provider": "unknown", "embedding_provider": "unknown"}
+        try:
+            db = SessionLocal()
+            try:
+                db.execute(text("SELECT 1"))
+                result["database"] = "connected"
+            finally:
+                db.close()
+        except Exception:
+            result["database"] = "unavailable"
+        try:
+            settings = get_settings()
+            result["chat_provider"] = settings.chat_provider
+            result["embedding_provider"] = settings.embedding_provider
+        except Exception:
+            pass
+        return result
 
     app.include_router(auth.router)
     app.include_router(groups.router)
     app.include_router(documents.router)
     app.include_router(rag.router)
+    app.include_router(conversations.router)
+    app.include_router(agent.router)
 
     static_dir = Path(__file__).resolve().parents[2] / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
