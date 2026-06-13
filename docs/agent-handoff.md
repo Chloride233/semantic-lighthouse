@@ -60,7 +60,12 @@ Frontend UX polish delivered (2026-06-13):
 Frontend Redesign Round 1 delivered (2026-06-13):
 - See Phase 6.6 entry above for full scope
 - 12/12 browser smoke tests pass via verify_ui.py
-- Plan: docs/frontend-redesign-plan.md (Round 2 deferred)
+- R1 acceptance complete — ruff clean, manual smoke checklist in plan §10
+- Code review: APPROVED, 5/7 findings fixed
+- E2E: tests/e2e/test_console_e2e.py updated for R1 flow (4 test chains, needs live server)
+- Codemap: docs/CODEMAPS/frontend.md updated
+
+**R1 Verification**: ruff clean, verify_ui.py 12/12 passed.
 
 Next priority: Cloud deployment to ECS, then Round 2 (Knowledge merge, Conversations two-panel).
 

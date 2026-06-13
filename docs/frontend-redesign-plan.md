@@ -1,7 +1,7 @@
 # Frontend Redesign Plan: Semantic Lighthouse
 
 **Date**: 2026-06-13
-**Status**: Plan — Round 1 scope defined, awaiting approval
+**Status**: Round 1 COMPLETE — verified, committed (`f04b7a9`)
 **Complexity**: Small (6 phases, 4 new files, 4 modified files, 0 deletions)
 
 ## Summary — Round 1
@@ -430,3 +430,60 @@ curl -s http://127.0.0.1:8000/console → returns HTML with new title
 | 7 | Old pages (documents, jobs, conversations, groups) still look correct |
 | 8 | No "RAG", "Jobs", "Console" in nav labels |
 | 9 | Responsive at 768px |
+
+---
+
+## 10. R1 Acceptance — Actual Results (2026-06-13)
+
+### 10.1 Automated Verification
+
+| Check | Result |
+|-------|--------|
+| `ruff check src tests` | All checks passed |
+| `scripts/verify_ui.py` | **12/12 Playwright smoke tests pass** |
+| `tests/e2e/test_console_e2e.py` | R1-adapted (4 test chains). Requires live server (`--base-url`). Not run due to Windows subprocess path resolution. |
+
+### 10.2 verify_ui.py Results
+
+```
+[PASS] Auth renders (brand + tabs)
+[PASS] Register success
+[PASS] Onboarding renders (0 groups)
+[PASS] Documents renders after onboarding
+[PASS] Ask page renders as home
+[PASS] Conversations renders
+[PASS] Workspace renders
+[PASS] Old RAG route functional
+[PASS] Old Jobs route loads
+[PASS] Old Documents route functional
+[PASS] Logout redirects to login
+[PASS] Re-login → Ask (home)
+```
+
+### 10.3 Manual Smoke Checklist
+
+Run with the app started against a local server:
+
+| # | Action | Expected |
+|---|--------|----------|
+| 1 | Open `/console` | Redirects to `#/login`, brand icon + tagline visible |
+| 2 | Click Register tab, fill form, submit | Success toast + auto-switch to Sign In |
+| 3 | Sign in (0 groups) | Lands on `/onboarding` |
+| 4 | Create workspace | Lands on Knowledge (Documents) page |
+| 5 | Click "Ask" in navbar | `/ask` page with question input |
+| 6 | Upload a .md file on Knowledge page | Document appears in list |
+| 7 | Return to Ask, type question, submit | Answer card with confidence bar, citations, gaps, next steps |
+| 8 | Click "Conversations" | Conversations page renders |
+| 9 | Click "Workspace" | Groups page renders |
+| 10 | Navigate to `#/groups/:gid/rag` | Old RAG page still works |
+| 11 | Logout then login again | Directly enters `/ask` (has groups) |
+| 12 | Navbar shows only: Ask, Knowledge, Conversations, Workspace | No RAG, Jobs, Console labels |
+
+### 10.4 Code Review Resolution
+
+| Severity | Count | Status |
+|----------|-------|--------|
+| CRITICAL | 0 | — |
+| HIGH | 0 | — |
+| MEDIUM | 4 | 3 fixed, 1 pre-existing (main.py F401) |
+| LOW | 3 | 2 fixed, 1 deferred (doc check heuristic) |
