@@ -178,14 +178,26 @@ def logout(
 
 @router.get("/me", response_model=MeResponse)
 def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> MeResponse:
+    from semantic_lighthouse.models import Group
+
     memberships = db.scalars(select(GroupMembership).where(GroupMembership.user_id == current_user.id)).all()
+    group_ids = [m.group_id for m in memberships]
+    groups_map: dict[str, str] = {}
+    if group_ids:
+        groups = db.scalars(select(Group).where(Group.id.in_(group_ids))).all()
+        groups_map = {g.id: g.name for g in groups}
     return MeResponse(
         id=current_user.id,
         email=current_user.email,
         display_name=current_user.display_name,
         created_at=current_user.created_at,
         groups=[
-            {"group_id": membership.group_id, "user_id": membership.user_id, "role": membership.role}
+            {
+                "group_id": membership.group_id,
+                "group_name": groups_map.get(membership.group_id, ""),
+                "user_id": membership.user_id,
+                "role": membership.role,
+            }
             for membership in memberships
         ],
     )

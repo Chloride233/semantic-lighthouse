@@ -14,6 +14,13 @@ from semantic_lighthouse.models import Document, IngestionJob, utc_now
 from semantic_lighthouse.routers import agent, auth, conversations, documents, groups, rag
 
 
+class NoCacheStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope: dict) -> Response:
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+
 def _recover_orphaned_jobs() -> None:
     """Mark orphaned ingestion jobs and documents after a crash.
 
@@ -104,11 +111,13 @@ def create_app() -> FastAPI:
     app.include_router(agent.router)
 
     static_dir = Path(__file__).resolve().parents[2] / "static"
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    app.mount("/static", NoCacheStaticFiles(directory=static_dir), name="static")
 
     @app.get("/console", include_in_schema=False)
     def console() -> FileResponse:
-        return FileResponse(static_dir / "console.html")
+        response = FileResponse(static_dir / "console.html")
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     return app
 

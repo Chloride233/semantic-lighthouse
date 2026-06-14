@@ -12,8 +12,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from semantic_lighthouse.config import Settings, get_settings
 from semantic_lighthouse.database import get_db
-from semantic_lighthouse.main import create_app
 from semantic_lighthouse.models import Base
+import semantic_lighthouse.main as app_main
 import semantic_lighthouse.routers.documents as documents_router
 
 
@@ -40,7 +40,7 @@ def db_session() -> Generator[Session]:
 
 @pytest.fixture()
 def client(db_session: Session) -> Generator[TestClient]:
-    app = create_app()
+    app = app_main.create_app()
 
     def override_get_db() -> Generator[Session]:
         yield db_session
@@ -56,9 +56,12 @@ def client(db_session: Session) -> Generator[TestClient]:
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_settings] = override_get_settings
 
-    # Patch SessionLocal so that BackgroundTasks use the same file-backed DB.
+    # Patch SessionLocal so that lifespan recovery and BackgroundTasks use the same file-backed DB.
     test_sessionmaker = sessionmaker(bind=db_session.get_bind(), autoflush=False, autocommit=False)
-    with mock.patch.object(documents_router, "SessionLocal", test_sessionmaker):
+    with (
+        mock.patch.object(app_main, "SessionLocal", test_sessionmaker),
+        mock.patch.object(documents_router, "SessionLocal", test_sessionmaker),
+    ):
         with TestClient(app) as test_client:
             yield test_client
 

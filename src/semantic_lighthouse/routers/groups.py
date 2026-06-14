@@ -29,8 +29,11 @@ from semantic_lighthouse.security import generate_refresh_secret, hash_secret
 router = APIRouter(prefix="/groups", tags=["groups"])
 
 
-def _membership_response(membership: GroupMembership) -> MembershipResponse:
-    return MembershipResponse(group_id=membership.group_id, user_id=membership.user_id, role=membership.role)
+def _membership_response(membership: GroupMembership, group_name: str = "") -> MembershipResponse:
+    return MembershipResponse(
+        group_id=membership.group_id, group_name=group_name,
+        user_id=membership.user_id, role=membership.role,
+    )
 
 
 def _join_request_response(join_request: GroupJoinRequest) -> JoinRequestResponse:

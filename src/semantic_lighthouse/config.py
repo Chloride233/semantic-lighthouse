@@ -46,12 +46,16 @@ def _bool_from_env(value: str | None, default: bool) -> bool:
     return value.lower() in {"1", "true", "yes", "on"}
 
 
+def _str_from_env(name: str, default: str) -> str:
+    return os.getenv(name, default).strip()
+
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings(
-        database_url=os.getenv("DATABASE_URL", Settings.model_fields["database_url"].default),
-        jwt_secret_key=os.getenv("JWT_SECRET_KEY", Settings.model_fields["jwt_secret_key"].default),
-        jwt_algorithm=os.getenv("JWT_ALGORITHM", Settings.model_fields["jwt_algorithm"].default),
+        database_url=_str_from_env("DATABASE_URL", Settings.model_fields["database_url"].default),
+        jwt_secret_key=_str_from_env("JWT_SECRET_KEY", Settings.model_fields["jwt_secret_key"].default),
+        jwt_algorithm=_str_from_env("JWT_ALGORITHM", Settings.model_fields["jwt_algorithm"].default),
         access_token_expire_minutes=int(
             os.getenv(
                 "ACCESS_TOKEN_EXPIRE_MINUTES",
@@ -64,7 +68,7 @@ def get_settings() -> Settings:
                 str(Settings.model_fields["refresh_token_expire_days"].default),
             )
         ),
-        refresh_cookie_name=os.getenv(
+        refresh_cookie_name=_str_from_env(
             "REFRESH_COOKIE_NAME",
             Settings.model_fields["refresh_cookie_name"].default,
         ),
@@ -72,8 +76,8 @@ def get_settings() -> Settings:
             os.getenv("COOKIE_SECURE"),
             Settings.model_fields["cookie_secure"].default,
         ),
-        cookie_samesite=os.getenv("COOKIE_SAMESITE", Settings.model_fields["cookie_samesite"].default),
-        knowledge_base_path=os.getenv(
+        cookie_samesite=_str_from_env("COOKIE_SAMESITE", Settings.model_fields["cookie_samesite"].default),
+        knowledge_base_path=_str_from_env(
             "KNOWLEDGE_BASE_PATH",
             Settings.model_fields["knowledge_base_path"].default,
         ),
@@ -83,11 +87,11 @@ def get_settings() -> Settings:
                 str(Settings.model_fields["max_markdown_upload_bytes"].default),
             )
         ),
-        document_storage_path=os.getenv(
+        document_storage_path=_str_from_env(
             "DOCUMENT_STORAGE_PATH",
             Settings.model_fields["document_storage_path"].default,
         ),
-        upload_tmp_path=os.getenv("UPLOAD_TMP_PATH", Settings.model_fields["upload_tmp_path"].default),
+        upload_tmp_path=_str_from_env("UPLOAD_TMP_PATH", Settings.model_fields["upload_tmp_path"].default),
         max_document_upload_bytes=int(
             os.getenv(
                 "MAX_DOCUMENT_UPLOAD_BYTES",
@@ -101,9 +105,9 @@ def get_settings() -> Settings:
             )
         ),
         upload_chunk_bytes=int(os.getenv("UPLOAD_CHUNK_BYTES", str(Settings.model_fields["upload_chunk_bytes"].default))),
-        embedding_provider=os.getenv("EMBEDDING_PROVIDER", Settings.model_fields["embedding_provider"].default),
-        dashscope_api_key=os.getenv("DASHSCOPE_API_KEY") or None,
-        embedding_model=os.getenv("EMBEDDING_MODEL", Settings.model_fields["embedding_model"].default),
+        embedding_provider=_str_from_env("EMBEDDING_PROVIDER", Settings.model_fields["embedding_provider"].default),
+        dashscope_api_key=(os.getenv("DASHSCOPE_API_KEY") or "").strip() or None,
+        embedding_model=_str_from_env("EMBEDDING_MODEL", Settings.model_fields["embedding_model"].default),
         embedding_dimension=int(
             os.getenv("EMBEDDING_DIMENSION", str(Settings.model_fields["embedding_dimension"].default))
         ),
@@ -116,10 +120,10 @@ def get_settings() -> Settings:
                 str(Settings.model_fields["embedding_timeout_seconds"].default),
             )
         ),
-        chat_provider=os.getenv("CHAT_PROVIDER", Settings.model_fields["chat_provider"].default),
-        deepseek_api_key=os.getenv("DEEPSEEK_API_KEY") or None,
-        chat_base_url=os.getenv("CHAT_BASE_URL", Settings.model_fields["chat_base_url"].default),
-        chat_model=os.getenv("CHAT_MODEL", Settings.model_fields["chat_model"].default),
+        chat_provider=_str_from_env("CHAT_PROVIDER", Settings.model_fields["chat_provider"].default),
+        deepseek_api_key=(os.getenv("DEEPSEEK_API_KEY") or "").strip() or None,
+        chat_base_url=_str_from_env("CHAT_BASE_URL", Settings.model_fields["chat_base_url"].default),
+        chat_model=_str_from_env("CHAT_MODEL", Settings.model_fields["chat_model"].default),
         chat_timeout_seconds=int(
             os.getenv("CHAT_TIMEOUT_SECONDS", str(Settings.model_fields["chat_timeout_seconds"].default))
         ),

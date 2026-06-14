@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import re
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
@@ -40,18 +41,33 @@ def answer_question(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> RagAnswerResponse:
+    t0 = time.monotonic()
     get_membership_or_404(db, current_user.id, group_id)
     limit = request.limit or settings.rag_top_k
     retrieved, retrieval_method = _retrieve(db, group_id, request.question, request.retrieval_method, limit, settings)
     citations = _citations(retrieved, request.question, settings.rag_max_context_chars)
+
     if not citations:
         response = _no_evidence_response(request.question, retrieval_method)
-        return _persist_rag_run(db, group_id, current_user.id, response)
+        duration_ms = int((time.monotonic() - t0) * 1000)
+        return _persist_rag_run(
+            db, group_id, current_user.id, response,
+            status="no_evidence", duration_ms=duration_ms, retrieved_count=len(retrieved),
+        )
 
     client = create_chat_client(settings)
     try:
         answer = client.answer_question(request.question, citations)
     except ChatError as exc:
+        duration_ms = int((time.monotonic() - t0) * 1000)
+        try:
+            _persist_failed_run(
+                db, group_id, current_user.id, request.question,
+                citations, retrieval_method, str(exc), duration_ms, len(retrieved),
+            )
+        except Exception:
+            # Audit persistence failure must not mask the original ChatError.
+            pass
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     sanitized = sanitize_references(answer.answer, citations)
@@ -68,7 +84,11 @@ def answer_question(
         retrieval_method=retrieval_method,
         model=answer.model,
     )
-    return _persist_rag_run(db, group_id, current_user.id, response)
+    duration_ms = int((time.monotonic() - t0) * 1000)
+    return _persist_rag_run(
+        db, group_id, current_user.id, response,
+        status="success", duration_ms=duration_ms, retrieved_count=len(retrieved),
+    )
 
 
 @router.get("/runs", response_model=list[RagRunSummary])
@@ -106,12 +126,12 @@ def _no_evidence_response(question: str, retrieval_method: str) -> RagAnswerResp
     return RagAnswerResponse(
         run_id="",
         question=question,
-        answer="The knowledge base did not return enough evidence to generate a reliable consulting answer.",
+        answer="当前知识库没有返回足够证据，无法生成可靠的咨询式回答。",
         confidence="low",
-        knowledge_gaps=["No retrieved document chunk supports this question."],
+        knowledge_gaps=["没有检索到能够支撑该问题的文档片段。"],
         next_steps=[
-            "Add relevant knowledge base documents and run retrieval again.",
-            "Rewrite the question with terms closer to known entities or business scenarios.",
+            "补充相关知识库文档后重新检索。",
+            "将问题改写为更贴近已知实体、业务场景或方法论的表达。",
         ],
         citations=[],
         retrieval_method=retrieval_method,
@@ -124,6 +144,10 @@ def _persist_rag_run(
     group_id: str,
     user_id: str,
     response: RagAnswerResponse,
+    *,
+    status: str = "success",
+    duration_ms: int | None = None,
+    retrieved_count: int | None = None,
 ) -> RagAnswerResponse:
     run = RagRun(
         group_id=group_id,
@@ -136,11 +160,45 @@ def _persist_rag_run(
         citations=[citation.model_dump() for citation in response.citations],
         knowledge_gaps=response.knowledge_gaps,
         next_steps=response.next_steps,
+        status=status,
+        duration_ms=duration_ms,
+        retrieved_count=retrieved_count,
     )
     db.add(run)
     db.commit()
     db.refresh(run)
     return response.model_copy(update={"run_id": run.id})
+
+
+def _persist_failed_run(
+    db: Session,
+    group_id: str,
+    user_id: str,
+    question: str,
+    citations: list[RagCitation],
+    retrieval_method: str,
+    error_message: str,
+    duration_ms: int,
+    retrieved_count: int,
+) -> None:
+    run = RagRun(
+        group_id=group_id,
+        user_id=user_id,
+        question=question,
+        answer="RAG 回答生成失败，详见 error_message。",
+        confidence="low",
+        retrieval_method=retrieval_method,
+        model="error",
+        citations=[citation.model_dump() for citation in citations],
+        knowledge_gaps=[],
+        next_steps=[],
+        status="error",
+        error_message=error_message,
+        duration_ms=duration_ms,
+        retrieved_count=retrieved_count,
+    )
+    db.add(run)
+    db.commit()
 
 
 def _rag_run_summary(run: RagRun) -> RagRunSummary:
@@ -153,6 +211,8 @@ def _rag_run_summary(run: RagRun) -> RagRunSummary:
         retrieval_method=run.retrieval_method,
         model=run.model,
         citation_count=len(run.citations or []),
+        status=run.status,
+        duration_ms=run.duration_ms,
         created_at=run.created_at,
     )
 
@@ -170,6 +230,10 @@ def _rag_run_detail(run: RagRun) -> RagRunDetail:
         citations=[RagCitation.model_validate(citation) for citation in run.citations or []],
         retrieval_method=run.retrieval_method,
         model=run.model,
+        status=run.status,
+        error_message=run.error_message,
+        duration_ms=run.duration_ms,
+        retrieved_count=run.retrieved_count,
         created_at=run.created_at,
     )
 

@@ -1,0 +1,22 @@
+[
+  {"id":"q01","query":"什么是Ontology？企业为什么需要它？","category":"keyword","expected_document_titles":["企业Ontology设计指南"],"notes":"直问Ontology定义"},
+  {"id":"q02","query":"AI转型路线图分几个阶段？","category":"keyword","expected_document_titles":["AI转型路线图方法论"],"notes":"直问路线图阶段"},
+  {"id":"q03","query":"知识图谱中有哪些关系类型？","category":"keyword","expected_document_titles":["知识图谱构建实战"],"notes":"直问关系类型"},
+  {"id":"q04","query":"RAG架构由哪些模块组成？","category":"keyword","expected_document_titles":["RAG检索增强生成技术架构"],"notes":"直问RAG模块"},
+  {"id":"q05","query":"HNSW索引是什么？有什么优势？","category":"keyword","expected_document_titles":["企业级语义搜索设计","RAG检索增强生成技术架构"],"notes":"HNSW两篇文章都有"},
+  {"id":"q06","query":"LLM运维需要监控哪些指标？","category":"keyword","expected_document_titles":["LLMOps运维实践"],"notes":"直问LLMOps监控"},
+  {"id":"q07","query":"企业如何进行AI成熟度评估？","category":"keyword","expected_document_titles":["企业AI成熟度评估模型"],"notes":"直问成熟度评估"},
+  {"id":"q08","query":"Prompt工程有哪些最佳实践？","category":"keyword","expected_document_titles":["Prompt工程最佳实践"],"notes":"直问Prompt工程"},
+  {"id":"q09","query":"数据治理包括哪些方面的内容？","category":"keyword","expected_document_titles":["数据治理与数据资产化"],"notes":"直问数据治理"},
+  {"id":"q10","query":"Agent的工作流程是怎样的？","category":"keyword","expected_document_titles":["多Agent协作架构"],"notes":"直问Agent工作流"},
+  {"id":"q11","query":"怎样让大模型在企业特定领域表现更好？","category":"semantic","expected_document_titles":["模型微调与领域适配"],"notes":"同义改写微调场景"},
+  {"id":"q12","query":"有哪些方法可以防止AI回答编造虚假信息？","category":"semantic","expected_document_titles":["RAG检索增强生成技术架构","Prompt工程最佳实践"],"notes":"防编造→RAG引用守卫+Prompt约束"},
+  {"id":"q13","query":"公司机器学习项目的持续交付怎么保证质量？","category":"semantic","expected_document_titles":["MLOps数据管道设计","LLMOps运维实践"],"notes":"业务化改写MLOps"},
+  {"id":"q14","query":"AI系统上线后怎么监控成本？","category":"semantic","expected_document_titles":["企业AI成本优化策略","LLMOps运维实践"],"notes":"成本监控→成本优化+LLMOps"},
+  {"id":"q15","query":"检索得到的文档和用户问题如何一起给到模型？","category":"semantic","expected_document_titles":["RAG检索增强生成技术架构","Prompt工程最佳实践"],"notes":"RAG工作原理白话"},
+  {"id":"q16","query":"怎么知道AI回答质量好不好？","category":"semantic","expected_document_titles":["模型评估与评测体系"],"notes":"白话问模型评估"},
+  {"id":"q17","query":"公司打算用AI但不知道从哪开始怎么规划","category":"semantic","expected_document_titles":["AI转型路线图方法论","企业AI成熟度评估模型"],"notes":"业务场景式提问"},
+  {"id":"q18","query":"AI系统怎么保证用户数据隐私合规？","category":"semantic","expected_document_titles":["AI安全与合规框架","数据治理与数据资产化"],"notes":"隐私合规→安全框架+数据治理"},
+  {"id":"q19","query":"微调和RAG哪个更划算？什么场景用哪个？","category":"multi","expected_document_titles":["模型微调与领域适配","RAG检索增强生成技术架构","企业AI成本优化策略"],"notes":"跨文档比较三篇"},
+  {"id":"q20","query":"语义搜索跟传统关键词搜索到底有什么不同？","category":"multi","expected_document_titles":["企业级语义搜索设计","RAG检索增强生成技术架构"],"notes":"搜索技术比较"}
+]

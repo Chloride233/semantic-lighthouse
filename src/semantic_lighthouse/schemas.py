@@ -28,6 +28,7 @@ class UserResponse(BaseModel):
 
 class MembershipResponse(BaseModel):
     group_id: str
+    group_name: str
     user_id: str
     role: str
 
@@ -227,6 +228,8 @@ class RagRunSummary(BaseModel):
     retrieval_method: str
     model: str
     citation_count: int
+    status: str
+    duration_ms: int | None = None
     created_at: datetime
 
 
@@ -242,6 +245,10 @@ class RagRunDetail(BaseModel):
     citations: list[RagCitation]
     retrieval_method: str
     model: str
+    status: str
+    error_message: str | None = None
+    duration_ms: int | None = None
+    retrieved_count: int | None = None
     created_at: datetime
 
 
@@ -263,3 +270,111 @@ class IngestionJobResponse(BaseModel):
 
 class IngestionJobDetailResponse(IngestionJobResponse):
     step_log: dict = Field(default_factory=dict)
+
+
+# ── v4 conversations ──────────────────────────────────────────────────────
+
+
+class ConversationCreateRequest(BaseModel):
+    title: str | None = None
+
+
+class ConversationResponse(BaseModel):
+    id: str
+    group_id: str
+    user_id: str
+    title: str
+    message_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConversationMessageResponse(BaseModel):
+    id: str
+    conversation_id: str
+    role: str
+    content: str
+    citations: list[RagCitation] = Field(default_factory=list)
+    retrieval_method: str | None = None
+    model: str | None = None
+    confidence: str | None = None
+    knowledge_gaps: list[str] = Field(default_factory=list)
+    tool_calls: list[dict] | None = None
+    created_at: datetime
+
+
+class ConversationDetailResponse(ConversationResponse):
+    messages: list[ConversationMessageResponse] = Field(default_factory=list)
+
+
+class ConversationMessageRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=1000)
+    retrieval_method: str = Field(default="hybrid", pattern="^(hybrid|auto|keyword|semantic)$")
+
+
+# ── v7 agent orchestration ──────────────────────────────────────────────
+
+
+class AgentRunResponse(BaseModel):
+    id: str
+    group_id: str
+    user_id: str
+    conversation_id: str | None = None
+    goal: str
+    status: str
+    current_phase: str | None = None
+    step_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+    finished_at: datetime | None = None
+
+
+class AgentStepResponse(BaseModel):
+    id: str
+    run_id: str
+    phase: str
+    step_index: int
+    thought: str
+    action_type: str
+    action_detail: dict
+    observation: str | None = None
+    status: str
+    error_message: str | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+
+
+class AgentRunDetailResponse(AgentRunResponse):
+    final_answer: str | None = None
+    citations: list[RagCitation] = Field(default_factory=list)
+    steps: list[AgentStepResponse] = Field(default_factory=list)
+    plan_json: list = Field(default_factory=list)
+
+
+class AgentRunCreateRequest(BaseModel):
+    goal: str = Field(min_length=1, max_length=2000)
+    conversation_id: str | None = None
+
+
+class AgentRunRespondRequest(BaseModel):
+    response: str = Field(min_length=1, max_length=2000)
+
+
+class AgentMemoryResponse(BaseModel):
+    id: str
+    group_id: str
+    user_id: str
+    key: str
+    value: str
+    scope: str
+    ttl_days: int | None = None
+    source_run_id: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class AgentMemoryUpsertRequest(BaseModel):
+    key: str = Field(min_length=1, max_length=240)
+    value: str = Field(min_length=1)
+    scope: str = Field(pattern="^(user|group)$")
+    ttl_days: int | None = None

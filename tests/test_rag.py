@@ -97,6 +97,33 @@ Ontology connects business objects, data, and AI workflows.
     assert payload["confidence"] in {"high", "medium"}
 
 
+def test_fake_rag_answer_does_not_expose_prompt_text(client, tmp_path):
+    _, _, owner_headers = register_and_login(client, "owner@example.com")
+    group_id = _create_group(client, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+    _upload(
+        client,
+        group_id,
+        owner_headers,
+        "roadmap.md",
+        "# 企业 AI 转型路线图\n\n企业需要 Ontology 来统一业务语义、数据资产、权限和 AI 工作流。",
+    )
+
+    response = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "企业为什么需要Ontology?", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "Based on" not in payload["answer"]
+    assert "retrieved source" not in payload["answer"]
+    assert "企业需要 Ontology" in payload["answer"]
+    assert all("Review the cited chunks" not in step for step in payload["next_steps"])
+    assert payload["next_steps"]
+
+
 def test_rag_answer_can_use_semantic_retrieval(client, tmp_path):
     _, _, owner_headers = register_and_login(client, "owner@example.com")
     group_id = _create_group(client, owner_headers)
@@ -345,3 +372,212 @@ def test_adjusted_confidence_preserves_high_for_strong_scores():
                      chunk_index=1, heading_path=None, snippet="s2", score=0.8, retrieval_method="hybrid"),
     ]
     assert adjusted_confidence("high", citations) == "high"
+
+
+# ── output contract tests ─────────────────────────────────────────────────
+
+
+def test_no_evidence_response_is_fully_chinese():
+    from semantic_lighthouse.routers.rag import _no_evidence_response
+
+    response = _no_evidence_response("Ontology 是什么？", "keyword")
+    payload = response.model_dump()
+
+    forbidden = [
+        "Based on", "retrieved source", "provided context",
+        "according to", "Review the cited", "No context",
+    ]
+    for field in ("answer",):
+        for phrase in forbidden:
+            assert phrase.lower() not in payload[field].lower(), (
+                f"English phrase '{phrase}' leaked into {field}: {payload[field]}"
+            )
+    for field in ("knowledge_gaps", "next_steps"):
+        for item in payload[field]:
+            for phrase in forbidden:
+                assert phrase.lower() not in item.lower(), (
+                    f"English phrase '{phrase}' leaked into {field}: {item}"
+                )
+    assert payload["confidence"] == "low"
+    assert payload["model"] == "local-evidence-gate"
+    assert payload["citations"] == []
+
+
+def test_fake_answer_with_english_docs_produces_chinese_output(client, tmp_path):
+    _, _, owner_headers = register_and_login(client, "owner@example.com")
+    group_id = _create_group(client, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+    _upload(
+        client,
+        group_id,
+        owner_headers,
+        "english-report.md",
+        (
+            "# Enterprise AI Report\n\n"
+            "The enterprise data platform requires a semantic layer for AI readiness. "
+            "Without ontology, LLMs operate on raw schema names and miss business context."
+        ),
+    )
+
+    response = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "Why does enterprise need semantic layer?", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert any(ord(ch) > 127 for ch in payload["answer"]), (
+        f"answer contains no Chinese characters: {payload['answer'][:120]}"
+    )
+    for gap in payload["knowledge_gaps"]:
+        assert any(ord(ch) > 127 for ch in gap), (
+            f"knowledge_gap contains no Chinese: {gap}"
+        )
+    for step in payload["next_steps"]:
+        assert any(ord(ch) > 127 for ch in step), (
+            f"next_step contains no Chinese: {step}"
+        )
+
+
+def test_system_prompt_english_phrases_not_leaked(client, tmp_path):
+    _, _, owner_headers = register_and_login(client, "owner@example.com")
+    group_id = _create_group(client, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+    _upload(
+        client,
+        group_id,
+        owner_headers,
+        "roadmap.md",
+        "# 企业 AI 转型路线图\n\n企业需要 Ontology 来统一业务语义。",
+    )
+
+    response = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "企业如何规划AI转型？", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    forbidden_phrases = [
+        "Based on retrieved sources",
+        "according to the provided context",
+        "the retrieved documents",
+        "Review the cited chunks",
+        "No context retrieved",
+    ]
+    for field in ("answer", "knowledge_gaps", "next_steps"):
+        items = payload[field] if isinstance(payload[field], list) else [payload[field]]
+        for item in items:
+            for phrase in forbidden_phrases:
+                assert phrase.lower() not in item.lower(), (
+                    f"'{phrase}' leaked into {field}: {item}"
+                )
+
+
+# ── audit trail tests ──────────────────────────────────────────────────────
+
+
+def test_rag_run_includes_audit_fields(client, tmp_path):
+    """Success path: detail response includes status, duration, retrieved_count."""
+    _, _, owner_headers = register_and_login(client, "owner@example.com")
+    group_id = _create_group(client, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+    _upload(
+        client,
+        group_id,
+        owner_headers,
+        "ontology.md",
+        "# Ontology\n\nOntology helps connect business objects and AI workflows.",
+    )
+
+    answer = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "Ontology 是什么？", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+    assert answer.status_code == 200
+    run_id = answer.json()["run_id"]
+
+    detail = client.get(f"/groups/{group_id}/rag/runs/{run_id}", headers=owner_headers)
+    assert detail.status_code == 200
+    d = detail.json()
+    assert d["status"] == "success"
+    assert isinstance(d["duration_ms"], int) and d["duration_ms"] > 0
+    assert d["retrieved_count"] is not None and d["retrieved_count"] >= len(d["citations"])
+    assert d["error_message"] is None
+
+    # Summary also includes audit fields
+    runs = client.get(f"/groups/{group_id}/rag/runs", headers=owner_headers)
+    assert runs.status_code == 200
+    s = runs.json()[0]
+    assert s["status"] == "success"
+    assert isinstance(s["duration_ms"], int)
+
+
+def test_failed_rag_run_is_persisted_and_isolated(client, tmp_path):
+    """Failed LLM calls must leave an audit record with error_message."""
+    _, _, owner_headers = register_and_login(client, "owner@example.com")
+    _, _, outsider_headers = register_and_login(client, "outsider@example.com")
+    group_id = _create_group(client, owner_headers)
+    # deepseek provider without API key → ChatError on LLM call
+    _override_settings(client, _settings(tmp_path, chat_provider="deepseek"))
+    _upload(client, group_id, owner_headers, "ontology.md", "# Ontology\n\nOntology content.")
+
+    response = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "Ontology", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+    assert response.status_code == 502
+    assert "DEEPSEEK_API_KEY" in response.json()["detail"]
+
+    # Failure must be in the run history for the owner
+    runs = client.get(f"/groups/{group_id}/rag/runs", headers=owner_headers)
+    assert runs.status_code == 200
+    assert len(runs.json()) >= 1
+    failed = runs.json()[0]
+    assert failed["status"] == "error"
+    assert failed["citation_count"] >= 1  # retrieved citations are preserved
+
+    detail = client.get(
+        f"/groups/{group_id}/rag/runs/{failed['id']}", headers=owner_headers,
+    )
+    assert detail.status_code == 200
+    d = detail.json()
+    assert d["status"] == "error"
+    assert d["error_message"] and "DEEPSEEK_API_KEY" in d["error_message"]
+    assert d["confidence"] == "low"
+    assert d["model"] == "error"
+    assert isinstance(d["duration_ms"], int) and d["duration_ms"] > 0
+    assert d["retrieved_count"] is not None and d["retrieved_count"] >= 1
+
+    # Non-member cannot read the failed run
+    runs_out = client.get(f"/groups/{group_id}/rag/runs", headers=outsider_headers)
+    assert runs_out.status_code == 403
+
+
+def test_no_evidence_run_has_correct_audit_status(client, tmp_path):
+    """No-evidence path should set status=no_evidence with duration and retrieved_count."""
+    _, _, owner_headers = register_and_login(client, "owner@example.com")
+    group_id = _create_group(client, owner_headers)
+    _override_settings(client, _settings(tmp_path, chat_provider="deepseek"))
+    _upload(client, group_id, owner_headers, "ontology.md", "# Ontology\n\nOntology content.")
+
+    response = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "unmatched query term", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+    assert response.status_code == 200
+    run_id = response.json()["run_id"]
+
+    detail = client.get(f"/groups/{group_id}/rag/runs/{run_id}", headers=owner_headers)
+    assert detail.status_code == 200
+    d = detail.json()
+    assert d["status"] == "no_evidence"
+    assert d["model"] == "local-evidence-gate"
+    assert isinstance(d["duration_ms"], int) and d["duration_ms"] > 0
+    assert d["retrieved_count"] == 0
+    assert d["error_message"] is None
