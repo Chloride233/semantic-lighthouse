@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
-**Last updated**: 2026-06-12
-**Current phase**: Phase 0 — Engineering Baseline Stabilization
+**Last updated**: 2026-06-13
+**Current phase**: Phase 7 (implemented, under review) — see `docs/agent-handoff.md`
 
 ---
 
@@ -17,7 +17,7 @@
 | V3.3 | RAG run audit persistence, group-scoped replay | Stable |
 | V3.4 | Async ETL pipeline, structure-aware chunking, ingestion jobs, HNSW | Stable (hardened) |
 
-**Metrics**: 55 pytest, ruff clean, Alembic `0006_v34_ingestion_jobs` (head), Git 4 commits.
+**Metrics**: 121 pytest, ruff clean, Alembic `0009_v9_rag_audit` (head). Eval: 15 docs, 20 queries, `scripts/run_eval.py`.
 
 ---
 
@@ -118,49 +118,35 @@
 
 ---
 
-## Phase 6: Job-Hunting Demo & Project Narrative
+## Phase 6: Frontend Engineering Console ← DELIVERED (2026-06-12)
 
-**Goal**: The project is presentable in interviews and portfolio reviews.
-
-| # | Task | Acceptance |
-|---|------|------------|
-| 6.1 | Demo script with 5 scenarios | Register → upload → search → RAG → audit: 5-minute walkthrough |
-| 6.2 | Architecture decision records (ADRs) | 5–8 ADRs covering key tradeoffs |
-| 6.3 | One-page project overview (English) | Non-technical summary: what, why, how, key numbers |
-| 6.4 | Interview Q&A preparation | 20 common questions with engineering answers |
-| 6.5 | Public GitHub ready | README, license, contributing guide, clean commit history |
-
-**Acceptance**: A stranger can clone, follow README, run demo, understand architecture from ADRs.
-
----
-
-## Phase 7: Frontend Engineering Console
-
+**Status**: Delivered. Vanilla JS ES modules + hash router, zero npm, 6 pages. Playwright E2E tests (6.5) not done.
 **Goal**: Build a real, maintainable frontend console after the backend/RAG chain is stable.
 
 | # | Task | Acceptance |
 |---|------|------------|
-| 7.1 | Operator console information architecture | Auth, groups, documents, ingestion jobs, retrieval eval, RAG runs are navigable |
-| 7.2 | Document and ingestion management UI | Upload, progress, retry, archive, failure reason visible without Swagger |
-| 7.3 | Retrieval and RAG evaluation UI | Query, citations, scores, confidence, knowledge gaps shown clearly |
-| 7.4 | Permission-aware UI states | Owner/Admin/Member see only allowed actions |
-| 7.5 | Frontend smoke and regression checks | Key flows verified by browser tests |
+| 6.1 | Operator console information architecture | Auth, groups, documents, ingestion jobs, retrieval eval, RAG runs are navigable |
+| 6.2 | Document and ingestion management UI | Upload, progress, retry, archive, failure reason visible without Swagger |
+| 6.3 | Retrieval and RAG evaluation UI | Query, citations, scores, confidence, knowledge gaps shown clearly |
+| 6.4 | Permission-aware UI states | Owner/Admin/Member see only allowed actions |
+| 6.5 | Frontend smoke and regression checks | Key flows verified by browser tests |
 
 **Acceptance**: A reviewer can complete the core demo from the browser without using Swagger.
 
 ---
 
-## Phase 8: Advanced Agent Orchestration
+## Phase 7: Advanced Agent Orchestration ← DELIVERED (2026-06-13)
 
+**Status**: 7.1–7.4 verified (10 tests, 6.5s). 3 tables, 8 API endpoints, tool registry, state machine, human-in-the-loop, memory. 7.5 (eval set) deferred to post-Phase 5.
 **Goal**: Upgrade from controlled multi-turn RAG to explainable, auditable Agent workflows.
 
 | # | Task | Acceptance |
 |---|------|------------|
-| 8.1 | Agent tool registry and permission policy | Every tool has input schema, role requirement, group boundary |
-| 8.2 | Workflow planning with explicit state | Agent steps are planned, executed, and audited as separate records |
-| 8.3 | Long-term memory governance | Memory has scope, retention, deletion, and citation rules |
-| 8.4 | Human-in-the-loop checkpoints | Risky actions require approval before execution |
-| 8.5 | Agent evaluation set | Multi-step tasks measured for success, citation quality, and failure handling |
+| 7.1 | Agent tool registry and permission policy | Every tool has input schema, role requirement, group boundary |
+| 7.2 | Workflow planning with explicit state | Agent steps are planned, executed, and audited as separate records |
+| 7.3 | Long-term memory governance | Memory has scope, retention, deletion, and citation rules |
+| 7.4 | Human-in-the-loop checkpoints | Risky actions require approval before execution |
+| 7.5 | Agent evaluation set | Multi-step tasks measured for success, citation quality, and failure handling |
 
 **Acceptance**: A multi-step enterprise AI consulting workflow can be replayed, audited, and explained.
 
@@ -176,8 +162,8 @@ These items are not permanently rejected. They are deferred until the earlier en
 - Kubernetes, service mesh, multi-region
 - SSO / OAuth / SAML
 - Billing, usage quotas, rate limiting
-- Complex frontend SPA before Phase 7
-- Open-ended complex Agent before Phase 8
+- Complex frontend SPA before Phase 6
+- Open-ended complex Agent before Phase 7
 - Mobile app
 - Multilingual RAG (current focus: English + Chinese where noted)
 

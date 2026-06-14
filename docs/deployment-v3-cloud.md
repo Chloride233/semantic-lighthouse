@@ -1,33 +1,23 @@
-# V3 Cloud Deployment Guide
+# Cloud Deployment Guide (V7)
 
-This guide deploys Semantic Lighthouse V3 on a small Ubuntu 24.04 ECS instance.
+Deploy Semantic Lighthouse on a small Ubuntu 24.04 ECS instance.
+Updated 2026-06-13 for V7 Agent + Frontend Console.
 
-Target server used for planning:
-
-- 2 vCPU
-- 2 GiB RAM
-- Ubuntu 24.04 x64
-- 3 Mbps public bandwidth
+Target server: 2 vCPU / 2 GiB RAM / Ubuntu 24.04 x64 / 3 Mbps
 
 ## Goal
 
-Deliver a demo-ready cloud deployment:
-
-- FastAPI starts on port `8000`
-- PostgreSQL with pgvector is healthy
-- Alembic migrations run on API startup
-- Swagger is available at `/docs`
-- RAG answer API is available at `/groups/{group_id}/rag/answer`
-- Secrets live in `.env.production`, not in code
+- FastAPI + PostgreSQL/pgvector via Docker Compose
+- Alembic migrations on startup (0008 head, 17 tables)
+- `/health` returns DB + provider status
+- Swagger at `/docs`, Console SPA at `/console`
+- Full V1–V7 API surface
+- Secrets in `.env.production`
 
 ## Out of Scope
 
-- Kubernetes
-- HTTPS and domain binding
-- Nginx reverse proxy
-- CI/CD
-- RDS
-- MinIO
+- Kubernetes, RDS, MinIO, CI/CD
+- HTTPS/domain/Nginx (requires DNS + certificate)
 - Local LLM or local embedding model
 
 ## Server Bootstrap

@@ -1,5 +1,41 @@
 # Pitfall Log
 
+## Two Search Endpoints With Different Semantics
+
+- Date: 2026-06-14
+- Version: Phase 1 (P3 eval)
+- Type: pitfall → **NOTED** (design awareness)
+- Context: Two keyword search paths: `GET /search` (simple ILIKE substring on raw query) vs `hybrid_search()` (term extraction + OR conditions). P3 eval initially used `/search` and got 0% recall on Chinese questions.
+- What happened: `WHERE chunk.content ILIKE '%完整的19字中文问题%'` requires verbatim substring match. Natural questions never appear as literal substrings in documents.
+- Engineering judgment: `/search` is for exact-match debugging. `hybrid_search` is for NLP queries. They serve different purposes.
+- Fix: P3 eval uses `GET /search/hybrid` with `keyword_weight` to isolate strategies. No code change.
+
+## Failed RAG Calls Left No Audit Trail — 502 Without Record
+
+- Date: 2026-06-14
+- Version: Phase 3 (P2 QA audit)
+- Type: pitfall → **FIXED**
+- Context: RAG answer endpoint had three code paths: no-evidence, success, ChatError. Only the first two persisted to `rag_runs`.
+- What happened: When the LLM provider returned an error (missing API key, timeout, rate limit), the endpoint raised `HTTPException(502)` without writing to `rag_runs`. The user's question, retrieved citations, retrieval method, and failure reason were all lost — there was no way to know who asked what, when, or why it failed.
+- Engineering judgment: Audit is not only about successful answers. Failures are arguably more important to audit — they reveal systemic issues (missing keys, provider outages) and user behavior (questions that keep failing). If every success is recorded but failures are silent, the audit trail tells an incomplete and misleading story.
+- Risk if ignored: An operator looking at `GET /rag/runs` would see only successes, creating the illusion that the system never fails. Debugging a provider outage would require correlating HTTP access logs with application state — fragile and manual.
+- Fix or control: Added `_persist_failed_run()` called in the `except ChatError` block before re-raising. New columns on `rag_runs`: `status` (success/no_evidence/error), `error_message`, `duration_ms`, `retrieved_count`. Migration `0009_v9_rag_audit`. Three new tests: success path audit fields, failed run persisted + group-isolated, no-evidence path audit status.
+- Verification: 113 backend pass, 22 RAG tests (3 new audit tests). Failed runs are now queryable via existing `GET /runs` + `GET /runs/{id}`.
+- Interview version: I treated the absence of failure records as an audit integrity gap — the audit trail must be complete across all code paths, not just the happy path.
+
+## RAG Output Contract Is More Important Than "Model Can Answer"
+
+- Date: 2026-06-14
+- Version: Phase 3 (P1 hardening)
+- Type: pitfall → **FIXED**
+- Context: RAG system prompt was English, fake provider could leak raw English snippets into Chinese answer skeleton, frontend confidence display had 6 bugs (falsy fallback, dead code, 0.000 score display, enum leak, empty answer).
+- What happened: A full-chain review (system prompt → LLM → fake provider → API response → frontend) found that individual pieces worked in isolation but together produced: English prompt-text leakage, contradictory "medium confidence (0)" display, citation score `0.000` rendered literally, raw enum strings through badge fallback.
+- Engineering judgment: The RAG output contract defines what the user sees. If the contract is broken on edge cases, the system fails its core promise of being an enterprise AI consulting advisor. The system prompt is part of the contract — English in the prompt can echo into user-facing JSON. The fake provider is the local demo path; if it leaks English, the primary demo experience is broken even though DeepSeek might work.
+- Risk if ignored: In a demo — user uploads English doc → asks question → sees "Based on retrieved sources..." → product looks like a debug tool, not an advisor. `confidence: null` + score: 0 = "中等可信 (0)" — contradictory and misleading.
+- Fix or control: Chinese system prompt with explicit English-phrase prohibitions. `_summarize_citation_text` detects ASCII-heavy snippets → Chinese summary. Frontend: Set-based level validation, `'unknown'` state, empty-answer placeholder, citation score hide when ≤ 0. 3 new contract tests.
+- Verification: 110 backend pass, ruff clean, 19 RAG tests (3 new contract tests). Full regression green.
+- Interview version: The RAG output contract spans system prompt → fake provider → frontend render. Testing the *absence* of English phrases is a contract test, not a QoL improvement. The fake provider defines the demo experience; it must satisfy the same contract as the real provider.
+
 ## Phase 0 Baseline: pgvector Smoke Pending Docker Daemon
 
 - Date: 2026-06-12
@@ -291,3 +327,16 @@
 - Fix or control: Added `init -> chunks -> complete`, group-scoped file hash checks, chunk upsert, and final SHA-256 validation.
 - Verification: Tests cover resume, duplicate chunk upload, incomplete complete, hash mismatch, and instant upload.
 - Interview version: I treated large files as a reliability problem, not just a request-size configuration.
+
+## Test Lifespan Must Use The Test Database
+
+- Date: 2026-06-13
+- Version: V4/V7 agent iteration
+- Type: pitfall
+- Context: Agent tests appeared to hang for minutes before any assertion failed.
+- What happened: The shared `client` fixture overrode request-time `get_db`, but the FastAPI lifespan startup still used `main.SessionLocal` for orphaned ingestion job recovery. In tests, that startup path could try to connect to the real configured database instead of the temporary SQLite database.
+- Engineering judgment: Test isolation must cover the whole application lifecycle, not only endpoint dependencies. Startup recovery, background tasks, and request handlers all need the same test database boundary.
+- Risk if ignored: Pytest looks "stuck", CI becomes unreliable, and developers may misdiagnose the issue as slow fixtures or dependency problems.
+- Fix or control: Patched `semantic_lighthouse.main.SessionLocal` in `tests/conftest.py` alongside the document router background-task session factory, so lifespan recovery uses the same file-backed SQLite test database.
+- Verification: `tests/test_agent.py::test_create_agent_run` dropped from 120s timeout to 0.66s, `tests/test_agent.py` passed in ~7s, and full pytest passed with 106 tests.
+- Interview version: I found that the test dependency override did not cover startup lifecycle code, so I made the test database boundary apply to lifespan recovery as well as request handlers.

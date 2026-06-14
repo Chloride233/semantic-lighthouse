@@ -1,73 +1,53 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-13
+Last updated: 2026-06-14
 
 ## Current Phase
 
 **Phases 0–7 delivered** — see `docs/project-roadmap.md`.
 
-- **Phase 1**: Hybrid search + retrieval eval
+- **Phase 1**: Hybrid search + retrieval eval ← **P3 delivered 2026-06-14**
 - **Phase 2**: Archive/unarchive + document lifecycle
-- **Phase 3**: Citation reference guard + confidence override
-- **Phase 4.0**: V4 Agent multi-turn dialogue (conversation memory + audit)
-- **Phase 4.1**: Controlled tool calling (server-side tool registry)
-- **Phase 6**: Frontend Engineering Console
-  - Vanilla JS ES modules + hash router (zero npm, zero build, zero node_modules)
-  - 6 pages: Auth, Groups, Documents, Jobs, RAG, Conversations
-  - Permission-aware UI, chat interface, RAG demo
-- **Phase 7**: Agent Orchestration ← implemented, under review
-  - 3 tables (`agent_runs`, `agent_steps`, `agent_memories`), 8 API endpoints
-  - Tool registry: 3 tools with role requirements and risk flags
-  - Lightweight state machine (plan→execute→conclude), zero framework dependency
-  - Human-in-the-loop: user confirm/reject via API
-  - 10 tests written, awaiting full verification (slow SQLite fixture — see pitfall log)
+- **Phase 3**: Citation reference guard + confidence override ← **hardened 2026-06-14**
+  - P1: RAG output contract
+  - P2: QA audit
+- **Phase 4.0/4.1**: Conversations + tool calling
+- **Phase 6**: Frontend — all Chinese, zero encoding issues, 13/13 UI smoke
+  - `scan_encoding.py` added for CI encoding guard
+  - `verify_ui.py` refactored for ruff clean
+- **Phase 7**: Agent Orchestration
   - 7.5 (Agent eval set) not started
 
-**Verified test baseline**: Backend not re-tested (zero backend changes). Alembic head: `0008_v7_agent_orchestration`. 17 tables.
+**Verified test baseline**: 121 pytest (113 backend + 8 eval), ruff clean, alembic `0009` at head, 17 tables.
 
-**Phase 6.6 — Frontend Redesign Round 1 delivered (2026-06-13)**:
-- CSS tokens: teal/amber warm palette, type scale, spacing/shadows, 400+ lines. All old pages inherit new look.
-- Auth page: tabbed Sign In / Register, 🔦 brand, tagline, registration feedback, post-login routing.
-- Onboarding page: guided first-use workspace creation → auto-navigate to Knowledge.
-- Ask page (`#/ask`): new home. Question → answer with confidence bar, citation cards, gaps, next steps. Empty state.
-- Navbar: Ask / Knowledge / Conversations / Workspace. No Jobs/RAG nav items.
-- `esc.js`: shared utility, `answer-card.js`: reusable component.
-- Old pages preserved: rag.js, jobs.js, groups.js, documents.js, conversations.js all functional.
-- Zero backend changes. Zero npm/build deps.
-- `verify_ui.py` 12/12 Playwright tests pass (auth brand, register, onboarding, documents, ask, conversations, workspace, old RAG, old jobs, old documents, logout, re-login→ask).
+### P1 RAG Output Contract Fix (2026-06-14) — delivered
 
-Phase 5 operational readiness delivered:
-- `/health` returns DB connectivity + provider status
-- `X-Request-ID` middleware for request tracing
-- Smoke playbook: 4-chain verification (RAG, Conversation, Agent, Console)
+- Chinese system prompt with explicit English-phrase prohibitions.
+- Frontend confidence: `unknown` state, no dead `confidence_score`, no enum leak.
+- 3 contract tests.
 
-Phase 6.5 E2E tests delivered:
-- 3 Playwright browser tests: Auth→Groups, Document Upload, RAG Answer
-- uvicorn subprocess fixture with SQLite + alembic auto-migration
-- **109 tests total** (106 backend + 3 E2E), ruff clean
-- Frontend bug fix: `/auth/me` now returns `group_name`, frontend uses `group_id`/`group_name`
-- Frontend bug fix: navbar group selector uses `setState()` (not direct mutation)
-- Frontend bug fix: documents page uses non-empty search query default
+### P2 QA Audit & Citation Tracking (2026-06-14) — delivered
 
-Frontend UX polish delivered (2026-06-13):
-- CSS: deleted V1 legacy (~100 lines), fixed .topbar duplicate, added spinner/emptyState/errorCard/toast/tableHover
-- Pages: all 6 pages have pageTitle, spinner loading, unified empty states
-- Navbar: active link highlighting, setState for group selector
-- Toast: success/error notifications (3s auto-dismiss)
-- buttons: disabled state styling
-- 109 tests pass, 5/6 pages browser-verified
+**Migration `0009_v9_rag_audit`**: added `status`, `error_message`, `duration_ms`, `retrieved_count` to `rag_runs`.
 
-Frontend Redesign Round 1 delivered (2026-06-13):
-- See Phase 6.6 entry above for full scope
-- 12/12 browser smoke tests pass via verify_ui.py
-- R1 acceptance complete — ruff clean, manual smoke checklist in plan §10
-- Code review: APPROVED, 5/7 findings fixed
-- E2E: tests/e2e/test_console_e2e.py updated for R1 flow (4 test chains, needs live server)
-- Codemap: docs/CODEMAPS/frontend.md updated
+**Three paths all audited**:
+| Path | status | Persisted |
+|------|--------|-----------|
+| no evidence | `no_evidence` | ✅ |
+| success | `success` | ✅ |
+| ChatError | `error` | ✅ (was ❌ — largest gap) |
 
-**R1 Verification**: ruff clean, verify_ui.py 12/12 passed.
+**New tests**: `test_rag_run_includes_audit_fields`, `test_failed_rag_run_is_persisted_and_isolated`, `test_no_evidence_run_has_correct_audit_status`. 22 RAG tests total.
 
-Next priority: Cloud deployment to ECS, then Round 2 (Knowledge merge, Conversations two-panel).
+### P3 Retrieval Eval + Frontend Encoding Verification (2026-06-14) — delivered
+
+- **P3 eval**: 15 seed docs, 20 queries, `scripts/run_eval.py`, reproducible (fake embeddings).
+- **Encoding**: All `static/` and `scripts/` files verified UTF-8 clean — no `U+FFFD`, no mojibake.
+- **`scripts/scan_encoding.py`**: CI guard — fails on garbled characters.
+- **`scripts/verify_ui.py`**: ruff clean, 13/13 UI smoke passes.
+- **Browser screenshots confirmed**: CSS, Chinese text render correctly.
+
+**Next priority**: P4 Agent eval or cloud deployment — owner's choice.
 
 ## Git Repository
 
@@ -127,16 +107,13 @@ Current important API surfaces:
 Latest local verification:
 
 ```text
-2026-06-12 09:00:00 +08:00
+2026-06-14
 
 Command:
-.\.venv\Scripts\python -m pytest -p no:cacheprovider --basetemp=.tmp/pytest-temp
+.\.venv\Scripts\python -m pytest -p no:cacheprovider --basetemp=.tmp/pytest-temp --ignore=tests/e2e
 
 Result:
-96 passed, 1 warning
-
-Warning:
-StarletteDeprecationWarning only (FastAPI on_event→lifespan migration completed).
+113 passed, 1 warning
 
 Command:
 .\.venv\Scripts\ruff check src tests
@@ -145,63 +122,35 @@ Result:
 All checks passed!
 
 Command:
+DATABASE_URL="sqlite+pysqlite:///./.tmp/test-migration.db"
 .\.venv\Scripts\python -m alembic upgrade head
 .\.venv\Scripts\python -m alembic current
 
 Result:
-0007_v4_conversations (head)
+0009_v9_rag_audit (head)
 ```
 
 ## Current Risks And Next Priority
 
-V3.4 ETL pipeline **delivered and hardened in this iteration**:
-- DB-backed `ingestion_jobs` table with status state machine.
-- FastAPI `BackgroundTasks` async ETL (Extract→Parse→Clean→Chunk→Embedding→Load).
-- Structure-aware chunking with configurable min/max/target character limits.
-- HNSW index on `document_chunks.embedding` (PostgreSQL-only, `m=16, ef_construction=200`).
-- Startup recovery for orphaned jobs and documents (lifespan-based).
-- 3 ingestion job API endpoints with group-scoped permissions.
-- RAG/search now filters by `Document.status == "ready"`.
+**P1 RAG output contract hardening completed (2026-06-14)**:
+- System prompt fully Chinese with explicit prohibition of English template phrases.
+- Fake provider produces fully Chinese output even for English source documents.
+- Frontend confidence display: no more dead `confidence_score`, no `||` fallback masking null, `'unknown'` state added.
+- 3 contract tests added (19 total RAG tests).
 
-**V3.4 hardening fixes (P1/P2 round)**:
-- P1-1: `PGVECTOR_DIMENSION` NameError fixed — imported from `_shared.py`.
-- P1-2: `EmbeddingError` now flows through the 3-attempt retry loop instead of bypassing it.
-- P1-3: Manual retry on ready documents no longer breaks existing chunks; ready doc survives failed retry.
-- P2-1: `step_log` uses `MutableDict.as_mutable(JSON)` + explicit dict assignment for reliable persistence.
-- P2-2: Test assertions tightened — no `in (...)` ambiguity; explicit success/failure path tests.
-- P2-3: ETL scope documented — chunked upload complete only; import-local and `/upload` remain synchronous.
-- Test suite now uses file-backed SQLite to support BackgroundTasks across threads.
-- Ruff lint: zero errors.
-
-**ETL scope boundary** (P2-3):
-- `POST /uploads/{id}/complete` → async ETL pipeline with ingestion_jobs.
-- `POST /upload` (single file) and `POST /import-local` → synchronous `ingest_markdown`, no ingestion_jobs.
-- This is intentional: the ETL pipeline targets multi-format chunked uploads; small Markdown stays fast.
-
-Known remaining risks:
-
-- ✅ Upload chunk temp files are now cleaned after successful `complete` (`cleanup_upload_temp_dir`).
-- ✅ Hash mismatch now cleans both the merged file and temp chunks before raising.
-- ✅ Parser failure now cleans both the merged file and temp chunks before raising.
-- ✅ `complete` uses streaming `verify_file_hash()` instead of `read_bytes()` for hash check — hash mismatch is caught without loading the full file into RAM.
-- ✅ `GET /uploads/{upload_id}` now requires Owner/Admin (was any Member).
-- ✅ Tests added for cleanup after success, cleanup after hash mismatch, cleanup after parser failure, and member GET rejection.
-
-Known remaining risks:
-
-- PDF parsing only handles extractable text and does not do OCR.
-- DOCX parsing currently reads ordinary paragraphs and does not read tables, headers, or footers.
-- Production compose depends on a real `.env.production`; local config checks fail if it is missing.
-- `read_bytes()` is still used for the final parse step (after hash verification passes); acceptable for current 50 MiB limit but worth monitoring on a 2 GiB ECS.
+**Known remaining risks**:
+- PDF parsing: extractable text only, no OCR.
+- DOCX parsing: ordinary paragraphs only, no tables/headers/footers.
+- No token usage / latency / cost tracking in rag_runs or conversation_messages.
 - No max concurrent upload session limit per user/group.
+- `read_bytes()` on final parse step — fine for 50 MiB but monitor on 2 GiB ECS.
 
-Recommended next iteration:
-
-1. Add DOCX table/header/footer extraction to improve retrieval quality.
-2. Add a per-user concurrent upload session cap.
-3. Consider replacing the post-hash `read_bytes()` with a streaming parse path.
+**Recommended next iteration (P2 — QA Audit & Citation Tracking)**:
+1. Log LLM token usage from provider response (`usage` block) — no new table yet, just structured log.
+2. Add citation score cutoff filter — don't show citations below a configurable threshold.
+3. Add RAG run `duration_ms` from retrieval start to answer complete.
 4. Rerun full tests and migration smoke.
-5. Update this handoff and engineering memory.
+5. Update handoff and engineering memory.
 
 ## Cloud Deployment Memory
 
@@ -237,4 +186,4 @@ Do not store real `DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, database passwords, c
 
 Start by reading `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests before changing code.
 
-The V2.2 upload cleanup iteration is complete. The next priority is either DOCX parsing improvements (tables/headers/footers) or moving to V4 Agent dialogue — whichever the project owner chooses. Do not jump to V4 without confirming the upload and RAG foundations stay verifiably usable.
+P1 (output contract) and P2 (QA audit) are done. Next priority is P3 retrieval eval harness: gold Q&A pairs, recall@k metrics. No new tables needed — the audit trail is already in place.
