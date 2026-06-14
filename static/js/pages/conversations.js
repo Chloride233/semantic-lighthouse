@@ -5,9 +5,9 @@ import { confidenceBadge } from '../components/badge.js';
 
 export async function render(container, params) {
   const gid = params.gid || state.currentGroupId;
-  if (!gid) { container.innerHTML = '<p>Please select a group first.</p>'; return; }
+  if (!gid) { container.innerHTML = '<p>请先选择工作区。</p>'; return; }
 
-  container.innerHTML = '<h1 class="pageTitle">Conversations</h1><p class="pageMeta">Multi-turn consulting dialogue</p><div class="loading"><span class="spinner"></span>Loading conversations...</div>';
+  container.innerHTML = '<h1 class="pageTitle">多轮对话</h1><p class="pageMeta">围绕同一咨询主题持续追问、补充背景和沉淀建议。</p><div class="loading"><span class="spinner"></span>正在加载对话...</div>';
 
   async function loadList() {
     try {
@@ -17,33 +17,38 @@ export async function render(container, params) {
 
   const convs = await loadList();
 
-  const newPanel = panel('New Conversation', `
-    <label>Title <input id="convTitle" type="text" placeholder="Consulting session" /></label>
-    <button id="createConvBtn">Create</button>
+  const newPanel = panel('新建对话', `
+    <label>对话标题 <input id="convTitle" type="text" placeholder="客户 AI 转型诊断" /></label>
+    <button id="createConvBtn">创建对话</button>
   `);
 
   const listHtml = convs.length === 0
-    ? '<div class="emptyState"><div class="emptyIcon">&#x1f4ac;</div><p class="emptyTitle">No conversations</p><p class="emptyHint">Start a consulting dialogue with your knowledge base.</p></div>'
+    ? '<div class="emptyState"><div class="emptyIcon">问</div><p class="emptyTitle">还没有对话</p><p class="emptyHint">新建一个咨询对话，围绕客户画像和业务问题持续追问。</p></div>'
     : `<table class="dataTable">
-        <thead><tr><th>Title</th><th>Messages</th><th>Updated</th><th>Open</th></tr></thead>
+        <thead><tr><th>标题</th><th>消息数</th><th>更新时间</th><th>打开</th></tr></thead>
         <tbody>${convs.map((c) => `
           <tr>
             <td><strong>${esc(c.title)}</strong></td>
             <td>${c.message_count}</td>
             <td class="muted">${new Date(c.updated_at).toLocaleString()}</td>
-            <td><button class="secondary small openConvBtn" data-id="${c.id}">Open</button></td>
+            <td><button class="secondary small openConvBtn" data-id="${c.id}">打开</button></td>
           </tr>
         `).join('')}</tbody>
       </table>`;
 
-  container.innerHTML = `${newPanel}${panel('Conversations', listHtml)}<div id="chatArea" style="margin-top:16px"></div>`;
+  container.innerHTML = `
+    <h1 class="pageTitle">多轮对话</h1>
+    <p class="pageMeta">围绕同一咨询主题持续追问、补充背景和沉淀建议。</p>
+    ${newPanel}${panel('对话列表', listHtml)}
+    <div id="chatArea" style="margin-top:16px"></div>
+  `;
 
   document.getElementById('createConvBtn').addEventListener('click', async () => {
-    const title = document.getElementById('convTitle').value.trim() || 'New Conversation';
+    const title = document.getElementById('convTitle').value.trim() || '新的咨询对话';
     try {
       await api(`/groups/${gid}/conversations`, { method: 'POST', body: JSON.stringify({ title }) });
       render(container, params);
-    } catch (err) { alert(err.detail || 'Failed to create'); }
+    } catch (err) { alert(err.detail || '创建对话失败'); }
   });
 
   container.addEventListener('click', async (e) => {
@@ -55,7 +60,7 @@ export async function render(container, params) {
 
 async function renderChat(container, gid, convId) {
   const area = document.getElementById('chatArea');
-  area.innerHTML = '<div class="loading"><span class="spinner"></span>Loading messages...</div>';
+  area.innerHTML = '<div class="loading"><span class="spinner"></span>正在加载消息...</div>';
 
   try {
     const detail = await api(`/groups/${gid}/conversations/${convId}`);
@@ -66,16 +71,16 @@ async function renderChat(container, gid, convId) {
         <div class="chatMessages" id="chatMessages">
           ${messages.map((m) => `
             <div class="chatMsg chatMsg-${m.role}">
-              <div class="chatRole">${m.role === 'user' ? 'You' : m.role === 'tool' ? 'Tool' : 'Assistant'}</div>
+              <div class="chatRole">${roleLabel(m.role)}</div>
               <div class="chatContent">${esc(m.content)}</div>
               ${m.confidence ? `<span class="chatConfidence">${confidenceBadge(m.confidence)}</span>` : ''}
-              ${m.tool_calls?.length ? `<div class="chatToolCalls">Tool: ${esc(m.tool_calls[0]?.name || '')}</div>` : ''}
+              ${m.tool_calls?.length ? `<div class="chatToolCalls">工具：${esc(m.tool_calls[0]?.name || '')}</div>` : ''}
             </div>
           `).join('')}
         </div>
         <div class="chatInput">
-          <input id="chatInput" type="text" placeholder="Type your message..." />
-          <button id="chatSendBtn">Send</button>
+          <input id="chatInput" type="text" placeholder="继续追问或补充客户背景..." />
+          <button id="chatSendBtn">发送</button>
         </div>
       </div>
     `;
@@ -95,15 +100,21 @@ async function renderChat(container, gid, convId) {
           body: JSON.stringify({ question, retrieval_method: 'hybrid' }),
         });
         await renderChat(container, gid, convId);
-      } catch (err) { alert(err.detail || 'Failed to send'); input.disabled = false; }
+      } catch (err) { alert(err.detail || '发送失败'); input.disabled = false; }
     });
 
     document.getElementById('chatInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') document.getElementById('chatSendBtn').click();
     });
   } catch (err) {
-    area.innerHTML = `<div class="error">Failed to load conversation: ${esc(err.detail)}</div>`;
+    area.innerHTML = `<div class="error">加载对话失败：${esc(err.detail)}</div>`;
   }
+}
+
+function roleLabel(role) {
+  if (role === 'user') return '你';
+  if (role === 'tool') return '工具';
+  return '顾问';
 }
 
 function esc(s) {

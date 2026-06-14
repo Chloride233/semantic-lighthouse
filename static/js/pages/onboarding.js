@@ -5,32 +5,32 @@ import { showToast } from '../util/toast.js';
 
 export async function render(container) {
   if (!state.accessToken) {
-    container.innerHTML = '<p class="muted">Please sign in first.</p>';
+    container.innerHTML = '<p class="muted">请先登录。</p>';
     return;
   }
 
   container.innerHTML = `
     <div class="onboardPage">
-      <div class="onboardIcon">👋</div>
-      <h1 class="onboardTitle">Welcome to Semantic Lighthouse</h1>
+      <div class="onboardIcon">启</div>
+      <h1 class="onboardTitle">创建你的第一个工作区</h1>
       <p class="onboardText">
-        Create a workspace to organize your team's knowledge<br>
-        and start asking questions grounded in your documents.
+        工作区用于隔离团队、文档和问答记录。<br>
+        后续的知识检索和 RAG 回答都会继承这个权限边界。
       </p>
       <div class="onboardField">
-        <label>Workspace Name</label>
-        <input id="onboardName" type="text" placeholder="My Team Workspace" maxlength="160" />
+        <label>工作区名称</label>
+        <input id="onboardName" type="text" placeholder="企业 AI 转型知识库" maxlength="160" />
       </div>
       <p id="onboardError" class="formError" style="display:none"></p>
-      <button id="onboardCreateBtn" class="onboardSubmit">Create Workspace →</button>
+      <button id="onboardCreateBtn" class="onboardSubmit">创建工作区</button>
     </div>
   `;
 
   document.getElementById('onboardCreateBtn').addEventListener('click', async () => {
     const errEl = document.getElementById('onboardError');
-    const name = document.getElementById('onboardName').value.trim() || 'My Workspace';
+    const name = document.getElementById('onboardName').value.trim() || '我的工作区';
     try {
-      const group = await api('/groups', {
+      await api('/groups', {
         method: 'POST',
         body: JSON.stringify({ name }),
       });
@@ -43,10 +43,10 @@ export async function render(container) {
         currentGroupId: created?.group_id || '',
         currentRole: created?.role || 'owner',
       });
-      showToast('Workspace created!', 'success');
+      showToast('工作区已创建。', 'success');
       navigate(`/groups/${state.currentGroupId}/documents`);
     } catch (err) {
-      errEl.textContent = err.detail || 'Failed to create workspace';
+      errEl.textContent = err.detail || '创建工作区失败';
       errEl.style.display = 'block';
     }
   });

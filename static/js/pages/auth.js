@@ -6,61 +6,58 @@ import { showToast } from '../util/toast.js';
 export async function render(container) {
   container.innerHTML = `
     <div class="authPage">
-      <div class="authBrandIcon">🔦</div>
-      <h1 class="authTitle">Semantic Lighthouse</h1>
-      <p class="authTagline">Enterprise AI Knowledge Advisor</p>
+      <div class="authBrandIcon">灯</div>
+      <h1 class="authTitle">语义灯塔</h1>
+      <p class="authTagline">企业 AI 知识顾问原型</p>
 
-      <div id="authSuccess" class="authSuccess">Account created! You can now sign in.</div>
+      <div id="authSuccess" class="authSuccess">账号已创建，可以登录。</div>
 
       <div class="authCard">
-        <div class="authTabs" role="tablist" aria-label="Authentication">
-          <button class="authTab active" data-tab="signin" role="tab" aria-selected="true" tabindex="0">Sign In</button>
-          <button class="authTab" data-tab="register" role="tab" aria-selected="false" tabindex="-1">Register</button>
+        <div class="authTabs" role="tablist" aria-label="认证">
+          <button class="authTab active" data-tab="signin" role="tab" aria-selected="true" tabindex="0">登录</button>
+          <button class="authTab" data-tab="register" role="tab" aria-selected="false" tabindex="-1">注册</button>
         </div>
 
         <form id="signinForm">
           <div class="authField">
-            <label>Email</label>
+            <label>邮箱</label>
             <input id="loginEmail" type="email" autocomplete="username" required />
             <p class="authFieldError" id="loginEmailError"></p>
           </div>
           <div class="authField">
-            <label>Password</label>
+            <label>密码</label>
             <input id="loginPassword" type="password" autocomplete="current-password" required />
             <p class="authFieldError" id="loginPasswordError"></p>
           </div>
           <p id="loginError" class="formError" style="display:none"></p>
-          <button type="submit" class="authSubmit">Sign In →</button>
+          <button type="submit" class="authSubmit">登录</button>
         </form>
 
         <form id="registerForm" style="display:none">
           <div class="authField">
-            <label>Email</label>
+            <label>邮箱</label>
             <input id="registerEmail" type="email" autocomplete="username" required />
           </div>
           <div class="authField">
-            <label>Display Name</label>
+            <label>显示名称</label>
             <input id="registerName" type="text" autocomplete="name" required />
           </div>
           <div class="authField">
-            <label>Password</label>
+            <label>密码</label>
             <input id="registerPassword" type="password" autocomplete="new-password" required minlength="8" />
           </div>
           <p id="registerError" class="formError" style="display:none"></p>
-          <button type="submit" class="authSubmit">Create Account →</button>
+          <button type="submit" class="authSubmit">创建账号</button>
         </form>
       </div>
 
       <p class="authSwitch" id="authSwitchText">
-        No account? <a id="authSwitchLink">Create one</a>
+        还没有账号？<a id="authSwitchLink">创建一个</a>
       </p>
     </div>
   `;
 
-  let activeTab = 'signin';
-
   function switchTab(tab) {
-    activeTab = tab;
     document.querySelectorAll('.authTab').forEach((el) => {
       const selected = el.dataset.tab === tab;
       el.classList.toggle('active', selected);
@@ -71,8 +68,8 @@ export async function render(container) {
     document.getElementById('registerForm').style.display = tab === 'register' ? '' : 'none';
     document.getElementById('authSwitchText').innerHTML =
       tab === 'signin'
-        ? 'No account? <a id="authSwitchLink">Create one</a>'
-        : 'Already have an account? <a id="authSwitchLink">Sign in</a>';
+        ? '还没有账号？<a id="authSwitchLink">创建一个</a>'
+        : '已有账号？<a id="authSwitchLink">去登录</a>';
     document.getElementById('authSwitchLink').addEventListener('click', () => {
       switchTab(tab === 'signin' ? 'register' : 'signin');
     });
@@ -86,7 +83,6 @@ export async function render(container) {
     switchTab('register');
   });
 
-  // ── Register ───────────────────────────────────────────
   document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const errEl = document.getElementById('registerError');
@@ -102,15 +98,14 @@ export async function render(container) {
       });
       document.getElementById('loginEmail').value = data.email || document.getElementById('registerEmail').value.trim();
       document.getElementById('authSuccess').style.display = 'block';
-      showToast('Account created! You can now sign in.', 'success');
+      showToast('账号已创建，可以登录。', 'success');
       switchTab('signin');
     } catch (err) {
-      errEl.textContent = err.detail || 'Registration failed';
+      errEl.textContent = err.detail || '注册失败';
       errEl.style.display = 'block';
     }
   });
 
-  // ── Sign In ─────────────────────────────────────────────
   document.getElementById('signinForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const errEl = document.getElementById('loginError');
@@ -147,7 +142,7 @@ export async function render(container) {
         navigate('/onboarding');
       }
     } catch (err) {
-      errEl.textContent = err.detail || 'Login failed';
+      errEl.textContent = err.detail || '登录失败';
       errEl.style.display = 'block';
     }
   });

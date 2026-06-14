@@ -275,6 +275,42 @@ button.ghost:hover { background: var(--brand-light); }
 .toast--error   { background: var(--danger-light); color: var(--danger); border: 1px solid #fca5a5; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
+/* -- upload queue -------------------------------------------------- */
+
+.uploadQueue ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.uploadQueueItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-sm);
+}
+.uploadQueueItem:last-child { border-bottom: 0; }
+.uploadQueueItem span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.uploadQueueItem strong {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+}
+.uploadQueueItem--done strong { color: var(--ok); }
+.uploadQueueItem--failed strong { color: var(--danger); }
+.uploadQueueItem--uploading strong { color: var(--brand); }
+.uploadQueueItem--pending strong,
+.uploadQueueItem--skipped strong { color: var(--muted); }
+
 /* ═══════════════════════════════════════════════════════════════
    RAG answer (existing page — token updates)
    ═══════════════════════════════════════════════════════════════ */

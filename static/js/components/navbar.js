@@ -12,7 +12,7 @@ export function initNavbar(containerId) {
     const groups = state.groups || [];
     const gid = state.currentGroupId;
 
-    let groupOptions = groups
+    const groupOptions = groups
       .map((g) => `<option value="${g.group_id}" ${g.group_id === gid ? 'selected' : ''}>${esc(g.group_name)}</option>`)
       .join('');
 
@@ -21,27 +21,27 @@ export function initNavbar(containerId) {
 
     el.innerHTML = `
       <div class="navLeft">
-        <a class="navBrand" href="#/ask">🔦 Semantic Lighthouse</a>
+        <a class="navBrand" href="#/ask">语义灯塔</a>
         <nav class="navLinks">
-          ${signedIn ? `<a href="#/ask" class="${isActive('/ask')}">Ask</a>` : ''}
+          ${signedIn ? `<a href="#/ask" class="${isActive('/ask')}">问答</a>` : ''}
           ${signedIn && gid ? `
-            <a href="#/groups/${gid}/documents" class="${isActive(`/groups/${gid}/documents`)}">Knowledge</a>
-            <a href="#/groups/${gid}/conversations" class="${isActive(`/groups/${gid}/conversations`)}">Conversations</a>
+            <a href="#/groups/${gid}/documents" class="${isActive(`/groups/${gid}/documents`)}">知识库</a>
+            <a href="#/groups/${gid}/conversations" class="${isActive(`/groups/${gid}/conversations`)}">对话</a>
           ` : ''}
-          ${signedIn ? `<a href="#/groups" class="${isActive('/groups') && !gid ? 'active' : ''}">Workspace</a>` : ''}
+          ${signedIn ? `<a href="#/groups" class="${isActive('/groups') && !gid ? 'active' : ''}">工作区</a>` : ''}
         </nav>
       </div>
       <div class="navRight">
         ${signedIn && groups.length ? `
           <select class="groupSelect" id="navGroupSelect">
-            <option value="">Switch workspace…</option>
+            <option value="">切换工作区...</option>
             ${groupOptions}
           </select>
         ` : ''}
         <span class="navStatus ${signedIn ? 'signedIn' : ''}">
-          ${signedIn ? esc(state.currentUser?.email || '') : 'Not signed in'}
+          ${signedIn ? esc(state.currentUser?.email || '') : '未登录'}
         </span>
-        ${signedIn ? '<button class="secondary small" id="navLogoutBtn">Logout</button>' : ''}
+        ${signedIn ? '<button class="secondary small" id="navLogoutBtn">退出</button>' : ''}
       </div>
     `;
 

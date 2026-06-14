@@ -5,7 +5,6 @@ import { answerCard } from '../components/answer-card.js';
 import { confidenceBadge } from '../components/badge.js';
 
 export async function render(container) {
-  // Auto-hydrate user state on direct navigation (cold load)
   if (state.accessToken && !state.currentUser) {
     try {
       const me = await api('/auth/me');
@@ -19,7 +18,7 @@ export async function render(container) {
   const gid = state.currentGroupId;
 
   if (!state.accessToken) {
-    container.innerHTML = '<p class="muted">Please sign in first.</p>';
+    container.innerHTML = '<p class="muted">请先登录。</p>';
     return;
   }
   if (!gid) {
@@ -27,11 +26,10 @@ export async function render(container) {
     return;
   }
 
-  // Shell
   container.innerHTML = `
     <div class="askPage">
-      <h1 class="pageTitle">Ask</h1>
-      <p class="pageMeta">Ask anything about your knowledge base</p>
+      <h1 class="pageTitle">知识问答</h1>
+      <p class="pageMeta">基于当前工作区的知识库回答问题，并给出引用来源和可信度判断。</p>
       <div id="askInner"></div>
     </div>`;
   const inner = document.getElementById('askInner');
@@ -45,21 +43,19 @@ export async function render(container) {
   renderQuestionUI(inner, gid);
 }
 
-/* ── sub-renderers ─────────────────────────────────────────── */
-
 function renderNoWorkspace(container) {
   container.innerHTML = `
     <div class="emptyState">
-      <div class="emptyIcon">👋</div>
-      <p class="emptyTitle">No workspace selected</p>
-      <p class="emptyHint">Select a workspace from the navbar or create one to get started.</p>
-      <button onclick="location.hash='#/groups'">Go to Workspaces</button>
+      <div class="emptyIcon">空</div>
+      <p class="emptyTitle">还没有选择工作区</p>
+      <p class="emptyHint">请选择一个工作区，或创建新的工作区后再开始问答。</p>
+      <button onclick="location.hash='#/groups'">前往工作区</button>
     </div>`;
 }
 
 async function checkHasDocs(gid) {
   try {
-    const docs = await api(`/groups/${gid}/documents/search?q=a&limit=1`);
+    const docs = await api(`/groups/${gid}/documents`);
     return docs && docs.length > 0;
   } catch (_) { return false; }
 }
@@ -67,18 +63,18 @@ async function checkHasDocs(gid) {
 function renderEmptyDocs(inner, gid) {
   inner.innerHTML = `
     <div class="emptyState">
-      <div class="emptyIcon">📄</div>
-      <p class="emptyTitle">No documents yet</p>
-      <p class="emptyHint">Upload documents to your knowledge base to start asking questions.</p>
-      <button onclick="location.hash='#/groups/${gid}/documents'">Go to Knowledge →</button>
+      <div class="emptyIcon">文</div>
+      <p class="emptyTitle">知识库还没有文档</p>
+      <p class="emptyHint">请先上传文档或导入本地知识库，然后再开始问答。</p>
+      <button onclick="location.hash='#/groups/${gid}/documents'">前往知识库</button>
     </div>`;
 }
 
 function renderQuestionUI(inner, gid) {
   inner.innerHTML = `
     <div class="askInput">
-      <input id="askQuestion" type="text" placeholder="Type your question…" autofocus />
-      <button id="askSubmitBtn">Ask →</button>
+      <input id="askQuestion" type="text" placeholder="例如：企业为什么需要 Ontology？" autofocus />
+      <button id="askSubmitBtn">提问</button>
     </div>
     <p id="askError" class="formError" style="display:none"></p>
     <div id="askResult"></div>
@@ -91,9 +87,9 @@ function renderQuestionUI(inner, gid) {
     const question = document.getElementById('askQuestion').value.trim();
     const errEl = document.getElementById('askError');
     const resultEl = document.getElementById('askResult');
-    if (!question) { errEl.textContent = 'Please enter a question.'; errEl.style.display = 'block'; return; }
+    if (!question) { errEl.textContent = '请输入问题。'; errEl.style.display = 'block'; return; }
     errEl.style.display = 'none';
-    resultEl.innerHTML = '<div class="loading"><span class="spinner"></span>Searching your knowledge base…</div>';
+    resultEl.innerHTML = '<div class="loading"><span class="spinner"></span>正在检索知识库...</div>';
     try {
       const data = await api(`/groups/${gid}/rag/answer`, {
         method: 'POST',
@@ -102,7 +98,7 @@ function renderQuestionUI(inner, gid) {
       resultEl.innerHTML = answerCard(data);
       loadRecent(gid);
     } catch (err) {
-      errEl.textContent = err.detail || 'Failed to get answer';
+      errEl.textContent = err.detail || '获取回答失败';
       errEl.style.display = 'block';
       resultEl.innerHTML = '';
     }
@@ -122,7 +118,7 @@ async function loadRecent(gid) {
     if (!runs || !runs.length) { el.innerHTML = ''; return; }
     el.innerHTML = `
       <div class="recentList">
-        <div class="recentTitle">Recent Questions</div>
+        <div class="recentTitle">最近问题</div>
         ${runs.map((r) => `
           <div class="recentItem">
             <span class="recentItem-text">${esc(r.question.substring(0, 80))}</span>

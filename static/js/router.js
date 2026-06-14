@@ -41,7 +41,7 @@ export function initRouter(outletId) {
     }
     const { renderFn, params } = _match();
     if (renderFn) {
-      outlet.innerHTML = '<div class="loading">Loading...</div>';
+      outlet.innerHTML = '<div class="loading">正在加载...</div>';
       try {
         _currentCleanup = await renderFn(outlet, params);
       } catch (err) {
@@ -49,7 +49,7 @@ export function initRouter(outletId) {
           navigate('/login');
           return;
         }
-        outlet.innerHTML = `<div class="error"><p>${esc(err.message)}</p><button onclick="location.reload()">Reload</button></div>`;
+        outlet.innerHTML = `<div class="error"><p>${esc(err.message)}</p><button onclick="location.reload()">重新加载</button></div>`;
       }
     }
   }
