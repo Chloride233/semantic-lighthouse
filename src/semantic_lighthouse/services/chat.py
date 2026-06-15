@@ -87,6 +87,7 @@ class DeepSeekChatClient(ChatClient):
             "temperature": 0.2,
             "response_format": {"type": "json_object"},
         }
+        _disable_thinking_for_structured_json(payload, self.model)
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         try:
             response = httpx.post(
@@ -96,6 +97,8 @@ class DeepSeekChatClient(ChatClient):
                 timeout=self.timeout_seconds,
             )
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise ChatError(_format_provider_http_error(exc)) from exc
         except httpx.HTTPError as exc:
             raise ChatError(f"Chat provider request failed: {exc}") from exc
 
@@ -130,6 +133,7 @@ class DeepSeekChatClient(ChatClient):
             "temperature": 0.2,
             "response_format": {"type": "json_object"},
         }
+        _disable_thinking_for_structured_json(payload, self.model)
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         try:
             response = httpx.post(
@@ -139,6 +143,8 @@ class DeepSeekChatClient(ChatClient):
                 timeout=self.timeout_seconds,
             )
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise ChatError(_format_provider_http_error(exc)) from exc
         except httpx.HTTPError as exc:
             raise ChatError(f"Chat provider request failed: {exc}") from exc
 
@@ -200,6 +206,34 @@ def create_chat_client(settings: Settings) -> ChatClient:
     if provider == "fake":
         return FakeChatClient(settings)
     raise ChatError(f"Unsupported chat provider: {settings.chat_provider}")
+
+
+def _disable_thinking_for_structured_json(payload: dict, model: str) -> None:
+    """Keep DeepSeek V4 responses compatible with strict JSON parsing."""
+    if model.startswith("deepseek-v4"):
+        payload["thinking"] = {"type": "disabled"}
+
+
+def _format_provider_http_error(exc: httpx.HTTPStatusError) -> str:
+    response = exc.response
+    detail = response.text.strip()
+    if detail:
+        try:
+            parsed = response.json()
+        except ValueError:
+            pass
+        else:
+            if isinstance(parsed, dict):
+                error = parsed.get("error")
+                if isinstance(error, dict):
+                    message = error.get("message") or error.get("code")
+                    if message:
+                        detail = str(message)
+                elif parsed.get("message"):
+                    detail = str(parsed["message"])
+    if len(detail) > 500:
+        detail = detail[:500] + "..."
+    return f"Chat provider request failed: HTTP {response.status_code}: {detail or response.reason_phrase}"
 
 
 def _format_citations(citations: list[RagCitation]) -> str:
