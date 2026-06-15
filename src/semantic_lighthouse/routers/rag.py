@@ -3,7 +3,7 @@ import re
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import case, or_, select
 from sqlalchemy.orm import Session
 
 from semantic_lighthouse.config import Settings, get_settings
@@ -287,8 +287,20 @@ def _keyword_search(db: Session, group_id: str, query: str, limit: int) -> list[
         )
         for term in terms
     ]
+    # Relevance: count how many search terms appear in the chunk content.
+    # ASCII/numeric terms are weighted ×2 — they're more discriminative than
+    # Chinese bi-grams which appear in almost every document.
+    ascii_pattern = re.compile(r"[A-Za-z0-9_-]")
+    relevance = case((DocumentChunk.content.ilike(f"%{terms[0]}%"), 1), else_=0)
+    if ascii_pattern.search(terms[0]):
+        relevance = case((DocumentChunk.content.ilike(f"%{terms[0]}%"), 2), else_=0)
+    for term in terms[1:]:
+        weight = 2 if ascii_pattern.search(term) else 1
+        relevance = relevance + case(
+            (DocumentChunk.content.ilike(f"%{term}%"), weight), else_=0
+        )
     rows = db.execute(
-        select(DocumentChunk, Document)
+        select(DocumentChunk, Document, relevance.label("relevance"))
         .join(Document, Document.id == DocumentChunk.document_id)
         .where(
             DocumentChunk.group_id == group_id,
@@ -296,12 +308,12 @@ def _keyword_search(db: Session, group_id: str, query: str, limit: int) -> list[
             Document.status == "ready",
             or_(*search_conditions),
         )
-        .order_by(Document.created_at.desc(), DocumentChunk.chunk_index.asc())
+        .order_by(relevance.desc(), Document.created_at.desc(), DocumentChunk.chunk_index.asc())
         .limit(limit)
     ).all()
     return [
         RetrievedChunk(chunk=chunk, document=document, score=None, retrieval_method="keyword")
-        for chunk, document in rows
+        for chunk, document, _rel in rows
     ]
 
 
@@ -359,11 +371,22 @@ def _citations(retrieved: list[RetrievedChunk], query: str, max_context_chars: i
 
 def _keyword_terms(query: str) -> list[str]:
     raw_terms = re.findall(r"[A-Za-z0-9_-]+|[\u4e00-\u9fff]{2,}", query)
-    terms: list[str] = []
+    ascii_terms: list[str] = []
+    cjk_terms: list[str] = []
     for term in raw_terms:
         normalized = term.strip()
         if len(normalized) < 2:
             continue
-        if normalized not in terms:
-            terms.append(normalized)
+        # Split long Chinese sequences into overlapping bi-grams so ILIKE
+        # can match against document content (which won't contain the
+        # verbatim question phrasing).
+        if re.fullmatch(r"[\u4e00-\u9fff]{3,}", normalized):
+            for i in range(len(normalized) - 1):
+                bigram = normalized[i : i + 2]
+                if bigram not in cjk_terms:
+                    cjk_terms.append(bigram)
+        elif normalized not in ascii_terms:
+            ascii_terms.append(normalized)
+    # ASCII terms are more distinctive \u2014 put them first, then CJK bi-grams.
+    terms = ascii_terms + cjk_terms
     return terms[:8]
