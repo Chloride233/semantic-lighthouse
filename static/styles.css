@@ -467,6 +467,21 @@ button.ghost:hover { background: var(--brand-light); }
 .confidenceBar-label.medium { color: var(--warn); }
 .confidenceBar-label.low    { color: var(--danger); }
 
+.confidenceReason {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-bottom: 16px; padding: 10px 12px;
+  border-left: 3px solid var(--brand);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--brand-light);
+  font-size: var(--text-sm); color: var(--text); line-height: 1.5;
+}
+.confidenceReason-icon {
+  flex-shrink: 0; width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--brand); color: #fff;
+  font-size: var(--text-xs); font-weight: 700;
+}
+
 .answerCard-text {
   font-size: var(--text-base); line-height: 1.7;
   white-space: pre-wrap; margin-bottom: 20px;

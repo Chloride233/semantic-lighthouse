@@ -212,6 +212,7 @@ class RagAnswerResponse(BaseModel):
     question: str
     answer: str
     confidence: str
+    confidence_reason: str = ""
     knowledge_gaps: list[str]
     next_steps: list[str]
     citations: list[RagCitation]
@@ -240,6 +241,7 @@ class RagRunDetail(BaseModel):
     question: str
     answer: str
     confidence: str
+    confidence_reason: str = ""
     knowledge_gaps: list[str]
     next_steps: list[str]
     citations: list[RagCitation]

@@ -71,13 +71,14 @@ def answer_question(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     sanitized = sanitize_references(answer.answer, citations)
-    confidence = adjusted_confidence(answer.confidence, citations)
+    confidence, confidence_reason = adjusted_confidence(answer.confidence, citations)
 
     response = RagAnswerResponse(
         run_id="",
         question=request.question,
         answer=sanitized,
         confidence=confidence,
+        confidence_reason=confidence_reason,
         knowledge_gaps=answer.knowledge_gaps,
         next_steps=answer.next_steps,
         citations=citations,
@@ -128,6 +129,7 @@ def _no_evidence_response(question: str, retrieval_method: str) -> RagAnswerResp
         question=question,
         answer="当前知识库没有返回足够证据，无法生成可靠的咨询式回答。",
         confidence="low",
+        confidence_reason="未检索到任何可用证据片段，无法生成可靠回答。建议补充知识库文档或改写问题。",
         knowledge_gaps=["没有检索到能够支撑该问题的文档片段。"],
         next_steps=[
             "补充相关知识库文档后重新检索。",
@@ -218,6 +220,8 @@ def _rag_run_summary(run: RagRun) -> RagRunSummary:
 
 
 def _rag_run_detail(run: RagRun) -> RagRunDetail:
+    stored_citations = [RagCitation.model_validate(c) for c in run.citations or []]
+    _, reason = adjusted_confidence(run.confidence, stored_citations)
     return RagRunDetail(
         id=run.id,
         group_id=run.group_id,
@@ -225,9 +229,10 @@ def _rag_run_detail(run: RagRun) -> RagRunDetail:
         question=run.question,
         answer=run.answer,
         confidence=run.confidence,
+        confidence_reason=reason,
         knowledge_gaps=run.knowledge_gaps or [],
         next_steps=run.next_steps or [],
-        citations=[RagCitation.model_validate(citation) for citation in run.citations or []],
+        citations=stored_citations,
         retrieval_method=run.retrieval_method,
         model=run.model,
         status=run.status,

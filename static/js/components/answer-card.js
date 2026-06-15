@@ -25,6 +25,13 @@ export function answerCard(data) {
         </span>
       </div>
 
+      ${data.confidence_reason ? `
+        <div class="confidenceReason">
+          <span class="confidenceReason-icon">?</span>
+          <span>${esc(data.confidence_reason)}</span>
+        </div>
+      ` : ''}
+
       <div class="answerCard-text">${esc(answerText)}</div>
 
       ${citations.length ? `

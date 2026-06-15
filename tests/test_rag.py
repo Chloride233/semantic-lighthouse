@@ -269,13 +269,21 @@ def test_rag_answer_is_persisted_and_can_be_replayed(client, tmp_path):
 
     assert answer.status_code == 200
     assert run_id
+    # Response includes confidence_reason
+    answer_payload = answer.json()
+    assert "confidence_reason" in answer_payload
+    assert len(answer_payload["confidence_reason"]) > 0
     assert runs.status_code == 200
     assert runs.json()[0]["id"] == run_id
     assert runs.json()[0]["citation_count"] == 1
     assert detail.status_code == 200
-    assert detail.json()["id"] == run_id
-    assert detail.json()["question"] == "Ontology"
-    assert detail.json()["citations"][0]["title"] == "Ontology"
+    detail_payload = detail.json()
+    assert detail_payload["id"] == run_id
+    assert detail_payload["question"] == "Ontology"
+    assert detail_payload["citations"][0]["title"] == "Ontology"
+    # Detail also includes confidence_reason
+    assert "confidence_reason" in detail_payload
+    assert len(detail_payload["confidence_reason"]) > 0
 
 
 def test_non_member_cannot_read_rag_run_history(client, tmp_path):
@@ -345,7 +353,9 @@ def test_adjusted_confidence_capped_medium_for_single_citation():
         RagCitation(document_id="a", chunk_id="c1", title="T", source_path="s", file_name="f",
                      chunk_index=0, heading_path=None, snippet="s", score=0.9, retrieval_method="hybrid"),
     ]
-    assert adjusted_confidence("high", citations) == "medium"
+    conf, reason = adjusted_confidence("high", citations)
+    assert conf == "medium"
+    assert "仅有一条" in reason
 
 
 def test_adjusted_confidence_low_for_weak_scores():
@@ -358,10 +368,13 @@ def test_adjusted_confidence_low_for_weak_scores():
         RagCitation(document_id="a", chunk_id="c2", title="T2", source_path="s", file_name="f",
                      chunk_index=1, heading_path=None, snippet="s2", score=0.2, retrieval_method="hybrid"),
     ]
-    assert adjusted_confidence("high", citations) == "low"
+    conf, reason = adjusted_confidence("high", citations)
+    assert conf == "low"
+    assert "匹配分数" in reason and "0.3" in reason
 
 
-def test_adjusted_confidence_preserves_high_for_strong_scores():
+def test_adjusted_confidence_requires_multi_document_for_high():
+    """Two strong citations from the SAME document → cannot reach high."""
     from semantic_lighthouse.schemas import RagCitation
     from semantic_lighthouse.services.chat import adjusted_confidence
 
@@ -371,7 +384,59 @@ def test_adjusted_confidence_preserves_high_for_strong_scores():
         RagCitation(document_id="a", chunk_id="c2", title="T2", source_path="s", file_name="f",
                      chunk_index=1, heading_path=None, snippet="s2", score=0.8, retrieval_method="hybrid"),
     ]
-    assert adjusted_confidence("high", citations) == "high"
+    conf, reason = adjusted_confidence("high", citations)
+    assert conf == "medium"
+    assert "同一份文档" in reason
+
+
+def test_adjusted_confidence_high_for_multi_document_strong_scores():
+    """≥2 different documents with strong scores → high is allowed."""
+    from semantic_lighthouse.schemas import RagCitation
+    from semantic_lighthouse.services.chat import adjusted_confidence
+
+    citations = [
+        RagCitation(document_id="doc-a", chunk_id="c1", title="Doc A", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s1", score=0.9, retrieval_method="hybrid",
+                     status="reviewed"),
+        RagCitation(document_id="doc-b", chunk_id="c2", title="Doc B", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s2", score=0.8, retrieval_method="hybrid",
+                     status="reviewed"),
+    ]
+    conf, reason = adjusted_confidence("high", citations)
+    assert conf == "high"
+    assert "不同文档" in reason
+
+
+def test_adjusted_confidence_draft_sources_downgrade():
+    """>50% citations from draft/unknown → confidence downgraded by 1 level."""
+    from semantic_lighthouse.schemas import RagCitation
+    from semantic_lighthouse.services.chat import adjusted_confidence
+
+    citations = [
+        RagCitation(document_id="doc-a", chunk_id="c1", title="T1", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s1", score=0.9, retrieval_method="hybrid",
+                     status="draft"),
+        RagCitation(document_id="doc-b", chunk_id="c2", title="T2", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s2", score=0.8, retrieval_method="hybrid",
+                     status="draft"),
+        RagCitation(document_id="doc-c", chunk_id="c3", title="T3", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s3", score=0.7, retrieval_method="hybrid",
+                     status="reviewed"),
+    ]
+    conf, reason = adjusted_confidence("high", citations)
+    # 2/3 are draft → downgrade from high to medium
+    assert conf == "medium"
+    assert "成熟度" in reason
+
+
+def test_adjusted_confidence_zero_citations_has_reason():
+    """0 citations → low confidence with descriptive Chinese reason."""
+    from semantic_lighthouse.services.chat import adjusted_confidence
+
+    conf, reason = adjusted_confidence("high", [])
+    assert conf == "low"
+    assert "未检索到" in reason
+    assert len(reason) > 10
 
 
 # ── output contract tests ─────────────────────────────────────────────────

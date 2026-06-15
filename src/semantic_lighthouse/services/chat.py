@@ -414,29 +414,100 @@ def sanitize_references(answer: str, citations: list[RagCitation]) -> str:
     return re.sub(r"\[(\d+)\]", _replace, answer)
 
 
-def adjusted_confidence(model_confidence: str, citations: list[RagCitation]) -> str:
-    """Server-side confidence downgrade based on evidence quality.
+CONFIDENCE_ORDER = {"low": 0, "medium": 1, "high": 2}
 
-    - 0 citations → ``"low"``
-    - 1 citation  → capped at ``"medium"``
-    - All scores < 0.3 → ``"low"``
-    - All scores < 0.5 → capped at ``"medium"``
-    - Otherwise → model-reported confidence
+LOW_MATURITY_STATUSES = {"draft", "unknown", "outdated"}
+
+
+def _downgrade(level: str, steps: int = 1) -> str:
+    for _ in range(steps):
+        level = {"high": "medium", "medium": "low"}.get(level, "low")
+    return level
+
+
+def adjusted_confidence(model_confidence: str, citations: list[RagCitation]) -> tuple[str, str]:
+    """Server-side confidence adjustment with human-readable Chinese reason.
+
+    Rules are applied in priority order (first match wins). The returned
+    reason explains *why* the confidence was set, so the user can assess
+    reliability without trusting the model's self-assessment.
+
+    Returns
+    -------
+    (confidence, reason) — confidence is one of ``high``/``medium``/``low``;
+    reason is a Chinese sentence explaining the decision.
     """
-    order = {"low": 0, "medium": 1, "high": 2}
+    n = len(citations)
+    # score=0.0 is the keyword-search sentinel for "no meaningful score";
+    # score=None means no embedding was computed. Filter both out.
+    scores = [c.score for c in citations if c.score is not None and c.score > 0.0]
+    titles = [c.title for c in citations if c.title]
+    doc_ids = {c.document_id for c in citations}
 
-    if len(citations) == 0:
-        return "low"
+    # ── rule 1: no citations ──────────────────────────────────────────
+    if n == 0:
+        return (
+            "low",
+            "未检索到任何可用证据片段，无法生成可靠回答。建议补充知识库文档或改写问题。",
+        )
 
-    scores = [c.score for c in citations if c.score is not None]
+    # ── rule 2: single citation — capped at medium ─────────────────────
+    if n == 1:
+        title = titles[0] if titles else "未知文档"
+        return (
+            _cap(model_confidence, "medium"),
+            f"仅有一条证据片段（来自「{title}」），覆盖面不足，无法交叉验证。",
+        )
 
-    if len(citations) == 1:
-        return model_confidence if order[model_confidence] < order["medium"] else "medium"
-
+    # ── rule 3: all meaningful scores below 0.3 — low ──────────────────
     if scores and all(s < 0.3 for s in scores):
-        return "low"
+        return (
+            "low",
+            f"检索到的 {n} 条片段匹配分数均低于 0.3，证据与问题的关联度很弱，无法支撑可信回答。",
+        )
 
+    # ── rule 4: all meaningful scores below 0.5 — capped at medium ─────
     if scores and all(s < 0.5 for s in scores):
-        return model_confidence if order[model_confidence] < order["medium"] else "medium"
+        return (
+            _cap(model_confidence, "medium"),
+            f"检索到的 {n} 条片段匹配分数偏低（均 < 0.5），证据强度不足以给出高可信结论。",
+        )
 
-    return model_confidence
+    # ── rule 5: >50% from low-maturity sources — downgrade 1 level ─────
+    maturity_statuses = [c.status for c in citations if c.status]
+    if maturity_statuses:
+        low_count = sum(1 for s in maturity_statuses if s in LOW_MATURITY_STATUSES)
+        if low_count > len(maturity_statuses) / 2:
+            base = _downgrade(model_confidence, 1)
+            return (
+                base,
+                f"大部分引用来源（{low_count}/{len(maturity_statuses)}）状态为草稿/未知/过期，"
+                f"来源成熟度不足，可信度已降级。",
+            )
+
+    # ── rule 6: ≥2 citations from ≥2 different docs, good scores → high
+    if n >= 2 and len(doc_ids) >= 2 and (not scores or any(s >= 0.5 for s in scores)):
+        return (
+            model_confidence,
+            f"共有 {n} 条相关片段来自 {len(doc_ids)} 份不同文档，来源明确，"
+            f"内容能直接支持回答。",
+        )
+
+    # ── rule 7: fallback — cap at medium, explain why ──────────────────
+    reason_parts = [f"共有 {n} 条相关片段"]
+    if len(doc_ids) == 1:
+        reason_parts.append("但全部来自同一份文档，来源多样性不足")
+    if scores and all(s < 0.7 for s in scores):
+        reason_parts.append("匹配分数一般")
+    reason_parts.append("尚不足以给出高可信结论。")
+    return (
+        _cap(model_confidence, "medium"),
+        "，".join(reason_parts),
+    )
+
+
+def _cap(level: str, ceiling: str) -> str:
+    """Return *level* but no higher than *ceiling*."""
+    if CONFIDENCE_ORDER.get(level, 0) > CONFIDENCE_ORDER.get(ceiling, 0):
+        return ceiling
+    return level

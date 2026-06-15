@@ -145,9 +145,10 @@ def _resolve_tool_answer(
             knowledge_gaps=["Tool loop did not produce a final answer."],
             model=settings.chat_model,
         )
+    final_conf, _ = adjusted_confidence(final_answer.confidence, citations)
     return _ResolvedAnswer(
         text=sanitize_references(final_answer.answer, citations),
-        confidence=adjusted_confidence(final_answer.confidence, citations),
+        confidence=final_conf,
         knowledge_gaps=final_answer.knowledge_gaps,
         model=final_answer.model,
     )
