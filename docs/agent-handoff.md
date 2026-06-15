@@ -151,6 +151,11 @@ Result:
 4. Add citation score cutoff filter — hide citations below threshold.
 5. Log LLM token usage from provider response.
 
+**Agent Architecture Research (2026-06-15)**:
+- `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
+- Key recommendations: Auto Memory, Tool Registry + Risk Labels, Edit→Lint→Test loop, Auto-Commit Gate
+- Decision: Stay with lightweight FSM (no LangGraph), defer Docker sandbox, defer event sourcing
+
 ## Cloud Deployment Memory
 
 Known server path:
