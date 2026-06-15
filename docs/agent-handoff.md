@@ -1,24 +1,20 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-14
+Last updated: 2026-06-15
 
 ## Current Phase
 
 **Phases 0–7 delivered** — see `docs/project-roadmap.md`.
 
-- **Phase 1**: Hybrid search + retrieval eval ← **P3 delivered 2026-06-14**
-- **Phase 2**: Archive/unarchive + document lifecycle
-- **Phase 3**: Citation reference guard + confidence override ← **hardened 2026-06-14**
-  - P1: RAG output contract
-  - P2: QA audit
+- **Phase 3**: RAG quality review with real ontology KB ← **P4 delivered 2026-06-15**
+  - 74 real ontology documents imported from `F:\ontology-kb\knowledge-graph`
+  - 10-question quality eval: 20/20 Chinese, 20/20 forbidden-clean, 20/20 audit-complete
+  - Chinese bi-gram keyword search + ASCII-weighted relevance
 - **Phase 4.0/4.1**: Conversations + tool calling
 - **Phase 6**: Frontend — all Chinese, zero encoding issues, 13/13 UI smoke
-  - `scan_encoding.py` added for CI encoding guard
-  - `verify_ui.py` refactored for ruff clean
-- **Phase 7**: Agent Orchestration
-  - 7.5 (Agent eval set) not started
+- **Phase 7**: Agent Orchestration — 7.5 (Agent eval set) not started
 
-**Verified test baseline**: 121 pytest (113 backend + 8 eval), ruff clean, alembic `0009` at head, 17 tables.
+**Verified test baseline**: 125 pytest, ruff clean, alembic `0009` at head, 17 tables. scan_encoding OK, verify_ui 13/13.
 
 ### P1 RAG Output Contract Fix (2026-06-14) — delivered
 
@@ -102,6 +98,9 @@ Current important API surfaces:
 - `GET /groups/{group_id}/conversations/{id}`
 - `POST /groups/{group_id}/conversations/{id}/messages`
 
+New eval tools:
+- `scripts/run_rag_quality_eval.py` — imports real ontology KB, runs 10 questions, validates contract
+
 ## Verification Status
 
 Latest local verification:
@@ -132,11 +131,11 @@ Result:
 
 ## Current Risks And Next Priority
 
-**P1 RAG output contract hardening completed (2026-06-14)**:
-- System prompt fully Chinese with explicit prohibition of English template phrases.
-- Fake provider produces fully Chinese output even for English source documents.
-- Frontend confidence display: no more dead `confidence_score`, no `||` fallback masking null, `'unknown'` state added.
-- 3 contract tests added (19 total RAG tests).
+**P4 RAG Quality Review completed (2026-06-15)**:
+- Real ontology KB imported (74 docs), 10-question eval run.
+- Chinese bi-gram keyword search + ASCII-weighted relevance ranking.
+- `scripts/run_rag_quality_eval.py` for reproducible eval.
+- Full report: `docs/engineering-memory/rag-quality-review-2026-06-15.md`.
 
 **Known remaining risks**:
 - PDF parsing: extractable text only, no OCR.
@@ -145,12 +144,12 @@ Result:
 - No max concurrent upload session limit per user/group.
 - `read_bytes()` on final parse step — fine for 50 MiB but monitor on 2 GiB ECS.
 
-**Recommended next iteration (P2 — QA Audit & Citation Tracking)**:
-1. Log LLM token usage from provider response (`usage` block) — no new table yet, just structured log.
-2. Add citation score cutoff filter — don't show citations below a configurable threshold.
-3. Add RAG run `duration_ms` from retrieval start to answer complete.
-4. Rerun full tests and migration smoke.
-5. Update handoff and engineering memory.
+**Recommended next iteration**:
+1. Set `DEEPSEEK_API_KEY` → re-run quality eval with real LLM answers.
+2. Agent eval set (Phase 7.5) — multi-step task scenarios.
+3. Cloud deployment with real embedding provider.
+4. Add citation score cutoff filter — hide citations below threshold.
+5. Log LLM token usage from provider response.
 
 ## Cloud Deployment Memory
 

@@ -1,5 +1,16 @@
 # Highlight Log
 
+## Chinese Keyword Search Bi-gram Fix — Real Ontology RAG Quality Review
+
+- Date: 2026-06-15
+- Version: Phase 3 (P4 quality review)
+- Type: highlight
+- Context: Real ontology knowledge base (74 docs) imported for 10-question RAG evaluation. Initial keyword search failed to retrieve expected documents.
+- What happened: Chinese keyword extraction used regex `[一-鿿]{2,}` which captured entire consecutive Chinese sequences as one ILIKE term (e.g., `%企业为什么需要%`). This required verbatim phrase match — impossible. Additionally, relevance scoring treated all terms equally, so distinctive ASCII terms ("Ontology", "RAG") were drowned by common Chinese bi-grams.
+- Fix: (1) `_keyword_terms` splits CJK sequences >=3 chars into overlapping bi-grams. (2) ASCII terms placed first in term list (occupy top-8). (3) `_keyword_search` relevance scoring gives 2x weight to ASCII term matches.
+- Verification: "Ontology (本体论)" ranks 3rd for Q1 (was absent). 125 pytest pass. `scripts/run_rag_quality_eval.py` added. Full contract: 20/20 Chinese, 20/20 forbidden-clean, 20/20 citations-traceable, 20/20 confidence-valid, 20/20 audit-complete.
+- Interview version: Found a Chinese tokenization blind spot — entire Chinese phrases treated as atomic search terms. Bi-gram splitting + ASCII weighting gave a 10-line fix with measurable ranking improvement, no new dependency.
+
 ## Frontend Redesign Round 1 — Product Experience from Console
 
 - Date: 2026-06-13
