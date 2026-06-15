@@ -7,9 +7,10 @@ reusing existing queries rather than introducing new SQL or indexes.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 
-from sqlalchemy import Float, cast, select
+from sqlalchemy import Float, case, cast, or_, select
 from sqlalchemy.orm import Session
 
 from semantic_lighthouse.config import Settings
@@ -60,20 +61,34 @@ def hybrid_search(
 
 
 def _keyword_search(db: Session, group_id: str, query: str, limit: int) -> list[ScoredChunk]:
+    terms = _keyword_terms(query)
+    if not terms:
+        return []
+
+    search_conditions = [
+        or_(
+            DocumentChunk.content.ilike(f"%{term}%"),
+            DocumentChunk.heading_path.ilike(f"%{term}%"),
+            Document.title.ilike(f"%{term}%"),
+            Document.source_path.ilike(f"%{term}%"),
+        )
+        for term in terms
+    ]
+    relevance = _keyword_relevance_expr(terms)
     rows = db.execute(
-        select(DocumentChunk, Document)
+        select(DocumentChunk, Document, relevance.label("relevance"))
         .join(Document, Document.id == DocumentChunk.document_id)
         .where(
             DocumentChunk.group_id == group_id,
             Document.group_id == group_id,
             Document.status == "ready",
-            DocumentChunk.content.ilike(f"%{query}%"),
+            or_(*search_conditions),
         )
-        .order_by(Document.created_at.desc(), DocumentChunk.chunk_index.asc())
+        .order_by(relevance.desc(), Document.created_at.desc(), DocumentChunk.chunk_index.asc())
         .limit(limit)
     ).all()
 
-    raw_scores = [_keyword_match_count(chunk.content, query) for chunk, _doc in rows]
+    raw_scores = [float(relevance_value or 0) for _chunk, _doc, relevance_value in rows]
     max_raw = max(raw_scores) if raw_scores else 1.0
 
     return [
@@ -83,22 +98,45 @@ def _keyword_search(db: Session, group_id: str, query: str, limit: int) -> list[
             score=raw / max_raw if max_raw > 0 else 0.0,
             retrieval_method="keyword",
         )
-        for (chunk, doc), raw in zip(rows, raw_scores)
+        for (chunk, doc, _relevance), raw in zip(rows, raw_scores)
+        if raw > 0
     ]
 
 
-def _keyword_match_count(content: str, query: str) -> float:
-    lowered = content.lower()
-    q = query.lower()
-    count = 0
-    pos = 0
-    while True:
-        pos = lowered.find(q, pos)
-        if pos < 0:
-            break
-        count += 1
-        pos += max(len(q), 1)
-    return float(count)
+def _keyword_relevance_expr(terms: list[str]):
+    ascii_pattern = re.compile(r"[A-Za-z0-9_-]")
+    relevance = case((DocumentChunk.content.ilike(f"%{terms[0]}%"), 2), else_=0)
+    relevance = relevance + case((Document.title.ilike(f"%{terms[0]}%"), 2), else_=0)
+    relevance = relevance + case((DocumentChunk.heading_path.ilike(f"%{terms[0]}%"), 1), else_=0)
+    relevance = relevance + case((Document.source_path.ilike(f"%{terms[0]}%"), 1), else_=0)
+    if ascii_pattern.search(terms[0]):
+        relevance = relevance + case((DocumentChunk.content.ilike(f"%{terms[0]}%"), 1), else_=0)
+
+    for term in terms[1:]:
+        content_weight = 3 if ascii_pattern.search(term) else 2
+        relevance = relevance + case((DocumentChunk.content.ilike(f"%{term}%"), content_weight), else_=0)
+        relevance = relevance + case((Document.title.ilike(f"%{term}%"), 2), else_=0)
+        relevance = relevance + case((DocumentChunk.heading_path.ilike(f"%{term}%"), 1), else_=0)
+        relevance = relevance + case((Document.source_path.ilike(f"%{term}%"), 1), else_=0)
+    return relevance
+
+
+def _keyword_terms(query: str) -> list[str]:
+    raw_terms = re.findall(r"[A-Za-z0-9_-]+|[\u4e00-\u9fff]{2,}", query)
+    ascii_terms: list[str] = []
+    cjk_terms: list[str] = []
+    for term in raw_terms:
+        normalized = term.strip()
+        if len(normalized) < 2:
+            continue
+        if re.fullmatch(r"[\u4e00-\u9fff]{3,}", normalized):
+            for i in range(len(normalized) - 1):
+                bigram = normalized[i : i + 2]
+                if bigram not in cjk_terms:
+                    cjk_terms.append(bigram)
+        elif normalized not in ascii_terms:
+            ascii_terms.append(normalized)
+    return (ascii_terms + cjk_terms)[:8]
 
 
 # ── semantic ───────────────────────────────────────────────────────────────
@@ -139,10 +177,12 @@ def _semantic_python(
         )
     ).all()
 
-    scored = [
-        (cosine_similarity(query_vector, chunk.embedding or []), chunk, document)
-        for chunk, document in rows
-    ]
+    scored = []
+    for chunk, document in rows:
+        if not chunk.embedding:
+            continue
+        similarity = cosine_similarity(query_vector, chunk.embedding)
+        scored.append((similarity, chunk, document))
     scored.sort(key=lambda item: item[0], reverse=True)
     return [
         ScoredChunk(chunk=chunk, document=doc, score=max(sim, 0.0), retrieval_method="semantic")
@@ -178,14 +218,17 @@ def _semantic_postgres(
         .params(query_vector=vector_literal)
     ).all()
 
-    return [
-        ScoredChunk(
-            chunk=chunk, document=doc,
-            score=max(1.0 - float(distance), 0.0),
-            retrieval_method="semantic",
+    results: list[ScoredChunk] = []
+    for chunk, doc, distance in rows:
+        score = max(1.0 - float(distance), 0.0)
+        results.append(
+            ScoredChunk(
+                chunk=chunk, document=doc,
+                score=score,
+                retrieval_method="semantic",
+            )
         )
-        for chunk, doc, distance in rows
-    ]
+    return results
 
 
 # ── fusion ─────────────────────────────────────────────────────────────────
@@ -199,6 +242,8 @@ def _merge_scored(
     """Merge *items* into *seen* with *weight*, keeping higher score on dup."""
     for item in items:
         fused = item.score * weight
+        if fused <= 0:
+            continue
         if item.chunk.id in seen:
             if fused > seen[item.chunk.id].score:
                 seen[item.chunk.id] = ScoredChunk(

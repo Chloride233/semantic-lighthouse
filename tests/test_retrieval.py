@@ -1,5 +1,7 @@
 """Tests for Phase 1 retrieval: hybrid search, scoring, dedup, isolation."""
 
+from types import SimpleNamespace
+
 from conftest import register_and_login
 from semantic_lighthouse.config import Settings, get_settings
 
@@ -51,6 +53,56 @@ def test_hybrid_endpoint_returns_scored_results(client, tmp_path):
         assert item["score"] >= 0.0
 
 
+def test_hybrid_discards_zero_score_semantic_noise(monkeypatch):
+    from semantic_lighthouse.services import retrieval
+
+    chunk = SimpleNamespace(id="fixed-noise")
+    document = SimpleNamespace()
+    monkeypatch.setattr(retrieval, "_keyword_search", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        retrieval,
+        "_semantic_search",
+        lambda *args, **kwargs: [
+            retrieval.ScoredChunk(
+                chunk=chunk,
+                document=document,
+                score=0.0,
+                retrieval_method="semantic",
+            )
+        ],
+    )
+
+    results = retrieval.hybrid_search(
+        db=SimpleNamespace(),
+        group_id="g1",
+        query="任意问题",
+        limit=5,
+        keyword_weight=0.3,
+        settings=Settings(),
+    )
+
+    assert results == []
+
+
+def test_hybrid_keyword_uses_terms_not_full_question(client, tmp_path):
+    _, _, h = register_and_login(client, "terms@t.com")
+    gid = _create_group(client, h)
+    _override_settings(client, tmp_path)
+    _upload_md(client, gid, h, "Ontology", "Ontology connects business semantics and data platforms.")
+    _upload_md(client, gid, h, "Unrelated", "Unrelated document about coffee beans.")
+
+    response = client.get(
+        f"/groups/{gid}/documents/search/hybrid",
+        params={"q": "企业为什么需要 Ontology？", "keyword_weight": 1.0},
+        headers=h,
+    )
+
+    assert response.status_code == 200
+    results = response.json()
+    assert results
+    assert results[0]["title"] == "Ontology"
+
+
 def test_hybrid_respects_group_isolation(client, tmp_path):
     _, _, ha = register_and_login(client, "a@t.com")
     _, _, hb = register_and_login(client, "b@t.com")
@@ -84,6 +136,22 @@ def test_hybrid_keyword_weight_zero_semantic_only(client, tmp_path):
 
     r = client.get(f"/groups/{gid}/documents/search/hybrid", params={"q": "weight", "keyword_weight": 0.0}, headers=h)
     assert r.status_code == 200
+
+
+def test_hybrid_semantic_only_ignores_chunks_without_embeddings(client, tmp_path):
+    _, _, h = register_and_login(client, "noembed@t.com")
+    gid = _create_group(client, h)
+    _override_settings(client, tmp_path)
+    _upload_md(client, gid, h, "NoEmbedding", "This document has not rebuilt embeddings yet.")
+
+    response = client.get(
+        f"/groups/{gid}/documents/search/hybrid",
+        params={"q": "anything", "keyword_weight": 0.0},
+        headers=h,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 def test_hybrid_keyword_weight_one_keyword_only(client, tmp_path):

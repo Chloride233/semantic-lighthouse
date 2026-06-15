@@ -16,7 +16,7 @@ class VectorType(TypeDecorator):
     def load_dialect_impl(self, dialect):
         if dialect.name == "postgresql":
             return dialect.type_descriptor(Vector(self.dimensions))
-        return dialect.type_descriptor(JSON())
+        return dialect.type_descriptor(JSON(none_as_null=True))
 
     def process_bind_param(self, value, dialect):
         if value is None:
