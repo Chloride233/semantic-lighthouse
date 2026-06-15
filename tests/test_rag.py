@@ -646,3 +646,188 @@ def test_no_evidence_run_has_correct_audit_status(client, tmp_path):
     assert isinstance(d["duration_ms"], int) and d["duration_ms"] > 0
     assert d["retrieved_count"] == 0
     assert d["error_message"] is None
+
+
+# ── evidence_quality tests ────────────────────────────────────────────────
+
+
+def test_evidence_quality_zero_citations():
+    from semantic_lighthouse.services.chat import compute_evidence_quality
+
+    eq = compute_evidence_quality([])
+    assert eq.retrieval_coverage == "none"
+    assert eq.citation_diversity == "none"
+    assert eq.score_distribution == "unknown"
+    assert len(eq.summary) > 10
+    assert "未检索到" in eq.summary
+
+
+def test_evidence_quality_single_citation_low_diversity():
+    from semantic_lighthouse.schemas import RagCitation
+    from semantic_lighthouse.services.chat import compute_evidence_quality
+
+    citations = [
+        RagCitation(document_id="a", chunk_id="c1", title="T", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s", score=0.9,
+                     retrieval_method="hybrid", status="reviewed"),
+    ]
+    eq = compute_evidence_quality(citations)
+    assert eq.retrieval_coverage == "weak"
+    assert eq.citation_diversity == "low"
+    assert eq.score_distribution == "strong"
+
+
+def test_evidence_quality_same_doc_low_diversity():
+    from semantic_lighthouse.schemas import RagCitation
+    from semantic_lighthouse.services.chat import compute_evidence_quality
+
+    citations = [
+        RagCitation(document_id="a", chunk_id="c1", title="T1", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s1", score=0.8,
+                     retrieval_method="hybrid", status="reviewed"),
+        RagCitation(document_id="a", chunk_id="c2", title="T2", source_path="s", file_name="f",
+                     chunk_index=1, heading_path=None, snippet="s2", score=0.7,
+                     retrieval_method="hybrid", status="reviewed"),
+        RagCitation(document_id="a", chunk_id="c3", title="T3", source_path="s", file_name="f",
+                     chunk_index=2, heading_path=None, snippet="s3", score=0.6,
+                     retrieval_method="hybrid", status="reviewed"),
+    ]
+    eq = compute_evidence_quality(citations)
+    assert eq.citation_diversity == "low"  # same doc
+    assert eq.retrieval_coverage == "partial"  # 3 citations
+
+
+def test_evidence_quality_multi_doc_high_diversity():
+    from semantic_lighthouse.schemas import RagCitation
+    from semantic_lighthouse.services.chat import compute_evidence_quality
+
+    citations = [
+        RagCitation(document_id="doc-a", chunk_id="c1", title="Doc A", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s1", score=0.9,
+                     retrieval_method="hybrid", status="reviewed"),
+        RagCitation(document_id="doc-b", chunk_id="c2", title="Doc B", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s2", score=0.8,
+                     retrieval_method="hybrid", status="reviewed"),
+        RagCitation(document_id="doc-c", chunk_id="c3", title="Doc C", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s3", score=0.7,
+                     retrieval_method="hybrid", status="reviewed"),
+    ]
+    eq = compute_evidence_quality(citations)
+    assert eq.citation_diversity == "high"
+    assert eq.source_maturity == "strong"
+
+
+def test_evidence_quality_draft_sources_weak_maturity():
+    from semantic_lighthouse.schemas import RagCitation
+    from semantic_lighthouse.services.chat import compute_evidence_quality
+
+    citations = [
+        RagCitation(document_id="doc-a", chunk_id="c1", title="T1", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s1", score=0.9,
+                     retrieval_method="hybrid", status="draft"),
+        RagCitation(document_id="doc-b", chunk_id="c2", title="T2", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s2", score=0.8,
+                     retrieval_method="hybrid", status="draft"),
+        RagCitation(document_id="doc-c", chunk_id="c3", title="T3", source_path="s", file_name="f",
+                     chunk_index=0, heading_path=None, snippet="s3", score=0.7,
+                     retrieval_method="hybrid", status="reviewed"),
+    ]
+    eq = compute_evidence_quality(citations)
+    # 2/3 draft → >50% low maturity
+    assert eq.source_maturity == "weak"
+
+
+def test_citation_has_match_reason(client, tmp_path):
+    """RAG answer response includes match_reason on each citation."""
+    _, _, owner_headers = register_and_login(client, "owner@example.com")
+    group_id = _create_group(client, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+    _upload(
+        client, group_id, owner_headers, "ontology.md",
+        "# Ontology\n\nOntology connects business objects and AI workflows.",
+    )
+
+    response = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "Ontology 是什么？", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    for citation in payload["citations"]:
+        assert "match_reason" in citation
+        assert len(citation["match_reason"]) > 0
+        # should be Chinese
+        assert any(ord(ch) > 127 for ch in citation["match_reason"])
+
+
+def test_evidence_quality_in_response(client, tmp_path):
+    """RAG answer response includes evidence_quality with valid summary."""
+    _, _, owner_headers = register_and_login(client, "owner@example.com")
+    group_id = _create_group(client, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+    _upload(
+        client, group_id, owner_headers, "ontology.md",
+        "# Ontology\n\nOntology connects business objects and AI workflows.",
+    )
+
+    response = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "Ontology", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    eq = payload.get("evidence_quality")
+    assert eq is not None
+    assert "retrieval_coverage" in eq
+    assert "source_maturity" in eq
+    assert "citation_diversity" in eq
+    assert "score_distribution" in eq
+    assert "summary" in eq
+    assert len(eq["summary"]) > 0
+    assert any(ord(ch) > 127 for ch in eq["summary"])
+
+
+def test_match_reason_includes_keywords(client, tmp_path):
+    """match_reason text should reference query keywords that were hit."""
+    _, _, owner_headers = register_and_login(client, "owner@example.com")
+    group_id = _create_group(client, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+    _upload(
+        client, group_id, owner_headers, "ontology.md",
+        "# Ontology\n\nOntology connects data platforms and AI workflows.",
+    )
+
+    response = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "Ontology AI workflows", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["citations"]) >= 1
+    reason = payload["citations"][0]["match_reason"]
+    # reason mentions at least one keyword from the query
+    assert "Ontology" in reason or "AI" in reason or "workflows" in reason
+
+
+def test_evidence_quality_no_evidence_response(client, tmp_path):
+    """No-evidence path returns evidence_quality with coverage=none."""
+    _, _, owner_headers = register_and_login(client, "owner@example.com")
+    group_id = _create_group(client, owner_headers)
+    _override_settings(client, _settings(tmp_path, chat_provider="deepseek"))
+    _upload(client, group_id, owner_headers, "ontology.md", "# Ontology\n\nOntology content.")
+
+    response = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "unmatched term xyz123", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    eq = payload.get("evidence_quality")
+    assert eq is not None
+    assert eq["retrieval_coverage"] == "none"
+    assert eq["citation_diversity"] == "none"
+    assert payload["citations"] == []

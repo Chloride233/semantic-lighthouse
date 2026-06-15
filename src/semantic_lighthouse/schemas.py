@@ -190,6 +190,14 @@ class RagAnswerRequest(BaseModel):
     limit: int | None = Field(default=None, ge=1, le=10)
 
 
+class EvidenceQuality(BaseModel):
+    retrieval_coverage: str = "none"  # full | partial | weak | none
+    source_maturity: str = "unknown"  # strong | medium | weak | unknown
+    citation_diversity: str = "none"  # high | medium | low | none
+    score_distribution: str = "unknown"  # strong | medium | weak | unknown
+    summary: str = ""
+
+
 class RagCitation(BaseModel):
     document_id: str
     chunk_id: str
@@ -205,6 +213,7 @@ class RagCitation(BaseModel):
     status: str | None = None
     score: float | None = None
     retrieval_method: str
+    match_reason: str = ""
 
 
 class RagAnswerResponse(BaseModel):
@@ -213,6 +222,7 @@ class RagAnswerResponse(BaseModel):
     answer: str
     confidence: str
     confidence_reason: str = ""
+    evidence_quality: EvidenceQuality | None = None
     knowledge_gaps: list[str]
     next_steps: list[str]
     citations: list[RagCitation]
@@ -242,6 +252,7 @@ class RagRunDetail(BaseModel):
     answer: str
     confidence: str
     confidence_reason: str = ""
+    evidence_quality: EvidenceQuality | None = None
     knowledge_gaps: list[str]
     next_steps: list[str]
     citations: list[RagCitation]

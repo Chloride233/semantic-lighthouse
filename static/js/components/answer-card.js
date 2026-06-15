@@ -32,6 +32,8 @@ export function answerCard(data) {
         </div>
       ` : ''}
 
+      ${renderEvidenceQuality(data.evidence_quality)}
+
       <div class="answerCard-text">${esc(answerText)}</div>
 
       ${citations.length ? `
@@ -45,6 +47,7 @@ export function answerCard(data) {
                 ${typeof c.score === 'number' && c.score > 0 ? `<span class="citationCard-score">匹配分 ${c.score.toFixed(2)}</span>` : ''}
               </div>
               ${c.snippet ? `<p class="citationCard-snippet">${esc(c.snippet)}</p>` : ''}
+              ${c.match_reason ? `<p class="citationMatchReason">${esc(c.match_reason)}</p>` : ''}
             </div>
           `).join('')}
         </div>
@@ -63,6 +66,26 @@ export function answerCard(data) {
           <ul>${next.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>
         </div>
       ` : ''}
+    </div>
+  `;
+}
+
+function renderEvidenceQuality(eq) {
+  if (!eq) return '';
+  const labels = [
+    { key: 'retrieval_coverage', label: '检索覆盖', values: { full: '全面', partial: '部分', weak: '弱', none: '无' } },
+    { key: 'source_maturity', label: '来源成熟度', values: { strong: '强', medium: '中', weak: '弱', unknown: '未知' } },
+    { key: 'citation_diversity', label: '引用多样性', values: { high: '高', medium: '中', low: '低', none: '无' } },
+    { key: 'score_distribution', label: '匹配分分布', values: { strong: '强', medium: '中', weak: '弱', unknown: '未知' } },
+  ];
+  const tags = labels.map(({ key, label, values }) => {
+    const val = eq[key] || 'unknown';
+    return `<span class="eqTag eqTag-${val}">${esc(label)}：${esc(values[val] || val)}</span>`;
+  }).join('');
+  return `
+    <div class="evidenceQuality">
+      <div class="evidenceQuality-tags">${tags}</div>
+      ${eq.summary ? `<p class="evidenceQuality-summary">${esc(eq.summary)}</p>` : ''}
     </div>
   `;
 }

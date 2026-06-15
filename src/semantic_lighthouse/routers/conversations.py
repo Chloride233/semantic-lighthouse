@@ -12,6 +12,7 @@ from semantic_lighthouse.database import get_db
 from semantic_lighthouse.dependencies import get_current_user, get_membership_or_404
 from semantic_lighthouse.models import Conversation, ConversationMessage, Document, DocumentChunk, User
 from semantic_lighthouse.routers._shared import snippet, validate_pgvector_dimension
+from semantic_lighthouse.routers.rag import _build_match_reason
 from semantic_lighthouse.schemas import (
     ConversationCreateRequest,
     ConversationDetailResponse,
@@ -459,6 +460,10 @@ def _build_citations(
                 status=frontmatter.get("status"),
                 score=item.score,
                 retrieval_method=retrieval_method,
+                match_reason=_build_match_reason(
+                    query, item.document.title, item.chunk.heading_path,
+                    chunk_snippet, item.score, retrieval_method,
+                ),
             )
         )
     return citations

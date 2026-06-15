@@ -7,7 +7,7 @@ import httpx
 from pydantic import BaseModel, Field, ValidationError
 
 from semantic_lighthouse.config import Settings
-from semantic_lighthouse.schemas import RagCitation
+from semantic_lighthouse.schemas import EvidenceQuality, RagCitation
 
 
 class ChatError(RuntimeError):
@@ -511,3 +511,93 @@ def _cap(level: str, ceiling: str) -> str:
     if CONFIDENCE_ORDER.get(level, 0) > CONFIDENCE_ORDER.get(ceiling, 0):
         return ceiling
     return level
+
+
+def compute_evidence_quality(citations: list[RagCitation]) -> EvidenceQuality:
+    """Compute structured evidence quality from citations.
+
+    Uses the same input logic as :func:`adjusted_confidence` to keep
+    ``evidence_quality`` and ``confidence_reason`` consistent.
+    """
+    n = len(citations)
+    scores = [c.score for c in citations if c.score is not None and c.score > 0.0]
+    doc_ids = {c.document_id for c in citations}
+    statuses = [c.status for c in citations if c.status]
+
+    # ── retrieval_coverage ──────────────────────────────────────────
+    if n == 0:
+        coverage = "none"
+    elif n == 1:
+        coverage = "weak"
+    elif n <= 3:
+        coverage = "partial"
+    else:
+        coverage = "full"
+
+    # ── citation_diversity ──────────────────────────────────────────
+    if n == 0:
+        diversity = "none"
+    elif len(doc_ids) == 1:
+        diversity = "low"
+    elif len(doc_ids) == 2:
+        diversity = "medium"
+    else:
+        diversity = "high"
+
+    # ── source_maturity ─────────────────────────────────────────────
+    if not statuses:
+        maturity = "unknown"
+    else:
+        reviewed = sum(1 for s in statuses if s == "reviewed")
+        low_mat = sum(1 for s in statuses if s in LOW_MATURITY_STATUSES)
+        if low_mat > len(statuses) / 2:
+            maturity = "weak"
+        elif reviewed >= len(statuses) / 2:
+            maturity = "strong"
+        else:
+            maturity = "medium"
+
+    # ── score_distribution ──────────────────────────────────────────
+    if not scores:
+        score_dist = "unknown"
+    elif all(s < 0.3 for s in scores):
+        score_dist = "weak"
+    elif all(s >= 0.5 for s in scores):
+        score_dist = "strong"
+    else:
+        score_dist = "medium"
+
+    # ── summary ─────────────────────────────────────────────────────
+    parts: list[str] = []
+    if n == 0:
+        parts.append("未检索到任何证据片段")
+    else:
+        parts.append(f"共 {n} 条片段")
+        if len(doc_ids) > 1:
+            parts.append(f"来自 {len(doc_ids)} 份文档")
+        if scores:
+            avg = sum(scores) / len(scores)
+            parts.append(f"平均匹配分 {avg:.2f}")
+        if maturity == "weak":
+            parts.append("部分来源为草稿/未知状态")
+        elif maturity == "strong":
+            parts.append("来源状态良好")
+
+    if coverage == "none":
+        summary = "未检索到任何证据片段，无法评估证据质量。建议补充知识库文档或改写问题后重试。"
+    elif coverage == "weak":
+        summary = "证据质量较弱——" + "，".join(parts) + "。建议补充更多相关文档。"
+    elif coverage == "partial" and (maturity == "weak" or score_dist == "weak"):
+        summary = "证据质量一般——" + "，".join(parts) + "。部分证据不够充分或来源未验证。"
+    elif diversity == "high" and score_dist == "strong" and maturity == "strong":
+        summary = "证据质量良好——" + "，".join(parts) + "，能够有效支撑回答。"
+    else:
+        summary = "证据质量中等——" + "，".join(parts) + "。建议从多角度补充材料以提升可靠性。"
+
+    return EvidenceQuality(
+        retrieval_coverage=coverage,
+        source_maturity=maturity,
+        citation_diversity=diversity,
+        score_distribution=score_dist,
+        summary=summary,
+    )

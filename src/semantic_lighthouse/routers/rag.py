@@ -17,7 +17,7 @@ from semantic_lighthouse.schemas import (
     RagRunDetail,
     RagRunSummary,
 )
-from semantic_lighthouse.services.chat import ChatError, adjusted_confidence, create_chat_client, sanitize_references
+from semantic_lighthouse.services.chat import ChatError, adjusted_confidence, compute_evidence_quality, create_chat_client, sanitize_references
 from semantic_lighthouse.services.embeddings import EmbeddingError, create_embedding_client
 
 from ._shared import snippet, validate_pgvector_dimension
@@ -72,6 +72,7 @@ def answer_question(
 
     sanitized = sanitize_references(answer.answer, citations)
     confidence, confidence_reason = adjusted_confidence(answer.confidence, citations)
+    evidence_quality = compute_evidence_quality(citations)
 
     response = RagAnswerResponse(
         run_id="",
@@ -79,6 +80,7 @@ def answer_question(
         answer=sanitized,
         confidence=confidence,
         confidence_reason=confidence_reason,
+        evidence_quality=evidence_quality,
         knowledge_gaps=answer.knowledge_gaps,
         next_steps=answer.next_steps,
         citations=citations,
@@ -130,6 +132,7 @@ def _no_evidence_response(question: str, retrieval_method: str) -> RagAnswerResp
         answer="当前知识库没有返回足够证据，无法生成可靠的咨询式回答。",
         confidence="low",
         confidence_reason="未检索到任何可用证据片段，无法生成可靠回答。建议补充知识库文档或改写问题。",
+        evidence_quality=compute_evidence_quality([]),
         knowledge_gaps=["没有检索到能够支撑该问题的文档片段。"],
         next_steps=[
             "补充相关知识库文档后重新检索。",
@@ -222,6 +225,7 @@ def _rag_run_summary(run: RagRun) -> RagRunSummary:
 def _rag_run_detail(run: RagRun) -> RagRunDetail:
     stored_citations = [RagCitation.model_validate(c) for c in run.citations or []]
     _, reason = adjusted_confidence(run.confidence, stored_citations)
+    evidence_quality = compute_evidence_quality(stored_citations)
     return RagRunDetail(
         id=run.id,
         group_id=run.group_id,
@@ -230,6 +234,7 @@ def _rag_run_detail(run: RagRun) -> RagRunDetail:
         answer=run.answer,
         confidence=run.confidence,
         confidence_reason=reason,
+        evidence_quality=evidence_quality,
         knowledge_gaps=run.knowledge_gaps or [],
         next_steps=run.next_steps or [],
         citations=stored_citations,
@@ -353,25 +358,72 @@ def _citations(retrieved: list[RetrievedChunk], query: str, max_context_chars: i
             break
         chunk_snippet = chunk_snippet[:remaining].strip()
         used_chars += len(chunk_snippet)
-        citations.append(
-            RagCitation(
-                document_id=item.document.id,
-                chunk_id=item.chunk.id,
-                title=item.document.title,
-                source_path=item.document.source_path,
-                file_name=item.document.file_name,
-                chunk_index=item.chunk.chunk_index,
-                heading_path=item.chunk.heading_path,
-                snippet=chunk_snippet,
-                entity_type=frontmatter.get("entityType"),
-                document_type=frontmatter.get("documentType"),
-                source=frontmatter.get("source"),
-                status=frontmatter.get("status"),
-                score=item.score,
-                retrieval_method=item.retrieval_method,
-            )
+        citation = RagCitation(
+            document_id=item.document.id,
+            chunk_id=item.chunk.id,
+            title=item.document.title,
+            source_path=item.document.source_path,
+            file_name=item.document.file_name,
+            chunk_index=item.chunk.chunk_index,
+            heading_path=item.chunk.heading_path,
+            snippet=chunk_snippet,
+            entity_type=frontmatter.get("entityType"),
+            document_type=frontmatter.get("documentType"),
+            source=frontmatter.get("source"),
+            status=frontmatter.get("status"),
+            score=item.score,
+            retrieval_method=item.retrieval_method,
+            match_reason=_build_match_reason(query, item.document.title, item.chunk.heading_path, chunk_snippet, item.score, item.retrieval_method),
         )
+        citations.append(citation)
     return citations
+
+
+def _build_match_reason(
+    query: str,
+    title: str,
+    heading_path: str | None,
+    snippet_text: str,
+    score: float | None,
+    retrieval_method: str,
+) -> str:
+    """Generate a Chinese match reason based on simple keyword / score rules."""
+    terms = _keyword_terms(query)
+    hit_terms = [t for t in terms if t and len(t) >= 2]
+
+    # rule 1: terms in title
+    title_hits = [t for t in hit_terms if t.lower() in title.lower()]
+    if title_hits:
+        shown = title_hits[:5]
+        return f"标题包含「{'、'.join(shown)}」等问题关键词。"
+
+    # rule 2: terms in heading
+    heading = heading_path or ""
+    heading_hits = [t for t in hit_terms if t.lower() in heading.lower()]
+    if heading_hits:
+        shown = heading_hits[:5]
+        return f"所在章节标题包含「{'、'.join(shown)}」等问题关键词。"
+
+    # rule 3: terms in snippet
+    snippet_hits = [t for t in hit_terms if t.lower() in snippet_text.lower()]
+    if snippet_hits:
+        shown = snippet_hits[:5]
+        return f"片段包含「{'、'.join(shown)}」等问题关键词。"
+
+    # rule 4: semantic with high score
+    if retrieval_method == "semantic" and score is not None and score >= 0.7:
+        return f"语义检索匹配分较高（{score:.2f}），与问题语义高度相关。"
+
+    # rule 5: hybrid with decent score
+    if retrieval_method == "hybrid" and score is not None and score >= 0.5:
+        return f"混合检索排序靠前（匹配分 {score:.2f}），可能与问题语义相关。"
+
+    # rule 6: keyword retrieval
+    if retrieval_method == "keyword":
+        return "关键词检索命中，与问题可能存在关键词层面的关联。"
+
+    # rule 7: fallback
+    return "与问题可能存在语义关联，建议人工复核引用内容是否支撑回答。"
 
 
 def _keyword_terms(query: str) -> list[str]:
