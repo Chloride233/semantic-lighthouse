@@ -2,6 +2,7 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { panel } from '../components/panel.js';
 import { confidenceBadge } from '../components/badge.js';
+import { showToast } from '../util/toast.js';
 
 export async function render(container, params) {
   const gid = params.gid || state.currentGroupId;
@@ -48,7 +49,7 @@ export async function render(container, params) {
     try {
       await api(`/groups/${gid}/conversations`, { method: 'POST', body: JSON.stringify({ title }) });
       render(container, params);
-    } catch (err) { alert(err.detail || '创建对话失败'); }
+    } catch (err) { showToast('创建对话失败：' + (err.detail || '请检查网络连接'), 'error'); }
   });
 
   container.addEventListener('click', async (e) => {
@@ -78,6 +79,7 @@ async function renderChat(container, gid, convId) {
             </div>
           `).join('')}
         </div>
+        <p id="chatError" class="formError" style="display:none"></p>
         <div class="chatInput">
           <input id="chatInput" type="text" placeholder="继续追问或补充客户背景..." />
           <button id="chatSendBtn">发送</button>
@@ -92,6 +94,8 @@ async function renderChat(container, gid, convId) {
       const input = document.getElementById('chatInput');
       const question = input.value.trim();
       if (!question) return;
+      const errEl = document.getElementById('chatError');
+      if (errEl) errEl.style.display = 'none';
       input.value = '';
       input.disabled = true;
       try {
@@ -100,7 +104,16 @@ async function renderChat(container, gid, convId) {
           body: JSON.stringify({ question, retrieval_method: 'hybrid' }),
         });
         await renderChat(container, gid, convId);
-      } catch (err) { alert(err.detail || '发送失败'); input.disabled = false; }
+      } catch (err) {
+        const errMsg = document.getElementById('chatError');
+        if (errMsg) {
+          errMsg.textContent = '发送失败：' + (err.detail || '请检查服务是否正常运行');
+          errMsg.style.display = 'block';
+        } else {
+          showToast('发送失败：' + (err.detail || '服务异常'), 'error');
+        }
+        input.disabled = false;
+      }
     });
 
     document.getElementById('chatInput').addEventListener('keydown', (e) => {

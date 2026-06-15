@@ -524,6 +524,26 @@ button.ghost:hover { background: var(--brand-light); }
 .recentItem:hover { background: #f1f5f9; }
 .recentItem-text { flex: 1; }
 
+/* ── recent detail card ─────────────────────────────────────── */
+
+.recentDetailCard {
+  margin-top: 16px; padding: 20px;
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--panel); box-shadow: var(--shadow-sm);
+}
+.recentDetailMeta {
+  display: flex; flex-wrap: wrap; gap: 8px 16px;
+  margin-bottom: 16px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-xs); color: var(--muted);
+}
+.recentDetailMeta strong { color: var(--text); }
+.recentDetailError {
+  margin-bottom: 12px; padding: 10px 12px;
+  border-radius: var(--radius-sm); background: var(--danger-light);
+  color: var(--danger); font-size: var(--text-sm);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    Responsive
    ═══════════════════════════════════════════════════════════════ */

@@ -649,3 +649,69 @@ def test_tool_result_persisted_as_tool_message(client, tmp_path):
     tool_msg = [m for m in messages if m["role"] == "tool"][0]
     assert tool_msg["tool_calls"] == [{"name": "search_knowledge_base", "arguments": {"query": "graph"}}]
     assert "Knowledge" in tool_msg["content"]
+
+
+def test_tool_messages_are_filtered_from_history_sent_to_provider(client, tmp_path):
+    """Tool messages lack tool_call_id — must not be passed to OpenAI-compatible APIs."""
+    _, _, headers = register_and_login(client, "a@example.com")
+    group_id = _create_group(client, headers)
+    _override_settings(client, _settings(tmp_path))
+    _upload(
+        client, group_id, headers, "doc.md",
+        "# Tools\n\nTool calling requires compatible message formats.",
+    )
+
+    conv = client.post(
+        f"/groups/{group_id}/conversations", json={"title": "Filter Test"},
+        headers=headers,
+    )
+    conv_id = conv.json()["id"]
+
+    from semantic_lighthouse.services.chat import ChatAnswer, ChatResponse, ToolCall
+
+    call_count = [0]
+    captured_histories: list[list[dict]] = []
+
+    def _fake_generate_response(question, citations, history=None, tools=None):
+        call_count[0] += 1
+        if history:
+            captured_histories.append(list(history))
+        if call_count[0] == 1:
+            return ChatResponse(tool_call=ToolCall(name="search_knowledge_base", arguments={"query": "tools"}))
+        return ChatResponse(
+            answer=ChatAnswer(
+                answer="Tool filtering works correctly.",
+                confidence="medium", knowledge_gaps=[], next_steps=[], model="fake",
+            ),
+        )
+
+    with mock.patch(
+        "semantic_lighthouse.routers.conversations.create_chat_client"
+    ) as mock_create:
+        mock_client = mock.MagicMock()
+        mock_client.generate_response.side_effect = _fake_generate_response
+        mock_create.return_value = mock_client
+
+        # First message: triggers tool call
+        resp = client.post(
+            f"/groups/{group_id}/conversations/{conv_id}/messages",
+            json={"question": "tool calling formats", "retrieval_method": "keyword"},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        call_count[0] = 0  # reset for second message
+
+        # Second message: should NOT include tool role in history
+        resp2 = client.post(
+            f"/groups/{group_id}/conversations/{conv_id}/messages",
+            json={"question": "verify filter", "retrieval_method": "keyword"},
+            headers=headers,
+        )
+        assert resp2.status_code == 200
+
+    # Verify no tool role messages in any history passed to generate_response
+    for hist in captured_histories:
+        tool_roles = [m for m in hist if m.get("role") == "tool"]
+        assert not tool_roles, (
+            f"tool role messages leaked into API history: {tool_roles}"
+        )

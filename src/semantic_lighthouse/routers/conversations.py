@@ -126,9 +126,12 @@ def _resolve_tool_answer(
                 tool_calls=[{"name": tool.name, "arguments": tool.arguments}],
             )
         )
+        # Use "user" role for tool results — OpenAI-compatible APIs require
+        # tool_call_id on "tool" role messages, which we don't have since
+        # tool calling is implemented via JSON-in-content, not native function calling.
         extended_history = history + [
-            {"role": "assistant", "content": f"[Requested tool: {tool.name}]"},
-            {"role": "tool", "content": tool_result},
+            {"role": "assistant", "content": f"[请求工具: {tool.name}]"},
+            {"role": "user", "content": f"[工具结果] {tool_result}"},
         ]
         response = client.generate_response(
             question, citations, history=extended_history, tools=[],
@@ -282,7 +285,11 @@ def send_message(
         .where(ConversationMessage.conversation_id == conversation_id)
         .order_by(ConversationMessage.created_at.asc())
     ).all()
-    history = [{"role": m.role, "content": m.content} for m in history_messages[-HISTORY_ROUNDS * 2 :]]
+    history = [
+        {"role": m.role, "content": m.content}
+        for m in history_messages[-HISTORY_ROUNDS * 2 :]
+        if m.role != "tool"  # tool messages lack tool_call_id; OpenAI-compatible APIs reject them
+    ]
 
     # ── persist user message ──────────────────────────────────────────
     user_msg = ConversationMessage(

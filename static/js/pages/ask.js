@@ -3,6 +3,7 @@ import { state, setState } from '../state.js';
 import { esc } from '../util/esc.js';
 import { answerCard } from '../components/answer-card.js';
 import { confidenceBadge } from '../components/badge.js';
+import { showToast } from '../util/toast.js';
 
 export async function render(container) {
   if (state.accessToken && !state.currentUser) {
@@ -120,11 +121,51 @@ async function loadRecent(gid) {
       <div class="recentList">
         <div class="recentTitle">最近问题</div>
         ${runs.map((r) => `
-          <div class="recentItem">
+          <div class="recentItem" data-run-id="${r.id}">
             <span class="recentItem-text">${esc(r.question.substring(0, 80))}</span>
             ${confidenceBadge(r.confidence)}
           </div>
         `).join('')}
-      </div>`;
+      </div>
+      <div id="recentDetail"></div>`;
+
+    // Click handler: fetch full detail and display
+    el.querySelectorAll('.recentItem').forEach((item) => {
+      item.addEventListener('click', async () => {
+        const runId = item.dataset.runId;
+        const detailEl = document.getElementById('recentDetail');
+        detailEl.innerHTML = '<div class="loading"><span class="spinner"></span>正在加载详情...</div>';
+        try {
+          const detail = await api(`/groups/${gid}/rag/runs/${runId}`);
+          detailEl.innerHTML = `
+            <div class="recentDetailCard">
+              <div class="recentDetailMeta">
+                <span><strong>运行 ID：</strong>${esc(detail.id)}</span>
+                <span><strong>检索方式：</strong>${esc(retrievalMethodLabel(detail.retrieval_method))}</span>
+                <span><strong>模型：</strong>${esc(detail.model)}</span>
+                <span><strong>状态：</strong>${esc(statusLabel(detail.status))}</span>
+                ${detail.duration_ms != null ? `<span><strong>耗时：</strong>${detail.duration_ms} ms</span>` : ''}
+                ${detail.retrieved_count != null ? `<span><strong>检索数：</strong>${detail.retrieved_count}</span>` : ''}
+                <span><strong>时间：</strong>${new Date(detail.created_at).toLocaleString()}</span>
+              </div>
+              ${detail.error_message ? `<div class="recentDetailError">错误信息：${esc(detail.error_message)}</div>` : ''}
+              ${answerCard(detail)}
+            </div>`;
+        } catch (err) {
+          showToast('加载历史详情失败', 'error');
+          detailEl.innerHTML = '';
+        }
+      });
+    });
   } catch (_) { /* silently skip */ }
+}
+
+function retrievalMethodLabel(m) {
+  const map = { hybrid: '混合检索', keyword: '关键词检索', semantic: '语义检索', auto: '自动选择' };
+  return map[m] || m;
+}
+
+function statusLabel(s) {
+  const map = { success: '成功', no_evidence: '无证据', error: '失败' };
+  return map[s] || s;
 }
