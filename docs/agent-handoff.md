@@ -153,8 +153,14 @@ Result:
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
-- Key recommendations: Auto Memory, Tool Registry + Risk Labels, Edit→Lint→Test loop, Auto-Commit Gate
-- Decision: Stay with lightweight FSM (no LangGraph), defer Docker sandbox, defer event sourcing
+- Adoption decision recorded in the report: adopt quality-gate docs, project workflow docs, handoff/codemap maintenance, prompt archive discipline, and manual review-before-commit now.
+- Later: Tool Registry + risk labels, Agent eval set, structured handoff payloads, and conversation context condensation.
+- Deferred: Auto Memory, Auto Commit, Docker sandbox, event sourcing rewrite, LangGraph/AutoGen integration.
+- Decision: Stay with lightweight FSM (no LangGraph), keep learning records human-reviewed, and keep commits intentional while the owner is still learning through diffs.
+
+**Workflow docs added (2026-06-16)**:
+- `docs/quality-gate.md` — gate levels for docs, backend, frontend, migrations, and full regression.
+- `docs/project-workflows.md` — repeatable workflows for iteration, review, RAG quality, frontend, and deployment.
 
 ## Cloud Deployment Memory
 

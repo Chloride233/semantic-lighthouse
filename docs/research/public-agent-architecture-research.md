@@ -199,38 +199,43 @@ Semantic Lighthouse already has solid foundations that align with best practices
 | Alembic migration smoke | Database integrity gate | ✅ Good |
 | `scan_encoding.py` + `verify_ui.py` | CI quality gates | ✅ Good |
 
-### 5.2 Phase 7.5: Agent Eval Set → Agent Foundation (Recommended Next)
+### 5.2 Phase 7.5: Agent Eval Set → Agent Foundation (Research-Derived Options)
 
-Based on the research, the minimal path to "Agent-capable" without over-engineering:
+Based on the research, these are possible paths to "Agent-capable" without over-engineering. They are not all immediate implementation tasks.
 
-**Step 1: Auto Memory (1 session)**
+**Option 1: Auto Memory (defer)**
 - Create `docs/engineering-memory/auto/` directory
 - Agent writes observation files during runtime (frontmatter: name, description, type)
 - Load auto-memory at session start alongside handoff snapshot
 - Mirror: Claude Code Auto Memory pattern
+- Decision: Defer. Current learning memory should remain human-reviewed to avoid polluting the project narrative with noisy or speculative observations.
 
-**Step 2: Tool Registry + Risk Labels (1 session)**
+**Option 2: Tool Registry + Risk Labels (future Agent hardening)**
 - Define available agent tools in a `ToolRegistry` class
 - Each tool has: name, description, JSON Schema params, risk_level (low/medium/high/critical)
 - The orchestrator checks risk before delegating
 - Mirror: ECC `tools` field + OpenHands `SecurityAnalyzer`
+- Decision: Keep for future V4/Agent hardening. Do not prioritize ahead of retrieval quality, RAG reliability, knowledge governance, and cloud smoke stability.
 
-**Step 3: Edit → Lint → Test Feedback Loop (1 session)**
+**Option 3: Edit → Lint → Test Feedback Loop (adopt as manual quality gate now)**
 - After any file write by agent: run `ruff check` on changed files
 - If lint fails: append errors to LLM context, request fix (max 3 rounds)
 - After lint passes: run `pytest` on affected tests
 - If tests fail: append failures to LLM context, request fix (max 3 rounds)
 - Mirror: Aider's core loop
+- Decision: Adopt as a documented manual workflow now. Do not automate retries yet.
 
-**Step 4: Auto-Commit Gate (1 session)**
+**Option 4: Auto-Commit Gate (defer)**
 - After lint + test pass: generate conventional commit message via LLM
 - Execute `git add` + `git commit`
 - Mirror: Aider's auto-commit pattern
+- Decision: Defer. The project owner is still using commits as a learning and review boundary, so commits should remain explicitly reviewed and intentional.
 
-**Step 5: Agent Eval Set (Phase 7.5 as planned)**
+**Option 5: Agent Eval Set (future Agent evaluation)**
 - Design multi-step task scenarios
 - Measure: task completion rate, tool call accuracy, error recovery rate
 - Use the quality gates from Steps 2-4 as eval criteria
+- Decision: Keep as a future Agent milestone after RAG quality and knowledge governance are stable.
 
 ### 5.3 What NOT to Build Now
 - No LangGraph/StateGraph integration (stay with lightweight FSM)
@@ -240,26 +245,63 @@ Based on the research, the minimal path to "Agent-capable" without over-engineer
 
 ---
 
-## 6. Next Steps & Recommendations
+## 6. Adoption Decision for Semantic Lighthouse
 
-### 6.1 Immediate Actions (This Iteration)
+The research is valuable, but the project should not adopt every advanced agent architecture pattern immediately. Semantic Lighthouse is a job-portfolio engineering project; every adopted pattern must improve explainability, testability, and delivery confidence.
+
+### P0 Adopt Now
+
+| Item | Landing Form | Why Now |
+|------|--------------|---------|
+| Quality gate documentation | `docs/quality-gate.md` | Makes every iteration verifiable and reviewable |
+| Project workflow documentation | `docs/project-workflows.md` | Keeps CC/Codex handoffs aligned without relying on chat history |
+| Handoff and codemap maintenance | `docs/agent-handoff.md`, `docs/CODEMAPS/` | Prevents context drift across sessions |
+| Prompt archive discipline | Existing prompt docs / engineering memory | Makes repeated tasks reproducible |
+| Manual review before commit | Git diff + targeted tests + full gate when needed | Preserves learning and reduces accidental changes |
+
+### P1 Adopt Later
+
+| Item | Landing Form | Trigger |
+|------|--------------|---------|
+| Tool Registry + risk levels | Agent tool metadata and authorization checks | When Agent tool calls become broader than retrieval/summarization |
+| Agent evaluation set | Multi-step consulting task benchmark | When V4 Agent flows stabilize |
+| Structured handoff payloads | Pydantic schemas for agent phase outputs | When handoff failures or ambiguous agent outputs appear |
+| Conversation context condensation | Summarized history with citations | When multi-turn sessions exceed model context or slow down |
+
+### P2 Defer
+
+| Item | Reason |
+|------|--------|
+| Auto Memory | Risk of noisy or speculative memories; keep learning records human-reviewed for now |
+| Auto Commit | Reduces owner visibility into diff quality and learning process |
+| Docker sandbox | Not needed until the Agent executes risky code or shell tools |
+| Event-sourced agent log rewrite | Current `rag_runs`, conversations, and agent audit tables are enough |
+| LangGraph / AutoGen integration | Current workflows remain explainable with a lightweight state machine |
+
+---
+
+## 7. Next Steps & Recommendations
+
+### 7.1 Immediate Actions (This Iteration)
 1. ✅ **This report** — done
-2. Commit: `docs: add public agent architecture research report`
-3. Update `docs/agent-handoff.md` with research findings and revised next steps
+2. Add adoption decision — done in this section
+3. Add `docs/quality-gate.md` and `docs/project-workflows.md`
+4. Update `docs/agent-handoff.md` with the adoption decision
 
-### 6.2 Recommended Next Iteration (Owner's Choice)
-- **Option A**: Execute Phase 7.5 Agent Eval Set (as planned in roadmap)
-- **Option B**: Implement Steps 1-2 above (Auto Memory + Tool Registry) as Agent foundation
-- **Option C**: Cloud deployment + real provider integration (as listed in handoff)
+### 7.2 Recommended Next Iteration (Owner's Choice)
+- **Option A**: Stabilize RAG retrieval quality and confidence/citation behavior
+- **Option B**: Improve knowledge-base governance UI and document lifecycle visibility
+- **Option C**: Cloud deployment + real provider integration
+- **Option D**: Prepare Agent eval set after current RAG/knowledge governance is stable
 
-### 6.3 Research Maintenance
+### 7.3 Research Maintenance
 - This report should be revisited when:
   - Adding a new agent type or tool category
   - Agent workflows become non-linear (branching, parallel, multi-agent)
   - A new major version of any surveyed project is released
   - The project owner needs interview stories about architecture decisions
 
-### 6.4 Key Takeaway
+### 7.4 Key Takeaway
 The research confirms that Semantic Lighthouse's current architecture choices (lightweight FSM over LangGraph, SQLAlchemy persistence over event sourcing, manual memory over auto-learning) are **correct for the current phase**. The surveyed projects validate that these are the right simplifications for a pre-product-market-fit system. When the system needs to scale in complexity, the upgrade paths are clear and well-documented in this report.
 
 ---
