@@ -1,9 +1,10 @@
 # Cloud Deployment Guide (V7)
 
-Deploy Semantic Lighthouse on a small Ubuntu 24.04 ECS instance.
-Updated 2026-06-13 for V7 Agent + Frontend Console.
+Deploy Semantic Lighthouse on a small Ubuntu 24.04 cloud server.
+Updated 2026-06-16 after Tencent Cloud Lighthouse verification.
 
-Target server: 2 vCPU / 2 GiB RAM / Ubuntu 24.04 x64 / 3 Mbps
+Baseline target server: 2 vCPU / 2 GiB RAM / Ubuntu 24.04 x64 / 3 Mbps.
+Verified Tencent Cloud server: Lighthouse 4 vCPU / 4 GiB RAM / 40 GiB system disk / Ubuntu Server 24.04 LTS Docker CE image.
 
 ## Goal
 
@@ -38,6 +39,15 @@ bash scripts/deploy/bootstrap-ubuntu.sh
 
 If the project has not been copied to the server yet, copy it first, then run the script from the project root.
 
+Tencent Cloud note: the Docker CE application image already includes Docker and Compose. Still run the version checks and keep the bootstrap script available for missing packages or swap setup:
+
+```bash
+docker --version
+docker compose version
+free -h
+df -h
+```
+
 ## Project Files
 
 The production deployment uses:
@@ -46,6 +56,21 @@ The production deployment uses:
 - `docker-compose.prod.yml`
 - `.env.production`
 - `scripts/docker/start-api.sh`
+
+If using the Tencent Cloud console file upload, upload the clean deploy archive to:
+
+```text
+/home/ubuntu
+```
+
+Then extract it into the stable deployment path:
+
+```bash
+sudo mkdir -p /opt/semantic-lighthouse
+sudo chown ubuntu:ubuntu /opt/semantic-lighthouse
+tar -xzf ~/semantic-lighthouse-deploy.tar.gz -C /opt/semantic-lighthouse
+cd /opt/semantic-lighthouse
+```
 
 Create the production env file on the server:
 
@@ -101,14 +126,14 @@ V2 upload APIs can still be used without this folder.
 ## Start
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+sudo docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
 ```
 
 Check status:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml ps
-docker logs semantic-lighthouse-api --tail 100
+sudo docker compose --env-file .env.production -f docker-compose.prod.yml ps
+sudo docker logs semantic-lighthouse-api --tail 100
 ```
 
 Expected:
@@ -116,6 +141,12 @@ Expected:
 - `semantic-lighthouse-postgres` is healthy
 - `semantic-lighthouse-api` is healthy
 - Alembic reaches latest migration
+
+If `docker compose` fails with `permission denied while trying to connect to the Docker daemon socket`, use `sudo docker compose` for deployment. To remove the need for `sudo`, add the user to the `docker` group and re-login:
+
+```bash
+sudo usermod -aG docker ubuntu
+```
 
 ## Smoke Test
 
@@ -181,17 +212,20 @@ Expected result:
 
 Verified on 2026-06-11 with Alibaba Cloud ECS, Aliyun embedding, pgvector, and DeepSeek chat.
 
+Verified on 2026-06-16 with Tencent Cloud Lighthouse, Ubuntu Server 24.04 Docker CE image, PostgreSQL/pgvector, real provider environment variables configured on the server, and `scripts/deploy/smoke-cloud.sh` passing with one citation.
+
 From your local browser:
 
 ```text
-http://SERVER_PUBLIC_IP:8000/docs
+http://<SERVER_PUBLIC_IP>:8000/docs
+http://<SERVER_PUBLIC_IP>:8000/console
 ```
 
-The ECS security group must allow inbound TCP `8000` for this temporary demo.
+The cloud firewall or security group must allow inbound TCP `8000` for this temporary demo.
 
 ## Security Group Cleanup
 
-After `/docs` is reachable, tighten the ECS security group.
+After `/docs` and `/console` are reachable, tighten the cloud firewall or security group.
 
 Keep only:
 
@@ -218,7 +252,7 @@ Later, replace public `8000` with HTTPS through a reverse proxy or cloud gateway
 ## Stop
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml down
+sudo docker compose --env-file .env.production -f docker-compose.prod.yml down
 ```
 
 Do not add `-v` unless you intentionally want to delete PostgreSQL data.
@@ -228,11 +262,11 @@ Do not add `-v` unless you intentionally want to delete PostgreSQL data.
 This deployment keeps the architecture intentionally small:
 
 - Cloud APIs handle model inference.
-- The ECS only runs API logic, PostgreSQL, and pgvector.
-- `API_WORKERS=1` is intentional for a 2 GiB server.
+- The cloud server only runs API logic, PostgreSQL, and pgvector.
+- `API_WORKERS=1` is intentional for small 2-4 GiB servers.
 - The local evidence gate prevents no-context RAG calls from wasting model tokens.
 - Security group cleanup is part of deployment completion, not an optional polish step.
 
 Interview version:
 
-> I deployed the V3 RAG prototype on a small ECS by containerizing the API and pgvector database, keeping secrets in environment variables, using migrations on startup, and adding swap because the server has only 2 GiB RAM. I avoided Kubernetes and CI/CD at this stage because the goal was a reliable demo deployment, not production platform complexity.
+> I deployed the RAG/Agent prototype on a small Ubuntu cloud server by containerizing the API and pgvector database, keeping secrets in environment variables, running migrations on startup, and validating the full chain with smoke tests. I avoided Kubernetes and CI/CD at this stage because the goal was a reliable demo deployment, not production platform complexity.

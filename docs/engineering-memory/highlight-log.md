@@ -317,3 +317,16 @@
 - Fix or control: `RagAnswerRequest.limit` drives retrieval size; `_prioritize_citation_candidates` improves source diversity; `_usable_citation_candidate` filters zero-score and empty chunks. Regression tests cover expanded citation count, document diversity ordering, and bad-candidate filtering.
 - Verification: `tests/test_rag.py tests/test_retrieval.py` passed 48 tests; full pytest passed 146 tests; UI smoke passed 13/13.
 - Interview version: I separated citation quantity from citation quality. Users can request more sources, but the system still filters weak candidates and prevents one document from monopolizing the context.
+
+## Tencent Cloud Deployment Verified
+
+- Date: 2026-06-16
+- Version: Cloud Deployment
+- Type: highlight
+- Context: The project needed a current cloud demo deployment after local RAG, frontend console, and Agent orchestration had stabilized.
+- What happened: Deployed the project on Tencent Cloud Lighthouse using the Ubuntu Server 24.04 Docker CE image. The clean deploy archive was uploaded through the console, extracted to `/opt/semantic-lighthouse`, and started with production Docker Compose.
+- Engineering judgment: Starting from a Docker CE image reduced bootstrap risk, but the real confidence came from smoke testing the application chain, not just seeing containers start.
+- Risk if ignored: A deployment could look successful while auth, upload, retrieval, migrations, or citation output are broken.
+- Fix or control: Verified both production containers were healthy, Alembic reached `0009_v9_rag_audit`, `/health` returned 200, and `scripts/deploy/smoke-cloud.sh` completed the auth -> upload -> keyword RAG path with one citation.
+- Verification: `semantic-lighthouse-api` and `semantic-lighthouse-postgres` healthy; quick smoke reported `rag ok`, `confidence: medium`, `retrieval_method: keyword`, and `citation_count: 1`.
+- Interview version: I deployed the RAG/Agent prototype to a small cloud server and proved the end-to-end demo path with a smoke test, not just a container health check.

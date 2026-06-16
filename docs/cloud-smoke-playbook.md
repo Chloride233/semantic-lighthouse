@@ -1,15 +1,20 @@
 # Cloud Smoke Playbook
 
-Use this playbook after deploying Semantic Lighthouse to Alibaba Cloud ECS.
-Covers V1–V7 capabilities. Updated 2026-06-13.
+Use this playbook after deploying Semantic Lighthouse to a small Ubuntu cloud server.
+Covers V1-V7 capabilities. Updated 2026-06-16.
 
 ## Goal
 
-Verify the full production chain across 4 smoke chains:
+Verify deployment in two levels:
+
+1. Quick smoke script: auth, group creation, Markdown upload, keyword RAG, and citation output.
+2. Manual 4-chain smoke: RAG, conversation, Agent run, and frontend console.
+
+The full production chain spans:
 
 ```text
-health → register → login → create group → upload → rebuild → hybrid search
-→ RAG answer → conversation multi-turn → agent run (plan→execute→conclude) → frontend console
+health -> register -> login -> create group -> upload -> rebuild -> hybrid search
+-> RAG answer -> conversation multi-turn -> agent run (plan -> execute -> conclude) -> frontend console
 ```
 
 ## Preconditions
@@ -18,7 +23,7 @@ Server:
 
 ```bash
 cd /opt/semantic-lighthouse
-docker compose --env-file .env.production -f docker-compose.prod.yml ps
+sudo docker compose --env-file .env.production -f docker-compose.prod.yml ps
 ```
 
 Expected:
@@ -39,9 +44,32 @@ DEEPSEEK_API_KEY=...
 
 Do not paste API keys into screenshots or chat.
 
-## Smoke Commands
+## Quick Smoke Script
 
-Run from the ECS server. Each chain uses the same auth setup from Chain 1.
+Run from the cloud server:
+
+```bash
+cd /opt/semantic-lighthouse
+bash scripts/deploy/smoke-cloud.sh
+```
+
+Expected:
+
+```text
+health ok
+register ok
+login ok
+group ok
+upload ok
+rag ok
+citation_count: 1
+```
+
+Verified on Tencent Cloud Lighthouse on 2026-06-16 with Ubuntu Server 24.04 Docker CE image, PostgreSQL/pgvector containers healthy, `/health` returning 200, and the quick smoke script returning one citation.
+
+## Manual Smoke Commands
+
+Run from the cloud server. Each chain uses the same auth setup from Chain 1.
 
 ### Common Setup
 
@@ -86,7 +114,7 @@ curl -fsS -X POST "$BASE_URL/groups/$GROUP_ID/documents/embeddings/rebuild" \
 
 RAG=$(curl -fsS -X POST "$BASE_URL/groups/$GROUP_ID/rag/answer" \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"question":"企业已经有数据中台，为什么还需要 Ontology？","retrieval_method":"hybrid"}')
+  -d '{"question":"What does Ontology connect?","retrieval_method":"hybrid"}')
 printf '%s' "$RAG" | python3 -c '
 import json,sys; b=json.load(sys.stdin)
 print(f"confidence: {b[\"confidence\"]}  model: {b[\"model\"]}  citations: {len(b[\"citations\"])}")'
@@ -130,7 +158,7 @@ curl -fsS "$BASE_URL/groups/$GROUP_ID/agent/runs/$RUN_ID" \
 
 ```bash
 curl -fsS -o /dev/null -w "%{http_code}" "$BASE_URL/console" && echo " console"
-curl -fsS -o /dev/null -w "%{http_code}" "$BASE_URL/static/js/app.js" && echo " app.js"
+curl -fsS -o /dev/null -w "%{http_code}" "$BASE_URL/static/console.js" && echo " console.js"
 curl -fsS -o /dev/null -w "%{http_code}" "$BASE_URL/static/styles.css" && echo " styles.css"
 ```
 
@@ -138,10 +166,11 @@ curl -fsS -o /dev/null -w "%{http_code}" "$BASE_URL/static/styles.css" && echo "
 
 | Chain | Expected |
 |-------|----------|
-| /health | `{"status":"ok","database":"connected",...}` |
-| Chain 1 (RAG) | confidence high/medium/low, citations ≥ 1, model deepseek... |
-| Chain 2 (Conv) | message_count ≥ 4 (2 user + 2 assistant) |
-| Chain 3 (Agent) | status=completed, step_count ≥ 2 |
+| `/health` | `{"status":"ok","database":"connected",...}` |
+| Quick smoke | `rag ok`, `citation_count >= 1` |
+| Chain 1 (RAG) | confidence high/medium/low, citations >= 1, model from configured chat provider |
+| Chain 2 (Conversation) | message_count >= 4 (2 user + 2 assistant) |
+| Chain 3 (Agent) | status=completed, step_count >= 2 |
 | Chain 4 (Console) | 200 for console HTML + JS + CSS |
 
 ## Failure Interpretation
@@ -157,4 +186,4 @@ curl -fsS -o /dev/null -w "%{http_code}" "$BASE_URL/static/styles.css" && echo "
 
 ## Interview Version
 
-> I verify deployment through a 4-chain smoke suite covering auth, RAG, multi-turn conversation, agent orchestration, and frontend console. Each chain proves a different layer of the enterprise RAG/Agent stack — not just Swagger.
+> I verify deployment through a quick script and a 4-chain smoke suite covering auth, RAG, multi-turn conversation, agent orchestration, and frontend console. Each chain proves a different layer of the enterprise RAG/Agent stack, not just Swagger.

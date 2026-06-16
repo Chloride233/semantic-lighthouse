@@ -353,3 +353,16 @@
 - Fix or control: Patched `semantic_lighthouse.main.SessionLocal` in `tests/conftest.py` alongside the document router background-task session factory, so lifespan recovery uses the same file-backed SQLite test database.
 - Verification: `tests/test_agent.py::test_create_agent_run` dropped from 120s timeout to 0.66s, `tests/test_agent.py` passed in ~7s, and full pytest passed with 106 tests.
 - Interview version: I found that the test dependency override did not cover startup lifecycle code, so I made the test database boundary apply to lifespan recovery as well as request handlers.
+
+## Docker CE Image Does Not Guarantee Docker Socket Access
+
+- Date: 2026-06-16
+- Version: Cloud Deployment
+- Type: pitfall
+- Context: Tencent Cloud Lighthouse was created from an Ubuntu Server 24.04 Docker CE image, so Docker and Compose were already installed.
+- What happened: Running `docker compose` as the `ubuntu` user failed with `permission denied while trying to connect to the Docker daemon socket`.
+- Engineering judgment: Installed tooling and user permissions are separate deployment checks. A Docker image can have the daemon installed while the login user still lacks socket access.
+- Risk if ignored: Deployment can stall on a permissions error even though Docker is correctly installed, leading to unnecessary package reinstall attempts.
+- Fix or control: Use `sudo docker compose` for initial deployment, or run `sudo usermod -aG docker ubuntu` and re-login before using Docker without `sudo`.
+- Verification: `sudo docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build` started both production containers successfully.
+- Interview version: I separated environment readiness from user permission readiness; the fix was not reinstalling Docker, but using the correct privilege boundary.

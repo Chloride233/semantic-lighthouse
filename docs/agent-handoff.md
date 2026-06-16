@@ -13,6 +13,13 @@ Last updated: 2026-06-16
 - **Phase 4.0/4.1**: Conversations + tool calling
 - **Phase 6**: Frontend — all Chinese, zero encoding issues, 13/13 UI smoke
 - **Phase 7**: Agent Orchestration — 7.5 (Agent eval set) not started
+- **Cloud deployment**: Tencent Cloud Lighthouse verified 2026-06-16
+  - Ubuntu Server 24.04 LTS Docker CE image, 4 vCPU / 4 GiB RAM / 40 GiB system disk
+  - Deployment path: `/opt/semantic-lighthouse`
+  - `semantic-lighthouse-api` and `semantic-lighthouse-postgres` healthy via production Compose
+  - Alembic migrated through `0009_v9_rag_audit`
+  - `scripts/deploy/smoke-cloud.sh` passed with keyword RAG and `citation_count: 1`
+  - Public `/health`, `/docs`, and `/console` reachable through temporary TCP `8000` demo access
 
 **Verified test baseline**: 146 pytest, ruff clean, alembic `0009` at head, scan_encoding OK, verify_ui 13/13.
 
@@ -43,7 +50,7 @@ Last updated: 2026-06-16
 - **`scripts/verify_ui.py`**: ruff clean, 13/13 UI smoke passes.
 - **Browser screenshots confirmed**: CSS, Chinese text render correctly.
 
-**Next priority**: manually verify the citation-count UI against the real ontology KB, then choose between retrieval-quality hardening, knowledge-base management, Agent eval, or cloud deployment.
+**Next priority**: manually verify the citation-count UI against the real ontology KB, then choose between retrieval-quality hardening, knowledge-base management, Agent eval, or production operations hardening.
 
 ## Git Repository
 
@@ -161,7 +168,7 @@ Result:
 2. Add retrieval-quality metrics for citation precision/diversity at different K values.
 3. Add lightweight knowledge-base management functions if product workflow needs them.
 4. Agent eval set (Phase 7.5) — multi-step task scenarios.
-5. Cloud deployment with real embedding/chat providers once local UX is satisfactory.
+5. Production operations hardening: backup/restore playbook, HTTPS/domain, and security group tightening after demo access.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
@@ -182,6 +189,19 @@ Result:
 
 ## Cloud Deployment Memory
 
+Verified Tencent Cloud deployment:
+
+```text
+Date: 2026-06-16
+Provider: Tencent Cloud Lighthouse
+Server: Ubuntu Server 24.04 LTS Docker CE image, 4 vCPU / 4 GiB RAM / 40 GiB system disk
+Path: /opt/semantic-lighthouse
+Status: API and PostgreSQL containers healthy
+Migration: 0009_v9_rag_audit applied
+Smoke: scripts/deploy/smoke-cloud.sh passed with one citation
+Public demo: /health, /docs, and /console reachable on temporary TCP 8000
+```
+
 Known server path:
 
 ```bash
@@ -191,16 +211,18 @@ Known server path:
 Production compose command:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+sudo docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
 ```
 
 Status commands:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml ps
-docker logs semantic-lighthouse-api --tail 100
+sudo docker compose --env-file .env.production -f docker-compose.prod.yml ps
+sudo docker logs semantic-lighthouse-api --tail 100
 curl -fsS http://127.0.0.1:8000/health
 ```
+
+Use `sudo docker compose` unless the deployment user has been added to the `docker` group and has re-logged in.
 
 Cloud smoke playbook:
 
