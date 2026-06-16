@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
-**Last updated**: 2026-06-13
-**Current phase**: Phase 7 (implemented, under review) — see `docs/agent-handoff.md`
+**Last updated**: 2026-06-16
+**Current phase**: Phase 7 delivered; next work should be chosen from retrieval quality, knowledge management, Agent eval, or deployment — see `docs/agent-handoff.md`
 
 ---
 
@@ -17,7 +17,7 @@
 | V3.3 | RAG run audit persistence, group-scoped replay | Stable |
 | V3.4 | Async ETL pipeline, structure-aware chunking, ingestion jobs, HNSW | Stable (hardened) |
 
-**Metrics**: 121 pytest, ruff clean, Alembic `0009_v9_rag_audit` (head). Eval: 15 docs, 20 queries, `scripts/run_eval.py`.
+**Metrics**: 146 pytest, verify_ui 13/13, Alembic `0009_v9_rag_audit` (head). Eval: real ontology quality review plus citation-control regression tests.
 
 ---
 

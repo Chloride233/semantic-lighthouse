@@ -14,7 +14,7 @@ Last updated: 2026-06-16
 - **Phase 6**: Frontend — all Chinese, zero encoding issues, 13/13 UI smoke
 - **Phase 7**: Agent Orchestration — 7.5 (Agent eval set) not started
 
-**Verified test baseline**: 125 pytest, ruff clean, alembic `0009` at head, 17 tables. scan_encoding OK, verify_ui 13/13.
+**Verified test baseline**: 146 pytest, ruff previously clean, alembic `0009` at head, 17 tables. scan_encoding OK, verify_ui 13/13.
 
 ### P1 RAG Output Contract Fix (2026-06-14) — delivered
 
@@ -43,7 +43,7 @@ Last updated: 2026-06-16
 - **`scripts/verify_ui.py`**: ruff clean, 13/13 UI smoke passes.
 - **Browser screenshots confirmed**: CSS, Chinese text render correctly.
 
-**Next priority**: P4 Agent eval or cloud deployment — owner's choice.
+**Next priority**: manually verify the citation-count UI against the real ontology KB, then choose between retrieval-quality hardening, knowledge-base management, Agent eval, or cloud deployment.
 
 ## Git Repository
 
@@ -145,11 +145,11 @@ Result:
 - `read_bytes()` on final parse step — fine for 50 MiB but monitor on 2 GiB ECS.
 
 **Recommended next iteration**:
-1. Set `DEEPSEEK_API_KEY` → re-run quality eval with real LLM answers.
-2. Agent eval set (Phase 7.5) — multi-step task scenarios.
-3. Cloud deployment with real embedding provider.
-4. Add citation score cutoff filter — hide citations below threshold.
-5. Log LLM token usage from provider response.
+1. Run local app and manually verify 5/8/10 citation counts on real ontology KB questions.
+2. Add retrieval-quality metrics for citation precision/diversity at different K values.
+3. Add lightweight knowledge-base management functions if product workflow needs them.
+4. Agent eval set (Phase 7.5) — multi-step task scenarios.
+5. Cloud deployment with real embedding/chat providers once local UX is satisfactory.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
@@ -200,6 +200,6 @@ Do not store real `DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, database passwords, c
 
 ## Agent Instructions For The Next Session
 
-Start by reading `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests before changing code.
+Start by reading `AGENTS.md`, `PRODUCT.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests before changing code.
 
-P1 (output contract) and P2 (QA audit) are done. Next priority is P3 retrieval eval harness: gold Q&A pairs, recall@k metrics. No new tables needed — the audit trail is already in place.
+Do not rely on chat history. The latest code baseline is commit `77921da feat: improve rag citation control`; the working tree should be clean before the next iteration.

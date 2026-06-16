@@ -119,5 +119,6 @@ alembic upgrade head
 ## Project Boundary
 
 - Knowledge source for future RAG: `F:\ontology-kb`
-- V3 does not implement MinIO, chunked upload, Elasticsearch, hybrid search, rerank, answer persistence, or Agent dialogue.
+- The current prototype intentionally does not implement MinIO/OSS, Elasticsearch, Kubernetes, full SaaS administration, or unrestricted autonomous Agent actions.
+- Chunked upload, hybrid retrieval, answer audit, conversations, and controlled Agent workflow now exist as prototype capabilities; verify current status in `docs/agent-handoff.md`.
 - Engineering lessons are tracked in `docs/engineering-memory/`.

@@ -18,12 +18,15 @@ Every feature must be explainable by the project owner in business terms, techni
 
 Before changing code, read these files in order:
 
-1. `README.md`
-2. `docs/agent-handoff.md`
-3. `docs/engineering-memory/README.md`
-4. `docs/engineering-memory/learning-index.md`
-5. The most recent retrospective, pitfall log, and highlight log entries
-6. `docs/cloud-smoke-playbook.md` when deployment or cloud verification is involved
+1. `AGENTS.md`
+2. `PRODUCT.md`
+3. `README.md`
+4. `docs/agent-handoff.md`
+5. `docs/project-roadmap.md`
+6. `docs/engineering-memory/README.md`
+7. `docs/engineering-memory/learning-index.md`
+8. The most recent retrospective, pitfall log, and highlight log entries
+9. `docs/cloud-smoke-playbook.md` when deployment or cloud verification is involved
 
 ## Working Rules
 
