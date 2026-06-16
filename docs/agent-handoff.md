@@ -14,7 +14,7 @@ Last updated: 2026-06-16
 - **Phase 6**: Frontend — all Chinese, zero encoding issues, 13/13 UI smoke
 - **Phase 7**: Agent Orchestration — 7.5 (Agent eval set) not started
 
-**Verified test baseline**: 146 pytest, ruff previously clean, alembic `0009` at head, 17 tables. scan_encoding OK, verify_ui 13/13.
+**Verified test baseline**: 146 pytest, ruff clean, alembic `0009` at head, scan_encoding OK, verify_ui 13/13.
 
 ### P1 RAG Output Contract Fix (2026-06-14) — delivered
 
@@ -106,22 +106,34 @@ New eval tools:
 Latest local verification:
 
 ```text
-2026-06-14
+2026-06-16
 
 Command:
-.\.venv\Scripts\python -m pytest -p no:cacheprovider --basetemp=.tmp/pytest-temp --ignore=tests/e2e
+.\.venv\Scripts\python -m pytest -p no:cacheprovider --basetemp=.tmp\pytest-agent
 
 Result:
-113 passed, 1 warning
+146 passed, 1 warning
 
 Command:
-.\.venv\Scripts\ruff check src tests
+.\.venv\Scripts\python scripts\verify_ui.py
+
+Result:
+13 passed, 0 failed out of 13 tests
+
+Command:
+.\.venv\Scripts\ruff check src tests scripts
 
 Result:
 All checks passed!
 
 Command:
-DATABASE_URL="sqlite+pysqlite:///./.tmp/test-migration.db"
+.\.venv\Scripts\python scripts\scan_encoding.py
+
+Result:
+OK: No encoding issues detected
+
+Command:
+DATABASE_URL="sqlite+pysqlite:///./.tmp/takeover-migration-20260616.db"
 .\.venv\Scripts\python -m alembic upgrade head
 .\.venv\Scripts\python -m alembic current
 
@@ -202,4 +214,4 @@ Do not store real `DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, database passwords, c
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests before changing code.
 
-Do not rely on chat history. The latest code baseline is commit `77921da feat: improve rag citation control`; the working tree should be clean before the next iteration.
+Do not rely on chat history. The latest verified baseline before this handoff refresh was commit `d45bef4 docs: refresh project handoff entrypoints`; the working tree should be clean before the next iteration.

@@ -1,5 +1,18 @@
 # Pitfall Log
 
+## Handoff Baseline Pointer Can Drift After Documentation Commits
+
+- Date: 2026-06-16
+- Version: Handoff
+- Type: pitfall -> fixed
+- Context: A takeover check found that `docs/agent-handoff.md` still named `77921da feat: improve rag citation control` as the latest code baseline even though `d45bef4 docs: refresh project handoff entrypoints` was already HEAD.
+- What happened: The handoff content had been refreshed, but the final "latest code baseline" sentence was not updated with the actual repository HEAD.
+- Engineering judgment: Handoff files are operational state, not passive notes. A stale commit pointer can make the next agent trust the wrong snapshot or repeat already-completed verification.
+- Risk if ignored: New sessions could chase a false dirty-state problem, overlook newer documentation changes, or report inconsistent baselines in final summaries.
+- Fix or control: Updated `docs/agent-handoff.md` with the current verification results and changed the baseline sentence to the latest verified pre-refresh commit.
+- Verification: `pytest` full suite passed 146 tests; `scripts/verify_ui.py` passed 13/13; ruff clean; encoding scan clean; Alembic migrated an empty SQLite DB to `0009_v9_rag_audit (head)`.
+- Interview version: I treated project handoff as a tested artifact and corrected a stale commit pointer before starting new feature work.
+
 ## Two Search Endpoints With Different Semantics
 
 - Date: 2026-06-14
