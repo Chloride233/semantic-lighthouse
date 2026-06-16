@@ -21,6 +21,14 @@ export async function render(container, params) {
         <option value="auto">自动选择</option>
       </select>
     </label>
+    <label style="display:inline-flex;align-items:center;gap:8px">
+      引用数量：
+      <select id="ragLimit">
+        <option value="5" selected>5 条</option>
+        <option value="8">8 条</option>
+        <option value="10">10 条</option>
+      </select>
+    </label>
     <button id="ragAskBtn">提问</button>
     <p id="ragError" class="formError" style="display:none"></p>
     <div id="ragResult" style="margin-top:16px"></div>
@@ -65,6 +73,7 @@ export async function render(container, params) {
         body: JSON.stringify({
           question,
           retrieval_method: document.getElementById('ragMethod').value,
+          limit: Number(document.getElementById('ragLimit').value || 5),
         }),
       });
       resultEl.innerHTML = `

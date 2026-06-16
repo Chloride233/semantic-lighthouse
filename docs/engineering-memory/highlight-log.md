@@ -304,3 +304,16 @@
 - Fix or control: `CLAUDE.md` defines the read order and working rules; `agent-handoff.md` stores current state and next priority; `learning-index.md` summarizes practiced concepts and weak points.
 - Verification: `pytest` passed with 40 tests; Alembic migrated from empty SQLite DB to `0005_v22_chunked_uploads`.
 - Interview version: I treated AI-assisted development handoff as an engineering artifact, so project memory, risk state, and verification results are reproducible across tools and sessions.
+
+## RAG Citation Quantity And Diversity Control
+
+- Date: 2026-06-16
+- Version: RAG Quality
+- Type: highlight
+- Context: The UI could only use the backend default citation count, and citation assembly followed raw retrieval order. When one document produced many adjacent chunks, citations could look numerous but still lack source diversity.
+- What happened: Exposed 5/8/10 citation choices in the knowledge问答 and RAG调试台 pages. Added backend citation candidate filtering for empty or zero-score chunks. Added a first-pass per-document cap so the answer context prefers multiple source documents before overflowing repeated chunks from the same document.
+- Engineering judgment: More citations are not automatically better. A consulting answer needs enough evidence, but it also needs diversified sources and clear boundaries on context size. The backend still enforces the schema limit and `rag_max_context_chars`, so the UI cannot create unlimited LLM context.
+- Risk if ignored: The answer could appear well-cited while actually relying on repeated neighboring chunks from a single document, weakening confidence and making audits misleading.
+- Fix or control: `RagAnswerRequest.limit` drives retrieval size; `_prioritize_citation_candidates` improves source diversity; `_usable_citation_candidate` filters zero-score and empty chunks. Regression tests cover expanded citation count, document diversity ordering, and bad-candidate filtering.
+- Verification: `tests/test_rag.py tests/test_retrieval.py` passed 48 tests; full pytest passed 146 tests; UI smoke passed 13/13.
+- Interview version: I separated citation quantity from citation quality. Users can request more sources, but the system still filters weak candidates and prevents one document from monopolizing the context.

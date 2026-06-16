@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
@@ -246,6 +247,36 @@ def test_keyword_rag_extracts_terms_from_long_customer_question(client, tmp_path
     assert payload["model"] == "fake-chat"
 
 
+def test_rag_answer_limit_can_return_more_citations_than_default(client, tmp_path):
+    _, _, owner_headers = register_and_login(client, "owner@example.com")
+    group_id = _create_group(client, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+    for i in range(8):
+        _upload(
+            client,
+            group_id,
+            owner_headers,
+            f"ontology-{i}.md",
+            f"# Ontology Evidence {i}\n\nOntology supports AI transformation evidence {i}.",
+        )
+
+    default_response = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "Ontology evidence", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+    expanded_response = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "Ontology evidence", "retrieval_method": "keyword", "limit": 8},
+        headers=owner_headers,
+    )
+
+    assert default_response.status_code == 200
+    assert expanded_response.status_code == 200
+    assert len(default_response.json()["citations"]) == 3
+    assert len(expanded_response.json()["citations"]) == 8
+
+
 def test_rag_answer_is_persisted_and_can_be_replayed(client, tmp_path):
     _, _, owner_headers = register_and_login(client, "owner@example.com")
     group_id = _create_group(client, owner_headers)
@@ -307,6 +338,65 @@ def test_non_member_cannot_read_rag_run_history(client, tmp_path):
 
 
 # ── citation sanitization + confidence override tests ────────────────────
+
+
+def test_citation_candidates_prioritize_document_diversity():
+    from semantic_lighthouse.routers.rag import RetrievedChunk, _prioritize_citation_candidates
+
+    def item(doc_id: str, chunk_id: str) -> RetrievedChunk:
+        return RetrievedChunk(
+            chunk=SimpleNamespace(id=chunk_id, content=f"content {chunk_id}"),
+            document=SimpleNamespace(id=doc_id),
+            score=0.8,
+            retrieval_method="hybrid",
+        )
+
+    ordered = _prioritize_citation_candidates([
+        item("doc-a", "a1"),
+        item("doc-a", "a2"),
+        item("doc-a", "a3"),
+        item("doc-b", "b1"),
+        item("doc-c", "c1"),
+    ])
+
+    assert [r.chunk.id for r in ordered] == ["a1", "a2", "b1", "c1", "a3"]
+
+
+def test_citations_skip_zero_score_and_empty_candidates():
+    from semantic_lighthouse.routers.rag import RetrievedChunk, _citations
+
+    doc = SimpleNamespace(
+        id="doc-a",
+        title="Doc A",
+        source_path="upload:a.md",
+        file_name="a.md",
+        frontmatter={},
+    )
+    candidates = [
+        RetrievedChunk(
+            chunk=SimpleNamespace(id="empty", content="", chunk_index=0, heading_path=None),
+            document=doc,
+            score=0.9,
+            retrieval_method="hybrid",
+        ),
+        RetrievedChunk(
+            chunk=SimpleNamespace(id="zero", content="Ontology zero score", chunk_index=1, heading_path=None),
+            document=doc,
+            score=0.0,
+            retrieval_method="hybrid",
+        ),
+        RetrievedChunk(
+            chunk=SimpleNamespace(id="good", content="Ontology useful evidence", chunk_index=2, heading_path=None),
+            document=doc,
+            score=0.5,
+            retrieval_method="hybrid",
+        ),
+    ]
+
+    citations = _citations(candidates, "Ontology", 1000)
+
+    assert len(citations) == 1
+    assert citations[0].chunk_id == "good"
 
 
 def test_sanitize_removes_out_of_range_refs():

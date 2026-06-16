@@ -101,7 +101,7 @@ async function renderChat(container, gid, convId) {
       try {
         await api(`/groups/${gid}/conversations/${convId}/messages`, {
           method: 'POST',
-          body: JSON.stringify({ question, retrieval_method: 'hybrid' }),
+          body: JSON.stringify({ question, retrieval_method: 'hybrid', limit: 8 }),
         });
         await renderChat(container, gid, convId);
       } catch (err) {

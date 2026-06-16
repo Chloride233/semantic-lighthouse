@@ -33,6 +33,9 @@ class RetrievedChunk:
     retrieval_method: str
 
 
+MAX_CITATIONS_PER_DOCUMENT_FIRST_PASS = 2
+
+
 @router.post("/answer", response_model=RagAnswerResponse)
 def answer_question(
     group_id: str,
@@ -350,13 +353,15 @@ def _semantic_search(
 def _citations(retrieved: list[RetrievedChunk], query: str, max_context_chars: int) -> list[RagCitation]:
     citations: list[RagCitation] = []
     used_chars = 0
-    for item in retrieved:
+    for item in _prioritize_citation_candidates(retrieved):
         frontmatter = item.document.frontmatter or {}
         chunk_snippet = snippet(item.chunk.content, query, radius=240)
         remaining = max_context_chars - used_chars
         if remaining <= 0:
             break
         chunk_snippet = chunk_snippet[:remaining].strip()
+        if not chunk_snippet:
+            continue
         used_chars += len(chunk_snippet)
         citation = RagCitation(
             document_id=item.document.id,
@@ -377,6 +382,36 @@ def _citations(retrieved: list[RetrievedChunk], query: str, max_context_chars: i
         )
         citations.append(citation)
     return citations
+
+
+def _prioritize_citation_candidates(retrieved: list[RetrievedChunk]) -> list[RetrievedChunk]:
+    """Prefer diverse source documents before overflowing with repeats.
+
+    Retrieval ranking still decides the order. This pass only prevents one
+    long document from occupying every visible citation when other relevant
+    documents are available.
+    """
+    first_pass: list[RetrievedChunk] = []
+    overflow: list[RetrievedChunk] = []
+    per_document: dict[str, int] = {}
+
+    for item in retrieved:
+        if not _usable_citation_candidate(item):
+            continue
+        document_count = per_document.get(item.document.id, 0)
+        if document_count < MAX_CITATIONS_PER_DOCUMENT_FIRST_PASS:
+            first_pass.append(item)
+            per_document[item.document.id] = document_count + 1
+        else:
+            overflow.append(item)
+
+    return first_pass + overflow
+
+
+def _usable_citation_candidate(item: RetrievedChunk) -> bool:
+    if not item.chunk.content or not item.chunk.content.strip():
+        return False
+    return item.score is None or item.score > 0
 
 
 def _build_match_reason(

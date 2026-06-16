@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-15
+Last updated: 2026-06-16
 
 ## Current Phase
 
@@ -161,6 +161,12 @@ Result:
 **Workflow docs added (2026-06-16)**:
 - `docs/quality-gate.md` — gate levels for docs, backend, frontend, migrations, and full regression.
 - `docs/project-workflows.md` — repeatable workflows for iteration, review, RAG quality, frontend, and deployment.
+
+**Citation Quantity And Quality Improvement (2026-06-16)**:
+- `POST /groups/{group_id}/rag/answer` already supported `limit`; frontend knowledge问答 and RAG调试台 now expose 5/8/10 citation choices.
+- Citation assembly now filters empty/zero-score candidates and prioritizes document diversity before overflowing repeated chunks from the same document.
+- Conversation messages can pass `limit`; current console sends 8 for multi-turn chat.
+- Verification: `pytest` full suite `146 passed`; `scripts/verify_ui.py` `13 passed`.
 
 ## Cloud Deployment Memory
 

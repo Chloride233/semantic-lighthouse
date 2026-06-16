@@ -434,6 +434,14 @@ button.ghost:hover { background: var(--brand-light); }
   flex: 1; min-height: 48px; font-size: var(--text-base);
   border-radius: var(--radius-md);
 }
+.askLimitControl {
+  width: 116px; margin: 0; display: grid; gap: 4px;
+  color: var(--muted); font-size: var(--text-xs); font-weight: 600;
+}
+.askLimitControl select {
+  min-height: 48px; border-radius: var(--radius-md);
+  font-size: var(--text-sm); background: var(--panel);
+}
 .askInput button {
   min-height: 48px; padding: 0 24px; font-size: var(--text-base);
   border-radius: var(--radius-md);
@@ -599,6 +607,7 @@ button.ghost:hover { background: var(--brand-light); }
   .authPage { padding-top: 40px; }
   .onboardPage { padding-top: 48px; }
   .askInput { flex-direction: column; }
+  .askLimitControl { width: 100%; }
   .askInput button { width: 100%; }
   .shell { padding: 20px 0; }
 }

@@ -75,6 +75,14 @@ function renderQuestionUI(inner, gid) {
   inner.innerHTML = `
     <div class="askInput">
       <input id="askQuestion" type="text" placeholder="例如：企业为什么需要 Ontology？" autofocus />
+      <label class="askLimitControl" for="askLimit">
+        <span>引用数量</span>
+        <select id="askLimit" aria-label="引用数量">
+          <option value="5" selected>5 条</option>
+          <option value="8">8 条</option>
+          <option value="10">10 条</option>
+        </select>
+      </label>
       <button id="askSubmitBtn">提问</button>
     </div>
     <p id="askError" class="formError" style="display:none"></p>
@@ -88,13 +96,14 @@ function renderQuestionUI(inner, gid) {
     const question = document.getElementById('askQuestion').value.trim();
     const errEl = document.getElementById('askError');
     const resultEl = document.getElementById('askResult');
+    const limit = Number(document.getElementById('askLimit')?.value || 5);
     if (!question) { errEl.textContent = '请输入问题。'; errEl.style.display = 'block'; return; }
     errEl.style.display = 'none';
     resultEl.innerHTML = '<div class="loading"><span class="spinner"></span>正在检索知识库...</div>';
     try {
       const data = await api(`/groups/${gid}/rag/answer`, {
         method: 'POST',
-        body: JSON.stringify({ question, retrieval_method: 'hybrid' }),
+        body: JSON.stringify({ question, retrieval_method: 'hybrid', limit }),
       });
       resultEl.innerHTML = answerCard(data);
       loadRecent(gid);

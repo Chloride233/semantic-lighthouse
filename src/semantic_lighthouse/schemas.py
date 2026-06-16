@@ -323,6 +323,7 @@ class ConversationDetailResponse(ConversationResponse):
 class ConversationMessageRequest(BaseModel):
     question: str = Field(min_length=1, max_length=1000)
     retrieval_method: str = Field(default="hybrid", pattern="^(hybrid|auto|keyword|semantic)$")
+    limit: int | None = Field(default=None, ge=1, le=10)
 
 
 # ── v7 agent orchestration ──────────────────────────────────────────────

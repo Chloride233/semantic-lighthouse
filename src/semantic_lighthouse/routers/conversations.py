@@ -304,7 +304,7 @@ def send_message(
     db.add(user_msg)
 
     # ── retrieve ──────────────────────────────────────────────────────
-    limit = settings.rag_top_k
+    limit = request.limit or settings.rag_top_k
     retrieval_method = request.retrieval_method
     retrieved = _retrieve(db, group_id, request.question, retrieval_method, limit, settings)
 
