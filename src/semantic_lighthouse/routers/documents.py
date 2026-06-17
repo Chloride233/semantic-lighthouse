@@ -68,6 +68,9 @@ def _document_response(document: Document) -> DocumentResponse:
         status=document.status,
         ingestion_error=document.ingestion_error,
         processed_at=document.processed_at,
+        archived_by=document.archived_by,
+        archived_at=document.archived_at,
+        archive_reason=document.archive_reason,
         created_by=document.created_by,
         created_at=document.created_at,
     )
@@ -469,6 +472,9 @@ def archive_document(
             detail=f"Cannot archive document with status '{document.status}'",
         )
     document.status = "archived"
+    document.archived_by = current_user.id
+    document.archived_at = utc_now()
+    document.archive_reason = "手动归档"
     db.commit()
     return _document_response(document)
 
@@ -492,6 +498,9 @@ def unarchive_document(
             detail=f"Cannot unarchive document with status '{document.status}'",
         )
     document.status = "ready"
+    document.archived_by = None
+    document.archived_at = None
+    document.archive_reason = None
     db.commit()
     return _document_response(document)
 
@@ -502,13 +511,15 @@ def unarchive_document(
 @router.get("", response_model=list[DocumentResponse])
 def list_documents(
     group_id: str,
+    status_filter: str | None = Query(default=None, alias="status"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[DocumentResponse]:
     get_membership_or_404(db, current_user.id, group_id)
-    documents = db.scalars(
-        select(Document).where(Document.group_id == group_id).order_by(Document.created_at.desc())
-    ).all()
+    stmt = select(Document).where(Document.group_id == group_id)
+    if status_filter:
+        stmt = stmt.where(Document.status == status_filter)
+    documents = db.scalars(stmt.order_by(Document.created_at.desc())).all()
     return [_document_response(document) for document in documents]
 
 

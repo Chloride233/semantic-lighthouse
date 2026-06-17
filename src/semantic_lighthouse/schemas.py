@@ -95,6 +95,9 @@ class DocumentResponse(BaseModel):
     status: str
     ingestion_error: str | None = None
     processed_at: datetime | None = None
+    archived_by: str | None = None
+    archived_at: datetime | None = None
+    archive_reason: str | None = None
     created_by: str
     created_at: datetime
 

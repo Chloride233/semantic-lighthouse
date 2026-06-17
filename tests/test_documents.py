@@ -779,3 +779,47 @@ def test_unarchive_non_archived_returns_409(client, tmp_path):
 
     r = client.post(f"/groups/{gid}/documents/{doc_id}/unarchive", headers=h)
     assert r.status_code == 409
+
+
+def test_archive_stores_audit_fields(client, tmp_path):
+    _, _, h = register_and_login(client, "p@t.com")
+    gid = _create_group(client, h)
+    _override_settings(client, tmp_path)
+    complete = _chunked_upload_complete(client, gid, h, b"# Archive Me\n\naudit test")
+    doc_id = complete.json()["id"]
+    r = client.post(f"/groups/{gid}/documents/{doc_id}/archive", headers=h)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["archived_by"] is not None
+    assert data["archived_at"] is not None
+    assert data["archive_reason"] == "手动归档"
+
+
+def test_unarchive_clears_audit_fields(client, tmp_path):
+    _, _, h = register_and_login(client, "q@t.com")
+    gid = _create_group(client, h)
+    _override_settings(client, tmp_path)
+    complete = _chunked_upload_complete(client, gid, h, b"# Cycle\n\narchive then restore")
+    doc_id = complete.json()["id"]
+    client.post(f"/groups/{gid}/documents/{doc_id}/archive", headers=h)
+    r = client.post(f"/groups/{gid}/documents/{doc_id}/unarchive", headers=h)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["archived_by"] is None
+    assert data["archived_at"] is None
+    assert data["archive_reason"] is None
+
+
+def test_list_documents_with_status_filter(client, tmp_path):
+    _, _, h = register_and_login(client, "r@t.com")
+    gid = _create_group(client, h)
+    _override_settings(client, tmp_path)
+    _chunked_upload_complete(client, gid, h, b"# Ready Doc\n\ncontent")
+    complete2 = _chunked_upload_complete(client, gid, h, b"# To Archive\n\ncontent")
+    doc2_id = complete2.json()["id"]
+    client.post(f"/groups/{gid}/documents/{doc2_id}/archive", headers=h)
+    r = client.get(f"/groups/{gid}/documents?status=ready", headers=h)
+    assert r.status_code == 200
+    assert len(r.json()) == 1
+    r = client.get(f"/groups/{gid}/documents?status=archived", headers=h)
+    assert len(r.json()) == 1

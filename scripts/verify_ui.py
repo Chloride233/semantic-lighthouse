@@ -232,6 +232,23 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         cancelled_tab_ok = False
     results.append(("Cancelled filter tab visible", cancelled_tab_ok))
 
+    # ── 19. Document filter tabs ──────────────────────────────────────
+    doc_filter_ok = False
+    if gid:
+        page.goto(f"{base}/console#/groups/{gid}/documents")
+        page.wait_for_timeout(800)
+        doc_filter_ok = (
+            page.locator(".docFilters .taskFilter:has-text('全部')").count() > 0
+            and page.locator(".docFilters .taskFilter:has-text('可检索')").count() > 0
+        )
+    results.append(("Document filter tabs visible", doc_filter_ok))
+
+    # ── 20. Document metadata badges ──────────────────────────────────
+    doc_meta_ok = False
+    if gid:
+        doc_meta_ok = page.locator(".docTag").count() > 0
+    results.append(("Document metadata badges in table", doc_meta_ok))
+
     # 11. Logout
     page.click("#navLogoutBtn")
     page.wait_for_timeout(500)
