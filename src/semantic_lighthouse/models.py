@@ -332,3 +332,38 @@ class AgentMemory(Base):
     source_run_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("agent_runs.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
+class Task(Base):
+    """Lightweight user-confirmed task from RAG next_steps.
+
+    Product alignment §7 — tasks are traceable work items, not a full PM system.
+    V1: source_type='rag_run' only.
+    """
+
+    __tablename__ = "tasks"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    group_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("groups.id"), index=True, nullable=False
+    )
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending"
+    )  # pending | in_progress | done | cancelled
+    source_type: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # rag_run | conversation | agent_run | manual
+    source_id: Mapped[str] = mapped_column(
+        String(36), index=True, nullable=False
+    )  # informational FK — no DB cascade
+    created_by: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )

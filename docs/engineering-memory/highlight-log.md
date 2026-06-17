@@ -1,5 +1,18 @@
 # Highlight Log
 
+## Task Is Not A Todo — Source-Traceable Action Items From RAG Next Steps
+
+- Date: 2026-06-17
+- Version: Product Alignment A.3 + v1.1
+- Type: highlight
+- Context: RAG answers returned `next_steps`, but without confirmation and traceability these suggestions were just text. The system needed to turn AI suggestions into trackable work without becoming a project management tool.
+- What happened: Built a lightweight task board where every task records `source_type` + `source_id` — linking back to the exact RAG run that suggested it. Click a task card to inline-expand the source: original question, answer, citations, and knowledge gaps at suggestion time. v1.1 added `status='cancelled'` soft cancel and CSS variable aliases to fix silently-broken task UI styling.
+- Engineering judgment: Two decisions enforce the product boundary. (1) No DELETE endpoint — tasks are audit records; cancelled via `status='cancelled'` soft cancel instead, fully reversible (`cancelled → pending`). (2) Source detail fetched lazily from `GET /rag/runs/{id}`, not denormalized — the task stores a pointer, not a copy. This avoids stale data and keeps the task row lightweight.
+- Risk if ignored: Tasks become a disconnected CRUD list. Users can't answer "why did I create this?" or "what was the AI's reasoning?" The system degrades from knowledge evidence workspace to generic todo app.
+- Fix or control: `source_type` + `source_id` indexed columns. Inline expand via `answerCard({ hideNextSteps: true })`. `sourceCache` Map for instant re-expand. `status='cancelled'` with member-reopen permission.
+- Verification: 20 task tests (15 V1 + 5 V1.1), 166 pytest full suite. verify_ui 17/19 (2 known-fragile on fake chat timing).
+- Interview version: I designed the task system not as a todo list but as a source-traceability layer. Every task records which RAG answer suggested it. Clicking a task shows the original evidence — so the action stays connected to the AI reasoning. No DELETE because these are audit records; soft cancel keeps the evidence chain intact.
+
 ## Chinese Keyword Search Bi-gram Fix — Real Ontology RAG Quality Review
 
 - Date: 2026-06-15

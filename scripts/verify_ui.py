@@ -153,6 +153,85 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         )
     results.append(("Documents supports batch upload", batch_ok))
 
+    # ── 13. Tasks page empty state ─────────────────────────────────
+    if gid:
+        page.goto(f"{base}/console#/groups/{gid}/tasks")
+        page.wait_for_timeout(800)
+        tasks_page_ok = page.locator("text=轻量任务").count() > 0
+        tasks_empty_ok = page.locator("text=暂无任务").count() > 0
+    else:
+        tasks_page_ok = False
+        tasks_empty_ok = False
+    results.append(("Tasks page empty state", tasks_page_ok and tasks_empty_ok))
+
+    # ── 14. Status filter tabs ─────────────────────────────────────
+    if gid:
+        filter_all = page.locator("button.taskFilter:has-text('全部')").count() > 0
+        filter_pending = page.locator("button.taskFilter:has-text('待处理')").count() > 0
+        filter_active = page.locator("button.taskFilter:has-text('进行中')").count() > 0
+        filter_done = page.locator("button.taskFilter:has-text('已完成')").count() > 0
+        filters_ok = filter_all and filter_pending and filter_active and filter_done
+    else:
+        filters_ok = False
+    results.append(("Status filter tabs visible", filters_ok))
+
+    # ── 15. Confirm button + task link in answer card ───────────────
+    # MAY FAIL — depends on fake chat returning next_steps
+    confirm_btn_ok = False
+    task_link_ok = False
+    if gid:
+        try:
+            fd, md_path = tempfile.mkstemp(suffix=".md")
+            os.close(fd)
+            with open(md_path, "w", encoding="utf-8") as f:
+                f.write("# Test\n\n企业 AI 转型需要 Ontology。\n")
+            page.goto(f"{base}/console#/groups/{gid}/documents")
+            page.wait_for_timeout(500)
+            page.set_input_files("#docFileInput", md_path)
+            page.wait_for_timeout(1500)
+            page.click("a[href='#/ask']")
+            page.wait_for_timeout(500)
+            page.fill("#askQuestion", "企业为什么需要Ontology")
+            page.click("#askSubmitBtn")
+            page.wait_for_timeout(3000)
+            confirm_btn_ok = page.locator(".confirmTaskBtn").count() > 0
+            task_link_ok = page.locator(".answerNextLink").count() > 0
+        except Exception:
+            confirm_btn_ok = False
+            task_link_ok = False
+        finally:
+            try:
+                os.unlink(md_path)
+            except OSError:
+                pass
+    results.append(("Confirm button + task link in answer card", confirm_btn_ok and task_link_ok))
+
+    # ── 16. Navbar tasks entry ─────────────────────────────────────
+    if gid:
+        nav_tasks_ok = page.locator("a[href*='tasks']").count() > 0
+    else:
+        nav_tasks_ok = False
+    results.append(("Navbar tasks entry visible", nav_tasks_ok))
+
+    # ── 17. Task card renders ───────────────────────────────────────
+    task_card_ok = False
+    if gid:
+        page.goto(f"{base}/console#/groups/{gid}/tasks")
+        page.wait_for_timeout(800)
+        task_card_ok = (
+            page.locator(".taskCard").count() > 0
+            and page.locator(".taskTitle").count() > 0
+            and page.locator(".taskStatus").count() > 0
+        )
+    results.append(("Task card renders with title + status", task_card_ok))
+
+    # ── 18. Cancelled filter tab ────────────────────────────────────
+    if gid:
+        cancelled_tab_ok = page.locator("button.taskFilter:has-text('已取消')").count() > 0
+    else:
+        cancelled_tab_ok = False
+    results.append(("Cancelled filter tab visible", cancelled_tab_ok))
+
     # 11. Logout
     page.click("#navLogoutBtn")
     page.wait_for_timeout(500)

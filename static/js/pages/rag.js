@@ -2,6 +2,7 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { panel } from '../components/panel.js';
 import { confidenceBadge } from '../components/badge.js';
+import { answerCard } from '../components/answer-card.js';
 
 export async function render(container, params) {
   const gid = params.gid || state.currentGroupId;
@@ -77,28 +78,11 @@ export async function render(container, params) {
         }),
       });
       resultEl.innerHTML = `
-        <div class="ragAnswer">
-          <div class="ragAnswerHeader">
-            ${confidenceBadge(data.confidence)}
-            <span class="muted">模型：${esc(data.model)} | 检索方式：${esc(retrievalMethodLabel(data.retrieval_method))}</span>
-          </div>
-          <p class="ragAnswerText">${esc(data.answer)}</p>
-          ${data.knowledge_gaps?.length ? `<div class="ragGaps"><strong>知识缺口：</strong><ul>${data.knowledge_gaps.map((g) => `<li>${esc(g)}</li>`).join('')}</ul></div>` : ''}
-          ${data.next_steps?.length ? `<div class="ragNext"><strong>下一步建议：</strong><ul>${data.next_steps.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
-          ${data.citations?.length ? `
-            <details class="ragCitations">
-              <summary>引用来源（${data.citations.length}）</summary>
-              ${data.citations.map((c, i) => `
-                <div class="citationItem">
-                  <strong>[${i + 1}] ${esc(c.title)}</strong>
-                  <span class="muted">${typeof c.score === 'number' && c.score > 0 ? '匹配分：' + c.score.toFixed(3) : ''}</span>
-                  <p>${esc(c.snippet || '')}</p>
-                </div>
-              `).join('')}
-            </details>
-          ` : ''}
+        <div class="ragAnswerHeader">
+          ${confidenceBadge(data.confidence)}
+          <span class="muted">模型：${esc(data.model)} | 检索方式：${esc(retrievalMethodLabel(data.retrieval_method))}</span>
         </div>
-      `;
+        ${answerCard(data, { showConfirm: false })}`;
       loadRuns();
     } catch (err) {
       errEl.textContent = err.detail || 'RAG 请求失败';

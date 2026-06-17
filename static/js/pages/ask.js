@@ -4,6 +4,7 @@ import { esc } from '../util/esc.js';
 import { answerCard } from '../components/answer-card.js';
 import { confidenceBadge } from '../components/badge.js';
 import { showToast } from '../util/toast.js';
+import { confirmTask, markConfirmed } from '../util/task-confirm.js';
 
 export async function render(container) {
   if (state.accessToken && !state.currentUser) {
@@ -92,6 +93,8 @@ function renderQuestionUI(inner, gid) {
 
   loadRecent(gid);
 
+  let currentRunId = '';
+
   const submit = async () => {
     const question = document.getElementById('askQuestion').value.trim();
     const errEl = document.getElementById('askError');
@@ -105,7 +108,9 @@ function renderQuestionUI(inner, gid) {
         method: 'POST',
         body: JSON.stringify({ question, retrieval_method: 'hybrid', limit }),
       });
-      resultEl.innerHTML = answerCard(data);
+      currentRunId = data.run_id || '';
+      data._sourceId = currentRunId;
+      resultEl.innerHTML = answerCard(data, { showConfirm: true, groupId: gid });
       loadRecent(gid);
     } catch (err) {
       errEl.textContent = err.detail || '获取回答失败';
@@ -117,6 +122,23 @@ function renderQuestionUI(inner, gid) {
   document.getElementById('askSubmitBtn').addEventListener('click', submit);
   document.getElementById('askQuestion').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') submit();
+  });
+
+  // Event delegation for confirm-task buttons on #askInner
+  inner.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.confirmTaskBtn');
+    if (!btn || btn.disabled) return;
+    const title = btn.dataset.title;
+    btn.disabled = true;
+    btn.textContent = '...';
+    const task = await confirmTask(gid, title, currentRunId);
+    if (task) {
+      markConfirmed(btn);
+      showToast('任务已创建');
+    } else {
+      btn.disabled = false;
+      btn.textContent = '✓ 确认任务';
+    }
   });
 }
 
@@ -146,6 +168,7 @@ async function loadRecent(gid) {
         detailEl.innerHTML = '<div class="loading"><span class="spinner"></span>正在加载详情...</div>';
         try {
           const detail = await api(`/groups/${gid}/rag/runs/${runId}`);
+          const normalized = { ...detail, _sourceId: detail.id || detail.run_id };
           detailEl.innerHTML = `
             <div class="recentDetailCard">
               <div class="recentDetailMeta">
@@ -158,7 +181,7 @@ async function loadRecent(gid) {
                 <span><strong>时间：</strong>${new Date(detail.created_at).toLocaleString()}</span>
               </div>
               ${detail.error_message ? `<div class="recentDetailError">错误信息：${esc(detail.error_message)}</div>` : ''}
-              ${answerCard(detail)}
+              ${answerCard(normalized, { showConfirm: false })}
             </div>`;
         } catch (err) {
           showToast('加载历史详情失败', 'error');

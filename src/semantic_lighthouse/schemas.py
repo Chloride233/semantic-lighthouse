@@ -392,3 +392,37 @@ class AgentMemoryUpsertRequest(BaseModel):
     value: str = Field(min_length=1)
     scope: str = Field(pattern="^(user|group)$")
     ttl_days: int | None = None
+
+
+# ── Product Alignment: Lightweight Tasks ──────────────────────────────────
+
+
+class TaskCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=240)
+    description: str = ""
+    source_type: str = Field(pattern="^rag_run$")  # V1: rag_run only
+    source_id: str = Field(min_length=1, max_length=36)
+
+
+class TaskUpdateRequest(BaseModel):
+    status: str | None = Field(default=None, pattern="^(pending|in_progress|done|cancelled)$")
+    title: str | None = Field(default=None, min_length=1, max_length=240)
+    description: str | None = None
+
+
+class TaskResponse(BaseModel):
+    id: str
+    group_id: str
+    title: str
+    description: str
+    status: str
+    source_type: str
+    source_id: str
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class TaskListResponse(BaseModel):
+    tasks: list[TaskResponse]
+    total: int

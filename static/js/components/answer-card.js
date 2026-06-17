@@ -5,12 +5,16 @@ const VALID_LEVELS = new Set(['high', 'medium', 'low']);
 
 const CONFIDENCE_PCT = { high: 85, medium: 60, low: 30, unknown: 0 };
 
-export function answerCard(data) {
+export function answerCard(data, opts = {}) {
+  const { showConfirm = false, groupId = '', hideNextSteps = false } = opts;
+  const taskBoardLink = showConfirm && groupId
+    ? `<a class="answerNextLink" href="#/groups/${groupId}/tasks">查看任务 →</a>`
+    : '';
   const rawLevel = data.confidence;
   const level = (typeof rawLevel === 'string' && VALID_LEVELS.has(rawLevel)) ? rawLevel : 'unknown';
   const pct = CONFIDENCE_PCT[level];
   const gaps = data.knowledge_gaps || [];
-  const next = data.next_steps || [];
+  const next = hideNextSteps ? [] : (data.next_steps || []);
   const citations = data.citations || [];
   const answerText = data.answer || '暂未生成回答，请检查检索结果或尝试重试。';
 
@@ -36,6 +40,26 @@ export function answerCard(data) {
 
       <div class="answerCard-text">${esc(answerText)}</div>
 
+      ${gaps.length ? `
+        <div class="answerGaps">
+          <strong>知识缺口</strong>
+          <ul>${gaps.map((g) => `<li>${esc(g)}</li>`).join('')}</ul>
+        </div>
+      ` : ''}
+
+      ${next.length ? `
+        <div class="answerNext">
+          <strong>下一步建议</strong>
+          <ul>${next.map((s, i) => `
+            <li>
+              <span>${esc(s)}</span>
+              ${showConfirm ? `<button class="confirmTaskBtn" data-index="${i}" data-title="${esc(s).replace(/"/g, '&quot;')}">✓ 确认任务</button>` : ''}
+            </li>
+          `).join('')}</ul>
+          ${taskBoardLink}
+        </div>
+      ` : ''}
+
       ${citations.length ? `
         <div class="citationList">
           <div class="citationList-title">引用来源（${citations.length}）</div>
@@ -50,20 +74,6 @@ export function answerCard(data) {
               ${c.match_reason ? `<p class="citationMatchReason">${esc(c.match_reason)}</p>` : ''}
             </div>
           `).join('')}
-        </div>
-      ` : ''}
-
-      ${gaps.length ? `
-        <div class="answerGaps">
-          <strong>知识缺口</strong>
-          <ul>${gaps.map((g) => `<li>${esc(g)}</li>`).join('')}</ul>
-        </div>
-      ` : ''}
-
-      ${next.length ? `
-        <div class="answerNext">
-          <strong>下一步建议</strong>
-          <ul>${next.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>
         </div>
       ` : ''}
     </div>

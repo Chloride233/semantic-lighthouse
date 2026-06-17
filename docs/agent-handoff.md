@@ -21,7 +21,45 @@ Last updated: 2026-06-17
   - `scripts/deploy/smoke-cloud.sh` passed with keyword RAG and `citation_count: 1`
   - Public `/health`, `/docs`, and `/console` reachable through temporary TCP `8000` demo access
 
-**Verified test baseline**: 146 pytest, ruff clean, alembic `0009` at head, scan_encoding OK, verify_ui 13/13.
+**Verified test baseline**: 166 pytest, ruff clean, alembic `0010` at head, verify_ui 17/19 (2 known-fragile: confirm button + task card depend on fake chat timing).
+
+### Product Alignment A.3 — Lightweight Task Board (2026-06-17) — delivered
+
+**Plan**: `.claude/plans/lightweight-task-board.plan.md`
+**Parallel reviews**: `.tmp/parallel-taskboard-reviews.md` (A/B/C/D windows, merged)
+
+**What was built**:
+
+- **`tasks` table** (migration `0010_v10_tasks`): `id`, `group_id`, `title`, `description`, `status` (pending/in_progress/done/cancelled), `source_type` (V1: rag_run only), `source_id`, `created_by`, timestamps.
+- **4 API endpoints**: `POST /groups/{gid}/tasks` (create), `GET /groups/{gid}/tasks` (list + status filter), `GET /groups/{gid}/tasks/{id}` (detail), `PATCH /groups/{gid}/tasks/{id}` (update status by any member, title/desc by creator only).
+- **No DELETE endpoint** — V1 preserves audit trail. V2 will add `status: 'cancelled'` soft-delete.
+- **Frontend**: "✓ 确认任务" button in answer-card (`showConfirm` param), new `/tasks` board page with status filter tabs + task cards with color bars, "任务" navbar entry.
+- **15 new pytest tests** (create/list/update/isolation/permissions/no-delete gate).
+- **4 new verify_ui checks** (tasks empty state, filter tabs, confirm button existence, navbar entry).
+
+**Key design decisions** (user-confirmed):
+1. DELETE removed from V1 — audit trail over cleanup convenience.
+2. Owner/Admin cannot edit others' task title/description — creator-only semantics.
+3. Migration named `0010_v10_tasks.py` — aligns with existing `v<N>` convention.
+4. verify_ui check 15 is button-existence only (not full click flow) — full E2E deferred to Playwright.
+5. V1 source_type only supports `rag_run`. conversation/agent_run/manual deferred.
+6. Manual task creation deferred to V1.1.
+7. No task comments, attachments, due dates, priorities, assignees, or external integrations.
+
+### v1.1 — Source Traceability + Soft Cancel (2026-06-17) — delivered
+
+**Plan**: `.claude/plans/actionable-rag-v11.plan.md` (from merged `.tmp/actionable-rag-v11-reviews.md`)
+
+**What was built**:
+
+- **`status=cancelled`**: soft cancel (not delete). Schema pattern extended `^(pending|in_progress|done|cancelled)$`. No DB migration needed. Cancelled tasks retain full detail/visibility, can be reopened to `pending`.
+- **Source traceability**: click any task card to inline-expand source RAG run detail. Calls existing `GET /rag/runs/{source_id}` — no new API. Shows original question, answer (via `answerCard` with `hideNextSteps: true`), retrieval metadata, and link to RAG debug console.
+- **CSS variable fix**: added `--brand-teal`, `--brand-amber`, `--brand-blue`, `--ok-strong`, `--border`, `--surface`, `--text-secondary`, `--text-muted`, `--radius`, `--duration-fast` aliases to `:root`. Fixes silently-broken task board styling.
+- **5 new tests**: cancelled CRUD + member reopen + non-member detail isolation.
+- **2 new verify_ui checks**: task card render + cancelled filter tab.
+
+**Still deferred to v1.2+**:
+- Manual task creation, conversation/agent_run source_type, independent detail page route, task edit modal, edit/delete by non-creator.
 
 ### Product Alignment (2026-06-17)
 
@@ -172,11 +210,10 @@ Result:
 - `read_bytes()` on final parse step — fine for 50 MiB but monitor on 2 GiB ECS.
 
 **Recommended next iteration**:
-1. Review current `next_steps` shape in RAG runs, conversation messages, and frontend answer cards.
-2. Design the lightweight task board around user-confirmed next steps, not automatic task creation.
-3. Keep web search in evidence validation until it proves value on low-confidence questions.
-4. Continue retrieval-quality metrics for citation precision/diversity at different K values.
-5. Production operations hardening remains useful but should not obscure the product alignment milestone.
+1. V1.2: manual task creation + `ConversationMessage.next_steps` → enable task confirm from conversations.
+2. V2: independent task detail route `#/tasks/:id`, `status='cancelled'` cancel button in UI, source link navigation.
+3. V2+: `source_type='agent_run'` — after Agent eval set is created.
+4. Continue retrieval-quality hardening.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
