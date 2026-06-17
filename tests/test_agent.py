@@ -155,3 +155,72 @@ def test_memory_crud(client, tmp_path):
 
     assert client.delete(f"/groups/{gid}/agent/memories/{mid}", headers=h).status_code == 204
     assert client.get(f"/groups/{gid}/agent/memories", headers=h).json() == []
+
+
+# ── Agent eval: risky tool confirmation ─────────────────────────────────
+
+def test_risky_tool_requires_confirmation(client, tmp_path):
+    """S2: archive_document is risky → execute pauses for confirmation."""
+    _, _, h = register_and_login(client, "rsk@e.com")
+    gid = _group(client, h)
+    _ovr(client, _settings(tmp_path))
+    _upload(client, gid, h, "doc.md", "# Test\n\ncontent")
+    rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "Test"}, headers=h).json()["id"]
+    r = client.post(f"/groups/{gid}/agent/runs/{rid}/execute", params={"tool": "archive_document"}, headers=h)
+    assert r.status_code == 200
+    step = r.json()
+    assert step["action_detail"]["needs_confirmation"] is True
+    run = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=h).json()
+    assert run["status"] == "awaiting_confirmation"
+
+
+def test_risky_tool_confirmed_then_executed(client, tmp_path):
+    """S2b: confirm → tool executes → document archived."""
+    _, _, h = register_and_login(client, "cnf@e.com")
+    gid = _group(client, h)
+    _ovr(client, _settings(tmp_path))
+    doc_id = _upload(client, gid, h, "doc.md", "# Test\n\ncontent")
+    rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "Test"}, headers=h).json()["id"]
+    client.post(f"/groups/{gid}/agent/runs/{rid}/execute", params={"tool": "archive_document"}, headers=h)
+    r = client.post(f"/groups/{gid}/agent/runs/{rid}/respond", json={"response": "yes"}, headers=h)
+    assert r.status_code == 200
+    assert r.json()["status"] == "completed"
+    detail = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=h).json()
+    assert detail["final_answer"] is not None
+    doc = client.get(f"/groups/{gid}/documents/{doc_id}", headers=h).json()
+    assert doc["status"] == "archived"
+
+
+def test_risky_tool_rejected_stops(client, tmp_path):
+    """S3: reject → run failed, document NOT archived."""
+    _, _, h = register_and_login(client, "rej@e.com")
+    gid = _group(client, h)
+    _ovr(client, _settings(tmp_path))
+    doc_id = _upload(client, gid, h, "doc.md", "# Test\n\nkeep me")
+    rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "Test"}, headers=h).json()["id"]
+    client.post(f"/groups/{gid}/agent/runs/{rid}/execute", params={"tool": "archive_document"}, headers=h)
+    r = client.post(f"/groups/{gid}/agent/runs/{rid}/respond", json={"response": "reject"}, headers=h)
+    assert r.json()["status"] == "failed"
+    doc = client.get(f"/groups/{gid}/documents/{doc_id}", headers=h).json()
+    assert doc["status"] == "ready"
+
+
+def test_non_admin_cannot_use_archive_tool(client, tmp_path):
+    """S4: member tries archive_document → role error blocks execution."""
+    _, _, owner_h = register_and_login(client, "own@e.com")
+    _, _, member_h = register_and_login(client, "mem@e.com")
+    gid = _group(client, owner_h)
+    _join(client, gid, owner_h, member_h)
+    _ovr(client, _settings(tmp_path))
+    _upload(client, gid, owner_h, "doc.md", "# Test\n\ncontent")
+    rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "Test"}, headers=member_h).json()["id"]
+    r = client.post(f"/groups/{gid}/agent/runs/{rid}/execute", params={"tool": "archive_document"}, headers=member_h)
+    step = r.json()
+    if step.get("action_detail", {}).get("needs_confirmation"):
+        # Risky check fired — confirm, then expect role error in tool execution
+        client.post(f"/groups/{gid}/agent/runs/{rid}/respond", json={"response": "yes"}, headers=member_h)
+        run = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=member_h).json()
+        last_step = run.get("steps", [])[-1] if run.get("steps") else {}
+        assert "Error:" in str(last_step.get("observation", "")) or "failed" in str(run.get("status", ""))
+    else:
+        assert "Error:" in step.get("observation", "")

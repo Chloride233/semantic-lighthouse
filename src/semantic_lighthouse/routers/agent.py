@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -26,6 +26,7 @@ from semantic_lighthouse.services.agent_orchestrator import (
     execute_tool,
     fail_run,
     finalize_run,
+    is_risky_tool,
     upsert_memory,
 )
 
@@ -170,6 +171,7 @@ def list_agent_steps(
 def execute_agent_step(
     group_id: str,
     run_id: str,
+    tool: str = Query(default="search_knowledge_base", description="Tool name for eval; must be in AGENT_TOOLS registry"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -183,6 +185,26 @@ def execute_agent_step(
     if run.status not in ("planning", "executing"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Run is {run.status}, cannot execute")
 
+    # Whitelist-gate: only tools in the registry
+    tool_args: dict = {"query": run.goal} if tool == "search_knowledge_base" else {"title": run.goal} if tool == "archive_document" else {}
+
+    if is_risky_tool(tool):
+        run.status = "awaiting_confirmation"
+        run.current_phase = "execute"
+        run.updated_at = utc_now()
+        step_index = len(run.steps) if run.steps else 0
+        step = add_step(
+            db, run, phase="execute", step_index=step_index,
+            thought=f"Tool '{tool}' requires confirmation before execution.",
+            action_type="ask_user",
+            action_detail={"tool": tool, "arguments": tool_args, "needs_confirmation": True},
+            observation=f"Waiting for user confirmation to execute '{tool}'.",
+            status="running",
+        )
+        db.commit()
+        db.refresh(step)
+        return _step_response(step)
+
     run.status = "executing"
     run.current_phase = "execute"
     run.updated_at = utc_now()
@@ -190,29 +212,35 @@ def execute_agent_step(
     step_index = len(run.steps) if run.steps else 0
     step = add_step(
         db, run, phase="execute", step_index=step_index,
-        thought=f"Searching knowledge base for: {run.goal}",
+        thought=f"Executing tool: {tool}",
         action_type="tool_call",
-        action_detail={"tool": "search_knowledge_base", "arguments": {"query": run.goal}},
+        action_detail={"tool": tool, "arguments": tool_args},
         status="running",
     )
     db.commit()
 
-    result = execute_tool(
-        "search_knowledge_base", {"query": run.goal},
-        db, group_id, membership.role,
-    )
+    result = execute_tool(tool, tool_args, db, group_id, membership.role)
     step.observation = result
-    step.status = "completed"
     step.finished_at = utc_now()
 
+    if result.startswith("Error:"):
+        step.status = "failed"
+        step.error_message = result
+    else:
+        step.status = "completed"
+
     citations = [{
-        "document_id": "", "chunk_id": "", "title": "KB Search Result",
+        "document_id": "", "chunk_id": "", "title": f"Agent {tool} Result",
         "source_path": "", "file_name": "", "chunk_index": 0,
         "heading_path": None, "snippet": result[:200],
         "score": None, "retrieval_method": "keyword",
-    }] if result else []
+    }] if result and not result.startswith("Error:") else []
 
-    finalize_run(db, run, f"Agent searched for '{run.goal}':\n\n{result}", citations)
+    if step.status == "completed":
+        finalize_run(db, run, f"Agent executed '{tool}':\n\n{result}", citations)
+    else:
+        fail_run(db, run, f"Tool '{tool}' failed: {result}")
+
     db.commit()
     db.refresh(step)
     return _step_response(step)
@@ -230,7 +258,7 @@ def respond_to_agent(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> AgentRunResponse:
-    get_membership_or_404(db, current_user.id, group_id)
+    membership = get_membership_or_404(db, current_user.id, group_id)
     run = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.group_id == group_id))
     if run is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
@@ -239,20 +267,42 @@ def respond_to_agent(
 
     response_lower = body.response.strip().lower()
     if response_lower in ("yes", "confirm", "approve", "proceed"):
-        step_index = len(run.steps) if run.steps else 0
-        add_step(
-            db, run, phase="execute", step_index=step_index,
-            thought="User confirmed the action.",
-            action_type="ask_user",
-            action_detail={"user_response": body.response},
-            observation=f"User confirmed: {body.response}",
-            status="completed",
-        )
-        run.status = "executing"
-        run.current_phase = "execute"
-        run.updated_at = utc_now()
-        db.commit()
-        db.refresh(run)
+        if run.status == "awaiting_confirmation":
+            last_step = run.steps[-1] if run.steps else None
+            tool_name = (last_step.action_detail or {}).get("tool", "unknown")
+            tool_args = (last_step.action_detail or {}).get("arguments", {})
+            result = execute_tool(tool_name, tool_args, db, group_id, membership.role)
+            last_step.observation = result
+            last_step.finished_at = utc_now()
+            if result.startswith("Error:"):
+                last_step.status = "failed"
+                last_step.error_message = result
+                fail_run(db, run, f"Confirmed tool '{tool_name}' failed: {result}")
+            else:
+                last_step.status = "completed"
+                finalize_run(db, run, f"Confirmed '{tool_name}' executed:\n\n{result}", [{
+                    "document_id": "", "chunk_id": "", "title": f"Agent {tool_name} Result",
+                    "source_path": "", "file_name": "", "chunk_index": 0,
+                    "heading_path": None, "snippet": result[:200],
+                    "score": None, "retrieval_method": "keyword",
+                }])
+            db.commit()
+            db.refresh(run)
+        else:
+            step_index = len(run.steps) if run.steps else 0
+            add_step(
+                db, run, phase="execute", step_index=step_index,
+                thought="User confirmed the action.",
+                action_type="ask_user",
+                action_detail={"user_response": body.response},
+                observation=f"User confirmed: {body.response}",
+                status="completed",
+            )
+            run.status = "executing"
+            run.current_phase = "execute"
+            run.updated_at = utc_now()
+            db.commit()
+            db.refresh(run)
     elif response_lower in ("no", "reject", "cancel", "deny"):
         fail_run(db, run, f"User rejected: {body.response}")
     else:
