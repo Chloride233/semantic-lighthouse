@@ -3,8 +3,9 @@ r"""P3 Retrieval Eval Runner — standalone, zero real API keys required.
 Usage:
     cd f:/semantic-lighthouse
     .venv/Scripts/python scripts/run_eval.py
+    .venv/Scripts/python scripts/run_eval.py --output .tmp/retrieval_eval.json --markdown .tmp/retrieval_eval.md
 
-Output: JSON report to stdout with Recall@3/5, no-result rate, missed, false positives.
+Output: JSON with Recall@3/5, MRR, Precision@5, no-result rate, per-method breakdown.
 """
 
 from __future__ import annotations
@@ -127,6 +128,25 @@ def _recall_at_k(results: list[dict[str, Any]], expected: set[str], k: int) -> t
     return len(hit) > 0, hit, missed
 
 
+def _mrr(results: list[dict[str, Any]], expected: set[str]) -> float:
+    """Mean Reciprocal Rank — rank of the first expected document in results."""
+    if not expected:
+        return 0.0
+    for rank, item in enumerate(results, start=1):
+        if item["title"] in expected:
+            return 1.0 / rank
+    return 0.0
+
+
+def _precision_at_k(results: list[dict[str, Any]], expected: set[str], k: int) -> float:
+    """Fraction of top-K results that are in the expected set."""
+    if not results[:k]:
+        return 0.0
+    top_titles = {item["title"] for item in results[:k]}
+    hits = len(expected & top_titles)
+    return hits / min(k, len(results[:k]))
+
+
 def run_eval() -> dict[str, Any]:
     t0 = time.monotonic()
     engine = None
@@ -159,6 +179,8 @@ def run_eval() -> dict[str, Any]:
             for method in methods:
                 recall3 = 0
                 recall5 = 0
+                mrr_sum = 0.0
+                precision5_sum = 0.0
                 no_result = 0
                 missed_queries: list[dict[str, Any]] = []
                 false_positives: list[dict[str, Any]] = []
@@ -177,10 +199,14 @@ def run_eval() -> dict[str, Any]:
 
                     r3, hit3, miss3 = _recall_at_k(results, expected, 3)
                     r5, hit5, miss5 = _recall_at_k(results, expected, 5)
+                    q_mrr = _mrr(results, expected)
+                    q_p5 = _precision_at_k(results, expected, 5)
                     if r3:
                         recall3 += 1
                     if r5:
                         recall5 += 1
+                    mrr_sum += q_mrr
+                    precision5_sum += q_p5
                     if miss5:
                         missed_queries.append({
                             "id": q["id"], "query": q["query"],
@@ -203,6 +229,8 @@ def run_eval() -> dict[str, Any]:
                 report["methods"][method] = {
                     "recall_at_3": round(recall3 / total, 3) if total else 0,
                     "recall_at_5": round(recall5 / total, 3) if total else 0,
+                    "mrr": round(mrr_sum / total, 3) if total else 0,
+                    "precision_at_5": round(precision5_sum / total, 3) if total else 0,
                     "no_result_rate": round(no_result / total, 3) if total else 0,
                     "missed_queries": missed_queries,
                     "false_positives": false_positives[:10],
@@ -217,6 +245,49 @@ def run_eval() -> dict[str, Any]:
             engine.dispose()
 
 
+def _generate_markdown(report: dict[str, Any]) -> str:
+    lines = [
+        "# Retrieval Evaluation Report",
+        "",
+        f"**Corpus**: {report['corpus']['document_count']} documents, {report['corpus']['query_count']} queries",
+        f"**Duration**: {report['duration_ms']} ms",
+        "",
+        "| Method | Recall@3 | Recall@5 | MRR | Precision@5 | No-Result |",
+        "|--------|----------|----------|-----|-------------|-----------|",
+    ]
+    for m, data in report.get("methods", {}).items():
+        lines.append(
+            f"| {m} | {data['recall_at_3']} | {data['recall_at_5']} | "
+            f"{data['mrr']} | {data['precision_at_5']} | {data['no_result_rate']} |"
+        )
+    lines += [
+        "",
+        "**Known limitations**: fake embeddings degrade semantic/hybrid metrics. ",
+        "Keyword metrics are the primary gate. Real embedding eval deferred to Phase 1.5.",
+    ]
+    return "\n".join(lines)
+
+
 if __name__ == "__main__":
+    import argparse
+
+    p = argparse.ArgumentParser(description="P3 Retrieval Evaluation Runner")
+    p.add_argument("--output", help="Write JSON report to file")
+    p.add_argument("--markdown", help="Write Markdown report to file")
+    args = p.parse_args()
+
     report = run_eval()
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+
+    if args.output:
+        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.output).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"JSON report → {args.output}")
+
+    if args.markdown:
+        md = _generate_markdown(report)
+        Path(args.markdown).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.markdown).write_text(md, encoding="utf-8")
+        print(f"Markdown report → {args.markdown}")
+
+    if not args.output and not args.markdown:
+        print(json.dumps(report, ensure_ascii=False, indent=2))

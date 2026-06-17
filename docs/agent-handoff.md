@@ -21,7 +21,23 @@ Last updated: 2026-06-17
   - `scripts/deploy/smoke-cloud.sh` passed with keyword RAG and `citation_count: 1`
   - Public `/health`, `/docs`, and `/console` reachable through temporary TCP `8000` demo access
 
-**Verified test baseline**: 166 pytest, ruff clean, alembic `0010` at head, verify_ui 17/19 (2 known-fragile: confirm button + task card depend on fake chat timing).
+**Verified test baseline**: 166 pytest, ruff clean, alembic `0010` at head, verify_ui 17/19 (2 known-fragile on fake chat timing).
+
+### RAG Quality Evaluation v1 — Eval Harness (2026-06-17) — delivered
+
+**Plan**: merged from `.tmp/rag-quality-v1-review-a/b/c/d` (4-window review)
+
+- **`docs/eval/rag-queries-ontology.json`**: 24 Chinese ontology-KB questions × 7 types with document-level annotations.
+- **`docs/eval/rag-queries-self-test.json`**: preserved 16 system self-test queries (renamed from `rag-queries.json`).
+- **`scripts/run_eval.py`**: +MRR, +Precision@5, +`--output`/`--markdown` flags.
+- **`scripts/check_eval_thresholds.py`** (new): keyword Recall@5 ≥ 0.6 gate + `--baseline` regression compare.
+- **`docs/rag-quality-eval-report.md`**: thin report template.
+
+Manual gates:
+```powershell
+.\.venv\Scripts\python scripts/run_eval.py --output .tmp\retrieval_eval_report.json --markdown .tmp\retrieval_eval_report.md
+.\.venv\Scripts\python scripts\check_eval_thresholds.py .tmp\retrieval_eval_report.json
+```
 
 ### Product Alignment A.3 — Lightweight Task Board (2026-06-17) — delivered
 
