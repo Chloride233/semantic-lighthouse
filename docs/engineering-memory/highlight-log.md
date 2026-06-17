@@ -1,5 +1,17 @@
 # Highlight Log
 
+## RAG Quality Is Not "Feels Better" — Fixed Queries + Metrics + Gate
+
+- Date: 2026-06-17
+- Version: Phase 1.3 (RAG Quality Evaluation v1)
+- Type: highlight
+- Context: The project had two eval scripts but no baseline, no regression detection, and a question set that tested system internals instead of the product's domain (enterprise AI transformation consulting).
+- What happened: Built a three-layer eval harness. (1) 24-question ontology KB eval set across 7 types replacing 16 self-test questions. (2) Added MRR and Precision@5 — now 4 retrieval metrics. (3) `check_eval_thresholds.py`: reads JSON eval output, gates keyword Recall@5 ≥ 0.6 and no-result rate ≤ 0.2, supports baseline regression comparison.
+- Engineering judgment: Two separations matter. First, self-test queries and ontology eval queries must live in separate files — mixing them makes results uninterpretable. Second, eval scripts produce data; a separate gate script enforces thresholds. The gate doesn't run eval — it reads eval output. This keeps the runner fast and the gate reusable.
+- Risk if ignored: Every retrieval change judged subjectively. Without fixed queries and numeric thresholds, the project cannot prove quality is maintained.
+- Verification: 166 pytest; eval scripts produce valid JSON; threshold gate returns exit 0.
+- Interview version: I separated RAG quality from feelings — every retrieval change is checked against 24 real consulting questions with annotated expected documents. MRR measures ranking quality; Precision@5 catches noise. A threshold gate fails if recall drops, so quality doesn't silently regress.
+
 ## Task Is Not A Todo — Source-Traceable Action Items From RAG Next Steps
 
 - Date: 2026-06-17
