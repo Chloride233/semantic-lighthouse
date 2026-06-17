@@ -24,6 +24,82 @@ This feature should complement the internal knowledge base. Internal group-scope
 - the user explicitly asks for current/public information
 - the answer's next steps suggest checking public examples, vendor docs, news, or standards
 
+## Problem Framing
+
+### Who
+
+Primary user in the current project stage:
+
+- **Project owner during interview/demo**: needs to show that Semantic Lighthouse can recognize internal knowledge gaps and offer a controlled way to collect public evidence.
+- **Future enterprise consultant user**: asks business questions inside a workspace and expects the system to distinguish curated internal knowledge from public external sources.
+- **Group Member**: can trigger read-only search because it does not mutate group knowledge. Owner/Admin rights are only needed if a future feature saves external evidence into the knowledge base.
+
+This is not a general-purpose browser feature for every user action. It is a supplement to the RAG evidence chain.
+
+### What
+
+Observable pain today:
+
+- When internal KB evidence is weak, the system can return a low-confidence answer with knowledge gaps, but it cannot help the user gather external supporting evidence inside the same workflow.
+- The user must leave the app, search manually, judge source quality manually, and then mentally connect outside findings back to the RAG answer.
+- This breaks auditability: external sources are not captured as citations, do not have retrieval timestamps, and do not have filtering reasons.
+
+Concrete current failure pattern:
+
+```text
+Question: 企业为什么需要 Ontology？
+Internal answer: can explain the concept, but may lack concrete public company examples.
+Knowledge gap: "缺少具体使用 Ontology 的企业名单或案例名称。"
+Current next step: "搜索公开资料中的企业案例。"
+Missing product capability: user cannot perform that next step inside Semantic Lighthouse.
+```
+
+The issue is not that the system fabricates blindly. The current evidence gate already reduces that risk. The issue is that a low-confidence answer stops at "go look elsewhere" instead of offering a controlled evidence-gathering path.
+
+### Why Not Now
+
+Without this feature, users can only solve the gap by:
+
+1. opening a browser manually
+2. searching public pages
+3. copying snippets back into their own notes or documents
+4. trusting themselves to remember where the evidence came from
+
+That path has three engineering weaknesses:
+
+- no source traceability in the application
+- no consistent source-quality filtering
+- no separation between curated internal KB evidence and public web evidence
+
+So the user can solve the information gap manually, but the system cannot audit or explain the solution.
+
+### Why Now
+
+This feature was not appropriate before V3:
+
+- before V1/V2, there was no permission or document boundary to protect
+- before V3, there was no answer contract to attach web evidence to
+- before citation-quality work, adding web search would have amplified noisy evidence
+
+It becomes reasonable now because the project already has:
+
+- group-scoped authorization
+- document/chunk citations
+- RAG confidence and knowledge gaps
+- RAG run audit history
+- frontend history/detail view
+- citation quantity and diversity controls
+
+The timing is not "because web search is cool." The timing is that the system now has enough evidence governance to add external sources without turning them into raw prompt noise.
+
+Priority note:
+
+- If the next goal is **demo/interview readiness**, web search is valuable because it shows mature Agent tool design.
+- If the next goal is **retrieval benchmark quality**, finish retrieval eval first.
+- If the next goal is **production operations**, backup/HTTPS/logging should come first.
+
+Recommended current stance: design now, implement only as a small read-only P1 after local RAG citation behavior is manually verified.
+
 ## Design Principle
 
 External tools must return `Evidence`, not raw text.
