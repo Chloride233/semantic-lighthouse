@@ -2,7 +2,9 @@
 
 ## One-Line Positioning
 
-语义灯塔 is an enterprise AI transformation consultant prototype: it uses a permission-isolated knowledge base to answer business questions with citations, confidence judgment, knowledge gaps, and next-step suggestions.
+语义灯塔 is a permission-aware knowledge evidence workspace for enterprise AI transformation. Its core is a trusted RAG loop: group-scoped knowledge retrieval, citation-grounded answers, confidence judgment, knowledge gaps, and user-confirmed next-step tasks.
+
+The product boundary source of truth is `docs/product-alignment-prd.md`.
 
 ## Why This Project Exists
 
@@ -14,7 +16,8 @@ The project is built for a 2027 AI application / RAG / Agent internship portfoli
 - citation traceability
 - answer confidence
 - auditability
-- controlled Agent workflows
+- user-confirmed action handoff
+- controlled Agent workflows when multi-step coordination is genuinely needed
 
 ## Target User Experience
 
@@ -23,11 +26,12 @@ A user should be able to:
 1. register or log in
 2. enter a workspace
 3. upload or import knowledge documents
-4. ask a consulting-style question
+4. ask an enterprise AI transformation question
 5. inspect the answer, citations, confidence reason, knowledge gaps, and next steps
-6. continue into multi-turn consultation when needed
+6. confirm selected next steps into lightweight tasks
+7. continue into multi-turn consultation or controlled Agent workflow when needed
 
-The experience should feel like a professional knowledge-consulting workspace, not a Swagger-only backend demo.
+The experience should feel like a professional knowledge evidence workspace, not a Swagger-only backend demo and not an unrestricted chatbot.
 
 ## Current Product Capabilities
 
@@ -41,6 +45,7 @@ The experience should feel like a professional knowledge-consulting workspace, n
 - V4: conversations and controlled tool calling
 - Phase 6: Chinese frontend console and knowledge问答 experience
 - Phase 7: lightweight Agent orchestration with audit trail
+- Product alignment: actionable RAG loop from evidence-backed answer to user-confirmed task
 
 ## Product Non-Goals For Now
 
@@ -49,6 +54,9 @@ The experience should feel like a professional knowledge-consulting workspace, n
 - Kubernetes
 - RabbitMQ/Kafka/Celery unless single-machine async ETL becomes a proven bottleneck
 - unrestricted autonomous Agent actions
+- automatic task creation from every answer
+- full project management system
+- autonomous web browsing or automatic web-to-KB ingestion
 - untested technologies in resume claims
 
 ## Quality Bar
@@ -68,3 +76,4 @@ A feature is not considered finished until:
 - PDF/DOCX parsing is limited to extractable text and ordinary paragraphs
 - production deployment must protect secrets and runtime storage
 - Agent workflow should remain controlled and auditable before adding framework complexity
+- deterministic backend rules should not be replaced by LLM decisions

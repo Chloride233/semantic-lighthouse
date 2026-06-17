@@ -4,12 +4,12 @@ This is the first file Claude Code should read when taking over Semantic Lightho
 
 ## Project Intent
 
-Semantic Lighthouse is an enterprise permission-aware RAG / Agent prototype for internship and interview demonstration.
+Semantic Lighthouse is a permission-aware knowledge evidence workspace for enterprise AI transformation. Its core is trusted RAG with traceable evidence, confidence judgment, knowledge gaps, and user-confirmed action handoff. Agent is a controlled coordination layer, not the product's default answer to every problem.
 
 The goal is not to build a productized SaaS. The goal is to prove engineering judgment through a maintainable chain:
 
 ```text
-auth and group isolation -> document ingestion -> retrieval -> citation-grounded RAG answer -> audit trail -> later Agent workflow
+auth and group isolation -> document ingestion -> retrieval -> citation-grounded RAG answer -> audit trail -> confirmed action/task -> controlled Agent workflow
 ```
 
 Every feature must be explainable by the project owner in business terms, technical terms, risk terms, and interview terms.
@@ -20,13 +20,14 @@ Before changing code, read these files in order:
 
 1. `AGENTS.md`
 2. `PRODUCT.md`
-3. `README.md`
-4. `docs/agent-handoff.md`
-5. `docs/project-roadmap.md`
-6. `docs/engineering-memory/README.md`
-7. `docs/engineering-memory/learning-index.md`
-8. The most recent retrospective, pitfall log, and highlight log entries
-9. `docs/cloud-smoke-playbook.md` when deployment or cloud verification is involved
+3. `docs/product-alignment-prd.md`
+4. `README.md`
+5. `docs/agent-handoff.md`
+6. `docs/project-roadmap.md`
+7. `docs/engineering-memory/README.md`
+8. `docs/engineering-memory/learning-index.md`
+9. The most recent retrospective, pitfall log, and highlight log entries
+10. `docs/cloud-smoke-playbook.md` when deployment or cloud verification is involved
 
 ## Working Rules
 
@@ -36,6 +37,8 @@ Before changing code, read these files in order:
 - Do not introduce architecture the project owner cannot explain.
 - Do not add speculative abstractions for future versions.
 - Keep group-scoped data isolation as a hard invariant.
+- Do not use Agent behavior to replace deterministic backend logic such as permission checks, status filters, hash checks, or CRUD.
+- Any write-like Agent/action behavior must have role authorization, group_id isolation, and user confirmation.
 - Update project memory after every meaningful iteration.
 - **Every meaningful change must be committed to Git** (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`).
 - Before committing: verify `pytest` and `ruff check src tests` pass.

@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
-**Last updated**: 2026-06-16
-**Current phase**: Phase 7 delivered; next work should be chosen from retrieval quality, knowledge management, Agent eval, or deployment — see `docs/agent-handoff.md`
+**Last updated**: 2026-06-17
+**Current phase**: Product Alignment delivered; next work should strengthen the actionable RAG loop before adding broader Agent or web-search features — see `docs/product-alignment-prd.md` and `docs/agent-handoff.md`
 
 ---
 
@@ -18,6 +18,21 @@
 | V3.4 | Async ETL pipeline, structure-aware chunking, ingestion jobs, HNSW | Stable (hardened) |
 
 **Metrics**: 146 pytest, verify_ui 13/13, Alembic `0009_v9_rag_audit` (head). Eval: real ontology quality review plus citation-control regression tests.
+
+---
+
+## Product Alignment: Actionable RAG Loop ← CURRENT
+
+**Goal**: Keep the project centered on a trusted RAG loop that turns evidence-backed answers into user-confirmed next-step tasks.
+
+| # | Task | Acceptance |
+|---|------|------------|
+| A.1 | Product boundary PRD | `docs/product-alignment-prd.md` explains what the product is, what Agent is for, and what is out of scope |
+| A.2 | Entry-file alignment | `AGENTS.md`, `CLAUDE.md`, `PRODUCT.md`, `README.md`, and handoff all point to the same product boundary |
+| A.3 | Next-step task design | RAG/Agent can suggest tasks, but user confirmation is required before creation |
+| A.4 | Web search status | Web search remains Discovery until low-confidence question validation proves value |
+
+**Acceptance**: A new session can read the entry files and understand that Semantic Lighthouse is a knowledge evidence workspace, not a generic autonomous Agent product.
 
 ---
 
@@ -164,6 +179,9 @@ These items are not permanently rejected. They are deferred until the earlier en
 - Billing, usage quotas, rate limiting
 - Complex frontend SPA before Phase 6
 - Open-ended complex Agent before Phase 7
+- Automatic task creation from every answer
+- Full project management system
+- Autonomous web browsing or automatic web-to-KB ingestion
 - Mobile app
 - Multilingual RAG (current focus: English + Chinese where noted)
 

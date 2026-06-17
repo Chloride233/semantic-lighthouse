@@ -330,3 +330,16 @@
 - Fix or control: Verified both production containers were healthy, Alembic reached `0009_v9_rag_audit`, `/health` returned 200, and `scripts/deploy/smoke-cloud.sh` completed the auth -> upload -> keyword RAG path with one citation.
 - Verification: `semantic-lighthouse-api` and `semantic-lighthouse-postgres` healthy; quick smoke reported `rag ok`, `confidence: medium`, `retrieval_method: keyword`, and `citation_count: 1`.
 - Interview version: I deployed the RAG/Agent prototype to a small cloud server and proved the end-to-end demo path with a smoke test, not just a container health check.
+
+## Product Boundary Re-centered On Actionable RAG
+
+- Date: 2026-06-17
+- Version: Product Alignment
+- Type: highlight
+- Context: The project had grown from auth/RAG into conversations, Agent orchestration, web-search design, and frontend workflows. Without a sharper product boundary, future iterations could drift into "everything is Agent" or a vague consulting chatbot.
+- What happened: Added `docs/product-alignment-prd.md` and synchronized the entry files around a single positioning: Semantic Lighthouse is a permission-aware knowledge evidence workspace for enterprise AI transformation. The near-term loop is answer evidence -> confidence/gaps -> next steps -> user-confirmed lightweight task.
+- Engineering judgment: I separated three levels of AI behavior: answering, suggesting, and executing. Answering can be handled by trusted RAG; suggesting can produce next steps; executing or mutating state needs explicit permission, group isolation, audit, and user confirmation.
+- Risk if ignored: The project could over-design Agent capabilities before the RAG and evidence workflow is product-clear, making the system harder to explain and easier to misuse.
+- Fix or control: Agent is documented as a controlled coordination layer only for multi-step, tool-based, auditable workflows. Web search remains Discovery until low-confidence question validation proves value. Task creation is user-confirmed, not automatic.
+- Verification: Documentation-only change; verified with `git diff --check` and entry-file search for stale product positioning.
+- Interview version: I did not keep adding Agent features just because they were possible. I re-centered the product on a trusted RAG-to-action loop and defined where AI may answer, where it may suggest, and where the user must approve.

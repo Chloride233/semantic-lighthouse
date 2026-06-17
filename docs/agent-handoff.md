@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-16
+Last updated: 2026-06-17
 
 ## Current Phase
 
@@ -22,6 +22,14 @@ Last updated: 2026-06-16
   - Public `/health`, `/docs`, and `/console` reachable through temporary TCP `8000` demo access
 
 **Verified test baseline**: 146 pytest, ruff clean, alembic `0009` at head, scan_encoding OK, verify_ui 13/13.
+
+### Product Alignment (2026-06-17)
+
+- New product boundary source: `docs/product-alignment-prd.md`.
+- Current positioning: Semantic Lighthouse is a permission-aware knowledge evidence workspace for enterprise AI transformation.
+- Core near-term workflow: ask question -> inspect citations/confidence/gaps -> review next steps -> user confirms selected next steps into lightweight tasks.
+- Agent boundary: Agent is a controlled coordination layer for multi-step/tool-based/auditable workflows, not a replacement for deterministic backend rules.
+- Web search status: Discovery only. Validate with low-confidence questions before promoting it into the core product flow.
 
 ### P1 RAG Output Contract Fix (2026-06-14) — delivered
 
@@ -164,11 +172,11 @@ Result:
 - `read_bytes()` on final parse step — fine for 50 MiB but monitor on 2 GiB ECS.
 
 **Recommended next iteration**:
-1. Run local app and manually verify 5/8/10 citation counts on real ontology KB questions.
-2. Add retrieval-quality metrics for citation precision/diversity at different K values.
-3. Add lightweight knowledge-base management functions if product workflow needs them.
-4. Agent eval set (Phase 7.5) — multi-step task scenarios.
-5. Production operations hardening: backup/restore playbook, HTTPS/domain, and security group tightening after demo access.
+1. Review current `next_steps` shape in RAG runs, conversation messages, and frontend answer cards.
+2. Design the lightweight task board around user-confirmed next steps, not automatic task creation.
+3. Keep web search in evidence validation until it proves value on low-confidence questions.
+4. Continue retrieval-quality metrics for citation precision/diversity at different K values.
+5. Production operations hardening remains useful but should not obscure the product alignment milestone.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
