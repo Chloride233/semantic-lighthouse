@@ -187,6 +187,12 @@ Result:
 - Conversation messages can pass `limit`; current console sends 8 for multi-turn chat.
 - Verification: `pytest` full suite `146 passed`; `scripts/verify_ui.py` `13 passed`.
 
+**Web Search Evidence Tool Design (2026-06-17)**:
+- Design doc added: `docs/web-search-design.md`.
+- Decision: treat web search results as auditable external Evidence, not raw text pasted into the model.
+- Initial provider recommendation: Firecrawl first, behind a provider interface with fake tests; Tavily/Exa can be added later if needed.
+- Implementation boundary: start with read-only web search API and separate UI panel; do not auto-ingest web pages into the group knowledge base.
+
 ## Cloud Deployment Memory
 
 Verified Tencent Cloud deployment:
