@@ -4,7 +4,7 @@ Last updated: 2026-06-18
 
 ## Current Phase
 
-**Phases 0–9 delivered; Phase 10.1–10.4 delivered; 10.5 pending** — see `docs/project-roadmap.md` and `docs/phase10-planning.md`. Phase 10 focuses on governance operations and demo polish before Graph RAG or modeling studio.
+**Phases 0–9 delivered; Phase 10.1–10.4 delivered; 10.5 review complete** — see `docs/project-roadmap.md` and `docs/phase10-planning.md`. Phase 10 governance operations and demo polish complete. Next: Phase 11 planning (see roadmap).
 
 **Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
 
@@ -298,7 +298,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 10.5 Phase 10 review (end-to-end governance pipeline verification). See `docs/phase10-planning.md`.
+**Next iteration**: Phase 11 planning. See `docs/project-roadmap.md`.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
@@ -470,7 +470,7 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Full suite**: 224 passed, ruff clean, migration 0012 at head
 - **Not in scope**: wikilink relations (9.3), governance issue list UI (9.4), ontology graph UI (9.5), Graph RAG, Agent writes to ontology, external KB modification
 
-**Phase 9 complete**. Phase 10.1–10.4 delivered. Next: Phase 10.5 Phase 10 review.
+**Phase 9 complete**. Phase 10.1–10.5 delivered (governance operations complete). Next: Phase 11 planning.
 
 ### Real KB Curation Demo — Phase 10.2 (2026-06-18)
 
@@ -647,38 +647,65 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - `test_conversations.py` blocked by Windows temp dir PermissionError (19 tests)
 - Real DeepSeek Agent smoke pending (Phase 8.1)
 
-## Phase 10.2 Review Checkpoint (2026-06-18)
+## Phase 10.5 Review Checkpoint (2026-06-18)
 
-**Conclusion**: 10.2 is complete and verified. No blocking issues. 3 stale documentation references found and fixed.
+**Conclusion**: Phase 10 complete. All 10.1–10.4 deliverables verified end-to-end. No blocking issues. 6 stale documentation references found and fixed.
 
-### Findings
+### Governance Pipeline Verified
+
+- **Scan → Issues**: 74 docs → 74 entities, 186 relations, 97 issues (90 unresolved_wikilink, 7 stale_eval_gold_doc_id)
+- **Triage → Persistence**: 97 confirmed via deterministic rules, rescan preserves all triage via stable issue_key
+- **Curation Backlog**: 39 entries (30 review_link_target, 7 update_eval_gold_doc_id, 2 create_missing_research_doc)
+- **External KB**: NOT modified — all read-only governance
+
+### Evidence Bridge Verified
+
+- **answerCard**: receives `ontologyIndex` via opts only (no internal API call)
+- **ask.js / rag.js / tasks.js**: all load and pass `ontologyIndex`
+- **ontology-links.js**: cached byDocumentId + bySourcePath index, `upload:` prefix stripped
+- **Ontology deep link**: `?entity_id=nonexistent` handled gracefully (page renders, no crash)
+- **Read-only bridge**: citations → entity badges are navigational only, no retrieval change
+
+### Graph UX Verified
+
+- Graph scope/status controls, legend, SVG tooltips, unresolved targets list
+- Entity detail clickable relations, issue triage/code filters, mobile layout
+- All filtering frontend-only, zero API changes, no graph library
+
+### Documentation Fixes
 
 | Severity | Issue | Action |
 |----------|-------|--------|
-| LOW | Roadmap header: "Phase 10 planning pending" — stale after 10.1–10.2 delivered | Fixed: updated to "Phase 10.1–10.2 delivered; 10.3–10.5 pending" |
-| LOW | Roadmap Phase 10 section header: "← PLANNING" — stale | Fixed: updated to "← IN PROGRESS (10.1–10.2 delivered)" |
-| LOW | Handoff current phase: "Phase 10 planning" — stale | Fixed: updated to "Phase 10.1–10.2 delivered; 10.3–10.5 pending" |
-| LOW | Handoff "Recommended next iteration" listed completed Phase 8 tasks | Fixed: updated to Phase 10.3 |
+| LOW | Roadmap header: "10.3–10.5 pending" — stale after 10.3–10.4 delivered | Fixed: "10.1–10.4 delivered; 10.5 review complete" |
+| LOW | Roadmap Phase 10 header: "IN PROGRESS (10.1–10.2)" — stale | Fixed: "COMPLETE (10.1–10.4 delivered, 10.5 review passed)" |
+| LOW | Roadmap 10.5 row: no checkmark | Fixed: ✅ with verification summary |
+| LOW | PRD section 4: "Phase 8 Experience Integration" — extremely stale | Fixed: "Phase 10 Governance Operations (delivered)" |
+| LOW | PRD section 5: "Phase 10 is planned" — stale | Fixed: "Phase 10 is delivered" |
+| LOW | phase10-planning: 10.5 row no review result | Fixed: ✅ with review summary |
+| LOW | phase10-planning status: "10.5 pending" | Fixed: "10.5 review complete ✅" |
 
-### Verified
+### Verification
 
 - **76 tests** (41 ontology + 35 curation demo) — all passed
 - **ruff clean** across src, tests, scripts
-- **Curation demo reproducible**: 74 imported, 74 entities, 186 relations, 97 issues, 97 confirmed, 39 backlog entries, triage persisted across rescan
-- **Product boundaries intact**: external KB not modified, no Graph RAG, no modeling studio, no Agent auto-write, deterministic triage
-- **git diff --check** clean, **git status** clean
+- **git diff --check** clean
+- **verify_ui**: 24 checks (21 PASS + 3 known-fragile — none ontology-related)
 
-### Risks (unchanged)
+### Product Boundary Check
 
-- External KB has real drift (90 unresolved wikilinks, 7 stale eval gold IDs) — these are curation findings, not bugs
-- Backlog items require human curator action — no automated KB fix path
+- ✅ No Graph RAG, no graph DB, no modeling studio
+- ✅ No Agent auto-write to ontology entities/relations
+- ✅ External KB not modified by any Phase 10 artifact
+- ✅ All ontology read models group-scoped, permission-aware
+- ✅ Evidence bridge is read-only navigation, not retrieval change
+- ✅ Curation backlog is human action guidance only
 
-**Next**: Phase 10.5 Phase 10 review (end-to-end governance pipeline verification).
+**Next**: Phase 11 planning. See `docs/project-roadmap.md`.
 
 ## Agent Instructions For The Next Session
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.
 
-Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 10.1–10.4 are delivered. Phase 10.5 (Phase 10 review) is next.
+Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 10 is complete (governance operations: triage, curation demo, graph UX, evidence bridge, review). Next: Phase 11 planning.
 
-Do not rely on chat history. The latest verified baseline before this handoff refresh was commit `398865f chore: add ontology curation demo runner`; the working tree should be clean before the next iteration.
+Do not rely on chat history. The latest verified baseline is commit `93d5415 feat: link rag evidence to ontology entities`; the working tree should be clean before the next iteration.

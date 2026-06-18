@@ -84,7 +84,7 @@ The next product workflow adds:
 3. User inspects entity list, relation graph, broken links, and governance issues.
 4. Future modeling workflows turn validated entities into Object Type, Property, Link Type, and Action Type drafts.
 
-## 4. Current Phase: Phase 8 Experience Integration
+## 4. Current Phase: Phase 10 Governance Operations (delivered)
 
 Phase 8 should finish the demonstrable loop:
 
@@ -116,7 +116,7 @@ Current Phase 8 gap:
 
 Phase 8 should not add new backend Agent powers. It should make existing backend capabilities visible, usable, and demonstrable.
 
-## 5. Phase 9 Delivered / Phase 10 Planning
+## 5. Phase 9 Delivered / Phase 10 Delivered
 
 Phase 9 Ontology Core v1 — delivered (2026-06-18). All planned capabilities delivered and verified against real KB (74 documents, 74 entities, 186 relations, 97 issues). See `docs/ontology-governance-demo-report.md`.
 
@@ -125,7 +125,7 @@ Actual findings (from real KB scan):
 - 7 stale eval gold IDs (concepts/agent, concepts/ontology-sdk, vendors/palantir-foundry, etc.)
 - KB has good entity identity quality (no duplicate titles/aliases)
 
-Phase 10 is planned as governance operations & demo polish — see `docs/phase10-planning.md`. Will operationalize governance findings (issue triage, curation workflow, graph UX polish, evidence bridge) before Graph RAG or modeling studio.
+Phase 10 is delivered (governance operations & demo polish — issue triage, curation demo, graph UX polish, evidence bridge, review). See `docs/phase10-planning.md` for full task breakdown.
 
 ## 6. Feature Boundaries
 

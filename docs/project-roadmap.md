@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-18
-**Current phase**: Phase 9 Ontology Core v1 delivered — all 9.1–9.5 complete. Phase 10.1–10.2 delivered; 10.3–10.5 pending. See `docs/agent-handoff.md`, `docs/phase10-planning.md`, and `docs/development-workflow.md`.
+**Current phase**: Phase 9 Ontology Core v1 delivered — all 9.1–9.5 complete. Phase 10.1–10.4 delivered; 10.5 review complete. See `docs/agent-handoff.md`, `docs/phase10-planning.md`, and `docs/development-workflow.md`.
 
 ---
 
@@ -227,7 +227,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 - automatic edits to the external KB
 
 
-## Phase 10: Governance Operations & Demo Polish ← IN PROGRESS (10.1–10.2 delivered)
+## Phase 10: Governance Operations & Demo Polish ← COMPLETE (10.1–10.4 delivered, 10.5 review passed)
 
 **Goal**: Operationalize governance findings, polish the demo loop, and build the evidence-to-ontology bridge before Graph RAG or modeling studio. See `docs/phase10-planning.md`.
 
@@ -237,7 +237,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 | 10.2 | Real KB curation demo script | ✅ `scripts/run_ontology_curation_demo.py` — deterministic triage, 97 confirmed, 39 backlog entries, rescan persistence verified (2026-06-18) |
 | 10.3 | Ontology graph UX polish | ✅ Graph scope/status controls, legend, SVG tooltips, unresolved targets list, entity detail clickable relations, issue triage/code filters, mobile layout — still read-only SVG, no graph library (2026-06-18) |
 | 10.4 | Evidence-to-ontology bridge | ✅ `ontology-links.js` entity index, citation→entity badges in answerCard, ask/rag/tasks pages pass ontologyIndex, ontology deep link `?entity_id=` — read-only bridge, not Graph RAG (2026-06-18) |
-| 10.5 | Phase 10 review | End-to-end governance pipeline verification |
+| 10.5 | Phase 10 review | ✅ End-to-end governance pipeline verified: 76 tests pass, ruff clean, demo reproducible, evidence bridge functional, docs sync complete (2026-06-18) |
 
 **Out of scope**: Graph RAG, modeling studio, Agent auto-write, external KB auto-fix, graph database migration.
 

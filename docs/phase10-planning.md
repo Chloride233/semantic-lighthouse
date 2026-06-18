@@ -1,7 +1,7 @@
 # Phase 10 Planning — Governance Operations & Demo Polish
 
 **Date**: 2026-06-18
-**Status**: 10.1–10.4 delivered; 10.5 pending
+**Status**: 10.1–10.4 delivered; 10.5 review complete ✅
 
 ---
 
@@ -31,7 +31,17 @@ Make ontology governance operational — turn scan findings into triageable work
 | 10.2 | Real KB curation demo script | ✅ `scripts/run_ontology_curation_demo.py` — deterministic triage of 97 issues → 39 backlog entries; rescan persistence verified; curation backlog is human action guidance only, does NOT auto-fix KB. |
 | 10.3 | Ontology graph UX polish | ✅ Graph scope/status controls, legend, SVG tooltips, unresolved targets list, entity detail clickable relations, issue triage/code filters, mobile layout. Still read-only SVG — not a graph database, Graph RAG, or modeling studio. |
 | 10.4 | Evidence-to-ontology bridge | ✅ `ontology-links.js` with cached entity index (byDocumentId + bySourcePath maps); citation→entity badges in answerCard; ask/rag/tasks pages all pass ontologyIndex; ontology page supports `?entity_id=` deep link. Read-only bridge — still not Graph RAG, not modifying retrieval algorithm. |
-| 10.5 | Phase 10 review | Re-run governance demo, verify triage + graph + bridge end-to-end. |
+| 10.5 | Phase 10 review | ✅ Re-ran governance demo (74 entities, 186 relations, 97 issues → 97 confirmed → 39 backlog). Verified triage persistence, evidence bridge, graph UX controls, deep link. 76 tests pass, ruff clean. Docs synced. |
+
+## Phase 10 Review Summary
+
+- **Tests**: 76/76 (41 ontology + 35 curation demo) — all passed
+- **Lint**: ruff clean across src, tests, scripts
+- **Demo**: Reproducible with temp SQLite DB, all numbers match baseline
+- **Evidence bridge**: answerCard only receives `ontologyIndex` via opts, no internal API call; ask/rag/tasks pages all pass it through; ontology deep link `?entity_id=nonexistent` handled gracefully
+- **Triage persistence**: issue_key-based, confirmed count preserved across rescan
+- **Documentation**: roadmap, handoff, phase10-planning, PRD aligned on Phase 10 complete; no stale "10.3–10.5 pending" or "Phase 8" headers remain
+- **Boundaries verified**: No Graph RAG, no modeling studio, no Agent auto-write, external KB unmodified, all read-only governance
 
 ## Phase 10 Out of Scope
 
