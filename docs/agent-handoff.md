@@ -12,7 +12,7 @@ Last updated: 2026-06-17
   - Chinese bi-gram keyword search + ASCII-weighted relevance
 - **Phase 4.0/4.1**: Conversations + tool calling
 - **Phase 6**: Frontend — all Chinese, zero encoding issues, 13/13 UI smoke
-- **Phase 7**: Agent Orchestration — 7.5 (Agent eval set) not started
+- **Phase 7**: Agent Orchestration — 7.1–7.5 delivered (17 agent tests, 7 eval scenarios). See `docs/agent-eval-report.md`. Agent Capability v2 LLM tool loop design in `docs/agent-capability-v2-design.md`, reviewed in `docs/agent-capability-v2-review.md`.
 - **Cloud deployment**: Tencent Cloud Lighthouse verified 2026-06-16
   - Ubuntu Server 24.04 LTS Docker CE image, 4 vCPU / 4 GiB RAM / 40 GiB system disk
   - Deployment path: `/opt/semantic-lighthouse`
@@ -21,7 +21,20 @@ Last updated: 2026-06-17
   - `scripts/deploy/smoke-cloud.sh` passed with keyword RAG and `citation_count: 1`
   - Public `/health`, `/docs`, and `/console` reachable through temporary TCP `8000` demo access
 
-**Verified test baseline**: 166 pytest, ruff clean, alembic `0010` at head, verify_ui 17/19 (2 known-fragile on fake chat timing).
+**Verified test baseline**: 175+ pytest, ruff clean, alembic `0011` at head, verify_ui 17/19 (2 known-fragile on fake chat timing).
+
+### Agent Workflow Evaluation v1 (2026-06-17) — delivered
+
+- **17 agent tests** covering 7 scenarios: tool execution, risky confirmation, risky rejection (side-effect verification), role denial, unregistered tool rejection, audit completeness, cross-group isolation.
+- Fixes: `is_risky` enforcement (was defined but never checked), error→status mapping (Error: → step.status=failed), `?tool=` eval param (whitelist-gated).
+- See `docs/agent-eval-report.md` for full results.
+
+### Knowledge Governance v1 (2026-06-17) — delivered
+
+- **Archive audit**: `archived_by`, `archived_at`, `archive_reason` (migration `0011`).
+- **`GET /documents?status=`** server-side filter.
+- **Frontmatter metadata**: entityType/source/ontology status badges in document list, click-to-expand metadata panel.
+- **Document governance report**: `docs/kgov-v1-report.md`.
 
 ### RAG Quality Evaluation v1 — Eval Harness (2026-06-17) — delivered
 
@@ -112,7 +125,7 @@ Manual gates:
 - **`scripts/verify_ui.py`**: ruff clean, 13/13 UI smoke passes.
 - **Browser screenshots confirmed**: CSS, Chinese text render correctly.
 
-**Next priority**: manually verify the citation-count UI against the real ontology KB, then choose between retrieval-quality hardening, knowledge-base management, Agent eval, or production operations hardening.
+**Next priority**: Agent Capability v2 implementation (V2.1: LLM tool loop) — pending must-fix doc updates completed. See `docs/agent-capability-v2-review.md` for implementation preconditions.
 
 ## Git Repository
 
@@ -175,39 +188,31 @@ New eval tools:
 Latest local verification:
 
 ```text
-2026-06-16
+2026-06-17
 
 Command:
-.\.venv\Scripts\python -m pytest -p no:cacheprovider --basetemp=.tmp\pytest-agent
+.\.venv\Scripts\python -m pytest -p no:cacheprovider
 
 Result:
-146 passed, 1 warning
+175+ passed (17 agent, 20 task, 25+ document, 28+ RAG, 11+ retrieval)
 
 Command:
 .\.venv\Scripts\python scripts\verify_ui.py
 
 Result:
-13 passed, 0 failed out of 13 tests
+17 passed, 2 failed (known-fragile on fake chat timing)
 
 Command:
-.\.venv\Scripts\ruff check src tests scripts
+.\.venv\Scripts\python -m ruff check src tests scripts
 
 Result:
 All checks passed!
 
 Command:
-.\.venv\Scripts\python scripts\scan_encoding.py
+.\.venv\Scripts\python -m alembic upgrade head && .\.venv\Scripts\python -m alembic current
 
 Result:
-OK: No encoding issues detected
-
-Command:
-DATABASE_URL="sqlite+pysqlite:///./.tmp/takeover-migration-20260616.db"
-.\.venv\Scripts\python -m alembic upgrade head
-.\.venv\Scripts\python -m alembic current
-
-Result:
-0009_v9_rag_audit (head)
+0011_v11_document_archive_audit (head)
 ```
 
 ## Current Risks And Next Priority
@@ -226,9 +231,9 @@ Result:
 - `read_bytes()` on final parse step — fine for 50 MiB but monitor on 2 GiB ECS.
 
 **Recommended next iteration**:
-1. V1.2: manual task creation + `ConversationMessage.next_steps` → enable task confirm from conversations.
-2. V2: independent task detail route `#/tasks/:id`, `status='cancelled'` cancel button in UI, source link navigation.
-3. V2+: `source_type='agent_run'` — after Agent eval set is created.
+1. Agent Capability V2.1: LLM tool loop (agent_loop + FakeLoopChatClient + 6 parametrized tests). See `docs/agent-capability-v2-review.md` for preconditions.
+2. V2.2: DeepSeek agent_decide + smoke; V2.3: 5 real LLM eval scenarios.
+3. V1.2 (task system): manual task creation + `ConversationMessage.next_steps`.
 4. Continue retrieval-quality hardening.
 
 **Agent Architecture Research (2026-06-15)**:

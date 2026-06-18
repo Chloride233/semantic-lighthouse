@@ -164,7 +164,7 @@
 
 **Acceptance**: 17 agent tests pass. V2 design at docs/agent-capability-v2-design.md.
 
-**Next**: V2.1 LLM loop implementation.
+**Next**: V2.1 implementation is gated behind must-fix doc updates (agent-handoff sync, design §8 risky repeat guard, review approval). See `docs/agent-capability-v2-review.md` for full preconditions.
 
 ---
 

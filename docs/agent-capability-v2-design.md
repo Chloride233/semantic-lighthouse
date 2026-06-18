@@ -84,10 +84,12 @@ TOOL_SCHEMAS_FOR_LLM = [
 ```
 execute → LLM decides archive_document → is_risky → awaiting_confirmation
   → respond("yes") → execute_tool → observation 写回 → run=executing → 下一次 execute
-  → respond("no") → observation="User rejected" → run=executing → 下一次 execute
+  → respond("no") → observation="User REJECTED the request to use 'archive_document'. Do NOT propose this tool again in this run." → run=executing → 下一次 execute
 ```
 
 确认/拒绝后不 finalize。Risky step 的 action_detail 保留 needs_confirmation 标记。
+
+**拒绝后防重复规则**：用户拒绝 risky tool 后，step.observation 必须明确告知 LLM 不要在同一 run 中再次提议同一 tool。这不是 LLM 的"建议"，而是 observation 中的硬约束——LLM 解读 observation 后应选择 alternative tool 或 finalize。若 LLM 仍然再次提议被拒 tool，每轮 max_steps 消耗一步，最终由 max_steps 或连续 parse 失败触发终止。FakeLoopChatClient 场景 6 验证此行为。
 
 ## 9. tool error 反馈
 
@@ -135,9 +137,10 @@ LangGraph/AutoGen、多 Agent、Agent 自动创建任务、Agent 自动 commit�
 
 | 风险 | 缓解 |
 |------|------|
-| LLM 幻觉 tool_name | whiteli st-gate in execute_tool |
+| LLM 幻觉 tool_name | whitelist-gate in execute_tool |
 | LLM 无限循环 | max_steps=5 硬上限 |
 | LLM 绕过 risky | is_risky 在执行层强制检查，不依赖 LLM 判断 |
+| LLM 被拒后重复提议同一 risky tool | observation 明确写 "Do NOT propose this tool again"；max_steps 兜底 |
 | LLM tool_arguments 非法 | JSON Schema validate，失败→step error |
 | Prompt 注入 | system prompt 以 JSON Schema 结束；goal 用 user role 传 |
 | DeepSeek 格式不一致 | chat.py normalize 层 |
