@@ -232,6 +232,23 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         cancelled_tab_ok = False
     results.append(("Cancelled filter tab visible", cancelled_tab_ok))
 
+    # ── Agent page ────────────────────────────────────────────────────
+    agent_page_ok = False
+    if gid:
+        page.goto(f"{base}/console#/groups/{gid}/agent")
+        page.wait_for_timeout(800)
+        has_title = page.locator("text=Agent 工作流").count() > 0
+        has_create = page.locator("text=新建 Agent 运行").count() > 0
+        has_input = page.locator("#agentGoalInput").count() > 0
+        has_btn = page.locator("#startAgentBtn").count() > 0
+        has_examples = page.locator(".exampleGoalBtn").count() > 0
+        has_list = (
+            page.locator("text=暂无 Agent 运行").count() > 0
+            or page.locator("#agentRunList").count() > 0
+        )
+        agent_page_ok = has_title and has_create and has_input and has_btn and has_examples and has_list
+    results.append(("Agent page renders", agent_page_ok))
+
     # ── 19. Document filter tabs ──────────────────────────────────────
     doc_filter_ok = False
     if gid:

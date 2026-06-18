@@ -365,7 +365,7 @@ Do not store real `DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, database passwords, c
 
 ### Agent Frontend Visibility — Phase 8.2 (2026-06-18)
 
-**Status**: In progress — initial page delivered.
+**Status**: In progress — initial page delivered. Phase 8.2 Agent console has UI smoke coverage (verify_ui check: "Agent page renders" PASS).
 
 - **New page**: `static/js/pages/agent.js` — `#/groups/:gid/agent`
 - **Navbar**: "Agent" link added next to "任务"
