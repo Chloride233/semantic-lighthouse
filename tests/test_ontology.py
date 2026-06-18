@@ -528,3 +528,67 @@ class TestWikilinkRelations:
 
         result = _scan(client, gid, h)
         assert result["relation_count"] == 0
+
+    def test_caret_anchor_stripped(self, client):
+        """[[target^block]] — caret anchor should be stripped like #."""
+        _, _, h = register_and_login(client, "wr11@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {
+            "entityType": "Concept", "tags": ["src"], "created": "2026-01-01",
+        }, body="[[tgt^blockref]]")
+        _upload_doc(client, gid, h, "tgt.md", {
+            "entityType": "Concept", "tags": ["tgt"], "created": "2026-01-01",
+        }, body="x")
+
+        _scan(client, gid, h)
+        r = client.get(
+            f"/groups/{gid}/ontology/relations?status=resolved", headers=h
+        )
+        data = r.json()
+        assert data["total"] >= 1
+        assert data["relations"][0]["target_path"] == "tgt.md"
+
+    def test_embed_exclamation_not_treated_as_wikilink(self, client):
+        """![[image.png]] should not generate a relation."""
+        _, _, h = register_and_login(client, "wr12@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {
+            "entityType": "Concept", "tags": ["src"], "created": "2026-01-01",
+        }, body="![[image.png]] [[real-target]]")
+        _upload_doc(client, gid, h, "real-target.md", {
+            "entityType": "Concept", "tags": ["rt"], "created": "2026-01-01",
+        }, body="rt")
+
+        result = _scan(client, gid, h)
+        assert result["relation_count"] == 1  # only [[real-target]], not ![[image.png]]
+
+    def test_relation_type_and_source_filter(self, client):
+        """relation_type and source_entity_id filters work."""
+        _, _, h = register_and_login(client, "wr13@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {
+            "entityType": "Concept", "tags": ["src"], "created": "2026-01-01",
+        }, body="[[tgt]]")
+        _upload_doc(client, gid, h, "tgt.md", {
+            "entityType": "Concept", "tags": ["tgt"], "created": "2026-01-01",
+        }, body="tgt")
+
+        _scan(client, gid, h)
+
+        # relation_type filter
+        r = client.get(
+            f"/groups/{gid}/ontology/relations?relation_type=wikilink", headers=h
+        )
+        assert r.status_code == 200
+        assert r.json()["total"] >= 1
+
+        # source_entity_id filter
+        entities = client.get(
+            f"/groups/{gid}/ontology/entities", headers=h
+        ).json()["entities"]
+        src_id = [e["id"] for e in entities if e["title"] != "tgt"][0]
+        r = client.get(
+            f"/groups/{gid}/ontology/relations?source_entity_id={src_id}", headers=h
+        )
+        assert r.status_code == 200
+        assert r.json()["total"] >= 1

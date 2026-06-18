@@ -494,6 +494,35 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Tests**: 10 relation tests (resolved, unresolved, alias, anchor, relative, member access, idempotent, cross-group, status filter, invalid entity)
 - **Full suite**: 234 passed, ruff clean, migration 0013 at head
 
+## Phase 9 Checkpoint Review (2026-06-18)
+
+**Conclusion**: Phase 9.1–9.3 are on track. One bug found and fixed. Three test gaps filled.
+
+### Findings
+
+| Severity | Issue | Action |
+|----------|-------|--------|
+| **MEDIUM** | `![[image.png]]` embeds incorrectly parsed as wikilinks — the regex `[[...]]` matched `![[...]]` embeds, generating spurious relations | ✅ Fixed: regex changed to `(?<!!)\[\[([^\[\]]+?)\]\]` with negative lookbehind |
+| LOW | No test for `[[target^block]]` caret anchor stripping | ✅ Added `test_caret_anchor_stripped` |
+| LOW | No test for `![[embed]]` exclusion | ✅ Added `test_embed_exclamation_not_treated_as_wikilink` |
+| LOW | No test for `relation_type` and `source_entity_id` filters | ✅ Added `test_relation_type_and_source_filter` |
+
+### Verified Boundaries
+
+- **Data model**: 3 tables (entities, issues, relations) — SQLite/PostgreSQL compatible. FK order correct. Downgrade safe when reversed (0013→0012). Unique constraints prevent duplicates.
+- **Group isolation**: All queries scoped by `group_id`. Scan rebuild only clears current group. Cross-group tests pass.
+- **Permissions**: scan = owner/admin only; entities/issues/relations = member+ readable. All 403 for non-members.
+- **Scan rebuild**: Delete order = issues → relations → entities (no FK violation). Idempotent (28 tests confirm).
+- **Wikilink parser**: `[[target]]`, `[[target\|label]]`, `[[target#anchor]]`, `[[target^block]]`, relative paths, `![[exclude]]`. `upload:` prefix stripped for resolution. Traversal guard prevents `../` escape.
+- **Test coverage**: 28 ontology tests (15 entities + 13 relations). Full suite 237 passed.
+- **No Graph RAG / modeling studio / Agent writes**: All read-only governance.
+
+### Known Remaining (for 9.4)
+
+- Unresolved relations are candidates, not governance issues yet
+- Broken-link detection, duplicate title/alias detection, stale eval gold ID detection still pending
+- `_normalize_path` function handles `upload:` prefix removal in index but doesn't test `import-local` paths directly
+
 ## Phase 8 Checkpoint Review (2026-06-18)
 
 **Conclusion**: No direction drift. Phase 8 is on track. Two documentation inconsistencies found and fixed.

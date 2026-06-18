@@ -33,7 +33,7 @@ SOURCE_VALUES = {
     "case-report", "personal-analysis",
 }
 
-WIKILINK_RE = re.compile(r"\[\[([^\[\]]+?)\]\]")
+WIKILINK_RE = re.compile(r"(?<!!)\[\[([^\[\]]+?)\]\]")
 
 
 def _issue(
