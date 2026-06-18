@@ -31,7 +31,8 @@ Before changing code, read these files in order:
 
 ## Working Rules
 
-- Review and test before editing.
+- **Declare the lane at the start of every iteration** — `Lane: Fast / Standard / Safety` with a one-line reason. See `docs/development-workflow.md`.
+- Review and test before editing (depth scales with lane).
 - Keep each iteration independently usable.
 - Prefer the smallest change that closes the verified risk.
 - Do not introduce architecture the project owner cannot explain.
@@ -39,9 +40,9 @@ Before changing code, read these files in order:
 - Keep group-scoped data isolation as a hard invariant.
 - Do not use Agent behavior to replace deterministic backend logic such as permission checks, status filters, hash checks, or CRUD.
 - Any write-like Agent/action behavior must have role authorization, group_id isolation, and user confirmation.
-- Update project memory after every meaningful iteration.
+- Update project memory after Safety Lane iterations; for Standard Lane, only when a meaningful decision was made.
 - **Every meaningful change must be committed to Git** (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`).
-- Before committing: verify `pytest` and `ruff check src tests` pass.
+- Before committing on Standard/Safety Lane: verify related `pytest` and `ruff check` pass. Fast Lane: `git diff --check` + minimal format check only.
 - Never commit `.env*` (except `.example`), `*.db`, `.venv/`, `.claude/`, `__pycache__/`, build artifacts, or storage volumes.
 
 ## ECC / MCP Context Budget
@@ -95,10 +96,18 @@ curl -fsS http://127.0.0.1:8000/health
 
 ## Iteration Memory Contract
 
-At the end of each iteration:
+At the end of each iteration, update memory according to lane:
 
+**Safety Lane** — full memory update:
 - Update `docs/agent-handoff.md` with current status, verification, risks, and next task.
 - Update `docs/engineering-memory/pitfall-log.md` for failures or risks.
 - Update `docs/engineering-memory/highlight-log.md` for validated engineering wins.
 - Add or update a version retrospective when a version boundary is reached.
 - If learning questions were asked, update the matching learning review and `docs/engineering-memory/learning-index.md`.
+
+**Standard Lane** — lightweight:
+- Commit with a clear message. Update handoff only at phase boundaries.
+- Write engineering memory only when a meaningful architectural decision or tradeoff was made.
+
+**Fast Lane** — commit only:
+- Commit and move on. Do not update handoff or engineering memory.

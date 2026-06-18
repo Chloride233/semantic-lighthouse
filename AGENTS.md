@@ -52,13 +52,47 @@ Important entry points:
 - `F:\ontology-kb\knowledge-graph\INDEX.md`
 - `F:\ontology-kb\knowledge-graph\schema.md`
 
-## Verification Expectations
+## Development Workflow — Tiered Iteration
 
-Default local checks:
+Every development task MUST reference `docs/development-workflow.md`. The project uses three risk-based lanes:
 
-```powershell
-.\.venv\Scripts\python -m pytest -p no:cacheprovider --basetemp=.tmp\pytest-agent
-.\.venv\Scripts\python scripts\verify_ui.py
+- **Fast Lane** — docs, prompts, minor UI copy/CSS, non-core test fixes, comment/README tweaks
+- **Standard Lane** — normal backend/frontend features, non-permission logic, non-breaking API changes, routine tests
+- **Safety Lane** — auth, permissions, group_id isolation, Agent writes, RAG citation/confidence, document lifecycle, production config, migrations, security audit, deployment-affecting changes
+
+### Lane Declaration
+
+At the start of every iteration, declare the lane before touching code:
+
+```
+Lane: Fast / Standard / Safety
+Reason: <one sentence>
 ```
 
-Use narrower tests first when iterating, then run the broader gate before committing meaningful backend or frontend changes.
+The lane determines verification depth and documentation burden. See `docs/development-workflow.md` for the full table.
+
+### Over-Execution Prohibitions
+
+- Do NOT write a long plan for Fast Lane.
+- Do NOT run full `pytest` on Fast Lane.
+- Do NOT update all entry-point docs for small changes.
+- Do NOT use `python -c`, heredoc, or Bash to generate large code blocks to work around tool restrictions.
+- Do NOT cargo-cult Safety Lane checklist into Fast or Standard work.
+
+## Verification Commands
+
+Default local checks (use according to lane, not blindly):
+
+```powershell
+# Related tests only (Standard Lane)
+.\.venv\Scripts\python -m pytest tests/test_specific.py -p no:cacheprovider
+
+# Full regression (Safety Lane, or Standard phase boundary)
+.\.venv\Scripts\python -m pytest -p no:cacheprovider --basetemp=.tmp\pytest-agent
+
+# UI smoke
+.\.venv\Scripts\python scripts\verify_ui.py
+
+# Lint (Standard: changed files only; Safety: full src tests)
+.\.venv\Scripts\python -m ruff check src tests
+```

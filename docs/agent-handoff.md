@@ -362,6 +362,18 @@ docs/cloud-smoke-playbook.md
 
 Do not store real `DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, database passwords, cookies, or tokens in this file.
 
+## Development Workflow Update (2026-06-18)
+
+The project has adopted a **three-lane tiered iteration workflow** (`docs/development-workflow.md`):
+
+- **Fast Lane** — docs, prompts, minor UI copy/CSS, non-core test fixes. Verify: `git diff --check`, `git status --short`, minimal format check only. No full pytest, no handoff update, no engineering memory.
+- **Standard Lane** — normal backend/frontend features, routine tests. Verify: related pytest, ruff on changed files. Short plan, commit. No full handoff/memory update on every micro-edit.
+- **Safety Lane** — auth, permissions, group_id isolation, Agent writes, RAG, document lifecycle, production config, migrations, security audit. Full pytest, ruff, risk description, handoff update, engineering memory update.
+
+Every iteration must begin with a lane declaration: `Lane: Fast / Standard / Safety` + one-line reason.
+
+The goal is to reduce process overhead on low-risk changes and reserve deep verification for high-risk work.
+
 ## Agent Instructions For The Next Session
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests before changing code.
