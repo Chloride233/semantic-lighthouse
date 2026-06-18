@@ -407,6 +407,7 @@ class OntologyScanResponse(BaseModel):
     scanned_count: int
     entity_count: int
     issue_count: int
+    relation_count: int = 0
 
 
 class OntologyEntityResponse(BaseModel):
@@ -445,6 +446,25 @@ class OntologyValidationIssueResponse(BaseModel):
 
 class OntologyIssueListResponse(BaseModel):
     issues: list[OntologyValidationIssueResponse]
+    total: int
+
+
+class OntologyRelationResponse(BaseModel):
+    id: str
+    group_id: str
+    source_entity_id: str
+    source_document_id: str
+    target_entity_id: str | None = None
+    target_path: str
+    target_label: str | None = None
+    relation_type: str
+    status: str
+    evidence_document_id: str
+    created_at: datetime
+
+
+class OntologyRelationListResponse(BaseModel):
+    relations: list[OntologyRelationResponse]
     total: int
 
 

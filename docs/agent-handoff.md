@@ -476,7 +476,23 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Full suite**: 224 passed, ruff clean, migration 0012 at head
 - **Not in scope**: wikilink relations (9.3), governance issue list UI (9.4), ontology graph UI (9.5), Graph RAG, Agent writes to ontology, external KB modification
 
-**Next**: Phase 9.3 wikilink relation extraction from imported document content.
+**Next**: Phase 9.4 governance issue list (unresolved relations, duplicate titles/aliases, stale eval gold IDs).
+
+### Wikilink Relation Extraction — Phase 9.3 (2026-06-18)
+
+**Status**: Delivered.
+
+- **New model**: `OntologyRelation` (`ontology_relations`) — source_entity_id, target_entity_id (nullable), target_path, target_label, relation_type (=wikilink), status (resolved/unresolved), evidence_document_id
+- **Migration**: `0013_v13_ontology_relations.py`
+- **Wikilink parser** in `services/ontology.py`:
+  - Regex: `[[...]]` with alias (`|`), anchor (`#`/`^`), relative path (`./`, `../`) support
+  - Path normalization: forward slashes, `.md` suffix, traversal guard
+  - Target resolution against group entity `source_path` (stripping `upload:` prefix)
+  - Dedup by (source_entity_id, target_path, target_label)
+- **API**: `GET /ontology/relations` (member+, filters: status, source_entity_id, target_entity_id, relation_type)
+- **Scan rebuild**: clear order = issues → relations → entities; relation_count in scan response
+- **Tests**: 10 relation tests (resolved, unresolved, alias, anchor, relative, member access, idempotent, cross-group, status filter, invalid entity)
+- **Full suite**: 234 passed, ruff clean, migration 0013 at head
 
 ## Phase 8 Checkpoint Review (2026-06-18)
 

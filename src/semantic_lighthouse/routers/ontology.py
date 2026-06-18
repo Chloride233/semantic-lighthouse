@@ -1,6 +1,6 @@
-"""Ontology governance router — scan, entity list, validation issues.
+"""Ontology governance router — scan, entity list, validation issues, relations.
 
-Phase 9.1 + 9.2: read-only governance. No external KB modification.
+Phase 9.1–9.3: read-only governance. No external KB modification.
 """
 
 from __future__ import annotations
@@ -15,11 +15,18 @@ from semantic_lighthouse.dependencies import (
     get_membership_or_404,
     require_group_role,
 )
-from semantic_lighthouse.models import OntologyEntity, OntologyValidationIssue, User
+from semantic_lighthouse.models import (
+    OntologyEntity,
+    OntologyRelation,
+    OntologyValidationIssue,
+    User,
+)
 from semantic_lighthouse.schemas import (
     OntologyEntityListResponse,
     OntologyEntityResponse,
     OntologyIssueListResponse,
+    OntologyRelationListResponse,
+    OntologyRelationResponse,
     OntologyScanResponse,
     OntologyValidationIssueResponse,
 )
@@ -116,7 +123,64 @@ def list_issues(
     )
 
 
+# ── relations ────────────────────────────────────────────────────────
+
+
+@router.get("/relations", response_model=OntologyRelationListResponse)
+def list_relations(
+    group_id: str,
+    status_filter: str | None = Query(default=None, alias="status"),
+    source_entity_id: str | None = Query(default=None),
+    target_entity_id: str | None = Query(default=None),
+    relation_type: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyRelationListResponse:
+    """List group-scoped ontology relations. Any member can read."""
+    get_membership_or_404(db, current_user.id, group_id)
+
+    base = select(OntologyRelation).where(OntologyRelation.group_id == group_id)
+    if status_filter:
+        base = base.where(OntologyRelation.status == status_filter)
+    if source_entity_id:
+        base = base.where(OntologyRelation.source_entity_id == source_entity_id)
+    if target_entity_id:
+        base = base.where(OntologyRelation.target_entity_id == target_entity_id)
+    if relation_type:
+        base = base.where(OntologyRelation.relation_type == relation_type)
+
+    total = db.scalar(select(func.count()).select_from(base.subquery()))
+    rows = db.scalars(
+        base.order_by(OntologyRelation.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    ).all()
+
+    return OntologyRelationListResponse(
+        relations=[_relation_response(r) for r in rows],
+        total=total or 0,
+    )
+
+
 # ── helpers ───────────────────────────────────────────────────────────
+
+
+def _relation_response(r: OntologyRelation) -> OntologyRelationResponse:
+    return OntologyRelationResponse(
+        id=r.id,
+        group_id=r.group_id,
+        source_entity_id=r.source_entity_id,
+        source_document_id=r.source_document_id,
+        target_entity_id=r.target_entity_id,
+        target_path=r.target_path,
+        target_label=r.target_label,
+        relation_type=r.relation_type,
+        status=r.status,
+        evidence_document_id=r.evidence_document_id,
+        created_at=r.created_at,
+    )
 
 
 def _entity_response(e: OntologyEntity) -> OntologyEntityResponse:

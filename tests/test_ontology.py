@@ -1,6 +1,6 @@
-"""Tests for Phase 9.1 + 9.2 ontology governance read model.
+"""Tests for Phase 9.1–9.3 ontology governance read model.
 
-Covers: scan (owner/admin only), entity extraction, validation issues,
+Covers: scan, entity extraction, validation issues, wikilink relations,
 group isolation, idempotent rescan, member read-only access.
 """
 
@@ -335,3 +335,196 @@ class TestFiltering:
         data = r.json()
         assert data["total"] >= 1
         assert all(i["severity"] == "error" for i in data["issues"])
+
+
+# ── P5: wikilink relations (Phase 9.3) ───────────────────────────────
+
+
+class TestWikilinkRelations:
+    def test_scan_extracts_resolved_relation(self, client):
+        _, _, h = register_and_login(client, "wr1@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "ontology.md", {
+            "entityType": "Concept", "tags": ["ontology"], "created": "2026-01-01",
+        }, body="# Ontology\n\nSee also [[knowledge-graph]].")
+        _upload_doc(client, gid, h, "knowledge-graph.md", {
+            "entityType": "Concept", "tags": ["kg"], "created": "2026-01-01",
+        }, body="# Knowledge Graph\n\nRelated to [[ontology]].")
+
+        result = _scan(client, gid, h)
+        assert result["relation_count"] >= 2
+
+        r = client.get(f"/groups/{gid}/ontology/relations", headers=h)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] >= 2
+        resolved = [rel for rel in data["relations"] if rel["status"] == "resolved"]
+        assert len(resolved) >= 2
+
+    def test_unresolved_relation_for_missing_target(self, client):
+        _, _, h = register_and_login(client, "wr2@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "ontology.md", {
+            "entityType": "Concept", "tags": ["ontology"], "created": "2026-01-01",
+        }, body="# Ontology\n\nSee [[missing-path]]. [[also-missing|Alias]].")
+
+        result = _scan(client, gid, h)
+        assert result["relation_count"] >= 2
+
+        r = client.get(
+            f"/groups/{gid}/ontology/relations?status=unresolved", headers=h
+        )
+        data = r.json()
+        assert data["total"] >= 2
+        assert all(rel["status"] == "unresolved" for rel in data["relations"])
+
+    def test_target_label_saved(self, client):
+        _, _, h = register_and_login(client, "wr3@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "ontology.md", {
+            "entityType": "Concept", "tags": ["ontology"], "created": "2026-01-01",
+        }, body="# Ontology\n\nSee [[kg|Knowledge Graph]].")
+        _upload_doc(client, gid, h, "kg.md", {
+            "entityType": "Concept", "tags": ["kg"], "created": "2026-01-01",
+        }, body="# KG.")
+
+        _scan(client, gid, h)
+        r = client.get(f"/groups/{gid}/ontology/relations", headers=h)
+        relations = r.json()["relations"]
+        labeled = [r for r in relations if r["target_label"] == "Knowledge Graph"]
+        assert len(labeled) >= 1
+        assert labeled[0]["status"] == "resolved"
+
+    def test_anchor_stripped_from_target(self, client):
+        _, _, h = register_and_login(client, "wr4@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "ontology.md", {
+            "entityType": "Concept", "tags": ["ontology"], "created": "2026-01-01",
+        }, body="# Ontology\n\nSee [[kg#Definition]].")
+        _upload_doc(client, gid, h, "kg.md", {
+            "entityType": "Concept", "tags": ["kg"], "created": "2026-01-01",
+        }, body="# KG.")
+
+        _scan(client, gid, h)
+        r = client.get(f"/groups/{gid}/ontology/relations", headers=h)
+        relations = r.json()["relations"]
+        assert all("#" not in rel["target_path"] for rel in relations)
+        resolved = [r for r in relations if r["status"] == "resolved"]
+        assert len(resolved) >= 1
+        assert resolved[0]["target_path"] == "kg.md"
+
+    def test_relative_path_resolved(self, client):
+        _, _, h = register_and_login(client, "wr5@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "ontology.md", {
+            "entityType": "Concept", "tags": ["ontology"], "created": "2026-01-01",
+        }, body="# Ontology\n\nSee [[palantir]].")
+        _upload_doc(client, gid, h, "palantir.md", {
+            "entityType": "Vendor", "tags": ["vendor"], "created": "2026-01-01",
+        }, body="# Palantir.")
+
+        _scan(client, gid, h)
+        r = client.get(
+            f"/groups/{gid}/ontology/relations?status=resolved", headers=h
+        )
+        data = r.json()
+        assert data["total"] >= 1
+        assert data["relations"][0]["target_path"] == "palantir.md"
+
+    def test_member_can_read_relations_non_member_cannot(self, client):
+        _, _, owner_h = register_and_login(client, "wr6o@t.com")
+        _, _, member_h = register_and_login(client, "wr6m@t.com")
+        _, _, outsider_h = register_and_login(client, "wr6x@t.com")
+        gid = _create_group(client, owner_h)
+        _join_group(client, gid, owner_h, member_h)
+        _upload_doc(client, gid, owner_h, "x.md", {
+            "entityType": "Concept", "tags": ["x"], "created": "2026-01-01",
+        }, body="[[y]]")
+        _upload_doc(client, gid, owner_h, "y.md", {
+            "entityType": "Concept", "tags": ["y"], "created": "2026-01-01",
+        }, body="y")
+
+        _scan(client, gid, owner_h)
+
+        r = client.get(f"/groups/{gid}/ontology/relations", headers=member_h)
+        assert r.status_code == 200
+        assert r.json()["total"] >= 1
+
+        r = client.get(f"/groups/{gid}/ontology/relations", headers=outsider_h)
+        assert r.status_code == 403
+
+    def test_rescan_does_not_duplicate_relations(self, client):
+        _, _, h = register_and_login(client, "wr7@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "a.md", {
+            "entityType": "Concept", "tags": ["a"], "created": "2026-01-01",
+        }, body="[[b]]")
+        _upload_doc(client, gid, h, "b.md", {
+            "entityType": "Concept", "tags": ["b"], "created": "2026-01-01",
+        }, body="b")
+
+        r1 = _scan(client, gid, h)
+        r2 = _scan(client, gid, h)
+        assert r1["relation_count"] == r2["relation_count"]
+
+    def test_cross_group_relation_isolation(self, client):
+        _, _, h_a = register_and_login(client, "wr8a@t.com")
+        _, _, h_b = register_and_login(client, "wr8b@t.com")
+        ga = _create_group(client, h_a)
+        gb = _create_group(client, h_b)
+        _upload_doc(client, ga, h_a, "x.md", {
+            "entityType": "Concept", "tags": ["x"], "created": "2026-01-01",
+        }, body="[[y]]")
+        _upload_doc(client, ga, h_a, "y.md", {
+            "entityType": "Concept", "tags": ["y"], "created": "2026-01-01",
+        }, body="y")
+        _scan(client, ga, h_a)
+
+        # Group B member sees empty
+        _upload_doc(client, gb, h_b, "z.md", {
+            "entityType": "Concept", "tags": ["z"], "created": "2026-01-01",
+        }, body="z")
+        _scan(client, gb, h_b)
+        r_b = client.get(f"/groups/{gb}/ontology/relations", headers=h_b)
+        assert r_b.status_code == 200
+        assert r_b.json()["total"] == 0  # no wikilinks in this doc
+
+    def test_status_filter_works(self, client):
+        _, _, h = register_and_login(client, "wr9@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {
+            "entityType": "Concept", "tags": ["src"], "created": "2026-01-01",
+        }, body="[[existing]] [[missing]]")
+        _upload_doc(client, gid, h, "existing.md", {
+            "entityType": "Concept", "tags": ["ex"], "created": "2026-01-01",
+        }, body="x")
+
+        _scan(client, gid, h)
+
+        r = client.get(
+            f"/groups/{gid}/ontology/relations?status=resolved", headers=h
+        )
+        resolved_count = r.json()["total"]
+        assert resolved_count >= 1
+        assert all(r["status"] == "resolved" for r in r.json()["relations"])
+
+        r = client.get(
+            f"/groups/{gid}/ontology/relations?status=unresolved", headers=h
+        )
+        unresolved_count = r.json()["total"]
+        assert unresolved_count >= 1
+        assert all(r["status"] == "unresolved" for r in r.json()["relations"])
+
+    def test_invalid_entity_no_relation_generated(self, client):
+        """Document type or invalid entity docs should not generate relations."""
+        _, _, h = register_and_login(client, "wr10@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "schema.md", {
+            "documentType": "Schema",
+        }, body="[[x]]")
+        _upload_doc(client, gid, h, "x.md", {
+            "entityType": "Concept", "tags": ["x"], "created": "2026-01-01",
+        }, body="x")
+
+        result = _scan(client, gid, h)
+        assert result["relation_count"] == 0

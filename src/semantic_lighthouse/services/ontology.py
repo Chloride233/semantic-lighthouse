@@ -1,12 +1,14 @@
-"""Ontology scan service — frontmatter validation and entity read model extraction.
+"""Ontology scan service — frontmatter validation, entity extraction, and wikilink relation extraction.
 
-Phase 9.1 + 9.2: validates Document.frontmatter against the knowledge-base schema,
-generates OntologyEntity and OntologyValidationIssue records.
+Phase 9.1 + 9.2: validates Document.frontmatter, generates entities and issues.
+Phase 9.3: extracts Obsidian wikilinks from raw_content as OntologyRelation records.
 
 Read-only governance: does NOT modify external KB files.
 """
 
 from __future__ import annotations
+
+import re
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -14,6 +16,7 @@ from sqlalchemy.orm import Session
 from semantic_lighthouse.models import (
     Document,
     OntologyEntity,
+    OntologyRelation,
     OntologyValidationIssue,
 )
 
@@ -29,6 +32,8 @@ SOURCE_VALUES = {
     "official-doc", "market-research", "public-article",
     "case-report", "personal-analysis",
 }
+
+WIKILINK_RE = re.compile(r"\[\[([^\[\]]+?)\]\]")
 
 
 def _issue(
@@ -56,9 +61,9 @@ def _issue(
 
 
 def scan_group(db: Session, group_id: str) -> dict:
-    """Scan all ready documents in a group, rebuild entities and issues.
+    """Scan all ready documents in a group, rebuild entities, issues, and relations.
 
-    Returns dict with scanned_count, entity_count, issue_count.
+    Returns dict with scanned_count, entity_count, issue_count, relation_count.
     """
     docs = db.scalars(
         select(Document).where(
@@ -67,13 +72,20 @@ def scan_group(db: Session, group_id: str) -> dict:
         )
     ).all()
 
-    # Clear existing ontology data for this group (rebuild each scan)
+    # Clear existing ontology data (order: issues → relations → entities)
     for issue in db.scalars(
         select(OntologyValidationIssue).where(
             OntologyValidationIssue.group_id == group_id,
         )
     ).all():
         db.delete(issue)
+
+    for relation in db.scalars(
+        select(OntologyRelation).where(
+            OntologyRelation.group_id == group_id,
+        )
+    ).all():
+        db.delete(relation)
 
     for entity in db.scalars(
         select(OntologyEntity).where(OntologyEntity.group_id == group_id)
@@ -84,6 +96,8 @@ def scan_group(db: Session, group_id: str) -> dict:
 
     issues: list[OntologyValidationIssue] = []
     entities: list[OntologyEntity] = []
+    # Map doc.id → entity for later relation extraction
+    doc_entity_map: dict[str, OntologyEntity] = {}
 
     for doc in docs:
         fm = doc.frontmatter if isinstance(doc.frontmatter, dict) else {}
@@ -238,15 +252,133 @@ def scan_group(db: Session, group_id: str) -> dict:
             tags=clean_tags,
         )
         db.add(entity)
-        db.flush()  # get entity.id for issue linking
-
+        db.flush()  # get entity.id
         entities.append(entity)
+        doc_entity_map[doc.id] = entity
+
+    # ── Phase 9.3: wikilink relation extraction ──────────────────────
+    relations: list[OntologyRelation] = []
+    seen = set()
+
+    # Build entity path index for target resolution
+    entity_by_path: dict[str, OntologyEntity] = {}
+    for e in entities:
+        if e.source_path:
+            # Strip upload: prefix so wikilinks resolve to same path shape
+            sp = e.source_path
+            if sp.startswith("upload:"):
+                sp = sp[7:]
+            entity_by_path[sp] = e
+
+    for doc_id, source_entity in doc_entity_map.items():
+        doc = db.get(Document, doc_id)
+        if doc is None:
+            continue
+        raw = doc.raw_content or ""
+        source_sp = doc.source_path or ""
+
+        for m in WIKILINK_RE.finditer(raw):
+            raw_target = m.group(1).strip()
+            if not raw_target:
+                continue
+
+            # Parse: target|label  and  target#heading  /  target^block
+            target_label: str | None = None
+            target_path = raw_target
+
+            # Strip heading / block anchor first (#, ^)
+            anchor_match = re.search(r"[#^]", target_path)
+            if anchor_match:
+                target_path = target_path[:anchor_match.start()]
+
+            # Split alias after | (Obsidian display text)
+            if "|" in target_path:
+                parts = target_path.split("|", 1)
+                target_path = parts[0].strip()
+                target_label = parts[1].strip() if len(parts) > 1 else None
+
+            target_path = target_path.strip()
+
+            # Normalize path
+            target_path = _normalize_path(target_path, source_sp)
+            if target_path is None:
+                continue  # illegal traversal
+
+            # Dedup key
+            dedup_key = (source_entity.id, target_path, target_label or "")
+            if dedup_key in seen:
+                continue
+            seen.add(dedup_key)
+
+            # Resolve target
+            target_entity = entity_by_path.get(target_path)
+            status_val = "resolved" if target_entity else "unresolved"
+
+            relations.append(OntologyRelation(
+                group_id=group_id,
+                source_entity_id=source_entity.id,
+                source_document_id=doc.id,
+                target_entity_id=target_entity.id if target_entity else None,
+                target_path=target_path,
+                target_label=target_label,
+                relation_type="wikilink",
+                status=status_val,
+                evidence_document_id=doc.id,
+            ))
 
     db.add_all(issues)
+    db.add_all(relations)
     db.commit()
 
     return {
         "scanned_count": len(docs),
         "entity_count": len(entities),
         "issue_count": len(issues),
+        "relation_count": len(relations),
     }
+
+
+def _normalize_path(target: str, source_sp: str) -> str | None:
+    """Normalize a wikilink target path relative to source document.
+
+    Returns normalized path (with .md suffix) or None if path is illegal.
+    """
+    # Use forward slashes
+    target = target.replace("\\", "/")
+
+    # Determine base directory from source_path
+    source_dir = ""
+    if "/" in source_sp:
+        source_dir = source_sp.rsplit("/", 1)[0]
+
+    # Resolve relative paths
+    if target.startswith("./"):
+        target = source_dir + "/" + target[2:] if source_dir else target[2:]
+    elif target.startswith("../"):
+        parts = target.split("/")
+        dir_parts = source_dir.split("/") if source_dir else []
+        for part in parts:
+            if part == "..":
+                if not dir_parts:
+                    return None  # escaped KB root
+                dir_parts.pop()
+            else:
+                dir_parts.append(part)
+        # Rebuild
+        segments = [p for p in dir_parts if p]
+        target = "/".join(segments)
+
+    # Clean up
+    while "//" in target:
+        target = target.replace("//", "/")
+    target = target.strip("/")
+
+    # Ensure .md suffix
+    if not target.endswith(".md"):
+        target += ".md"
+
+    # Prevent traversal out of KB root
+    if target.startswith(".."):
+        return None
+
+    return target

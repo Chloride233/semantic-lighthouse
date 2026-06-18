@@ -377,6 +377,33 @@ class OntologyValidationIssue(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
 
+class OntologyRelation(Base):
+    """Phase 9.3 read model — wikilink relations extracted from documents.
+
+    Status: resolved (target entity found in same group) or unresolved.
+    """
+
+    __tablename__ = "ontology_relations"
+    __table_args__ = (
+        UniqueConstraint(
+            "group_id", "source_entity_id", "target_path", "target_label",
+            name="uq_onto_relation",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), index=True, nullable=False)
+    source_entity_id: Mapped[str] = mapped_column(String(36), ForeignKey("ontology_entities.id"), index=True, nullable=False)
+    source_document_id: Mapped[str] = mapped_column(String(36), ForeignKey("documents.id"), index=True, nullable=False)
+    target_entity_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("ontology_entities.id"), index=True, nullable=True)
+    target_path: Mapped[str] = mapped_column(String(1024), index=True, nullable=False)
+    target_label: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    relation_type: Mapped[str] = mapped_column(String(80), index=True, nullable=False, default="wikilink")
+    status: Mapped[str] = mapped_column(String(20), index=True, nullable=False, default="unresolved")
+    evidence_document_id: Mapped[str] = mapped_column(String(36), ForeignKey("documents.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
 class Task(Base):
     """Lightweight user-confirmed task from RAG next_steps.
 

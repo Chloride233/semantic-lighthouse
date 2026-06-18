@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 9.3 — Wikilink Relations as Read Model, Not Graph Database
+
+- Date: 2026-06-18
+- Version: Phase 9.3
+- Type: highlight
+- Context: Phase 9.1+9.2 had entities and validation issues. The next natural step was connecting entities.
+- What happened: Added `OntologyRelation` read model with wikilink extraction from `Document.raw_content`. Parses `[[target]]`, `[[target|label]]`, `[[target#anchor]]`, and relative paths. Results in resolved (target entity found) or unresolved (missing) relations. Relations are rebuilt on each scan, idempotent via unique constraint.
+- Engineering judgment: Relations form a read-only link graph between entities without introducing a graph database (Neo4j, etc.) or Graph RAG. Unresolved relations are candidate governance issues for Phase 9.4 — they are not dropped silently. The `upload:` prefix handling is a pragmatic normalization, not a leak.
+- Verification: 25/25 ontology tests (10 new relation tests), 234 full suite, ruff clean, migration 0013 at head.
+
 ## Phase 9 Ontology Core v1 — Governance First, Read-Only, Not Graph RAG
 
 - Date: 2026-06-18
