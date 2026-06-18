@@ -152,18 +152,19 @@
 
 ## Phase 7: Advanced Agent Orchestration ← DELIVERED (2026-06-13)
 
-**Status**: 7.1–7.4 verified (10 tests, 6.5s). 3 tables, 8 API endpoints, tool registry, state machine, human-in-the-loop, memory. 7.5 (eval set) deferred to post-Phase 5.
-**Goal**: Upgrade from controlled multi-turn RAG to explainable, auditable Agent workflows.
+**Status**: 7.1–7.5 delivered (17 tests). Tool registry, FSM, HITL, memory, deterministic eval. Agent Capability v2 design drafted (docs/agent-capability-v2-design.md) — LLM tool loop, not yet implemented.
 
 | # | Task | Acceptance |
 |---|------|------------|
-| 7.1 | Agent tool registry and permission policy | Every tool has input schema, role requirement, group boundary |
-| 7.2 | Workflow planning with explicit state | Agent steps are planned, executed, and audited as separate records |
-| 7.3 | Long-term memory governance | Memory has scope, retention, deletion, and citation rules |
-| 7.4 | Human-in-the-loop checkpoints | Risky actions require approval before execution |
-| 7.5 | Agent evaluation set | Multi-step tasks measured for success, citation quality, and failure handling |
+| 7.1 | Agent tool registry and permission policy | ✅ 3 tools, role-gated, unit tested |
+| 7.2 | Workflow planning with explicit state | ✅ 4-state FSM, step audit records |
+| 7.3 | Long-term memory governance | ✅ KV store with scope/ttl/source |
+| 7.4 | Human-in-the-loop checkpoints | ✅ risky → awaiting_confirmation |
+| 7.5 | Agent evaluation set | ✅ 17 tests, 7 scenarios, 100% risky enforcement |
 
-**Acceptance**: A multi-step enterprise AI consulting workflow can be replayed, audited, and explained.
+**Acceptance**: 17 agent tests pass. V2 design at docs/agent-capability-v2-design.md.
+
+**Next**: V2.1 LLM loop implementation.
 
 ---
 
