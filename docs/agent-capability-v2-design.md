@@ -111,6 +111,7 @@ Tool 返回字符串直接作为 observation 传给 LLM 下一轮 prompt。LLM �
 - max_steps exceeded → stopped
 - risky with confirm → execute → finalize
 - two-step list + search → finalize
+- risky reject → alternative finalize
 
 ## 12. 真实 provider smoke
 
@@ -124,27 +125,49 @@ LangGraph/AutoGen、多 Agent、Agent 自动创建任务、Agent 自动 commit�
 
 ## 14. Deep Agents / LangGraph 参考计划
 
-LangChain Deep Agents / LangGraph 对本项目有参考价值，但当前只作为设计 pattern 来源，不作为运行时依赖引入。
+LangChain Academy 的 Deep Agents with LangGraph 对本项目有参考价值，但当前只作为 Agent Capability v2 的设计 pattern 来源，不作为运行时依赖引入。Semantic Lighthouse 的产品边界仍然是 permission-aware knowledge evidence workspace：核心是 group-scoped RAG evidence → cited answer → confidence/gaps → user-confirmed task。Agent 只负责受控协调，不能替代确定性后端规则。
 
-**可吸收的 pattern**：
-- todo/planning：把 Agent 中间计划显式化，类似 `write_todos`，但落到现有 `plan_json` / `agent_steps`。
-- context offloading：长对话或长任务时保留可审计摘要，避免把完整上下文塞进 prompt。
-- subagent isolation：未来如果需要专题分析，可借鉴“隔离上下文”的思想；当前不做多 Agent 调度。
-- HITL：继续坚持 risky tool 必须用户确认，确认/拒绝都写入 audit。
-- event flow：学习 observe → act → observe 的可回放结构，但仍用现有 FSM 和数据库表表达。
+| Deep Agents pattern | 当前是否采用 | Semantic Lighthouse 映射 | 边界 |
+|---|---|---|---|
+| Todo / planning | 采用 | 把 LLM 的阶段性计划写入 `agent_runs.plan_json`，每次计划/工具/观察写成 `agent_steps`，用于 replay 和 debug | 不新增单独 todo runtime；不让 Agent 自动创建业务任务 |
+| Context offloading / long-task memory | 部分采用，V2.2+ 细化 | 长任务只保留可审计摘要、关键 observation、工具结果摘要；未来可为多轮 Agent 增加“压缩后的 run summary” | 不引入虚拟文件系统；不把隐藏 scratchpad 当作事实来源 |
+| Subagent isolation | 暂缓 | 未来可作为“专题分析隔离上下文”模式，例如供应商对比、案例分析、风险审查，每个专题只回传最终报告和引用 | 当前不做多 Agent 调度、不做并行自治 subagent |
+| HITL / permission / audit | 采用并加强 | risky tool 进入 `awaiting_confirmation`；确认/拒绝、用户、角色、group_id、action_detail 都必须进入 audit trail | HITL 不能替代权限校验；确认通过后仍要执行 role + group + status 过滤 |
+| Event flow / durable state | 采用思想 | 继续用现有 FSM + SQLAlchemy 表表达 observe → act → observe；`agent_steps` 是可回放事件流 | 不引入 LangGraph checkpointer，除非现有持久化无法支撑真实恢复需求 |
 
-**不引入的部分**：
+**当前不引入的部分**：
+
 - 不引入 LangGraph / Deep Agents runtime。
-- 不引入虚拟文件系统、代码执行沙箱、自动 commit/deploy。
-- 不让 Agent 绕过 `group_id`、角色权限、文档状态过滤、任务确认等确定性后端规则。
+- 不引入 Deep Agents 默认虚拟文件系统、代码执行沙箱、自动 commit/deploy。
+- 不开放任意 MCP/tool surface；只允许 `AGENT_TOOLS` 白名单。
+- 不让 Agent 绕过 `group_id`、角色权限、文档状态过滤、任务用户确认、archive audit 等确定性后端规则。
+- 不把项目改造成泛用自治 Agent 平台。
 
-**重新评估条件**：只有当轻量 `agent_loop()` 在真实多步骤场景中出现可测瓶颈（例如上下文恢复困难、图状态比 FSM 更清晰、HITL 恢复复杂度过高）时，才重新评估 LangGraph/Deep Agents runtime。
+**现在应该吸收进 V2.2 的设计改进**：
+
+1. `plan_json` 不只存最终状态，要记录当前 todo-like plan、已完成步骤、下一步候选动作。
+2. `agent_steps.action_detail` 对 risky tool 增加 `risk_level`、`requires_confirmation`、`confirmation_reason`。
+3. `raw_llm_response` 只存截断摘要，避免 prompt/token 爆炸，同时保留排错证据。
+4. 拒绝 risky tool 后，把拒绝作为 observation 写回下一轮，并测试同一 run 不应重复建议同一高风险动作。
+5. 所有 tool observation 都必须可审计、可重放、可解释，不能只存在 prompt 内。
+
+**未来重新评估 LangGraph / Deep Agents runtime 的条件**：
+
+只有当轻量 `agent_loop()` 在真实多步骤场景中出现可测瓶颈时才重新评估，典型信号包括：
+
+- 真实 Agent eval 中，多步任务 completion_rate 长期低于目标，且失败来自状态恢复/分支控制，而不是 prompt 或工具质量。
+- HITL 恢复、拒绝、重新规划的代码复杂度明显超过当前 FSM 可维护范围。
+- 需要多个可恢复分支、并行专题分析或长时间挂起任务，线性 while loop 变得不可读。
+- 上下文 offloading 需要稳定的 checkpoint / resume 语义，现有 `agent_runs` + `agent_steps` 无法表达。
+- 需要跨进程、跨部署恢复 Agent run，且已有数据库事件流仍不足以支撑。
+
+在这些条件出现前，继续坚持 lightweight FSM + `agent_loop()`。
 
 ## 15. 分阶段实现
 
 - **V2.0**（当前）：本设计文档
-- **V2.1**：`agent_loop()` while 循环 + LLM decide + FakeLoopChatClient + 5 parametrized tests
-- **V2.2**：真实 DeepSeek smoke + max_steps gate + stopped 状态 + 连续 error 检测
+- **V2.1**（delivered, `78c3d9a`）：`agent_loop()` while 循环 + LLM decide + FakeLoopChatClient + 6 tests
+- **V2.2**（pending）：真实 DeepSeek smoke + Settings.agent_max_steps + `plan_json` / `raw_llm_response` audit hardening
 - **V2.3**：5 个真实 LLM 场景 + 指标对比 + eval report 更新
 
 ## 16. 是否需要 migration
@@ -166,5 +189,5 @@ LangChain Deep Agents / LangGraph 对本项目有参考价值，但当前只作�
 ## 18. 验收标准
 
 **设计阶段**: 本文档完整（18 节）+ handoff + roadmap 更新。
-**实现阶段**: 5 fake 参数化 pass + max_steps gate + risky 不绕过 + error 反馈 + audit 完整 + DeepSeek smoke + 回归不退化。
+**实现阶段**: 6 fake tests pass + max_steps gate + risky 不绕过 + error 反馈 + audit 完整 + DeepSeek smoke + 回归不退化。
 **评测阶段**: completion_rate ≥ 80% + risky 100% + audit 100% + before/after 报告。

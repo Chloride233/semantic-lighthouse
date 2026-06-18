@@ -152,7 +152,7 @@
 
 ## Phase 7: Advanced Agent Orchestration ← DELIVERED (2026-06-13)
 
-**Status**: 7.1–7.5 delivered (17 tests). Tool registry, FSM, HITL, memory, deterministic eval. Agent Capability v2 design drafted (docs/agent-capability-v2-design.md) — LLM tool loop, not yet implemented.
+**Status**: 7.1–7.5 delivered (17 tests). Tool registry, FSM, HITL, memory, deterministic eval. Agent Capability v2.1 LLM tool loop delivered (`78c3d9a`); V2.2 DeepSeek smoke pending.
 
 | # | Task | Acceptance |
 |---|------|------------|
@@ -162,22 +162,23 @@
 | 7.4 | Human-in-the-loop checkpoints | ✅ risky → awaiting_confirmation |
 | 7.5 | Agent evaluation set | ✅ 17 tests, 7 scenarios, 100% risky enforcement |
 
-**Acceptance**: 17 agent tests pass. V2 design at docs/agent-capability-v2-design.md.
+**Acceptance**: 23 agent tests pass. V2 design at docs/agent-capability-v2-design.md.
 
-**Next**: V2.1 implementation is gated behind must-fix doc updates (agent-handoff sync, design §8 risky repeat guard, review approval). See `docs/agent-capability-v2-review.md` for full preconditions.
+**Next**: V2.2 should add real DeepSeek `agent_decide` smoke and update the eval report before any broader Agent framework adoption.
 
 ---
 
-## Phase 7 Follow-up: Deep Agents Pattern Review ← PLANNED
+## Phase 7 Follow-up: Deep Agents Pattern Review ← DOCUMENTED
 
 **Goal**: Learn from LangChain Deep Agents / LangGraph without turning Semantic Lighthouse into a generic autonomous Agent platform.
 
 | # | Task | Acceptance |
 |---|------|------------|
-| 7.R1 | Deep Agents pattern review | Document which patterns are useful: todo/planning, context offloading, subagent isolation, HITL, and audit-friendly event flow |
-| 7.R2 | Lightweight pattern adoption | If useful, fold selected patterns into the existing `agent_loop()` design without adding LangGraph runtime dependency |
+| 7.R1 | Deep Agents pattern review | Adopt useful patterns only: todo/planning, context offloading, subagent isolation as future mode, HITL, and audit-friendly event flow |
+| 7.R2 | Lightweight pattern adoption | Fold selected patterns into `plan_json`, `agent_steps`, risky confirmation, and `agent_loop()` without adding LangGraph runtime dependency |
 | 7.R3 | Runtime adoption gate | LangGraph/Deep Agents runtime considered only after current FSM + LLM tool loop proves insufficient on measured multi-step scenarios |
-| 7.R4 | Non-goal guardrail | No virtual filesystem, code execution sandbox, autonomous commit/deploy, or broad multi-agent orchestration in the current product phases |
+| 7.R4 | Non-goal guardrail | No virtual filesystem, code execution sandbox, autonomous commit/deploy, broad multi-agent orchestration, or Agent bypass of backend permission rules |
+| 7.R5 | V2.2 audit hardening | Add todo-like plan snapshots, risk metadata, truncated raw LLM response, and rejection observation tests to the existing Agent loop |
 
 **Acceptance**: Agent Capability v2 can explain which Deep Agents ideas were adopted, which were rejected, and why the project still preserves group-scoped permission checks, audit trail, user confirmation, and deterministic backend rules.
 
@@ -198,6 +199,7 @@ These items are not permanently rejected. They are deferred until the earlier en
 - Automatic task creation from every answer
 - Full project management system
 - Autonomous web browsing or automatic web-to-KB ingestion
+- LangGraph / Deep Agents runtime before measured FSM bottlenecks
 - Mobile app
 - Multilingual RAG (current focus: English + Chinese where noted)
 

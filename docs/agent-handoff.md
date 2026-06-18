@@ -252,9 +252,9 @@ Result:
 - `read_bytes()` on final parse step — fine for 50 MiB but monitor on 2 GiB ECS.
 
 **Recommended next iteration**:
-1. Agent Capability V2.1: LLM tool loop (agent_loop + FakeLoopChatClient + 6 parametrized tests). See `docs/agent-capability-v2-review.md` for preconditions.
-2. V2.2: DeepSeek agent_decide + smoke; V2.3: 5 real LLM eval scenarios.
-3. Deep Agents pattern review: borrow todo/planning, context offloading, subagent isolation, HITL, and event-flow ideas only where they fit the existing lightweight FSM.
+1. Agent Capability V2.2: DeepSeek agent_decide + real LLM smoke; V2.3: 5 real LLM eval scenarios.
+2. Deep Agents pattern review: borrow todo/planning, context offloading, subagent isolation, HITL, and event-flow ideas only where they fit the existing lightweight FSM.
+3. Agent Capability audit hardening: `Settings.agent_max_steps`, `plan_json`, and `raw_llm_response` fields deferred from V2.1.
 4. V1.2 (task system): manual task creation + `ConversationMessage.next_steps`.
 5. Continue retrieval-quality hardening.
 
@@ -266,9 +266,10 @@ Result:
 - Decision: Stay with lightweight FSM (no LangGraph), keep learning records human-reviewed, and keep commits intentional while the owner is still learning through diffs.
 
 **Deep Agents / LangGraph Course Review (2026-06-18)**:
-- LangChain Deep Agents is useful as an agent-harness reference for planning, context offloading, subagent isolation, HITL, and audit-friendly observe/action loops.
-- Do not adopt the LangGraph/Deep Agents runtime now. Current product boundary favors the existing controlled FSM + planned LLM tool loop.
-- Runtime adoption should be reconsidered only if measured multi-step Agent scenarios show the lightweight loop is insufficient.
+- LangChain Deep Agents is useful as an agent-harness reference for planning, context offloading, subagent isolation, HITL, permission rules, and audit-friendly observe/action loops.
+- Adopt patterns into the existing implementation: todo-like planning goes into `plan_json`, observable decisions go into `agent_steps`, risky actions keep `awaiting_confirmation`, and rejected risky tools must be written back as observations.
+- Do not adopt the LangGraph/Deep Agents runtime now. Current product boundary favors the existing controlled FSM + `agent_loop()`.
+- Runtime adoption should be reconsidered only if measured multi-step Agent scenarios show the lightweight loop is insufficient: complex resume, branching, parallel subtask isolation, or context offloading cannot be maintained cleanly with the current database event trail.
 - See `docs/project-roadmap.md` Phase 7 follow-up and `docs/agent-capability-v2-design.md` section 14.
 
 **Workflow docs added (2026-06-16)**:
