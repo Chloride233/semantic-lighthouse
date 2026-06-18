@@ -22,6 +22,7 @@ from semantic_lighthouse.schemas import (
 )
 from semantic_lighthouse.services.agent_orchestrator import (
     add_step,
+    agent_loop,
     create_run,
     execute_tool,
     fail_run,
@@ -171,7 +172,7 @@ def list_agent_steps(
 def execute_agent_step(
     group_id: str,
     run_id: str,
-    tool: str = Query(default="search_knowledge_base", description="Tool name for eval; must be in AGENT_TOOLS registry"),
+    tool: str = Query(default="", description="If set: V1 single-tool eval path. If empty: V2 agent loop path."),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -182,10 +183,37 @@ def execute_agent_step(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
     if run.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot access another user's run")
-    if run.status not in ("planning", "executing"):
+    if run.status not in ("planning", "executing", "awaiting_confirmation"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Run is {run.status}, cannot execute")
 
-    # Whitelist-gate: only tools in the registry
+    # ── V1: deterministic single-tool path (eval / manual) ──────────
+    if tool:
+        return _step_response(_execute_single_tool(
+            db, run, group_id, membership.role, tool,
+        ))
+
+    # ── V2: agent loop path ────────────────────────────────────────
+    run.status = "executing"
+    run.current_phase = "execute"
+    run.updated_at = utc_now()
+    db.commit()
+
+    from semantic_lighthouse.services.chat import create_chat_client, FakeLoopChatClient
+    client = create_chat_client(settings)
+    if settings.chat_provider == "fake" and not isinstance(client, FakeLoopChatClient):
+        client = FakeLoopChatClient([{"action": "finalize", "final_answer": "FakeChatClient fallback.", "thought": "No decisions configured."}])
+
+    last_step = agent_loop(db, run, group_id, membership.role, client.agent_decide)
+    if last_step is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Agent loop produced no step")
+    db.refresh(last_step)
+    return _step_response(last_step)
+
+
+def _execute_single_tool(
+    db: Session, run: AgentRun, group_id: str, user_role: str, tool: str,
+) -> AgentStep:
+    """V1 deterministic single-tool execution — preserved for eval regression."""
     tool_args: dict = {"query": run.goal} if tool == "search_knowledge_base" else {"title": run.goal} if tool == "archive_document" else {}
 
     if is_risky_tool(tool):
@@ -203,12 +231,11 @@ def execute_agent_step(
         )
         db.commit()
         db.refresh(step)
-        return _step_response(step)
+        return step
 
     run.status = "executing"
     run.current_phase = "execute"
     run.updated_at = utc_now()
-
     step_index = len(run.steps) if run.steps else 0
     step = add_step(
         db, run, phase="execute", step_index=step_index,
@@ -219,7 +246,7 @@ def execute_agent_step(
     )
     db.commit()
 
-    result = execute_tool(tool, tool_args, db, group_id, membership.role)
+    result = execute_tool(tool, tool_args, db, group_id, user_role)
     step.observation = result
     step.finished_at = utc_now()
 
@@ -243,7 +270,7 @@ def execute_agent_step(
 
     db.commit()
     db.refresh(step)
-    return _step_response(step)
+    return step
 
 
 # ── human-in-the-loop ─────────────────────────────────────────────────
@@ -266,6 +293,17 @@ def respond_to_agent(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot access another user's run")
 
     response_lower = body.response.strip().lower()
+
+    if response_lower in ("stop", "abort"):
+        run.status = "stopped"
+        run.current_phase = "conclude"
+        run.final_answer = "User stopped the run."
+        run.finished_at = utc_now()
+        run.updated_at = utc_now()
+        db.commit()
+        db.refresh(run)
+        return _run_response(run)
+
     if response_lower in ("yes", "confirm", "approve", "proceed"):
         if run.status == "awaiting_confirmation":
             last_step = run.steps[-1] if run.steps else None
@@ -274,18 +312,12 @@ def respond_to_agent(
             result = execute_tool(tool_name, tool_args, db, group_id, membership.role)
             last_step.observation = result
             last_step.finished_at = utc_now()
+            last_step.status = "completed" if not result.startswith("Error:") else "failed"
             if result.startswith("Error:"):
-                last_step.status = "failed"
                 last_step.error_message = result
-                fail_run(db, run, f"Confirmed tool '{tool_name}' failed: {result}")
-            else:
-                last_step.status = "completed"
-                finalize_run(db, run, f"Confirmed '{tool_name}' executed:\n\n{result}", [{
-                    "document_id": "", "chunk_id": "", "title": f"Agent {tool_name} Result",
-                    "source_path": "", "file_name": "", "chunk_index": 0,
-                    "heading_path": None, "snippet": result[:200],
-                    "score": None, "retrieval_method": "keyword",
-                }])
+            run.status = "executing"
+            run.current_phase = "execute"
+            run.updated_at = utc_now()
             db.commit()
             db.refresh(run)
         else:
@@ -304,7 +336,22 @@ def respond_to_agent(
             db.commit()
             db.refresh(run)
     elif response_lower in ("no", "reject", "cancel", "deny"):
-        fail_run(db, run, f"User rejected: {body.response}")
+        if run.status == "awaiting_confirmation":
+            last_step = run.steps[-1] if run.steps else None
+            tool_name = (last_step.action_detail or {}).get("tool", "unknown")
+            last_step.observation = (
+                f"User REJECTED the request to use '{tool_name}'. "
+                f"Do NOT propose this tool again in this run."
+            )
+            last_step.status = "completed"
+            last_step.finished_at = utc_now()
+            run.status = "executing"
+            run.current_phase = "execute"
+            run.updated_at = utc_now()
+            db.commit()
+            db.refresh(run)
+        else:
+            fail_run(db, run, f"User rejected: {body.response}")
     else:
         step_index = len(run.steps) if run.steps else 0
         add_step(

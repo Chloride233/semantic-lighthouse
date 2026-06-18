@@ -64,6 +64,10 @@ class ChatClient:
     ) -> ChatResponse:
         raise NotImplementedError
 
+    def agent_decide(self, messages: list[dict], tools: list[dict]):
+        """Return AgentDecision for the agent tool loop. V2.2: real providers."""
+        raise NotImplementedError("agent_decide")
+
 
 class DeepSeekChatClient(ChatClient):
     def __init__(self, settings: Settings) -> None:
@@ -156,9 +160,49 @@ class DeepSeekChatClient(ChatClient):
         return _parse_chat_response(content, self.model)
 
 
+class FakeLoopChatClient(ChatClient):
+    """Returns pre-recorded AgentDecisions for deterministic agent loop testing.
+
+    Usage: FakeLoopChatClient(decisions=[{...}, {...}]) where each dict has
+    action, thought, and optionally tool_name/tool_arguments/final_answer.
+    """
+
+    def __init__(self, decisions: list[dict]) -> None:
+        self._decisions = decisions
+        self._cursor = 0
+        self.model = "fake-loop"
+
+    def agent_decide(self, messages, tools):
+        from semantic_lighthouse.services.agent_orchestrator import AgentDecision
+
+        if self._cursor >= len(self._decisions):
+            return AgentDecision(
+                thought="Out of pre-recorded decisions.", action="finalize",
+                final_answer="Forced finalize: no more pre-recorded decisions.",
+            )
+        d = self._decisions[self._cursor]
+        self._cursor += 1
+        return AgentDecision(
+            thought=d.get("thought", ""),
+            action=d.get("action", "finalize"),
+            tool_name=d.get("tool_name", ""),
+            tool_arguments=d.get("tool_arguments"),
+            final_answer=d.get("final_answer"),
+        )
+
+
 class FakeChatClient(ChatClient):
     def __init__(self, settings: Settings) -> None:
         self.model = settings.chat_model
+
+    def agent_decide(self, messages, tools):
+        from semantic_lighthouse.services.agent_orchestrator import AgentDecision
+
+        return AgentDecision(
+            thought="FakeChatClient cannot make agent decisions.",
+            action="finalize",
+            final_answer="FakeChatClient does not support agent tool loops. Use FakeLoopChatClient.",
+        )
 
     def answer_question(
         self,

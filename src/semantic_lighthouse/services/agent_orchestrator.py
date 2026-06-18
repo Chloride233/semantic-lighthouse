@@ -124,6 +124,199 @@ def is_risky_tool(name: str) -> bool:
     return tool.is_risky if tool else False
 
 
+# ── Agent LLM Tool Loop (V2.1) ───────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class AgentDecision:
+    """LLM decision in the agent loop — call_tool or finalize."""
+    thought: str
+    action: str  # "call_tool" | "finalize"
+    tool_name: str = ""
+    tool_arguments: dict | None = None
+    final_answer: str | None = None
+
+    def __post_init__(self):
+        if self.action == "call_tool" and not self.tool_name:
+            raise ValueError("action=call_tool requires tool_name")
+
+
+MAX_AGENT_STEPS = 5
+
+
+def agent_loop(
+    db: Session,
+    run: AgentRun,
+    group_id: str,
+    user_role: str,
+    decide_fn,
+    max_steps: int = MAX_AGENT_STEPS,
+) -> AgentStep | None:
+    """Execute the agent decision loop until completed, stopped, or failed.
+
+    Each iteration: check max_steps -> build messages -> decide -> execute.
+    Risky tools pause the loop (awaiting_confirmation). Caller resumes via
+    subsequent execute calls.
+    """
+    tool_schemas = _tool_schemas_for_llm()
+    consecutive_errors = 0
+    last_step = None
+
+    while True:
+        step_count = _count_agent_steps(run)
+        if step_count >= max_steps:
+            run.status = "stopped"
+            run.current_phase = "conclude"
+            run.final_answer = f"Agent reached max steps ({max_steps})."
+            run.finished_at = utc_now()
+            run.updated_at = utc_now()
+            db.commit()
+            return last_step
+
+        messages = _build_agent_messages(run)
+        decision = decide_fn(messages, tool_schemas)
+        step_idx = len(run.steps) if run.steps else 0
+
+        if decision.action == "finalize":
+            step = add_step(
+                db, run, phase="execute", step_index=step_idx,
+                thought=decision.thought, action_type="llm_decision",
+                action_detail={"action": "finalize"},
+                observation=f"Final answer: {(decision.final_answer or '')[:100]}",
+                status="completed",
+            )
+            db.commit()
+            finalize_run(db, run, decision.final_answer or "Agent completed.", [])
+            db.refresh(step)
+            return step
+
+        if decision.action == "call_tool":
+            tool_name = decision.tool_name
+            tool_args = decision.tool_arguments or {}
+            tool = _tool_by_name(tool_name)
+            if tool is None:
+                step = add_step(
+                    db, run, phase="execute", step_index=step_idx,
+                    thought=decision.thought, action_type="tool_call",
+                    action_detail={"tool": tool_name, "arguments": tool_args},
+                    observation=f"Error: unknown tool '{tool_name}'.",
+                    error_message=f"Tool '{tool_name}' not in AGENT_TOOLS.",
+                    status="failed",
+                )
+                db.commit()
+                last_step = step
+                continue
+
+            if tool.is_risky:
+                run.status = "awaiting_confirmation"
+                run.current_phase = "execute"
+                run.updated_at = utc_now()
+                step = add_step(
+                    db, run, phase="execute", step_index=step_idx,
+                    thought=decision.thought, action_type="ask_user",
+                    action_detail={"tool": tool_name, "arguments": tool_args, "needs_confirmation": True},
+                    observation=f"Waiting for user confirmation to execute '{tool_name}'.",
+                    status="running",
+                )
+                db.commit()
+                db.refresh(step)
+                return step
+
+            result = execute_tool(tool_name, tool_args, db, group_id, user_role)
+            step = add_step(
+                db, run, phase="execute", step_index=step_idx,
+                thought=decision.thought, action_type="tool_call",
+                action_detail={"tool": tool_name, "arguments": tool_args},
+                observation=result,
+                status="completed" if not result.startswith("Error:") else "failed",
+                error_message=result if result.startswith("Error:") else None,
+            )
+            db.commit()
+
+            if result.startswith("Error:"):
+                consecutive_errors += 1
+                if consecutive_errors >= 2:
+                    fail_run(db, run, f"Agent failed: {consecutive_errors} consecutive tool errors.")
+                    db.refresh(step)
+                    return step
+            else:
+                consecutive_errors = 0
+
+            last_step = step
+            continue
+
+        # Unknown action -> treat as finalize
+        step = add_step(
+            db, run, phase="execute", step_index=step_idx,
+            thought=decision.thought, action_type="llm_decision",
+            action_detail={"action": decision.action},
+            observation=f"Unknown action '{decision.action}', treating as finalize.",
+            status="completed",
+        )
+        db.commit()
+        finalize_run(db, run, decision.final_answer or "Agent completed.", [])
+        db.refresh(step)
+        return step
+
+
+def _count_agent_steps(run: AgentRun) -> int:
+    if not run.steps:
+        return 0
+    return sum(1 for s in run.steps if s.action_type != "think")
+
+
+def _build_agent_messages(run: AgentRun) -> list[dict[str, str]]:
+    messages: list[dict[str, str]] = [
+        {"role": "system", "content": _agent_system_prompt()},
+        {"role": "user", "content": f"Goal: {run.goal}"},
+    ]
+    for s in (run.steps or []):
+        if s.action_type == "tool_call" and s.observation:
+            messages.append({
+                "role": "assistant",
+                "content": f"Tool {s.action_detail.get('tool', '?')} result: {s.observation}",
+            })
+        elif s.action_type == "ask_user" and s.observation:
+            messages.append({
+                "role": "assistant",
+                "content": s.observation,
+            })
+    return messages
+
+
+def _agent_system_prompt() -> str:
+    return (
+        "你是一个企业 AI 咨询 Agent。根据用户目标决定下一步。"
+        "可用工具见 tool schemas。"
+        "返回 JSON：{\"thought\":\"...\",\"action\":\"call_tool\","
+        "\"tool_name\":\"...\",\"tool_arguments\":{...}}"
+        " 或 {\"thought\":\"...\",\"action\":\"finalize\",\"final_answer\":\"...\"}"
+        "。如果 observation 含 Error，尝试改参数重试一次。"
+    )
+
+
+def _tool_schemas_for_llm() -> list[dict]:
+    schemas = []
+    for t in AGENT_TOOLS:
+        props: dict = {}
+        required: list[str] = []
+        if t.name == "search_knowledge_base":
+            props["query"] = {"type": "string", "description": "Search query"}
+            required.append("query")
+        elif t.name == "archive_document":
+            props["title"] = {"type": "string", "description": "Document title"}
+            required.append("title")
+        elif t.name == "list_documents":
+            pass
+        schemas.append({
+            "type": "function", "function": {
+                "name": t.name, "description": t.description,
+                "parameters": {"type": "object", "properties": props, "required": required},
+            },
+        })
+    return schemas
+
+
 def create_run(
     db: Session,
     group_id: str,

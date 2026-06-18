@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest import mock
 
+import pytest
 from fastapi.testclient import TestClient
 
 from conftest import register_and_login
 from semantic_lighthouse.config import Settings, get_settings
+from semantic_lighthouse.services.chat import FakeLoopChatClient
 
 
 def _settings(path: Path) -> Settings:
@@ -107,7 +110,7 @@ def test_execute_runs_search(client, tmp_path):
     _ovr(client, _settings(tmp_path))
     _upload(client, gid, h, "onto.md", "# Ontology\n\nOntology connects business and AI.")
     rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "ontology"}, headers=h).json()["id"]
-    s = client.post(f"/groups/{gid}/agent/runs/{rid}/execute", headers=h)
+    s = client.post(f"/groups/{gid}/agent/runs/{rid}/execute", params={"tool": "search_knowledge_base"}, headers=h)
     assert s.status_code == 200 and s.json()["status"] == "completed"
     assert "Ontology" in s.json()["observation"]
     assert client.get(f"/groups/{gid}/agent/runs/{rid}", headers=h).json()["status"] == "completed"
@@ -184,8 +187,11 @@ def test_risky_tool_confirmed_then_executed(client, tmp_path):
     client.post(f"/groups/{gid}/agent/runs/{rid}/execute", params={"tool": "archive_document"}, headers=h)
     r = client.post(f"/groups/{gid}/agent/runs/{rid}/respond", json={"response": "yes"}, headers=h)
     assert r.status_code == 200
-    assert r.json()["status"] == "completed"
+    assert r.json()["status"] == "executing"  # respond resumes, not finalizes
+    # Complete by finalizing the run
+    client.post(f"/groups/{gid}/agent/runs/{rid}/execute", params={"tool": "search_knowledge_base"}, headers=h)
     detail = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=h).json()
+    assert detail["status"] == "completed"
     assert detail["final_answer"] is not None
     doc = client.get(f"/groups/{gid}/documents/{doc_id}", headers=h).json()
     assert doc["status"] == "archived"
@@ -200,7 +206,7 @@ def test_risky_tool_rejected_stops(client, tmp_path):
     rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "Test"}, headers=h).json()["id"]
     client.post(f"/groups/{gid}/agent/runs/{rid}/execute", params={"tool": "archive_document"}, headers=h)
     r = client.post(f"/groups/{gid}/agent/runs/{rid}/respond", json={"response": "reject"}, headers=h)
-    assert r.json()["status"] == "failed"
+    assert r.json()["status"] == "executing"  # reject returns to executing, not fails
     doc = client.get(f"/groups/{gid}/documents/{doc_id}", headers=h).json()
     assert doc["status"] == "ready"
 
@@ -267,3 +273,131 @@ def test_agent_cross_group_isolation(client, tmp_path):
     _upload(client, gb, h_b, "doc.md", "# Content\n\ntest")
     rid_b = client.post(f"/groups/{gb}/agent/runs", json={"goal": "test"}, headers=h_b).json()["id"]
     assert client.post(f"/groups/{gb}/agent/runs/{rid_b}/execute", headers=h_b).status_code == 200
+
+
+# ── Agent loop (V2.1) ──────────────────────────────────────────────────
+
+DECISIONS = {
+    "simple_search": [
+        {"action": "call_tool", "tool_name": "search_knowledge_base",
+         "tool_arguments": {"query": "Ontology"}, "thought": "Searching."},
+        {"action": "finalize", "final_answer": "Found results.", "thought": "Done."},
+    ],
+    "search_error_retry": [
+        {"action": "call_tool", "tool_name": "search_knowledge_base",
+         "tool_arguments": {"query": ""}, "thought": "Search."},
+        {"action": "call_tool", "tool_name": "search_knowledge_base",
+         "tool_arguments": {"query": "Ontology"}, "thought": "Retry with query."},
+        {"action": "finalize", "final_answer": "Retried and found.", "thought": "Done."},
+    ],
+    "max_steps_stopped": [
+        {"action": "call_tool", "tool_name": "search_knowledge_base",
+         "tool_arguments": {"query": "q1"}, "thought": "S1"},
+        {"action": "call_tool", "tool_name": "search_knowledge_base",
+         "tool_arguments": {"query": "q2"}, "thought": "S2"},
+        {"action": "call_tool", "tool_name": "search_knowledge_base",
+         "tool_arguments": {"query": "q3"}, "thought": "S3"},
+        {"action": "call_tool", "tool_name": "search_knowledge_base",
+         "tool_arguments": {"query": "q4"}, "thought": "S4"},
+        {"action": "call_tool", "tool_name": "search_knowledge_base",
+         "tool_arguments": {"query": "q5"}, "thought": "S5"},
+        {"action": "finalize", "final_answer": "Should not reach.", "thought": "X"},
+    ],
+    "risky_confirm_execute": [
+        {"action": "call_tool", "tool_name": "archive_document",
+         "tool_arguments": {"title": "test"}, "thought": "Archive."},
+        {"action": "finalize", "final_answer": "Archived.", "thought": "Done."},
+    ],
+    "two_step_list_search": [
+        {"action": "call_tool", "tool_name": "list_documents",
+         "tool_arguments": {}, "thought": "List first."},
+        {"action": "call_tool", "tool_name": "search_knowledge_base",
+         "tool_arguments": {"query": "Ontology"}, "thought": "Search."},
+        {"action": "finalize", "final_answer": "Analysis done.", "thought": "Done."},
+    ],
+    "reject_risky_alternative": [
+        {"action": "call_tool", "tool_name": "archive_document",
+         "tool_arguments": {"title": "test"}, "thought": "Archive."},
+        {"action": "call_tool", "tool_name": "search_knowledge_base",
+         "tool_arguments": {"query": "test"}, "thought": "Rejected. Search instead."},
+        {"action": "finalize", "final_answer": "Found alternative.", "thought": "Done."},
+    ],
+}
+
+
+def _run_loop(client, gid, headers, goal, decisions):
+    """Helper: create run, inject FakeLoopChatClient, execute loop."""
+    loop_client = FakeLoopChatClient(decisions)
+    rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": goal}, headers=headers).json()["id"]
+
+    max_calls = 10
+    for _ in range(max_calls):
+        with mock.patch("semantic_lighthouse.services.chat.create_chat_client", return_value=loop_client):
+            client.post(f"/groups/{gid}/agent/runs/{rid}/execute", headers=headers)
+        run_status = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=headers).json()["status"]
+        if run_status == "awaiting_confirmation":
+            client.post(f"/groups/{gid}/agent/runs/{rid}/respond", json={"response": "yes"}, headers=headers)
+        elif run_status in ("completed", "stopped", "failed"):
+            break
+
+    detail = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=headers).json()
+    return detail
+
+
+@pytest.mark.parametrize("name,decisions,expected_status,min_steps", [
+    ("simple_search", DECISIONS["simple_search"], "completed", 2),
+    ("search_error_retry", DECISIONS["search_error_retry"], "completed", 2),
+    ("max_steps_stopped", DECISIONS["max_steps_stopped"], "stopped", 3),
+    ("two_step_list_search", DECISIONS["two_step_list_search"], "completed", 2),
+])
+def test_agent_loop_completes(client, tmp_path, name, decisions, expected_status, min_steps):
+    """Agent loop reaches expected status with the given decision sequence."""
+    _, _, h = register_and_login(client, f"{name[:4]}@e.com")
+    gid = _group(client, h)
+    _ovr(client, _settings(tmp_path))
+    _upload(client, gid, h, "doc.md", "# Test\n\nOntology content for testing.")
+
+    detail = _run_loop(client, gid, h, f"Goal: {name}", decisions)
+    assert detail["status"] == expected_status, f"Expected {expected_status}, got {detail['status']}"
+    assert detail["step_count"] >= min_steps, f"Expected >= {min_steps} steps, got {detail['step_count']}"
+
+
+def test_agent_loop_risky_confirm_execute(client, tmp_path):
+    """Risky tool → awaiting_confirmation → confirm → completed."""
+    _, _, h = register_and_login(client, "rce@e.com")
+    gid = _group(client, h)
+    _ovr(client, _settings(tmp_path))
+    doc_id = _upload(client, gid, h, "test.md", "# Test\n\narchive target")
+    decisions = DECISIONS["risky_confirm_execute"]
+
+    detail = _run_loop(client, gid, h, "Archive test", decisions)
+    assert detail["status"] == "completed"
+    doc = client.get(f"/groups/{gid}/documents/{doc_id}", headers=h).json()
+    assert doc["status"] == "archived"
+
+
+def test_agent_loop_reject_risky_alternative(client, tmp_path):
+    """Reject risky → LLM picks alternative tool → completed."""
+    _, _, h = register_and_login(client, "rra@e.com")
+    gid = _group(client, h)
+    _ovr(client, _settings(tmp_path))
+    doc_id = _upload(client, gid, h, "test.md", "# Test\n\nkeep me")
+
+    decisions = DECISIONS["reject_risky_alternative"]
+    loop_client = FakeLoopChatClient(decisions)
+
+    rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "Test"}, headers=h).json()["id"]
+    with mock.patch("semantic_lighthouse.services.chat.create_chat_client", return_value=loop_client):
+        client.post(f"/groups/{gid}/agent/runs/{rid}/execute", headers=h)
+    assert client.get(f"/groups/{gid}/agent/runs/{rid}", headers=h).json()["status"] == "awaiting_confirmation"
+    # Step 2: reject
+    client.post(f"/groups/{gid}/agent/runs/{rid}/respond", json={"response": "no"}, headers=h)
+    run = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=h).json()
+    assert run["status"] == "executing", f"Expected executing after reject, got {run['status']}"
+    # Step 3: continue loop → search + finalize
+    with mock.patch("semantic_lighthouse.services.chat.create_chat_client", return_value=loop_client):
+        client.post(f"/groups/{gid}/agent/runs/{rid}/execute", headers=h)
+    detail = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=h).json()
+    assert detail["status"] == "completed"
+    doc = client.get(f"/groups/{gid}/documents/{doc_id}", headers=h).json()
+    assert doc["status"] == "ready", "Document should NOT be archived after rejection"
