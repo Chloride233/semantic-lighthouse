@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-18
-**Current phase**: Phase 9 Ontology Core v1 delivered — all 9.1–9.5 complete. Phase 10 planning pending. See `docs/agent-handoff.md` and `docs/development-workflow.md`.
+**Current phase**: Phase 9 Ontology Core v1 delivered — all 9.1–9.5 complete. Phase 10.1–10.2 delivered; 10.3–10.5 pending. See `docs/agent-handoff.md`, `docs/phase10-planning.md`, and `docs/development-workflow.md`.
 
 ---
 
@@ -227,7 +227,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 - automatic edits to the external KB
 
 
-## Phase 10: Governance Operations & Demo Polish ← PLANNING
+## Phase 10: Governance Operations & Demo Polish ← IN PROGRESS (10.1–10.2 delivered)
 
 **Goal**: Operationalize governance findings, polish the demo loop, and build the evidence-to-ontology bridge before Graph RAG or modeling studio. See `docs/phase10-planning.md`.
 

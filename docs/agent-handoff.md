@@ -4,7 +4,7 @@ Last updated: 2026-06-18
 
 ## Current Phase
 
-**Phases 0–9 delivered; Phase 10 planning** — see `docs/project-roadmap.md` and `docs/phase10-planning.md`. Phase 10 focuses on governance operations and demo polish before Graph RAG or modeling studio.
+**Phases 0–9 delivered; Phase 10.1–10.2 delivered; 10.3–10.5 pending** — see `docs/project-roadmap.md` and `docs/phase10-planning.md`. Phase 10 focuses on governance operations and demo polish before Graph RAG or modeling studio.
 
 **Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
 
@@ -298,13 +298,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Recommended next iteration**:
-1. Run real DeepSeek Agent smoke manually and record results in `docs/agent-capability-v23-eval.md`.
-2. Build Agent frontend visibility for existing backend (run/step/HITL timeline page).
-3. Expand task source traceability beyond `rag_run` (conversation / agent_run / manual).
-4. Harden conversation UX: visible citations, tool call display, failure states.
-5. Write demo scenario scripts for portfolio presentation.
-6. After Phase 8 is demonstrable, start Phase 9 Ontology Core v1 with read-only governance and graph visibility.
+**Next iteration**: Phase 10.3 Ontology graph UX polish (filterable graph, improved labels, edge hover, mobile). See `docs/phase10-planning.md`.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
@@ -624,10 +618,38 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - `test_conversations.py` blocked by Windows temp dir PermissionError (19 tests)
 - Real DeepSeek Agent smoke pending (Phase 8.1)
 
+## Phase 10.2 Review Checkpoint (2026-06-18)
+
+**Conclusion**: 10.2 is complete and verified. No blocking issues. 3 stale documentation references found and fixed.
+
+### Findings
+
+| Severity | Issue | Action |
+|----------|-------|--------|
+| LOW | Roadmap header: "Phase 10 planning pending" — stale after 10.1–10.2 delivered | Fixed: updated to "Phase 10.1–10.2 delivered; 10.3–10.5 pending" |
+| LOW | Roadmap Phase 10 section header: "← PLANNING" — stale | Fixed: updated to "← IN PROGRESS (10.1–10.2 delivered)" |
+| LOW | Handoff current phase: "Phase 10 planning" — stale | Fixed: updated to "Phase 10.1–10.2 delivered; 10.3–10.5 pending" |
+| LOW | Handoff "Recommended next iteration" listed completed Phase 8 tasks | Fixed: updated to Phase 10.3 |
+
+### Verified
+
+- **76 tests** (41 ontology + 35 curation demo) — all passed
+- **ruff clean** across src, tests, scripts
+- **Curation demo reproducible**: 74 imported, 74 entities, 186 relations, 97 issues, 97 confirmed, 39 backlog entries, triage persisted across rescan
+- **Product boundaries intact**: external KB not modified, no Graph RAG, no modeling studio, no Agent auto-write, deterministic triage
+- **git diff --check** clean, **git status** clean
+
+### Risks (unchanged)
+
+- External KB has real drift (90 unresolved wikilinks, 7 stale eval gold IDs) — these are curation findings, not bugs
+- Backlog items require human curator action — no automated KB fix path
+
+**Next**: Phase 10.3 Ontology graph UX polish.
+
 ## Agent Instructions For The Next Session
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.
 
-Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 8 should finish the demonstrable RAG -> task -> Agent/HITL -> audit loop; Phase 9 should begin with read-only ontology governance and graph visibility.
+Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 10.1–10.2 are delivered (governance issue triage + curation demo). Phase 10.3 (ontology graph UX polish) is next.
 
-Do not rely on chat history. The latest verified baseline before this handoff refresh was commit `d45bef4 docs: refresh project handoff entrypoints`; the working tree should be clean before the next iteration.
+Do not rely on chat history. The latest verified baseline before this handoff refresh was commit `398865f chore: add ontology curation demo runner`; the working tree should be clean before the next iteration.
