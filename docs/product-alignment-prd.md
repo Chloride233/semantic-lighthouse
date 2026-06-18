@@ -111,7 +111,7 @@ Current Phase 8 gap:
 
 - task `source_type` now supports `rag_run`, `conversation`, `agent_run`, and `manual` — delivered Phase 8.3
 - conversation UX now includes visible citations, tool calls, and failure states — delivered Phase 8.4
-- real DeepSeek Agent smoke results should be recorded
+- real DeepSeek Agent smoke results recorded — delivered Phase 8.1
 - demo scenario scripts delivered — Phase 8.5
 
 Phase 8 should not add new backend Agent powers. It should make existing backend capabilities visible, usable, and demonstrable.

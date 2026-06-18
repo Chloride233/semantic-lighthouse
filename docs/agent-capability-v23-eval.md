@@ -1,20 +1,22 @@
 # Agent Capability V2.3 — Real LLM Smoke & Evaluation
 
 **Date**: 2026-06-18
-**Status**: Delivered — 39 tests (34 existing + 5 eval), smoke script ready
+**Status**: Delivered — 39 fake-provider tests, real DeepSeek smoke executed and passed
 
 ## Smoke: `scripts/smoke_agent_deepseek.py`
 
 3 short calls, low token cost. Validates DeepSeek returns legal AgentDecision.
 SKIP (exit 0) without DEEPSEEK_API_KEY.
 
-| S | Scope | Expected |
-|----|-------|----------|
-| S1 | LLM output | action=="finalize", final_answer non-empty |
-| S2 | LLM output | tool_name non-empty, tool_arguments is dict |
-| S3 | LLM output | ChatError raised |
+| S | Scope | Expected | Result |
+|----|-------|----------|--------|
+| S1 | LLM output | action=="finalize", final_answer non-empty | ✅ PASS |
+| S2 | LLM output | tool_name non-empty, tool_arguments is dict | ✅ PASS — `list_documents` |
+| S3 | LLM output | ChatError raised (bad key → 401) | ✅ PASS — `ChatError: HTTP 401: Authentication Fails` |
 
-Scope: LLM output validation only. ChatError → 502 audit verified by pytest.
+**Real smoke run**: 2026-06-18, model `deepseek-v4-flash` via `https://api.deepseek.com`. All 3 scenarios passed. Validates that DeepSeek `agent_decide()` returns well-formed `AgentDecision` JSON, tool_name validation passes, and bad-key → ChatError correctly raised.
+
+Scope: LLM output validation only. ChatError → 502 audit verified by pytest. Agent run lifecycle tested by 39 fake-provider tests.
 
 ## Eval: `tests/test_agent_eval.py`
 

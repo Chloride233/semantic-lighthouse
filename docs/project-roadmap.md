@@ -169,7 +169,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 
 ## Phase 7: Advanced Agent Orchestration ← DELIVERED (backend)
 
-**Status**: 7.1–7.5 delivered. V2.1 LLM tool loop (`78c3d9a`); V2.2 provider + audit hardening (`ca58506`); V2.3 fake-provider eval delivered + real smoke script ready (`2c243a0`), pending manual terminal run. Agent audit hardening delivered (`a761afc`). 39 agent tests + 6 audit tests + 6 config tests. No LangGraph runtime.
+**Status**: 7.1–7.5 delivered. V2.1 LLM tool loop (`78c3d9a`); V2.2 provider + audit hardening (`ca58506`); V2.3 fake-provider eval delivered + real smoke executed and passed (`fd68060`, `scripts/smoke_agent_deepseek.py`). Agent audit hardening delivered (`a761afc`). 39 agent tests + 6 audit tests + 6 config tests. No LangGraph runtime.
 
 **Current gap**: Agent backend is complete. Agent console page (Phase 8.2) delivered. Remaining gap: real DeepSeek smoke recording (Phase 8.1).
 
@@ -191,13 +191,13 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 
 | # | Task | Acceptance |
 |---|------|------------|
-| 8.1 | Real DeepSeek Agent smoke recording | Run `scripts/smoke_agent_deepseek.py` with API key, record results in `docs/agent-capability-v23-eval.md` |
+| 8.1 | Real DeepSeek Agent smoke recording | ✅ `scripts/smoke_agent_deepseek.py` executed with `deepseek-v4-flash`, S1/S2/S3 all PASSED (2026-06-18) |
 | 8.2 | Agent run/step/HITL frontend page | ✅ Agent console page with run lifecycle, step timeline, and HITL confirm/reject/stop (2026-06-18); `verify_ui` smoke coverage |
 | 8.3 | Task source_type expansion | ✅ `conversation`, `agent_run`, `manual` source types alongside existing `rag_run` (2026-06-18) |
 | 8.4 | Conversation UX hardening | ✅ Visible citations, knowledge gaps, context indicators, tool details, send/error states (2026-06-18) |
 | 8.5 | Demo scenario scripts | ✅ `docs/interview-demo-questions.md` refreshed with Ontology-oriented Phase 8 full-loop demo script (2026-06-18) |
 
-**Acceptance**: A reviewer can see the full loop from RAG answer to task creation to Agent tool execution to HITL to audit trail from the frontend without Swagger.
+**Acceptance**: ✅ Phase 8 demonstrable complete. Full loop — RAG answer → task creation → Agent tool execution → HITL → audit trail — visible from the frontend. Real DeepSeek smoke passed.
 
 ---
 

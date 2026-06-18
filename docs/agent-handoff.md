@@ -174,7 +174,7 @@ Manual gates:
 2. max_steps counts all AgentStep types (conservative).
 3. FakeLoopChatClient via `ChatClient.agent_decide()` interface — `create_chat_client` mock injects it.
 
-**Remaining risks**: real DeepSeek smoke pending manual terminal run; Agent V2.4 scope TBD.
+**Remaining risks**: Agent V2.4 scope TBD (real DeepSeek smoke completed Phase 8.1).
 
 ### Agent Capability V2.3 — Real LLM Smoke & Evaluation (2026-06-18) — delivered
 
@@ -399,7 +399,16 @@ Do not store real `DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, database passwords, c
 - **Not in scope**: conversation_id selection, multi-Agent, web search, LangGraph, DB migrations
 - **Verification**: 37 agent tests pass, ruff clean, verify_ui 18/21 (3 pre-existing failures unrelated to Agent page)
 
-**Next on Phase 8**: 8.1 real DeepSeek smoke recording. Then Phase 9 Ontology Core v1 — start with KB governance input before entity extraction or graph UI.
+### Real DeepSeek Agent Smoke — Phase 8.1 (2026-06-18)
+
+**Status**: Delivered.
+
+- **`scripts/smoke_agent_deepseek.py`**: Executed with `deepseek-v4-flash` via `https://api.deepseek.com`
+- **Results**: S1 (finalize) ✅, S2 (call_tool `list_documents`) ✅, S3 (bad-key ChatError) ✅ — All smoke tests PASSED
+- **No API key stored**: Real key only present in shell env during run; never committed
+- **Verification**: Real `agent_decide()` returns valid `AgentDecision` JSON; tool_name/tool_arguments validation passes; ChatError correctly raised on auth failure
+
+**Phase 8 complete**. All 8.1–8.5 delivered. Next: Phase 9 Ontology Core v1 — start with KB governance input (schema/frontmatter validation, entity extraction, wikilink relations, broken-link detection) before graph UI or modeling studio.
 
 ### Demo Scenario Scripts — Phase 8.5 (2026-06-18)
 
