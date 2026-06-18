@@ -399,7 +399,18 @@ Do not store real `DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, database passwords, c
 - **Not in scope**: conversation_id selection, multi-Agent, web search, LangGraph, DB migrations
 - **Verification**: 37 agent tests pass, ruff clean, verify_ui 18/21 (3 pre-existing failures unrelated to Agent page)
 
-**Next on Phase 8**: 8.1 real DeepSeek smoke recording, 8.5 demo scenario scripts.
+**Next on Phase 8**: 8.1 real DeepSeek smoke recording. Then Phase 9 Ontology Core v1 — start with KB governance input before entity extraction or graph UI.
+
+### Demo Scenario Scripts — Phase 8.5 (2026-06-18)
+
+**Status**: Delivered.
+
+- **`docs/interview-demo-questions.md`**: Full rewrite. Replaced "enterprise RAG/Agent prototype" framing with Ontology semantic operating layer narrative.
+  - Added 北极星开场 (North Star Opener)
+  - Phase 8 full-loop demo: 8.0 知识导入与权限隔离 → 8.1 RAG citation/confidence/gap → 8.2 证据不足 → 8.3 用户确认任务 → 8.4 多轮对话 → 8.5 Agent/HITL/Audit → 8.6 生产安全
+  - Phase 9 Teaser: Ontology Core v1 planned items (not built)
+  - Two-minute quick demo script
+  - Closing line emphasizes Ontology destination over RAG/Agent framing
 
 ### Conversation UX Hardening — Phase 8.4 (2026-06-18)
 
