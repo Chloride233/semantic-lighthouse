@@ -36,6 +36,19 @@ Last updated: 2026-06-18
 - **Frontmatter metadata**: entityType/source/ontology status badges in document list, click-to-expand metadata panel.
 - **Document governance report**: `docs/kgov-v1-report.md`.
 
+### Agent Audit Hardening (2026-06-18) — delivered
+
+Three production safety fixes — no new Agent capabilities, no framework changes:
+
+1. **Shared document lifecycle** (`services/document_lifecycle.py`): `archive_document` helper enforces group_id, status gate, and writes `archived_by` / `archived_at` / `archive_reason`. Both REST endpoint and Agent tool path reuse the same helper. Agent tool previously only set `status="archived"`, bypassing audit fields.
+
+2. **HITL audit event persistence** (`routers/agent.py`): User confirm/reject responses are now appended as separate `AgentStep` records instead of overwriting the original `ask_user` step. Each response step carries `user_id`, `response`, `confirmed`/`rejected`, `tool`, `arguments`, and `responded_at`. Original ask_user step is preserved as the system's confirmation request.
+
+3. **Production safety defaults** (`config.py`): New `APP_ENV` field (default `development`). `Settings.validate_runtime_safety()` checks in production mode: `JWT_SECRET_KEY` ≠ default placeholder, ≥ 32 chars, `COOKIE_SECURE=true`, `DATABASE_URL` ≠ default dev connection. Fails closed — errors are clear, secrets are never logged.
+
+- **Tests**: 6 audit tests (`test_agent_audit.py`) + 6 config tests (`test_config.py`). Full suite: 207 passed, ruff clean.
+- **Engineering judgment**: Agent tools must not bypass deterministic backend audit; user confirmation itself is an audit event; production defaults must fail closed.
+
 ### RAG Quality Evaluation v1 — Eval Harness (2026-06-17) — delivered
 
 **Plan**: merged from `.tmp/rag-quality-v1-review-a/b/c/d` (4-window review)

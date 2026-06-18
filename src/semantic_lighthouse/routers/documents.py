@@ -466,16 +466,11 @@ def archive_document(
     )
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    if document.status not in ("ready", "failed"):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Cannot archive document with status '{document.status}'",
-        )
-    document.status = "archived"
-    document.archived_by = current_user.id
-    document.archived_at = utc_now()
-    document.archive_reason = "手动归档"
-    db.commit()
+    from semantic_lighthouse.services.document_lifecycle import archive_document as lifecycle_archive
+    try:
+        lifecycle_archive(db, document, group_id, current_user.id, "手动归档")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     return _document_response(document)
 
 

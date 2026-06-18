@@ -39,6 +39,25 @@ class Settings(BaseModel):
     chunk_overlap_chars: int = 0
     ingestion_max_attempts: int = 3
     agent_max_steps: int = 5
+    app_env: str = "development"
+
+    def validate_runtime_safety(self) -> None:
+        """Raise ValueError if production settings are unsafe."""
+        if self.app_env != "production":
+            return
+        errors: list[str] = []
+        default_jwt = Settings.model_fields["jwt_secret_key"].default
+        if self.jwt_secret_key == default_jwt:
+            errors.append("JWT_SECRET_KEY must not use the default placeholder in production")
+        if len(self.jwt_secret_key) < 32:
+            errors.append("JWT_SECRET_KEY must be at least 32 characters in production")
+        if not self.cookie_secure:
+            errors.append("COOKIE_SECURE must be true in production")
+        default_db = Settings.model_fields["database_url"].default
+        if self.database_url == default_db:
+            errors.append("DATABASE_URL must not use the default local development connection string in production")
+        if errors:
+            raise ValueError("Production safety checks failed: " + "; ".join(errors))
 
 
 def _bool_from_env(value: str | None, default: bool) -> bool:
@@ -144,4 +163,5 @@ def get_settings() -> Settings:
             os.getenv("INGESTION_MAX_ATTEMPTS", str(Settings.model_fields["ingestion_max_attempts"].default))
         ),
         agent_max_steps=int(os.getenv("AGENT_MAX_STEPS", str(Settings.model_fields["agent_max_steps"].default))),
+        app_env=_str_from_env("APP_ENV", Settings.model_fields["app_env"].default),
     )

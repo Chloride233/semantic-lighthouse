@@ -63,6 +63,7 @@ def execute_tool(
     db: Session,
     group_id: str,
     user_role: str,
+    user_id: str | None = None,
 ) -> str:
     tool = _tool_by_name(name)
     if tool is None:
@@ -107,13 +108,16 @@ def execute_tool(
             select(Document).where(
                 Document.group_id == group_id,
                 Document.title.ilike(f"%{title}%"),
-                Document.status == "ready",
+                Document.status.in_(["ready", "failed"]),
             )
         )
         if doc is None:
-            return f"No ready document matching '{title}' found."
-        doc.status = "archived"
-        db.commit()
+            return f"No document matching '{title}' found."
+        from semantic_lighthouse.services.document_lifecycle import archive_document
+        try:
+            archive_document(db, doc, group_id, user_id or "unknown", "Agent confirmed archive")
+        except ValueError as exc:
+            return f"Error: {exc}"
         return f"Document '{doc.title}' has been archived."
 
     return f"Error: tool '{name}' has no handler."
@@ -239,7 +243,7 @@ def agent_loop(
                 db.refresh(step)
                 return step
 
-            result = execute_tool(tool_name, tool_args, db, group_id, user_role)
+            result = execute_tool(tool_name, tool_args, db, group_id, user_role, run.user_id)
             step = add_step(
                 db, run, phase="execute", step_index=step_idx,
                 thought=decision.thought, action_type="tool_call",

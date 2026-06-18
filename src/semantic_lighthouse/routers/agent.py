@@ -272,7 +272,7 @@ def _execute_single_tool(
     )
     db.commit()
 
-    result = execute_tool(tool, tool_args, db, group_id, user_role)
+    result = execute_tool(tool, tool_args, db, group_id, user_role, run.user_id)
     step.observation = result
     step.finished_at = utc_now()
 
@@ -335,12 +335,36 @@ def respond_to_agent(
             last_step = run.steps[-1] if run.steps else None
             tool_name = (last_step.action_detail or {}).get("tool", "unknown")
             tool_args = (last_step.action_detail or {}).get("arguments", {})
-            result = execute_tool(tool_name, tool_args, db, group_id, membership.role)
-            last_step.observation = result
-            last_step.finished_at = utc_now()
-            last_step.status = "completed" if not result.startswith("Error:") else "failed"
-            if result.startswith("Error:"):
-                last_step.error_message = result
+            # Preserve original ask_user step; append user confirmation event
+            current_step_count = len(run.steps) if run.steps else 0
+            add_step(
+                db, run, phase="execute", step_index=current_step_count,
+                thought="User confirmed risky action.",
+                action_type="ask_user",
+                action_detail={
+                    "response_event": True,
+                    "user_id": current_user.id,
+                    "response": body.response,
+                    "confirmed": True,
+                    "tool": tool_name,
+                    "arguments": tool_args,
+                    "responded_at": utc_now().isoformat(),
+                },
+                observation=f"User confirmed execution of '{tool_name}'.",
+                status="completed",
+            )
+            # Execute the confirmed tool in a separate tool_call step
+            result = execute_tool(tool_name, tool_args, db, group_id, membership.role, current_user.id)
+            step_index2 = len(run.steps) if run.steps else 0
+            add_step(
+                db, run, phase="execute", step_index=step_index2,
+                thought=f"Executing confirmed tool: {tool_name}",
+                action_type="tool_call",
+                action_detail={"tool": tool_name, "arguments": tool_args},
+                observation=result,
+                status="completed" if not result.startswith("Error:") else "failed",
+                error_message=result if result.startswith("Error:") else None,
+            )
             run.status = "executing"
             run.current_phase = "execute"
             run.updated_at = utc_now()
@@ -365,12 +389,29 @@ def respond_to_agent(
         if run.status == "awaiting_confirmation":
             last_step = run.steps[-1] if run.steps else None
             tool_name = (last_step.action_detail or {}).get("tool", "unknown")
-            last_step.observation = (
+            tool_args = (last_step.action_detail or {}).get("arguments", {})
+            # Preserve original ask_user step; append user rejection event
+            current_step_count = len(run.steps) if run.steps else 0
+            rejection_msg = (
                 f"User REJECTED the request to use '{tool_name}'. "
                 f"Do NOT propose this tool again in this run."
             )
-            last_step.status = "completed"
-            last_step.finished_at = utc_now()
+            add_step(
+                db, run, phase="execute", step_index=current_step_count,
+                thought="User rejected risky action.",
+                action_type="ask_user",
+                action_detail={
+                    "response_event": True,
+                    "user_id": current_user.id,
+                    "response": body.response,
+                    "rejected": True,
+                    "tool": tool_name,
+                    "arguments": tool_args,
+                    "responded_at": utc_now().isoformat(),
+                },
+                observation=rejection_msg,
+                status="completed",
+            )
             run.status = "executing"
             run.current_phase = "execute"
             run.updated_at = utc_now()

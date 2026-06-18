@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Agent Audit Hardening — Deterministic Safety Trumps Agent Autonomy
+
+- Date: 2026-06-18
+- Version: Agent Audit Hardening (post-V2.3)
+- Type: highlight
+- Context: Three audit gaps found during V2.3 review — Agent archive_document bypassed document audit fields, HITL user confirm/reject overwrote system confirmation records, and production defaults were insecure.
+- What happened: (1) Extracted `services/document_lifecycle.py` — a shared `archive_document()` that both the REST endpoint and Agent tool path must go through. Agent can no longer hand-write `doc.status = "archived"`. (2) `respond_to_agent` now appends separate user response steps instead of mutating the original `ask_user` step. Every confirm/reject is an auditable event with `user_id`, `response`, timestamp, and tool context. (3) `Settings.validate_runtime_safety()` fails closed in production — checks JWT_SECRET_KEY not default, ≥32 chars, COOKIE_SECURE=true, DATABASE_URL not default dev connection.
+- Engineering judgment: Agent tools must not bypass deterministic backend audit fields. User confirmation itself is an auditable event, not a mutation of the system's confirmation request. Production defaults must fail closed — a missing env var in production should block startup, not silently accept dev credentials.
+- Verification: 11 new tests (6 audit, 6 config minus duplicate). Full suite 207 passed, ruff clean.
+
 ## Agent V2.3 — Real LLM Validation Is About Boundaries, Not Expansion
 
 - Date: 2026-06-18
