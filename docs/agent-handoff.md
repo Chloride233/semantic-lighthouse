@@ -450,6 +450,35 @@ Every iteration must begin with a lane declaration: `Lane: Fast / Standard / Saf
 
 The goal is to reduce process overhead on low-risk changes and reserve deep verification for high-risk work.
 
+## Phase 8 Checkpoint Review (2026-06-18)
+
+**Conclusion**: No direction drift. Phase 8 is on track. Two documentation inconsistencies found and fixed.
+
+### Findings
+
+| Severity | Issue | Action |
+|----------|-------|--------|
+| HIGH | Roadmap 8.2 not marked ✅ despite Agent console being delivered with UI smoke | Fixed: 8.2 marked ✅ |
+| HIGH | Phase 7 gap text said "missing frontend visibility" — stale after 8.2 | Fixed: updated to reflect Agent console delivered |
+| MEDIUM | `test_conversations.py`: 19/20 tests ERROR with Windows `PermissionError` on temp dir — pre-existing, confirmed on clean HEAD | Recorded as known issue; not a Phase 8 regression |
+| MEDIUM | Roadmap metrics said `verify_ui 17/19` — actual is 19/22 (new checks added for Agent page, cancelled tab, etc.) | Fixed: updated to 19/22 with failure descriptions |
+| LOW | Phase 4 "Next" text listed UX hardening as future work — done in 8.4 | Fixed: updated to reflect 8.4 delivered |
+| LOW | `agent-capability-v2-design.md` and `highlight-log.md` contain old "knowledge evidence workspace" phrasing | Historical docs, not current entry files. No action needed. Recorded. |
+
+### Verified Boundaries
+
+- **Ontology direction**: All entry files (AGENTS.md, CLAUDE.md, PRODUCT.md, PRD) consistently point to Ontology semantic operating layer. No drift back to generic RAG/Agent.
+- **Phase 9**: Correctly described as NEXT phase with governance inputs. Not described as delivered.
+- **Permission/audit**: Task source_type expansion preserves group_id isolation (22 tests). Agent boundary remains controlled HITL. Agent cannot auto-write Ontology entities.
+- **Demo loop**: `docs/interview-demo-questions.md` covers full Phase 8 flow: RAG → task → Agent/HITL → audit.
+
+### Known Risks (unchanged)
+
+- KB broken links: `research/` directory missing, eval gold doc IDs inconsistent with real files
+- `docs/kgov-v1-report.md` referenced but not present in repo
+- `test_conversations.py` blocked by Windows temp dir PermissionError (19 tests)
+- Real DeepSeek Agent smoke pending (Phase 8.1)
+
 ## Agent Instructions For The Next Session
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.

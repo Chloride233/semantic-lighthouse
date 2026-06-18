@@ -17,7 +17,7 @@
 | V3.3 | RAG run audit persistence, group-scoped replay | Stable |
 | V3.4 | Async ETL pipeline, structure-aware chunking, ingestion jobs, HNSW | Stable (hardened) |
 
-**Metrics**: 207 pytest, ruff clean, alembic `0011` at head. Production safety checks delivered (APP_ENV, JWT/cookie/database validation). verify_ui 17/19 (2 known-fragile on fake chat timing).
+**Metrics**: 207 pytest, ruff clean, alembic `0011` at head. Production safety checks delivered (APP_ENV, JWT/cookie/database validation). verify_ui 19/22 (3 known-fragile: confirm button, task card, document metadata badges — none related to Phase 8).
 
 ---
 
@@ -130,7 +130,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 | 4.4 | Agent memory across sessions | User preferences, past questions, cited documents remembered |
 | 4.5 | Agent audit trail | Every tool call, retrieved chunk, and generated response logged |
 
-**Acceptance**: Conversations API + frontend delivered. Next: UX hardening (citations, tool calls, failure states), source traceability, context management.
+**Acceptance**: Conversations API + frontend delivered (Phase 4.1). Conversation UX hardening delivered (Phase 8.4: citations, tool calls, failure states, context indicators). Next: context window management, source traceability.
 
 ---
 
@@ -171,7 +171,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 
 **Status**: 7.1–7.5 delivered. V2.1 LLM tool loop (`78c3d9a`); V2.2 provider + audit hardening (`ca58506`); V2.3 fake-provider eval delivered + real smoke script ready (`2c243a0`), pending manual terminal run. Agent audit hardening delivered (`a761afc`). 39 agent tests + 6 audit tests + 6 config tests. No LangGraph runtime.
 
-**Current gap**: Agent backend is complete — run, steps, tool registry, role-gated tools, HITL, audit trail, DeepSeek agent_decide, fake eval, audit hardening, production safety checks all exist. What's missing is **frontend visibility** for Agent runs/steps/HITL, and real DeepSeek smoke result recording.
+**Current gap**: Agent backend is complete. Agent console page (Phase 8.2) delivered. Remaining gap: real DeepSeek smoke recording (Phase 8.1).
 
 | # | Task | Acceptance |
 |---|------|------------|
@@ -192,7 +192,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 | # | Task | Acceptance |
 |---|------|------------|
 | 8.1 | Real DeepSeek Agent smoke recording | Run `scripts/smoke_agent_deepseek.py` with API key, record results in `docs/agent-capability-v23-eval.md` |
-| 8.2 | Agent run/step/HITL frontend page | Agent runs visible in console: timeline of steps, tool calls, observations, HITL confirm/reject events |
+| 8.2 | Agent run/step/HITL frontend page | ✅ Agent console page with run lifecycle, step timeline, and HITL confirm/reject/stop (2026-06-18); `verify_ui` smoke coverage |
 | 8.3 | Task source_type expansion | ✅ `conversation`, `agent_run`, `manual` source types alongside existing `rag_run` (2026-06-18) |
 | 8.4 | Conversation UX hardening | ✅ Visible citations, knowledge gaps, context indicators, tool details, send/error states (2026-06-18) |
 | 8.5 | Demo scenario scripts | ✅ `docs/interview-demo-questions.md` refreshed with Ontology-oriented Phase 8 full-loop demo script (2026-06-18) |
