@@ -38,6 +38,7 @@ class Settings(BaseModel):
     chunk_min_chars: int = 200
     chunk_overlap_chars: int = 0
     ingestion_max_attempts: int = 3
+    agent_max_steps: int = 5
 
 
 def _bool_from_env(value: str | None, default: bool) -> bool:
@@ -142,4 +143,5 @@ def get_settings() -> Settings:
         ingestion_max_attempts=int(
             os.getenv("INGESTION_MAX_ATTEMPTS", str(Settings.model_fields["ingestion_max_attempts"].default))
         ),
+        agent_max_steps=int(os.getenv("AGENT_MAX_STEPS", str(Settings.model_fields["agent_max_steps"].default))),
     )

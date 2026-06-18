@@ -63,3 +63,56 @@ def test_deepseek_http_error_includes_provider_message(monkeypatch):
     message = str(exc_info.value)
     assert "HTTP 400" in message
     assert "thinking mode is incompatible" in message
+
+
+def test_deepseek_agent_decide_call_tool_parses_json(monkeypatch):
+    captured: dict = {}
+
+    def fake_post(url, json, headers, timeout):
+        captured["payload"] = json
+        request = httpx.Request("POST", url)
+        return httpx.Response(
+            200, request=request,
+            json={"choices": [{"message": {"content": __import__("json").dumps({
+                "thought": "Searching.", "action": "call_tool",
+                "tool_name": "search_knowledge_base", "tool_arguments": {"query": "Ontology"},
+            })}}]},
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    decision = DeepSeekChatClient(_settings()).agent_decide(
+        [{"role": "user", "content": "Find Ontology"}], [],
+    )
+    assert decision.action == "call_tool"
+    assert decision.tool_name == "search_knowledge_base"
+    assert decision.tool_arguments == {"query": "Ontology"}
+    assert decision.raw_response is not None and len(decision.raw_response) > 0
+    assert captured["payload"]["response_format"] == {"type": "json_object"}
+
+
+def test_deepseek_agent_decide_finalize_parses_json(monkeypatch):
+    def fake_post(url, json, headers, timeout):
+        request = httpx.Request("POST", url)
+        return httpx.Response(
+            200, request=request,
+            json={"choices": [{"message": {"content": __import__("json").dumps({
+                "thought": "Done.", "action": "finalize",
+                "final_answer": "Ontology connects business and AI.",
+            })}}]},
+        )
+    monkeypatch.setattr(httpx, "post", fake_post)
+    decision = DeepSeekChatClient(_settings()).agent_decide([], [])
+    assert decision.action == "finalize"
+    assert decision.final_answer == "Ontology connects business and AI."
+
+
+def test_deepseek_agent_decide_invalid_json_raises_chat_error(monkeypatch):
+    def fake_post(url, json, headers, timeout):
+        request = httpx.Request("POST", url)
+        return httpx.Response(
+            200, request=request,
+            json={"choices": [{"message": {"content": "not json"}}]},
+        )
+    monkeypatch.setattr(httpx, "post", fake_post)
+    with pytest.raises(ChatError):
+        DeepSeekChatClient(_settings()).agent_decide([], [])

@@ -135,6 +135,7 @@ class AgentDecision:
     tool_name: str = ""
     tool_arguments: dict | None = None
     final_answer: str | None = None
+    raw_response: str | None = None
 
     def __post_init__(self):
         if self.action == "call_tool" and not self.tool_name:
@@ -165,6 +166,13 @@ def agent_loop(
     while True:
         step_count = _count_agent_steps(run)
         if step_count >= max_steps:
+            events: list = list(run.plan_json or [])
+            events.append({
+                "type": "stopped", "reason": "max_steps",
+                "step_count": step_count, "max_steps": max_steps,
+                "recorded_at": utc_now().isoformat(),
+            })
+            run.plan_json = events
             run.status = "stopped"
             run.current_phase = "conclude"
             run.final_answer = f"Agent reached max steps ({max_steps})."
@@ -177,11 +185,13 @@ def agent_loop(
         decision = decide_fn(messages, tool_schemas)
         step_idx = len(run.steps) if run.steps else 0
 
+        _record_plan_event(run, decision, step_idx)
+        raw = decision.raw_response or ""
         if decision.action == "finalize":
             step = add_step(
                 db, run, phase="execute", step_index=step_idx,
                 thought=decision.thought, action_type="llm_decision",
-                action_detail={"action": "finalize"},
+                action_detail=_decision_detail(decision, raw),
                 observation=f"Final answer: {(decision.final_answer or '')[:100]}",
                 status="completed",
             )
@@ -214,7 +224,14 @@ def agent_loop(
                 step = add_step(
                     db, run, phase="execute", step_index=step_idx,
                     thought=decision.thought, action_type="ask_user",
-                    action_detail={"tool": tool_name, "arguments": tool_args, "needs_confirmation": True},
+                    action_detail={
+                        "tool": tool_name, "arguments": tool_args,
+                        "needs_confirmation": True,
+                        "requires_confirmation": True,
+                        "risk_level": "high",
+                        "confirmation_reason": f"Tool '{tool_name}' can change group data.",
+                        "raw_llm_response": raw[:500],
+                    },
                     observation=f"Waiting for user confirmation to execute '{tool_name}'.",
                     status="running",
                 )
@@ -226,7 +243,10 @@ def agent_loop(
             step = add_step(
                 db, run, phase="execute", step_index=step_idx,
                 thought=decision.thought, action_type="tool_call",
-                action_detail={"tool": tool_name, "arguments": tool_args},
+                action_detail={
+                    "action": "call_tool", "tool": tool_name, "arguments": tool_args,
+                    "raw_llm_response": raw[:500],
+                },
                 observation=result,
                 status="completed" if not result.startswith("Error:") else "failed",
                 error_message=result if result.startswith("Error:") else None,
@@ -293,6 +313,29 @@ def _agent_system_prompt() -> str:
         " 或 {\"thought\":\"...\",\"action\":\"finalize\",\"final_answer\":\"...\"}"
         "。如果 observation 含 Error，尝试改参数重试一次。"
     )
+
+
+def _record_plan_event(run: AgentRun, decision: AgentDecision, step_index: int) -> None:
+    events: list = list(run.plan_json or [])
+    events.append({
+        "type": "llm_decision",
+        "step_index": step_index,
+        "thought": decision.thought[:200],
+        "action": decision.action,
+        "tool": decision.tool_name or None,
+        "tool_arguments": decision.tool_arguments,
+        "final_answer_preview": (decision.final_answer or "")[:100] if decision.final_answer else None,
+        "recorded_at": utc_now().isoformat(),
+    })
+    run.plan_json = events
+
+
+def _decision_detail(decision: AgentDecision, raw: str) -> dict:
+    base: dict = {"action": decision.action, "raw_llm_response": raw[:500]}
+    if decision.action == "call_tool":
+        base["tool"] = decision.tool_name
+        base["arguments"] = decision.tool_arguments
+    return base
 
 
 def _tool_schemas_for_llm() -> list[dict]:

@@ -203,7 +203,8 @@ def execute_agent_step(
     if settings.chat_provider == "fake" and not isinstance(client, FakeLoopChatClient):
         client = FakeLoopChatClient([{"action": "finalize", "final_answer": "FakeChatClient fallback.", "thought": "No decisions configured."}])
 
-    last_step = agent_loop(db, run, group_id, membership.role, client.agent_decide)
+    max_steps = min(max(settings.agent_max_steps, 1), 10)
+    last_step = agent_loop(db, run, group_id, membership.role, client.agent_decide, max_steps=max_steps)
     if last_step is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Agent loop produced no step")
     db.refresh(last_step)
@@ -225,7 +226,12 @@ def _execute_single_tool(
             db, run, phase="execute", step_index=step_index,
             thought=f"Tool '{tool}' requires confirmation before execution.",
             action_type="ask_user",
-            action_detail={"tool": tool, "arguments": tool_args, "needs_confirmation": True},
+            action_detail={
+                "tool": tool, "arguments": tool_args,
+                "needs_confirmation": True, "requires_confirmation": True,
+                "risk_level": "high",
+                "confirmation_reason": f"Tool '{tool}' can change group data.",
+            },
             observation=f"Waiting for user confirmation to execute '{tool}'.",
             status="running",
         )
