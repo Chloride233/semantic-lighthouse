@@ -1,5 +1,28 @@
 # Highlight Log
 
+## Deep Agents Is A Pattern Source, Not A Runtime Dependency Yet
+
+- Date: 2026-06-18
+- Version: Agent Capability v2 planning
+- Type: decision
+- Context: LangChain Academy's Deep Agents with LangGraph course raised the question of whether Semantic Lighthouse should adopt a deeper agent harness.
+- What happened: Compared Deep Agents / LangGraph ideas against the current product boundary and Agent v2 plan. Updated roadmap, handoff, and Agent Capability v2 design to treat Deep Agents as a reference for todo/planning, context offloading, subagent isolation, HITL, and observe/action audit flow.
+- Engineering judgment: The useful ideas are architectural patterns, not necessarily a runtime migration. Semantic Lighthouse's current risk is not lack of agent framework power; it is preserving group-scoped permission checks, deterministic backend rules, auditability, and user-confirmed actions while adding LLM tool choice.
+- Risk if ignored: Pulling in LangGraph/Deep Agents too early could turn a focused RAG evidence workspace into a broad autonomous Agent platform, adding framework complexity before the lightweight FSM + `agent_loop()` has proven insufficient.
+- Fix or control: Roadmap now has a Phase 7 follow-up for Deep Agents pattern review. Agent Capability v2 explicitly says no LangGraph/Deep Agents runtime unless measured multi-step scenarios outgrow the lightweight loop.
+- Verification: Documentation-only change; verified with `git diff --check`. No runtime behavior changed.
+- Interview version: I evaluated Deep Agents as a design reference instead of blindly adding a framework. I kept the project centered on controlled, auditable RAG workflows and created a future adoption gate: use the patterns now, reconsider the runtime only when the lightweight loop has measured limits.
+
+## Agent Tool Loop Without LangGraph — FSM + While Loop + Fake Decisions
+
+- Date: 2026-06-18
+- Version: Agent Capability V2.1
+- Type: highlight
+- Context: Phase 7 had FSM Agent with 3 tools + HITL but no autonomous tool selection. Research surveyed LangGraph/AutoGen, concluded not needed yet.
+- What happened: Implemented `agent_loop()` as plain Python while loop — no framework, no graph. `FakeLoopChatClient` with pre-recorded decisions for deterministic testing. `?tool=` param preserves V1 deterministic path alongside V2 loop. `ChatClient.agent_decide()` interface ready for real LLM (V2.2).
+- Engineering judgment: Two decisions. (1) No LangGraph — while loop simpler, state transitions explicit in `agent_runs.status`. (2) V1 path alive — `?tool=` keeps 17 eval tests from regressing.
+- Verification: 23 agent tests (17 V1 + 6 V2), ruff clean.
+
 ## RAG Quality Is Not "Feels Better" — Fixed Queries + Metrics + Gate
 
 - Date: 2026-06-17

@@ -1,6 +1,6 @@
 # Semantic Lighthouse — Project Roadmap
 
-**Last updated**: 2026-06-17
+**Last updated**: 2026-06-18
 **Current phase**: Product Alignment delivered; next work should strengthen the actionable RAG loop before adding broader Agent or web-search features — see `docs/product-alignment-prd.md` and `docs/agent-handoff.md`
 
 ---
@@ -165,6 +165,21 @@
 **Acceptance**: 17 agent tests pass. V2 design at docs/agent-capability-v2-design.md.
 
 **Next**: V2.1 implementation is gated behind must-fix doc updates (agent-handoff sync, design §8 risky repeat guard, review approval). See `docs/agent-capability-v2-review.md` for full preconditions.
+
+---
+
+## Phase 7 Follow-up: Deep Agents Pattern Review ← PLANNED
+
+**Goal**: Learn from LangChain Deep Agents / LangGraph without turning Semantic Lighthouse into a generic autonomous Agent platform.
+
+| # | Task | Acceptance |
+|---|------|------------|
+| 7.R1 | Deep Agents pattern review | Document which patterns are useful: todo/planning, context offloading, subagent isolation, HITL, and audit-friendly event flow |
+| 7.R2 | Lightweight pattern adoption | If useful, fold selected patterns into the existing `agent_loop()` design without adding LangGraph runtime dependency |
+| 7.R3 | Runtime adoption gate | LangGraph/Deep Agents runtime considered only after current FSM + LLM tool loop proves insufficient on measured multi-step scenarios |
+| 7.R4 | Non-goal guardrail | No virtual filesystem, code execution sandbox, autonomous commit/deploy, or broad multi-agent orchestration in the current product phases |
+
+**Acceptance**: Agent Capability v2 can explain which Deep Agents ideas were adopted, which were rejected, and why the project still preserves group-scoped permission checks, audit trail, user confirmation, and deterministic backend rules.
 
 ---
 

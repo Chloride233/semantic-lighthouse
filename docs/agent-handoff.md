@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-17
+Last updated: 2026-06-18
 
 ## Current Phase
 
@@ -125,7 +125,28 @@ Manual gates:
 - **`scripts/verify_ui.py`**: ruff clean, 13/13 UI smoke passes.
 - **Browser screenshots confirmed**: CSS, Chinese text render correctly.
 
-**Next priority**: Agent Capability v2 implementation (V2.1: LLM tool loop) — pending must-fix doc updates completed. See `docs/agent-capability-v2-review.md` for implementation preconditions.
+**Next priority**: Agent Capability V2.2 — DeepSeek agent_decide + real LLM smoke. See `docs/agent-capability-v2-design.md` and `docs/agent-capability-v2-review.md`.
+
+### Agent Capability v2.1 — LLM Tool Loop (2026-06-17) — delivered
+
+**Commit**: `78c3d9a` — 23 agent tests, ruff clean.
+
+**What was built**:
+
+- **`AgentDecision`**: call_tool / finalize dual-action dataclass (`agent_orchestrator.py`)
+- **`agent_loop()`**: while loop + LLM decide + tool execute + observe + max_steps gate + risky pause + consecutive error detection. ~100 lines.
+- **`FakeLoopChatClient`**: pre-recorded decision sequence with cursor (`chat.py`). `ChatClient.agent_decide()` abstract method for V2.2 real providers.
+- **V1/V2 path split**: `?tool=` non-empty → deterministic V1 single-tool path (17 existing tests preserved). `?tool=` empty → V2 agent_loop path.
+- **Respond fixes**: `"stop"` keyword → `stopped` status. Risky confirm no longer finalizes — returns to `executing`. Risky reject sets `observation="User REJECTED...Do NOT propose again"`.
+- **max_steps=5**: counts all non-think AgentStep types. Hard-configured; `Settings.agent_max_steps` deferred to V2.2.
+- **6 new tests**: 4 parametrized (simple, error_retry, max_steps_stopped, two_step) + 2 standalone (risky_confirm_execute, reject_risky_alternative).
+
+**Key decisions**:
+1. `?tool=` empty → V2 loop; non-empty → V1 deterministic eval path.
+2. max_steps counts all AgentStep types (conservative).
+3. FakeLoopChatClient via `ChatClient.agent_decide()` interface — `create_chat_client` mock injects it.
+
+**Remaining risks**: no real LLM tool decisions (fake only), `Settings.agent_max_steps` not configurable, `plan_json`/`raw_llm_response` audit not stored. See design doc §17.
 
 ## Git Repository
 
@@ -233,8 +254,9 @@ Result:
 **Recommended next iteration**:
 1. Agent Capability V2.1: LLM tool loop (agent_loop + FakeLoopChatClient + 6 parametrized tests). See `docs/agent-capability-v2-review.md` for preconditions.
 2. V2.2: DeepSeek agent_decide + smoke; V2.3: 5 real LLM eval scenarios.
-3. V1.2 (task system): manual task creation + `ConversationMessage.next_steps`.
-4. Continue retrieval-quality hardening.
+3. Deep Agents pattern review: borrow todo/planning, context offloading, subagent isolation, HITL, and event-flow ideas only where they fit the existing lightweight FSM.
+4. V1.2 (task system): manual task creation + `ConversationMessage.next_steps`.
+5. Continue retrieval-quality hardening.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
@@ -242,6 +264,12 @@ Result:
 - Later: Tool Registry + risk labels, Agent eval set, structured handoff payloads, and conversation context condensation.
 - Deferred: Auto Memory, Auto Commit, Docker sandbox, event sourcing rewrite, LangGraph/AutoGen integration.
 - Decision: Stay with lightweight FSM (no LangGraph), keep learning records human-reviewed, and keep commits intentional while the owner is still learning through diffs.
+
+**Deep Agents / LangGraph Course Review (2026-06-18)**:
+- LangChain Deep Agents is useful as an agent-harness reference for planning, context offloading, subagent isolation, HITL, and audit-friendly observe/action loops.
+- Do not adopt the LangGraph/Deep Agents runtime now. Current product boundary favors the existing controlled FSM + planned LLM tool loop.
+- Runtime adoption should be reconsidered only if measured multi-step Agent scenarios show the lightweight loop is insufficient.
+- See `docs/project-roadmap.md` Phase 7 follow-up and `docs/agent-capability-v2-design.md` section 14.
 
 **Workflow docs added (2026-06-16)**:
 - `docs/quality-gate.md` — gate levels for docs, backend, frontend, migrations, and full regression.
