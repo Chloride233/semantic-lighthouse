@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 10.3 — Graph UX Polish Improves Operability Without Crossing the Graph Runtime Boundary
+
+- Date: 2026-06-18
+- Version: Phase 10.3
+- Type: highlight
+- Context: Phase 9.5 delivered a basic SVG graph. Phase 10.1–10.2 operationalized governance issues into a curation backlog. The graph UX needed polish to make it a usable governance tool without introducing a graph database, layout library, or modeling capabilities.
+- What happened: Added graph scope controls (selected/visible/all), relation status filter (all/resolved/unresolved), a color legend, SVG `<title>` tooltips on nodes and edges, selected node highlighting, an unresolved targets list (amber box, no fake entities), clickable entity detail relation targets for navigation, and issue triage/code filters. All filtering is frontend-only — zero API changes. Mobile layout collapses controls vertically at 760px.
+- Engineering judgment: The right next step after operationalizing issues was making the read model more usable for governance operators. Every UX addition stays within the read-only SVG boundary: no graph library (d3, vis.js), no graph database (Neo4j), no Graph RAG, no modeling studio, and no Agent auto-write. The unresolved targets list is especially important — it surfaces broken links without fabricating phantom entities, which is the correct enterprise governance posture. The `<title>` tooltip approach uses native SVG, avoiding JS tooltip libraries and keeping the implementation lean.
+- Verification: JS syntax valid (`node --check`), ruff clean, git diff --check clean. 3 files changed (+2 verify_ui checks for graph controls and issue filters).
+
 ## Phase 10.1/10.2 — Governance Issue Triage Turns Scan Findings into Human Curation Backlog
 
 - Date: 2026-06-18

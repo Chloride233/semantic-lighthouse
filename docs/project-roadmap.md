@@ -235,7 +235,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 |---|------|-------------|
 | 10.1 | Governance issue triage design | ✅ `triage_status` (pending/confirmed/ignored), `POST /issues/{id}/triage`, stable `issue_key` for scan persistence, frontend triage controls for owner/admin (2026-06-18) |
 | 10.2 | Real KB curation demo script | ✅ `scripts/run_ontology_curation_demo.py` — deterministic triage, 97 confirmed, 39 backlog entries, rescan persistence verified (2026-06-18) |
-| 10.3 | Ontology graph UX polish | Filterable graph, improved labels, edge hover, mobile |
+| 10.3 | Ontology graph UX polish | ✅ Graph scope/status controls, legend, SVG tooltips, unresolved targets list, entity detail clickable relations, issue triage/code filters, mobile layout — still read-only SVG, no graph library (2026-06-18) |
 | 10.4 | Evidence-to-ontology bridge | RAG citations / tasks link to ontology entities (read-only) |
 | 10.5 | Phase 10 review | End-to-end governance pipeline verification |
 

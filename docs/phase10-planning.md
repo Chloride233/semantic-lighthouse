@@ -1,7 +1,7 @@
 # Phase 10 Planning — Governance Operations & Demo Polish
 
 **Date**: 2026-06-18
-**Status**: 10.1–10.2 delivered; 10.3–10.5 pending
+**Status**: 10.1–10.3 delivered; 10.4–10.5 pending
 
 ---
 
@@ -29,7 +29,7 @@ Make ontology governance operational — turn scan findings into triageable work
 |---|------|-------------|
 | 10.1 | Governance issue triage design | ✅ `triage_status` field, `POST /ontology/issues/{id}/triage`, frontend triage controls. Triage states: pending / confirmed / ignored. Audit: triaged_by, triaged_at, triage_note. |
 | 10.2 | Real KB curation demo script | ✅ `scripts/run_ontology_curation_demo.py` — deterministic triage of 97 issues → 39 backlog entries; rescan persistence verified; curation backlog is human action guidance only, does NOT auto-fix KB. |
-| 10.3 | Ontology graph UX polish | Filterable graph, improved labels, edge hover/legend, mobile. Still read-only SVG. |
+| 10.3 | Ontology graph UX polish | ✅ Graph scope/status controls, legend, SVG tooltips, unresolved targets list, entity detail clickable relations, issue triage/code filters, mobile layout. Still read-only SVG — not a graph database, Graph RAG, or modeling studio. |
 | 10.4 | Evidence-to-ontology bridge | RAG citations and tasks link to ontology entities (source document match). Read-only bridge. |
 | 10.5 | Phase 10 review | Re-run governance demo, verify triage + graph + bridge end-to-end. |
 

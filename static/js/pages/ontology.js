@@ -16,6 +16,7 @@ const SRC = { 'official-doc': '官方', 'market-research': '调研', 'public-art
 const ICODE = { unresolved_wikilink: '未解析引用', duplicate_title: '重复标题', duplicate_alias: '重复别名', stale_eval_gold_doc_id: '过期评估引用', type_conflict: '类型冲突', missing_entity_type: '缺少实体类型', invalid_entity_type: '无效实体类型', invalid_document_type: '无效文档类型', missing_required_field: '缺少必填字段', invalid_controlled_value: '无效受控词', invalid_list_field: '列表格式错误' };
 
 let _e = [], _r = [], _is = [], _sel = null;
+let _graphScope = 'selected', _graphStatus = 'all';
 
 export async function render(container, params) {
   const gid = params.gid || state.currentGroupId;
@@ -109,19 +110,115 @@ function selectEnt(id) {
 
 function renderGraph(sel) {
   const c = document.getElementById('ontoGraph');
+  if (!sel) { c.innerHTML = '<div class="ontoGraphInner"><p class="muted">请选择实体以查看关系图谱。</p></div>'; return; }
+
+  const gid = state.currentGroupId;
+  const can = state.currentRole === 'owner' || state.currentRole === 'admin';
+
+  // Build the full 1-hop subgraph
   const out = _r.filter(r => r.source_entity_id === sel.id);
   const inn = _r.filter(r => r.target_entity_id === sel.id);
-  const ids = new Set([sel.id]); out.forEach(r => r.target_entity_id && ids.add(r.target_entity_id)); inn.forEach(r => ids.add(r.source_entity_id));
-  const nodes = [...ids].map(id => _e.find(x => x.id === id)).filter(Boolean);
-  if (nodes.length <= 1) { c.innerHTML = '<div class="ontoGraphInner"><p class="muted">暂无关系数据。</p></div>'; return; }
-  const W = 480, H = 300, cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.33;
-  const nm = {}; nodes.forEach((n, i) => { const a = (i / nodes.length) * 2 * Math.PI - Math.PI / 2; nm[n.id] = { x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R }; });
-  const edges = _r.filter(r => nm[r.source_entity_id] && nm[r.target_entity_id]);
-  let svg = `<svg viewBox="0 0 ${W} ${H}" class="ontoSvg">`;
-  edges.forEach(r => { const a = nm[r.source_entity_id], b = nm[r.target_entity_id]; const d = r.status === 'unresolved' ? 'stroke-dasharray:4,3' : ''; svg += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#cbd5e1" stroke-width="1.5" ${d} />`; });
-  nodes.forEach(n => { const p = nm[n.id]; const s = n.id === sel.id; svg += `<circle cx="${p.x}" cy="${p.y}" r="${s ? 18 : 14}" fill="${ENTITY_COLORS[n.entity_type]||'#888'}" stroke="${s ? '#1e293b' : '#fff'}" stroke-width="${s ? 3 : 2}" class="ontoNode" data-id="${n.id}" /><text x="${p.x}" y="${p.y + 28}" text-anchor="middle" font-size="10" fill="#64748b">${esc(trunc(n.title, 14))}</text>`; });
-  svg += '</svg>';
-  c.innerHTML = `<div class="ontoGraphInner">${svg}<p class="muted" style="margin-top:8px;font-size:12px">${nodes.length} 节点，${edges.length} 连线。点击节点查看详情。</p></div>`;
+  const hopIds = new Set([sel.id]);
+  out.forEach(r => r.target_entity_id && hopIds.add(r.target_entity_id));
+  inn.forEach(r => hopIds.add(r.source_entity_id));
+  const hopNodes = [...hopIds].map(id => _e.find(x => x.id === id)).filter(Boolean);
+  const hopEdges = _r.filter(r => hopIds.has(r.source_entity_id) && hopIds.has(r.target_entity_id));
+
+  // Scope: select visible ids
+  let scopeIds = new Set(hopIds);
+  if (_graphScope === 'visible') {
+    const filterQ = (document.getElementById('ontoQ')?.value || '').toLowerCase();
+    const filterET = document.getElementById('ontoET')?.value || '';
+    const filterSt = document.getElementById('ontoSt')?.value || '';
+    let visible = _e;
+    if (filterET) visible = visible.filter(e => e.entity_type === filterET);
+    if (filterSt) visible = visible.filter(e => e.status === filterSt);
+    if (filterQ) visible = visible.filter(e => (e.title + ' ' + (e.aliases || []).join(' ')).toLowerCase().includes(filterQ));
+    const visibleIds = new Set(visible.map(e => e.id));
+    scopeIds = new Set([...hopIds].filter(id => visibleIds.has(id)));
+  } else if (_graphScope === 'all') {
+    scopeIds = new Set([...hopIds, ..._e.slice(0, 40).map(e => e.id)]);
+  }
+
+  let nodes = [...scopeIds].map(id => _e.find(x => x.id === id)).filter(Boolean);
+  if (!nodes.find(n => n.id === sel.id)) nodes.push(sel);
+
+  let edges = _r.filter(r => scopeIds.has(r.source_entity_id) && scopeIds.has(r.target_entity_id));
+  if (_graphStatus !== 'all') edges = edges.filter(r => r.status === _graphStatus);
+
+  // Edge list: include outbound edges even when target not in scope (for status filter)
+  const allOut = _graphStatus !== 'all'
+    ? out.filter(r => r.status === _graphStatus)
+    : out;
+  const unresolvedOut = allOut.filter(r => r.status === 'unresolved' || !r.target_entity_id);
+
+  // Render graph controls
+  let html = `<div class="ontoGraphControls">
+    <label>范围 <select id="graphScope"><option value="selected"${_graphScope==='selected'?' selected':''}>选中实体</option><option value="visible"${_graphScope==='visible'?' selected':''}>过滤结果</option><option value="all"${_graphScope==='all'?' selected':''}>全部 (≤40)</option></select></label>
+    <label>关系 <select id="graphStatus"><option value="all"${_graphStatus==='all'?' selected':''}>全部</option><option value="resolved"${_graphStatus==='resolved'?' selected':''}>已解析</option><option value="unresolved"${_graphStatus==='unresolved'?' selected':''}>未解析</option></select></label>
+    ${can ? '' : '<span class="muted" style="font-size:11px">只读</span>'}
+  </div>`;
+
+  // SVG or empty
+  if (nodes.length <= 1 && edges.length === 0) {
+    html += `<div class="ontoGraphInner"><div class="emptyState"><div class="emptyIcon">🔗</div><div class="emptyTitle">暂无图谱数据</div><div class="emptyHint">${nodes.length<=1?'选中实体暂无关系。':'当前过滤条件下无匹配关系。'}${unresolvedOut.length?' 下方列出了 '+unresolvedOut.length+' 个未解析的引用目标。':''}</div></div></div>`;
+  } else {
+    const W = 480, H = 320, cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.35;
+    const nm = {};
+    nodes.forEach((n, i) => {
+      const a = (i / nodes.length) * 2 * Math.PI - Math.PI / 2;
+      nm[n.id] = { x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R };
+    });
+
+    let svg = `<svg viewBox="0 0 ${W} ${H}" class="ontoSvg">`;
+    // Edges with tooltips
+    edges.forEach(r => {
+      const a = nm[r.source_entity_id], b = nm[r.target_entity_id];
+      if (!a || !b) return;
+      const srcEnt = _e.find(x => x.id === r.source_entity_id);
+      const tgtEnt = _e.find(x => x.id === r.target_entity_id);
+      const srcName = srcEnt ? srcEnt.title : r.source_entity_id;
+      const tgtName = tgtEnt ? tgtEnt.title : (r.target_path || '未解析');
+      const dash = r.status === 'unresolved' ? 'stroke-dasharray:5,4' : '';
+      const color = r.status === 'unresolved' ? '#d97706' : '#cbd5e1';
+      svg += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${color}" stroke-width="1.5" ${dash} class="ontoEdge" data-sid="${r.source_entity_id}" data-tid="${r.target_entity_id}"><title>${esc(srcName)} → ${esc(tgtName)}&#10;状态: ${r.status==='resolved'?'已解析':'未解析'}${r.target_label? '&#10;标签: '+esc(r.target_label):''}</title></line>`;
+    });
+    // Nodes with tooltips
+    nodes.forEach(n => {
+      const p = nm[n.id]; if (!p) return;
+      const s = n.id === sel.id;
+      const label = ELABEL[n.entity_type] || n.entity_type;
+      svg += `<circle cx="${p.x}" cy="${p.y}" r="${s ? 18 : 14}" fill="${ENTITY_COLORS[n.entity_type]||'#888'}" stroke="${s?'#1e293b':'#fff'}" stroke-width="${s?3:2}" class="ontoNode" data-id="${n.id}"><title>${esc(n.title)}&#10;类型: ${label}&#10;状态: ${SLABEL[n.status]||n.status||'—'}&#10;路径: ${esc(n.source_path)}</title></circle>`;
+      svg += `<text x="${p.x}" y="${p.y + 28}" text-anchor="middle" font-size="10" fill="${s?'#1e293b':'#64748b'}" font-weight="${s?'600':'400'}">${esc(trunc(n.title, 14))}</text>`;
+    });
+    svg += '</svg>';
+    html += `<div class="ontoGraphInner">${svg}<p class="muted" style="margin-top:8px;font-size:12px">${nodes.length} 节点，${edges.length} 连线</p></div>`;
+  }
+
+  // Legend
+  const types = [...new Set(nodes.map(n => n.entity_type))].sort();
+  html += `<div class="ontoLegend">
+    <span class="legendItem"><span class="legendLine legendLineSolid"></span> 已解析</span>
+    <span class="legendItem"><span class="legendLine legendLineDashed"></span> 未解析</span>
+    ${types.map(t => `<span class="legendItem"><span class="legendDot" style="background:${ENTITY_COLORS[t]||'#888'}"></span> ${ELABEL[t]||t}</span>`).join('')}
+  </div>`;
+
+  // Unresolved targets list (always show for selected scope)
+  if (_graphScope === 'selected' && unresolvedOut.length) {
+    const unique = new Map();
+    unresolvedOut.forEach(r => { const k = r.target_path || '?'; if (!unique.has(k)) unique.set(k, r); });
+    html += `<div class="ontoUnresolvedList"><div class="ontoUnresolvedTitle">未解析引用 (${unique.size})</div><ul>`;
+    unique.forEach((r, path) => {
+      html += `<li><code>${esc(path)}</code>${r.target_label?` (${esc(r.target_label)})`:''}</li>`;
+    });
+    html += '</ul><p class="muted" style="font-size:11px">这些路径没有对应实体，可能是文档缺失或链接过时。</p></div>';
+  }
+
+  c.innerHTML = html;
+
+  // Wire graph control events
+  c.querySelector('#graphScope')?.addEventListener('change', e => { _graphScope = e.target.value; if (_sel) { const ent = _e.find(x => x.id === _sel); if (ent) renderGraph(ent); } });
+  c.querySelector('#graphStatus')?.addEventListener('change', e => { _graphStatus = e.target.value; if (_sel) { const ent = _e.find(x => x.id === _sel); if (ent) renderGraph(ent); } });
   c.querySelectorAll('.ontoNode').forEach(n => n.addEventListener('click', () => selectEnt(n.dataset.id)));
 }
 
@@ -137,33 +234,88 @@ function renderDetail(e) {
       ${e.tags?.length ? `<div class="ontoDMeta">标签：${e.tags.map(t => `<span class="tag">${esc(t)}</span>`).join(' ')}</div>` : ''}
       <div class="ontoDMeta">路径：<code>${esc(e.source_path)}</code></div>
       <div class="ontoDMeta">文档：${esc(e.document_id)}</div>
-      ${out.length ? `<details class="ontoDRels"><summary>发出关系 (${out.length})</summary><ul>${out.map(r => { const t = _e.find(x => x.id === r.target_entity_id); return `<li>→ ${esc(r.target_path)}${r.target_label ? ` (${esc(r.target_label)})` : ''} <span class="badge ${r.status==='resolved'?'badgeOk':'badgeMuted'}">${r.status==='resolved'?'已解析':'未解析'}</span>${t ? ` → ${esc(t.title)}` : ''}</li>`; }).join('')}</ul></details>` : '<div class="ontoDMeta">无发出关系</div>'}
-      ${inn.length ? `<details class="ontoDRels"><summary>进入关系 (${inn.length})</summary><ul>${inn.map(r => { const s = _e.find(x => x.id === r.source_entity_id); return `<li>${s ? esc(s.title) : r.source_entity_id} → ${esc(r.target_path)}${r.target_label ? ` (${esc(r.target_label)})` : ''}</li>`; }).join('')}</ul></details>` : '<div class="ontoDMeta">无进入关系</div>'}
+      ${out.length ? `<details class="ontoDRels" open><summary>发出关系 (${out.length})</summary><ul>${out.map(r => { const t = _e.find(x => x.id === r.target_entity_id); const badge = r.status==='resolved' ? '<span class="badge badgeOk">已解析</span>' : '<span class="badge badgeMuted">未解析</span>'; const tgt = t ? `<span class="ontoRelTarget" data-eid="${t.id}">${esc(t.title)}</span>` : `<code class="ontoRelPath">${esc(trunc(r.target_path, 40))}</code>`; return `<li class="ontoRelItem">→ ${tgt}${r.target_label ? ` (${esc(r.target_label)})` : ''} ${badge}</li>`; }).join('')}</ul></details>` : '<div class="ontoDMeta">无发出关系</div>'}
+      ${inn.length ? `<details class="ontoDRels" open><summary>进入关系 (${inn.length})</summary><ul>${inn.map(r => { const s = _e.find(x => x.id === r.source_entity_id); const tgt = s ? `<span class="ontoRelTarget" data-eid="${s.id}">${esc(s.title)}</span>` : `<code>${esc(r.source_entity_id)}</code>`; return `<li class="ontoRelItem">${tgt} → ${esc(r.target_path)}${r.target_label ? ` (${esc(r.target_label)})` : ''}</li>`; }).join('')}</ul></details>` : '<div class="ontoDMeta">无进入关系</div>'}
       ${eis.length ? `<details class="ontoDRels"><summary>相关问题 (${eis.length})</summary><ul>${eis.map(i => `<li><span class="badge ${i.severity==='error'?'badgeErr':'badgeWarn'}">${i.severity}</span> ${ICODE[i.code]||i.code} — ${esc(i.message)}</li>`).join('')}</ul></details>` : '<div class="ontoDMeta">无相关问题</div>'}
     </div>`;
+  // Click handlers for relation target navigation
+  document.querySelectorAll('.ontoRelTarget').forEach(el => {
+    el.addEventListener('click', () => selectEnt(el.dataset.eid));
+  });
+}
 }
 
 function renderIssues() {
   const c = document.getElementById('ontoIssues'); if (!_is.length) { c.innerHTML = ''; return; }
-  const by = {}; _is.forEach(i => { (by[i.severity] || (by[i.severity] = [])).push(i); });
   const canTriage = state.currentRole === 'owner' || state.currentRole === 'admin';
-  c.innerHTML = `<div class="panel"><div class="panelHeader">治理问题 (${_is.length})</div><div class="panelBody">${['error', 'warning'].map(s => by[s]?.length ? `<div class="ontoIssueGroup"><strong style="color:${s==='error'?'var(--danger)':'var(--warn)'}">${s==='error'?'❌ 错误' : '⚠ 警告'} (${by[s].length})</strong><div class="ontoIssueList">${by[s].slice(0,30).map(i => {
-    const ts = i.triage_status || 'pending';
-    const triageBadge = `<span class="badge ${TRIAGE_STYLE[ts]||'badgeInfo'}">${TRIAGE_LABELS[ts]||ts}</span>`;
-    const triageBtns = canTriage ? `<span class="ontoTriageBtns">
-      <button class="triageBtn triageConfirm" data-iid="${i.id}" title="确认">✓</button>
-      <button class="triageBtn triageIgnore" data-iid="${i.id}" title="忽略">✕</button>
-      <button class="triageBtn triageReset" data-iid="${i.id}" title="重置">↺</button>
-    </span>` : '';
-    return `<div class="ontoIssueItem ${i.entity_id ? 'clickable' : ''}" data-eid="${i.entity_id || ''}"><span class="badge ${i.severity==='error'?'badgeErr':'badgeWarn'}">${ICODE[i.code]||i.code}</span><span>${esc(i.message)}</span>${triageBadge}${triageBtns}<span class="muted" style="font-size:11px">${esc(i.source_path)}</span></div>`;
-  }).join('')}</div></div>` : '').join('')}</div></div>`;
-  c.querySelectorAll('.ontoIssueItem.clickable').forEach(el => el.addEventListener('click', () => selectEnt(el.dataset.eid)));
-  if (canTriage) {
+
+  // Build code options
+  const codes = [...new Set(_is.map(i => i.code))].sort();
+
+  // Issue filter state (module-level for simplicity)
+  let _issueTriageFilter = _issueTriageFilter || 'all';
+  let _issueCodeFilter = _issueCodeFilter || 'all';
+
+  const renderFiltered = () => {
+    let filtered = _is;
+    if (_issueTriageFilter !== 'all') filtered = filtered.filter(i => (i.triage_status || 'pending') === _issueTriageFilter);
+    if (_issueCodeFilter !== 'all') filtered = filtered.filter(i => i.code === _issueCodeFilter);
+
+    const by = {};
+    filtered.forEach(i => { (by[i.severity] || (by[i.severity] = [])).push(i); });
+
+    let html = '';
+    ['error', 'warning'].forEach(s => {
+      if (!by[s]?.length) return;
+      const color = s === 'error' ? 'var(--danger)' : 'var(--warn)';
+      const emoji = s === 'error' ? '❌ 错误' : '⚠ 警告';
+      html += `<div class="ontoIssueGroup"><strong style="color:${color}">${emoji} (${by[s].length})</strong><div class="ontoIssueList">`;
+      by[s].forEach(i => {
+        const ts = i.triage_status || 'pending';
+        const tsLabel = TL[ts] || ts;
+        const tsStyle = TS[ts] || 'badgeInfo';
+        const ignoredClass = ts === 'ignored' ? ' ontoIssueIgnored' : '';
+        const triageBadge = `<span class="badge ${tsStyle}">${tsLabel}</span>`;
+        const triageBtns = canTriage ? `<span class="ontoTriageBtns">
+          <button class="triageBtn triageConfirm" data-iid="${i.id}" title="确认">✓</button>
+          <button class="triageBtn triageIgnore" data-iid="${i.id}" title="忽略">✕</button>
+          <button class="triageBtn triageReset" data-iid="${i.id}" title="重置">↺</button>
+        </span>` : '';
+        const codeLabel = ICODE[i.code] || i.code;
+        html += `<div class="ontoIssueItem${ignoredClass} ${i.entity_id ? ' clickable' : ''}" data-eid="${i.entity_id || ''}"><span class="badge ${s==='error'?'badgeErr':'badgeWarn'}">${codeLabel}</span><span>${esc(i.message)}</span>${triageBadge}${triageBtns}<span class="muted" style="font-size:11px">${esc(i.source_path)}</span></div>`;
+      });
+      html += '</div></div>';
+    });
+
+    const listEl = c.querySelector('.ontoIssueBody');
+    if (listEl) {
+      listEl.innerHTML = html || '<p class="muted">当前过滤条件下无匹配问题。</p>';
+      // Rebind events
+      listEl.querySelectorAll('.ontoIssueItem.clickable').forEach(el => el.addEventListener('click', () => selectEnt(el.dataset.eid)));
+      if (canTriage) bindTriageBtns(listEl);
+    }
+  };
+
+  const bindTriageBtns = (el) => {
     const gid = state.currentGroupId;
-    c.querySelectorAll('.triageConfirm').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); doTriage(gid, b.dataset.iid, 'confirmed'); }));
-    c.querySelectorAll('.triageIgnore').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); doTriage(gid, b.dataset.iid, 'ignored'); }));
-    c.querySelectorAll('.triageReset').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); doTriage(gid, b.dataset.iid, 'pending'); }));
-  }
+    el.querySelectorAll('.triageConfirm').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); doTriage(gid, b.dataset.iid, 'confirmed'); }));
+    el.querySelectorAll('.triageIgnore').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); doTriage(gid, b.dataset.iid, 'ignored'); }));
+    el.querySelectorAll('.triageReset').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); doTriage(gid, b.dataset.iid, 'pending'); }));
+  };
+
+  c.innerHTML = `<div class="panel"><div class="panelHeader">治理问题 (${_is.length})</div>
+    <div class="ontoIssueFilters">
+      <select id="issueTriageFilter"><option value="all">全部状态</option><option value="pending">待处理</option><option value="confirmed">已确认</option><option value="ignored">已忽略</option></select>
+      <select id="issueCodeFilter"><option value="all">全部类型</option>${codes.map(co => `<option value="${co}">${ICODE[co]||co}</option>`).join('')}</select>
+    </div>
+    <div class="ontoIssueBody"></div></div>`;
+
+  // Set initial filter values and render
+  const triageSel = c.querySelector('#issueTriageFilter');
+  const codeSel = c.querySelector('#issueCodeFilter');
+  if (triageSel) { triageSel.value = _issueTriageFilter; triageSel.addEventListener('change', () => { _issueTriageFilter = triageSel.value; renderFiltered(); }); }
+  if (codeSel) { codeSel.value = _issueCodeFilter; codeSel.addEventListener('change', () => { _issueCodeFilter = codeSel.value; renderFiltered(); }); }
+  renderFiltered();
 }
 
 async function doTriage(gid, iid, status) {

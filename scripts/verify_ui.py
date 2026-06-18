@@ -251,6 +251,8 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
 
     # ── Ontology page ──────────────────────────────────────────────────
     onto_page_ok = False
+    onto_controls_ok = False
+    onto_issues_filter_ok = False
     if gid:
         page.goto(f"{base}/console#/groups/{gid}/ontology")
         page.wait_for_timeout(800)
@@ -261,7 +263,20 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
                  or page.locator("#ontoScanBtn").count() > 0
                  or page.locator(".muted").count() > 0)
         )
+        onto_controls_ok = (
+            page.locator("#graphScope").count() > 0
+            or page.locator("#graphStatus").count() > 0
+            or page.locator(".ontoLegend").count() > 0
+            or page.locator(".ontoGraphControls").count() > 0
+        )
+        onto_issues_filter_ok = (
+            page.locator("#ontoIssues").count() > 0
+            or page.locator("#issueTriageFilter").count() > 0
+            or page.locator(".ontoIssueFilters").count() > 0
+        )
     results.append(("Ontology page renders", onto_page_ok))
+    results.append(("Ontology graph controls or legend", onto_controls_ok))
+    results.append(("Ontology issues filter area", onto_issues_filter_ok))
 
     # ── 19. Document filter tabs ──────────────────────────────────────
     doc_filter_ok = False

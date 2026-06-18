@@ -484,6 +484,22 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Tests**: 35 unit tests for classify/priority/backlog helpers (`tests/test_ontology_curation_demo.py`)
 - **Verification**: 76/76 tests (35 new + 41 ontology), ruff clean
 
+### Ontology Graph UX Polish — Phase 10.3 (2026-06-18)
+
+**Status**: Delivered.
+
+- **Graph controls**: scope (selected/visible/all) + relation status (all/resolved/unresolved) dropdowns — frontend filtering, no new API
+- **Legend**: entity_type color dots + resolved 实线 / unresolved 虚线
+- **SVG tooltips**: `<title>` elements on nodes (title + type + status + path) and edges (source → target, status, label)
+- **Selected node highlight**: larger radius, thicker stroke, bolder label
+- **Unresolved targets list**: amber box below graph showing deduplicated unresolved target_paths — no fake nodes
+- **Entity detail**: resolved relations are clickable to navigate to target entity; `open` attribute on `<details>` for better scannability
+- **Issue filters**: triage_status dropdown (all/pending/confirmed/ignored) + code dropdown; ignored items visually weakened (opacity 0.45)
+- **Mobile layout**: graph controls + legend + issue filters collapse vertically at 760px
+- **Empty state**: clear empty message instead of blank area when no graph data
+- **Still read-only SVG**: no graph library, no Graph RAG, no modeling studio, no Agent auto-write
+- **Verification**: JS syntax valid (node --check), ruff clean, git diff --check clean. UI smoke blocked by pre-existing auth timing issue (unrelated to ontology)
+
 ### Governance Issue Triage — Phase 10.1 (2026-06-18)
 
 **Status**: Delivered.

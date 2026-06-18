@@ -804,3 +804,91 @@ button.ghost:hover { background: var(--brand-light); }
   .ontoColLeft, .ontoColRight { max-height: none; }
   .ontoMetrics { flex-direction: column; gap: 8px; }
 }
+
+/* ── graph controls ─────────────────────────────────────────────── */
+
+.ontoGraphControls {
+  display: flex; gap: 10px; align-items: center;
+  padding: 6px 10px; background: #f8faf9;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  margin-bottom: 8px; flex-wrap: wrap;
+}
+.ontoGraphControls label {
+  display: flex; align-items: center; gap: 4px;
+  font-size: var(--text-xs); color: var(--muted); margin: 0;
+  font-weight: 500;
+}
+.ontoGraphControls select {
+  min-height: 28px; padding: 2px 6px; font-size: var(--text-xs);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--panel); color: var(--text); width: auto;
+}
+
+/* ── legend ─────────────────────────────────────────────────────── */
+
+.ontoLegend {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  padding: 6px 10px; margin-top: 6px;
+  font-size: var(--text-xs); color: var(--muted);
+}
+.legendItem { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.legendDot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legendLine { display: inline-block; width: 18px; height: 1.5px; flex-shrink: 0; }
+.legendLineSolid { border-top: 1.5px solid #cbd5e1; }
+.legendLineDashed { border-top: 1.5px dashed #d97706; }
+
+/* ── unresolved targets list ────────────────────────────────────── */
+
+.ontoUnresolvedList {
+  margin-top: 8px; padding: 8px 10px;
+  background: #fffbeb; border: 1px solid #fde68a;
+  border-radius: var(--radius-sm); font-size: var(--text-xs);
+}
+.ontoUnresolvedTitle { font-weight: 600; color: #92400e; margin-bottom: 4px; }
+.ontoUnresolvedList ul { margin: 4px 0 0 16px; padding: 0; }
+.ontoUnresolvedList li { margin-bottom: 2px; color: var(--muted); }
+.ontoUnresolvedList code { font-size: var(--text-xs); color: #92400e; word-break: break-all; }
+
+/* ── issue filters ───────────────────────────────────────────────── */
+
+.ontoIssueFilters {
+  display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+}
+.ontoIssueFilters select {
+  min-height: 30px; padding: 3px 8px; font-size: var(--text-xs);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--panel); color: var(--text); width: auto;
+}
+.ontoIssueBody { min-height: 20px; }
+
+/* ── ignored issue ──────────────────────────────────────────────── */
+
+.ontoIssueIgnored { opacity: 0.45; }
+
+/* ── relation list polish ───────────────────────────────────────── */
+
+.ontoRelItem { margin-bottom: 6px; line-height: 1.6; }
+.ontoRelTarget {
+  color: var(--brand); cursor: pointer; font-weight: 600;
+  text-decoration: underline; text-decoration-color: transparent;
+  transition: text-decoration-color var(--duration-fast);
+}
+.ontoRelTarget:hover { text-decoration-color: var(--brand); }
+.ontoRelPath {
+  font-size: var(--text-xs); color: var(--muted);
+  word-break: break-all;
+}
+
+/* ── edge hover ─────────────────────────────────────────────────── */
+
+.ontoEdge { cursor: pointer; }
+.ontoEdge:hover { stroke-width: 2.5; }
+
+/* ── ontology mobile ────────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .ontoGraphControls { flex-direction: column; align-items: flex-start; }
+  .ontoLegend { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .ontoIssueFilters { flex-direction: column; }
+  .ontoIssueFilters select { width: 100%; }
+}
