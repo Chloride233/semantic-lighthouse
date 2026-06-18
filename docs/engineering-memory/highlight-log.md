@@ -1,5 +1,16 @@
 # Highlight Log
 
+## Agent V2.3 — Real LLM Validation Is About Boundaries, Not Expansion
+
+- Date: 2026-06-18
+- Version: Agent Capability V2.3
+- Type: highlight
+- Context: V2.2 delivered DeepSeek agent_decide + audit hardening. The next step was to validate that the Agent loop works against real DeepSeek without silently expanding its privileges.
+- What happened: (1) Fake-provider eval: 5 scenarios (finalize, list_documents, archived exclusion, risky confirmation, invalid tool) covering tool choice, permission boundary, audit completeness, and unsafe action blocking. All CI-safe, no API key needed. (2) Real DeepSeek smoke: `scripts/smoke_agent_deepseek.py` — 3 short calls validating AgentDecision JSON shape (finalize, call_tool, ChatError). SKIP without key. (3) Smoke scope is intentionally narrow: validates LLM output structure, not AgentRun lifecycle. The lifecycle (ChatError → 502, failed step, fail_run) is covered by pytest route-level fake provider tests.
+- Engineering judgment: Real LLM validation is not about "can the Agent do more things." It's about "does the Agent stay within its boundaries when connected to a real model." The 5 eval scenarios verify permission_respected (archived docs excluded), unsafe_action_blocked (risky → confirmation), and tool_choice_correct (invalid tool → error, not silent ignore). No new Agent capabilities were added.
+- Risk if ignored: Without eval scenarios, every real LLM interaction would be subjectively judged. Without the smoke script, the project cannot verify that DeepSeek returns a legal AgentDecision without launching a full server.
+- Verification: 39 agent + chat + eval tests, ruff clean. Smoke script SKIP (exit 0) without key.
+
 ## Agent V2.2 Real Provider And Audit Hardening
 
 - Date: 2026-06-18

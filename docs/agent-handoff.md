@@ -125,7 +125,7 @@ Manual gates:
 - **`scripts/verify_ui.py`**: ruff clean, 13/13 UI smoke passes.
 - **Browser screenshots confirmed**: CSS, Chinese text render correctly.
 
-**Next priority**: Agent Capability V2.3 — real DeepSeek smoke + multi-scenario eval. See `docs/agent-capability-v2-design.md`.
+**Next priority**: V2.3 real DeepSeek smoke result recording; Agent eval report refinement; decide V2.4 scope.
 
 ### Agent Capability v2.1 — LLM Tool Loop (2026-06-17) — delivered
 
@@ -146,7 +146,13 @@ Manual gates:
 2. max_steps counts all AgentStep types (conservative).
 3. FakeLoopChatClient via `ChatClient.agent_decide()` interface — `create_chat_client` mock injects it.
 
-**Remaining risks**: V2.3 real DeepSeek smoke not yet run; V2.3 multi-scenario Agent eval pending.
+**Remaining risks**: real DeepSeek smoke pending manual terminal run; Agent V2.4 scope TBD.
+
+### Agent Capability V2.3 — Real LLM Smoke & Evaluation (2026-06-18) — delivered
+
+- **Fake-provider eval**: 5 scenarios (finalize, list_documents, archived exclusion, risky confirmation, invalid tool). 39 tests.
+- **Real DeepSeek smoke**: `scripts/smoke_agent_deepseek.py` — 3 scenarios, SKIP without key. Validates AgentDecision JSON shape only. Pending manual terminal run with API key.
+- **See**: `docs/agent-capability-v23-eval.md` for full scenario table.
 
 ### Agent Capability V2.2 — Provider + Audit Hardening (2026-06-18) — delivered
 
@@ -263,9 +269,10 @@ Result:
 - `read_bytes()` on final parse step — fine for 50 MiB but monitor on 2 GiB ECS.
 
 **Recommended next iteration**:
-1. Agent Capability V2.3: real DeepSeek smoke + 5 multi-scenario Agent eval.
+1. Run real DeepSeek smoke manually; record results in `docs/agent-capability-v23-eval.md`.
 2. V1.2 (task system): manual task creation + `ConversationMessage.next_steps`.
 3. Continue retrieval-quality hardening.
+4. Decide V2.4 scope based on smoke results.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed

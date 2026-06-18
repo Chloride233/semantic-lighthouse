@@ -152,7 +152,7 @@
 
 ## Phase 7: Advanced Agent Orchestration ← DELIVERED (2026-06-13)
 
-**Status**: 7.1–7.5 delivered (17 tests). Agent Capability v2.1 LLM tool loop delivered (`78c3d9a`); V2.2 provider + audit hardening delivered (`ca58506`). V2.3 real DeepSeek smoke + multi-scenario eval pending.
+**Status**: 7.1–7.5 delivered. V2.1 LLM tool loop (`78c3d9a`); V2.2 provider + audit hardening (`ca58506`); V2.3 fake-provider eval delivered + real smoke script ready (`2c243a0`), pending manual terminal run with API key. No LangGraph runtime.
 
 | # | Task | Acceptance |
 |---|------|------------|
@@ -164,7 +164,7 @@
 
 **Acceptance**: 38 agent + chat + E2E tests pass. V2.2 provider/audit delivered. See docs/agent-capability-v2-design.md.
 
-**Next**: V2.3 real DeepSeek smoke + 5-scenario Agent eval. No LangGraph runtime adoption until lightweight FSM + agent_loop shows measured limits.
+**Next**: Run real DeepSeek smoke manually; record results; decide V2.4 scope. No LangGraph runtime until lightweight FSM + agent_loop shows measured limits.
 
 ---
 
