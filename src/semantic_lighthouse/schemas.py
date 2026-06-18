@@ -400,6 +400,57 @@ class AgentMemoryUpsertRequest(BaseModel):
 # ── Product Alignment: Lightweight Tasks ──────────────────────────────────
 
 
+# ── v9 ontology governance ──────────────────────────────────────────────
+
+
+class OntologyScanResponse(BaseModel):
+    scanned_count: int
+    entity_count: int
+    issue_count: int
+
+
+class OntologyEntityResponse(BaseModel):
+    id: str
+    group_id: str
+    document_id: str
+    title: str
+    entity_type: str
+    aliases: list = Field(default_factory=list)
+    source_path: str
+    source: str | None = None
+    status: str | None = None
+    tags: list = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+
+class OntologyEntityListResponse(BaseModel):
+    entities: list[OntologyEntityResponse]
+    total: int
+
+
+class OntologyValidationIssueResponse(BaseModel):
+    id: str
+    group_id: str
+    document_id: str
+    entity_id: str | None = None
+    severity: str
+    code: str
+    field: str | None = None
+    message: str
+    source_path: str
+    details: dict = Field(default_factory=dict)
+    created_at: datetime
+
+
+class OntologyIssueListResponse(BaseModel):
+    issues: list[OntologyValidationIssueResponse]
+    total: int
+
+
+# ── Product Alignment: Lightweight Tasks ──────────────────────────────────
+
+
 class TaskCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=240)
     description: str = ""

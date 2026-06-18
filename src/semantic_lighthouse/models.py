@@ -337,6 +337,46 @@ class AgentMemory(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
 
+class OntologyEntity(Base):
+    """Phase 9 read model — extracted from document frontmatter."""
+
+    __tablename__ = "ontology_entities"
+    __table_args__ = (
+        UniqueConstraint("group_id", "document_id", name="uq_onto_entity_group_doc"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), index=True, nullable=False)
+    document_id: Mapped[str] = mapped_column(String(36), ForeignKey("documents.id"), index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
+    aliases: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    source_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    source: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    status: Mapped[str | None] = mapped_column(String(80), index=True, nullable=True)
+    tags: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
+class OntologyValidationIssue(Base):
+    """Phase 9 read model — governance issues from frontmatter validation."""
+
+    __tablename__ = "ontology_validation_issues"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), index=True, nullable=False)
+    document_id: Mapped[str] = mapped_column(String(36), ForeignKey("documents.id"), index=True, nullable=False)
+    entity_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("ontology_entities.id"), index=True, nullable=True)
+    severity: Mapped[str] = mapped_column(String(20), index=True, nullable=False)
+    code: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
+    field: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    source_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    details: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
 class Task(Base):
     """Lightweight user-confirmed task from RAG next_steps.
 

@@ -459,6 +459,25 @@ Every iteration must begin with a lane declaration: `Lane: Fast / Standard / Saf
 
 The goal is to reduce process overhead on low-risk changes and reserve deep verification for high-risk work.
 
+### Ontology Governance Read Model — Phase 9.1 + 9.2 (2026-06-18)
+
+**Status**: Delivered.
+
+- **New models**: `OntologyEntity` (`ontology_entities`) and `OntologyValidationIssue` (`ontology_validation_issues`) with group-scoped indices
+- **Migration**: `0012_v12_ontology_read_model.py` — creates both tables, SQLite/PostgreSQL compatible
+- **Service**: `src/semantic_lighthouse/services/ontology.py` — `scan_group()` validates all `ready` documents in a group:
+  - Validates `entityType` (9 types) and `documentType` (6 types) against schema.md controlled vocabularies (hardcoded)
+  - Detects: type_conflict, missing_entity_type, invalid_entity_type, invalid_document_type, missing_required_field (tags/created), invalid_controlled_value (status/source), invalid_list_field (tags/aliases)
+  - Generates OntologyEntity records for valid entity documents; OntologyValidationIssue for all findings
+  - Rebuild on each scan: clears and regenerates (idempotent)
+- **API**: `POST /groups/{gid}/ontology/scan` (owner/admin), `GET /ontology/entities` (member+, filters: entity_type, status, q), `GET /ontology/issues` (member+, filters: severity, code)
+- **Permissions**: scan = owner/admin only; read entities/issues = member+; all queries group-scoped
+- **Tests**: 15 ontology tests (basic extraction, validation issues ×6, isolation, idempotency, entity fields, filtering ×2)
+- **Full suite**: 224 passed, ruff clean, migration 0012 at head
+- **Not in scope**: wikilink relations (9.3), governance issue list UI (9.4), ontology graph UI (9.5), Graph RAG, Agent writes to ontology, external KB modification
+
+**Next**: Phase 9.3 wikilink relation extraction from imported document content.
+
 ## Phase 8 Checkpoint Review (2026-06-18)
 
 **Conclusion**: No direction drift. Phase 8 is on track. Two documentation inconsistencies found and fixed.

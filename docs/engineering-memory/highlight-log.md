@@ -1,5 +1,17 @@
 # Highlight Log
 
+## Phase 9 Ontology Core v1 — Governance First, Read-Only, Not Graph RAG
+
+- Date: 2026-06-18
+- Version: Phase 9.1 + 9.2
+- Type: highlight
+- Context: Phase 8 had completed the demo loop. The project was ready to start the Ontology product path. Risk: jumping to a modeling studio, Graph RAG, or Agent auto-writes before the existing KB was governable.
+- What happened: Delivered `OntologyEntity` and `OntologyValidationIssue` read models, `0012` migration, `services/ontology.py` scan engine, `POST /ontology/scan` + `GET /ontology/entities` + `GET /ontology/issues` API, and 15 ontology tests. Scan validates Document.frontmatter against schema.md controlled vocabularies with type conflict detection. API is group-scoped, scan is owner/admin-only.
+- Engineering judgment: The first Ontology step should be read-only governance — making the KB governable as entities, relationships, and issues — not a modeling studio, Graph RAG, or Agent auto-write. Phase 9 is sequenced: 9.1 validation + 9.2 entity extraction → 9.3 wikilink relations → 9.4 issue list → 9.5 graph UI.
+- Risk if ignored: Starting with rich UI or Graph RAG would force heavy design before measuring KB quality. Validation read model surfaces real drift without modifying external KB.
+- Verification: 15/15 ontology tests, 224 full suite, ruff clean, migration `0012` at head.
+- Interview version: I started the Ontology path with read-only governance, not Graph RAG. The scan engine validates every document's frontmatter, extracts entities, and flags issues — all group-scoped and permission-aware.
+
 ## Product North Star Re-centered On Ontology Semantic Operating Layer
 
 - Date: 2026-06-18
