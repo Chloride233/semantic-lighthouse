@@ -116,36 +116,16 @@ Current Phase 8 gap:
 
 Phase 8 should not add new backend Agent powers. It should make existing backend capabilities visible, usable, and demonstrable.
 
-## 5. Next Phase: Phase 9 Ontology Core v1
+## 5. Phase 9 Delivered / Phase 10 Planning
 
-Phase 9 starts the actual Ontology product path with **Governance & Graph**.
+Phase 9 Ontology Core v1 — delivered (2026-06-18). All planned capabilities delivered and verified against real KB (74 documents, 74 entities, 186 relations, 97 issues). See `docs/ontology-governance-demo-report.md`.
 
-Goal:
+Actual findings (from real KB scan):
+- 90 unresolved wikilinks (mostly `research/*` missing)
+- 7 stale eval gold IDs (concepts/agent, concepts/ontology-sdk, vendors/palantir-foundry, etc.)
+- KB has good entity identity quality (no duplicate titles/aliases)
 
-```text
-existing KB schema/frontmatter/wikilinks -> governed ontology entities and relationships -> graph and validation issues
-```
-
-Minimum capabilities:
-
-- schema/frontmatter validation against the knowledge-base schema
-- entity extraction from imported documents
-- wikilink-based relation extraction
-- broken-link detection
-- missing entity detection
-- invalid controlled vocabulary detection
-- duplicate title/alias detection
-- group-scoped ontology entity list
-- group-scoped ontology graph view
-- ontology entity detail page with source document, metadata, inbound links, outbound links, and validation issues
-
-Known first inputs for Phase 9:
-
-- `F:\ontology-kb\knowledge-graph` currently has `INDEX.md` and `AUTO_INDEX.md` references to `research/...`, but the actual `research/` directory is missing in the inspected workspace.
-- `docs/eval/rag-queries-ontology.json` contains some expected document IDs that do not exist in the current KB, including examples such as `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
-- `docs/agent-handoff.md` previously referenced `docs/kgov-v1-report.md`, which is not present in the repository.
-
-Phase 9 should record these as governance findings. It should not silently edit the external KB in this first step.
+Phase 10 is planned as governance operations & demo polish — see `docs/phase10-planning.md`. Will operationalize governance findings (issue triage, curation workflow, graph UX polish, evidence bridge) before Graph RAG or modeling studio.
 
 ## 6. Feature Boundaries
 

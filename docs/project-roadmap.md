@@ -33,7 +33,7 @@ Current Phase 8 remains focused on the demonstrable loop:
 RAG answer -> user-confirmed task -> Agent/HITL -> audit trail
 ```
 
-Next Phase 9 starts Ontology Core v1:
+Phase 9 delivered (Ontology Core v1). Next is Phase 10 planning:
 
 ```text
 schema/frontmatter validation -> entity extraction -> wikilink relation extraction -> broken-link detection -> ontology graph/entity detail
@@ -225,6 +225,21 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 - Graph RAG
 - Agent auto-writing ontology entities, relations, or actions
 - automatic edits to the external KB
+
+
+## Phase 10: Governance Operations & Demo Polish ← PLANNING
+
+**Goal**: Operationalize governance findings, polish the demo loop, and build the evidence-to-ontology bridge before Graph RAG or modeling studio. See `docs/phase10-planning.md`.
+
+| # | Task | Description |
+|---|------|-------------|
+| 10.1 | Governance issue triage design | `triage_status`, `POST /ontology/issues/{id}/triage`, frontend controls |
+| 10.2 | Real KB curation demo script | Governance findings → triage decisions → curation backlog |
+| 10.3 | Ontology graph UX polish | Filterable graph, improved labels, edge hover, mobile |
+| 10.4 | Evidence-to-ontology bridge | RAG citations / tasks link to ontology entities (read-only) |
+| 10.5 | Phase 10 review | End-to-end governance pipeline verification |
+
+**Out of scope**: Graph RAG, modeling studio, Agent auto-write, external KB auto-fix, graph database migration.
 
 
 ## Phase 7 Follow-up: Deep Agents Pattern Review ← DOCUMENTED

@@ -4,7 +4,7 @@ Last updated: 2026-06-18
 
 ## Current Phase
 
-**Phases 0–7 delivered; current focus is Phase 8 Experience Integration** — see `docs/project-roadmap.md`.
+**Phases 0–9 delivered; Phase 10 planning** — see `docs/project-roadmap.md` and `docs/phase10-planning.md`. Phase 10 focuses on governance operations and demo polish before Graph RAG or modeling studio.
 
 **Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
 
@@ -476,7 +476,7 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Full suite**: 224 passed, ruff clean, migration 0012 at head
 - **Not in scope**: wikilink relations (9.3), governance issue list UI (9.4), ontology graph UI (9.5), Graph RAG, Agent writes to ontology, external KB modification
 
-**Phase 9 complete**. All 9.1–9.5 delivered. Next: Phase 10 planning — do not jump to Graph RAG / modeling studio.
+**Phase 9 complete**. All 9.1–9.5 delivered, real KB demo verified. Phase 10 planning doc at `docs/phase10-planning.md`. Next: Phase 10.1 governance issue triage design.
 
 ### Real KB Governance Demo — Phase 9 Wrap (2026-06-18)
 
