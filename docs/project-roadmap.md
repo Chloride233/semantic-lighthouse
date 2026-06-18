@@ -152,7 +152,7 @@
 
 ## Phase 7: Advanced Agent Orchestration ← DELIVERED (2026-06-13)
 
-**Status**: 7.1–7.5 delivered (17 tests). Tool registry, FSM, HITL, memory, deterministic eval. Agent Capability v2.1 LLM tool loop delivered (`78c3d9a`); V2.2 DeepSeek smoke pending.
+**Status**: 7.1–7.5 delivered (17 tests). Agent Capability v2.1 LLM tool loop delivered (`78c3d9a`); V2.2 provider + audit hardening delivered (`ca58506`). V2.3 real DeepSeek smoke + multi-scenario eval pending.
 
 | # | Task | Acceptance |
 |---|------|------------|
@@ -162,9 +162,9 @@
 | 7.4 | Human-in-the-loop checkpoints | ✅ risky → awaiting_confirmation |
 | 7.5 | Agent evaluation set | ✅ 17 tests, 7 scenarios, 100% risky enforcement |
 
-**Acceptance**: 23 agent tests pass. V2 design at docs/agent-capability-v2-design.md.
+**Acceptance**: 38 agent + chat + E2E tests pass. V2.2 provider/audit delivered. See docs/agent-capability-v2-design.md.
 
-**Next**: V2.2 should add real DeepSeek `agent_decide` smoke and update the eval report before any broader Agent framework adoption.
+**Next**: V2.3 real DeepSeek smoke + 5-scenario Agent eval. No LangGraph runtime adoption until lightweight FSM + agent_loop shows measured limits.
 
 ---
 

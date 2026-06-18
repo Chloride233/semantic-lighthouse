@@ -125,7 +125,7 @@ Manual gates:
 - **`scripts/verify_ui.py`**: ruff clean, 13/13 UI smoke passes.
 - **Browser screenshots confirmed**: CSS, Chinese text render correctly.
 
-**Next priority**: Agent Capability V2.2 — DeepSeek agent_decide + real LLM smoke. See `docs/agent-capability-v2-design.md` and `docs/agent-capability-v2-review.md`.
+**Next priority**: Agent Capability V2.3 — real DeepSeek smoke + multi-scenario eval. See `docs/agent-capability-v2-design.md`.
 
 ### Agent Capability v2.1 — LLM Tool Loop (2026-06-17) — delivered
 
@@ -135,10 +135,10 @@ Manual gates:
 
 - **`AgentDecision`**: call_tool / finalize dual-action dataclass (`agent_orchestrator.py`)
 - **`agent_loop()`**: while loop + LLM decide + tool execute + observe + max_steps gate + risky pause + consecutive error detection. ~100 lines.
-- **`FakeLoopChatClient`**: pre-recorded decision sequence with cursor (`chat.py`). `ChatClient.agent_decide()` abstract method for V2.2 real providers.
+- **`FakeLoopChatClient`**: pre-recorded decision sequence with cursor (`chat.py`). `ChatClient.agent_decide()` now implemented for DeepSeek (V2.2).
 - **V1/V2 path split**: `?tool=` non-empty → deterministic V1 single-tool path (17 existing tests preserved). `?tool=` empty → V2 agent_loop path.
 - **Respond fixes**: `"stop"` keyword → `stopped` status. Risky confirm no longer finalizes — returns to `executing`. Risky reject sets `observation="User REJECTED...Do NOT propose again"`.
-- **max_steps=5**: counts all non-think AgentStep types. Hard-configured; `Settings.agent_max_steps` deferred to V2.2.
+- **max_steps**: configurable via `Settings.agent_max_steps` (env AGENT_MAX_STEPS), default 5, capped 1–10 (V2.2).
 - **6 new tests**: 4 parametrized (simple, error_retry, max_steps_stopped, two_step) + 2 standalone (risky_confirm_execute, reject_risky_alternative).
 
 **Key decisions**:
@@ -146,15 +146,18 @@ Manual gates:
 2. max_steps counts all AgentStep types (conservative).
 3. FakeLoopChatClient via `ChatClient.agent_decide()` interface — `create_chat_client` mock injects it.
 
-**Remaining risks**: DeepSeek agent_decide implemented but real smoke not run; V2.3 real LLM multi-scenario eval pending.
+**Remaining risks**: V2.3 real DeepSeek smoke not yet run; V2.3 multi-scenario Agent eval pending.
 
 ### Agent Capability V2.2 — Provider + Audit Hardening (2026-06-18) — delivered
 
-- **DeepSeek agent_decide()**: real /chat/completions call, json_object, v4 thinking disabled. Validates tool_name (non-empty), tool_arguments (must be dict). ChatError on bad parse.
-- **AgentDecision.raw_response**: 500-char truncation in action_detail.
-- **plan_json**: llm_decision events per step; stopped event on max_steps.
-- **Settings.agent_max_steps**: env AGENT_MAX_STEPS, cap 1–10.
-- **ChatError audit**: V2 path catches ChatError → failed step → fail_run → HTTP 502.
+- **DeepSeek agent_decide()**: real /chat/completions call, json_object, v4 thinking disabled. Validates tool_name (non-empty), tool_arguments (must be dict). ChatError on bad parse/validation.
+- **ChatError audit**: V2 path catches ChatError → failed step + fail_run → HTTP 502. No Agent run left stuck in executing.
+- **AgentDecision.raw_response**: 500-char truncation stored in action_detail.raw_llm_response.
+- **plan_json audit**: llm_decision events per step + stopped event on max_steps.
+- **Settings.agent_max_steps**: env AGENT_MAX_STEPS, default 5, cap 1–10.
+- **Risky action_detail**: requires_confirmation, risk_level, confirmation_reason in both V1/V2 paths.
+- **E2E test fix**: dashboard assertion updated for current UI.
+- **38 tests**: agent + chat + E2E, ruff clean.
 
 ## Git Repository
 
@@ -260,11 +263,9 @@ Result:
 - `read_bytes()` on final parse step — fine for 50 MiB but monitor on 2 GiB ECS.
 
 **Recommended next iteration**:
-1. Agent Capability V2.2: DeepSeek agent_decide + real LLM smoke; V2.3: 5 real LLM eval scenarios.
-2. Deep Agents pattern review: borrow todo/planning, context offloading, subagent isolation, HITL, and event-flow ideas only where they fit the existing lightweight FSM.
-3. Agent Capability V2.3: real DeepSeek smoke + multi-scenario eval (deferred from V2.2).
-4. V1.2 (task system): manual task creation + `ConversationMessage.next_steps`.
-5. Continue retrieval-quality hardening.
+1. Agent Capability V2.3: real DeepSeek smoke + 5 multi-scenario Agent eval.
+2. V1.2 (task system): manual task creation + `ConversationMessage.next_steps`.
+3. Continue retrieval-quality hardening.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed

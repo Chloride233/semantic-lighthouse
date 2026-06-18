@@ -1,5 +1,17 @@
 # Highlight Log
 
+## Agent V2.2 Real Provider And Audit Hardening
+
+- Date: 2026-06-18
+- Version: Agent Capability V2.2
+- Type: highlight
+- Context: V2.1 had a working agent_loop but only with FakeLoopChatClient. The loop needed real LLM decisions, audit recording, and a configurable safety valve before it could be considered a real provider integration.
+- What happened: (1) Implemented `DeepSeekChatClient.agent_decide()` using the existing `/chat/completions` path with `response_format: json_object`. Validates tool_name (non-empty) and tool_arguments (must be dict) — LLM output never flows directly into tool execution without type checks. (2) ChatError during agent_loop now writes a failed step + fail_runs the run + returns HTTP 502 — no Agent run left stuck in `executing`. (3) `raw_response` truncated to 500 chars, stored in action_detail. (4) `plan_json` records per-step llm_decision events and stopped events. (5) `Settings.agent_max_steps` (env AGENT_MAX_STEPS, cap 1–10) replaces hardcoded 5. (6) Risky action_detail enhanced with `requires_confirmation`, `risk_level`, `confirmation_reason`.
+- Engineering judgment: Did not introduce LangGraph runtime despite evaluating Deep Agents patterns. Absorbed the useful patterns (planning/plan_json, HITL confirmation metadata, event-flow audit) into the existing lightweight FSM + while loop. The runtime stays a plain Python while loop with explicit state in `agent_runs.status`.
+- Risk if ignored: Without ChatError audit, a DeepSeek API failure would leave runs in `executing` indefinitely. Without tool_arguments validation, an LLM returning `tool_arguments: "query=Ontology"` (string instead of dict) would crash execute_tool. Without configurable max_steps, the safety valve is invisible to operators.
+- Verification: 38 agent + chat + E2E tests pass. Ruff clean. Commit `ca58506`.
+- Interview version: I hardened the Agent loop for real LLM integration without reaching for a framework. Provider failures write audit steps before failing the run. LLM tool arguments are type-checked before execution. max_steps is configurable via environment variable. The loop still runs as a plain Python while loop.
+
 ## Deep Agents Is A Pattern Source, Not A Runtime Dependency Yet
 
 - Date: 2026-06-18
