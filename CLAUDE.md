@@ -4,12 +4,16 @@ This is the first file Claude Code should read when taking over Semantic Lightho
 
 ## Project Intent
 
-Semantic Lighthouse is a permission-aware knowledge evidence workspace for enterprise AI transformation. Its core is trusted RAG with traceable evidence, confidence judgment, knowledge gaps, and user-confirmed action handoff. Agent is a controlled coordination layer, not the product's default answer to every problem.
+Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. Its destination is to help enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that applications and Agent workflows can safely use.
+
+In this project, Ontology means the enterprise semantic operating layer: business objects, properties, relationships, actions, permissions, evidence, and Agent-facing interfaces. It is not just a database schema, not just a knowledge graph, and not just a RAG document library.
+
+Trusted RAG with traceable evidence, confidence judgment, knowledge gaps, and user-confirmed action handoff is the current foundation. Agent is a controlled coordination layer, not the product's default answer to every problem.
 
 The goal is not to build a productized SaaS. The goal is to prove engineering judgment through a maintainable chain:
 
 ```text
-auth and group isolation -> document ingestion -> retrieval -> citation-grounded RAG answer -> audit trail -> confirmed action/task -> controlled Agent workflow
+auth and group isolation -> document ingestion -> retrieval evidence -> citation-grounded RAG answer -> confirmed action/task -> controlled Agent workflow -> Ontology governance and graph -> semantic operating layer
 ```
 
 Every feature must be explainable by the project owner in business terms, technical terms, risk terms, and interview terms.
@@ -40,6 +44,7 @@ Before changing code, read these files in order:
 - Keep group-scoped data isolation as a hard invariant.
 - Do not use Agent behavior to replace deterministic backend logic such as permission checks, status filters, hash checks, or CRUD.
 - Any write-like Agent/action behavior must have role authorization, group_id isolation, and user confirmation.
+- Do not let future work drift into generic RAG or generic Agent framing. If the work affects product direction, tie it back to the Ontology semantic operating layer.
 - Update project memory after Safety Lane iterations; for Standard Lane, only when a meaningful decision was made.
 - **Every meaningful change must be committed to Git** (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`).
 - Before committing on Standard/Safety Lane: verify related `pytest` and `ruff check` pass. Fast Lane: `git diff --check` + minimal format check only.

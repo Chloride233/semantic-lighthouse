@@ -6,6 +6,19 @@ Last updated: 2026-06-18
 
 **Phases 0–7 delivered; current focus is Phase 8 Experience Integration** — see `docs/project-roadmap.md`.
 
+**Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
+
+In this project, Ontology means business objects, properties, relationships, actions, permissions, evidence, and Agent-facing interfaces. The current trusted RAG / task / Agent loop is the foundation, not the destination.
+
+**Current sequencing**:
+
+```text
+Phase 8: RAG -> user-confirmed task -> Agent/HITL -> audit
+Phase 9: schema/frontmatter validation -> entity extraction -> wikilink relation extraction -> broken-link detection -> ontology graph/entity detail
+```
+
+Do not start Phase 9 by building a full modeling studio, Graph RAG, or Agent auto-write path. Phase 9 starts with read-only governance and graph visibility.
+
 - **Phase 3**: RAG quality review with real ontology KB ← **P4 delivered 2026-06-15**
   - 74 real ontology documents imported from `F:\ontology-kb\knowledge-graph`
   - 10-question quality eval: 20/20 Chinese, 20/20 forbidden-clean, 20/20 audit-complete
@@ -34,7 +47,7 @@ Last updated: 2026-06-18
 - **Archive audit**: `archived_by`, `archived_at`, `archive_reason` (migration `0011`).
 - **`GET /documents?status=`** server-side filter.
 - **Frontmatter metadata**: entityType/source/ontology status badges in document list, click-to-expand metadata panel.
-- **Document governance report**: `docs/kgov-v1-report.md`.
+- **Documentation drift note**: an earlier handoff referenced `docs/kgov-v1-report.md`, but that file is not present in the repository. Treat this as a Phase 9 governance input, not a delivered report.
 
 ### Agent Audit Hardening (2026-06-18) — delivered
 
@@ -103,11 +116,13 @@ Manual gates:
 **Still deferred to v1.2+**:
 - Manual task creation, conversation/agent_run source_type, independent detail page route, task edit modal, edit/delete by non-creator.
 
-### Product Alignment (2026-06-17)
+### Product Alignment (2026-06-18)
 
 - New product boundary source: `docs/product-alignment-prd.md`.
-- Current positioning: Semantic Lighthouse is a permission-aware knowledge evidence workspace for enterprise AI transformation.
-- Core near-term workflow: ask question -> inspect citations/confidence/gaps -> review next steps -> user confirms selected next steps into lightweight tasks.
+- Current positioning updated 2026-06-18: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation.
+- Ontology definition: business objects, properties, relationships, actions, permissions, evidence, and Agent-facing interfaces. It is not just a knowledge graph or RAG document library.
+- Current near-term workflow: RAG answer -> inspect citations/confidence/gaps -> user-confirmed task -> Agent/HITL -> audit.
+- Next major phase: Phase 9 Ontology Core v1 starts with schema/frontmatter validation, entity extraction, wikilink relation extraction, broken-link detection, ontology graph, and entity detail.
 - Agent boundary: Agent is a controlled coordination layer for multi-step/tool-based/auditable workflows, not a replacement for deterministic backend rules.
 - Web search status: Discovery only. Validate with low-confidence questions before promoting it into the core product flow.
 
@@ -280,6 +295,8 @@ Result:
 - No token usage / latency / cost tracking in rag_runs or conversation_messages.
 - No max concurrent upload session limit per user/group.
 - `read_bytes()` on final parse step — fine for 50 MiB but monitor on 2 GiB ECS.
+- Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
+- Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
 **Recommended next iteration**:
 1. Run real DeepSeek Agent smoke manually and record results in `docs/agent-capability-v23-eval.md`.
@@ -287,6 +304,7 @@ Result:
 3. Expand task source traceability beyond `rag_run` (conversation / agent_run / manual).
 4. Harden conversation UX: visible citations, tool call display, failure states.
 5. Write demo scenario scripts for portfolio presentation.
+6. After Phase 8 is demonstrable, start Phase 9 Ontology Core v1 with read-only governance and graph visibility.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
@@ -397,6 +415,8 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 
 ## Agent Instructions For The Next Session
 
-Start by reading `AGENTS.md`, `PRODUCT.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests before changing code.
+Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.
+
+Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 8 should finish the demonstrable RAG -> task -> Agent/HITL -> audit loop; Phase 9 should begin with read-only ontology governance and graph visibility.
 
 Do not rely on chat history. The latest verified baseline before this handoff refresh was commit `d45bef4 docs: refresh project handoff entrypoints`; the working tree should be clean before the next iteration.

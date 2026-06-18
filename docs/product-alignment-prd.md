@@ -1,65 +1,95 @@
 # Semantic Lighthouse Product Alignment PRD
 
-Last updated: 2026-06-17
+Last updated: 2026-06-18
 
 ## 1. Product Positioning
 
-Semantic Lighthouse / 语义灯塔 is a permission-aware knowledge evidence workspace for enterprise AI transformation.
+Semantic Lighthouse / 语义灯塔 is an ontology-oriented semantic operating layer workspace for enterprise AI transformation.
 
-It is not a general chatbot, not a full SaaS product, and not an unrestricted autonomous Agent platform. Its core value is to help a user turn enterprise AI transformation knowledge into:
+It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by people, applications, and controlled Agent workflows.
 
-- traceable evidence
-- citation-grounded answers
-- confidence and knowledge-gap judgments
-- reviewable next-step suggestions
-- user-confirmed lightweight tasks
-- auditable Agent-assisted workflows when the workflow genuinely needs multiple steps or tools
+The product is not a general chatbot, not a full SaaS product, not a generic RAG demo, and not an unrestricted autonomous Agent platform. Its current trusted RAG and Agent capabilities are foundations for the larger Ontology direction.
 
-The project exists as an engineering portfolio project for AI application / RAG / Agent internship preparation. Every capability must be explainable in business terms, technical terms, risk terms, and interview terms.
+The north star:
 
-## 2. Working Definition: Knowledge Evidence Workspace
+```text
+fragmented knowledge/documents/systems/workflows
+-> trusted evidence and user-confirmed action
+-> governed entities and relationships
+-> business objects, actions, permissions, and Agent interfaces
+-> enterprise Ontology semantic operating layer
+```
 
-A knowledge evidence workspace is a system that manages the path from knowledge to judgment to action.
+Every capability must be explainable in business terms, technical terms, risk terms, and interview terms.
 
-For this project, that means:
+## 2. Working Definition: Ontology Semantic Operating Layer
+
+In this project, Ontology means the enterprise semantic operating layer.
+
+It is the layer that models:
+
+- **business objects**: customer, order, equipment, work order, supplier, project
+- **properties**: status, owner, risk level, amount, timestamp, confidence, maturity
+- **relationships**: customer owns order, equipment links to work order, vendor supports product
+- **actions**: approve, archive, create task, trigger review, request confirmation
+- **permissions and governance**: who can read, write, confirm, archive, or execute
+- **evidence**: citations, source maturity, retrieval records, audit trails
+- **Agent-facing interfaces**: safe tools and action surfaces that preserve group isolation and HITL
+
+Ontology is not merely:
+
+- a database schema
+- a static knowledge graph
+- a set of Markdown frontmatter fields
+- a vector index
+- a RAG document library
+- an Agent framework
+
+The current trusted evidence/action foundation manages the path from knowledge to judgment to action:
 
 ```text
 group-isolated knowledge -> retrieval evidence -> RAG answer -> confidence/gaps -> next steps -> confirmed task/action
 ```
 
-The workspace does not merely answer questions. It should let the user inspect why an answer is credible, what evidence supports it, what is missing, and which follow-up work should be tracked.
+Phase 9 extends that foundation toward Ontology by making entities, relationships, schema validity, broken links, and governance issues visible.
 
 ## 3. Target Users And Scenarios
 
 ### Primary User For This Project
 
-The project owner, using the system as a job-portfolio demonstration of enterprise RAG and Agent engineering judgment.
+The project owner, using the system as a job-portfolio demonstration of enterprise RAG, Agent, and Ontology engineering judgment.
 
 ### Future Product-Like Users
 
-- AI transformation consultant preparing client-facing answers.
-- Enterprise knowledge operator maintaining AI transformation knowledge assets.
-- Team member checking whether a recommendation is grounded in approved internal knowledge.
+- AI transformation consultant preparing client-facing answers and ontology pilot plans.
+- Enterprise knowledge operator maintaining ontology-ready knowledge assets.
+- Business engineer mapping documents and workflows into business objects, relationships, and actions.
+- Team member checking whether a recommendation is grounded in approved internal knowledge and aligned with the semantic model.
 
 ### Core Scenario
 
-The near-term workflow is:
+The near-term workflow remains:
 
 1. User logs in and enters a group workspace.
 2. User uploads or imports enterprise AI transformation knowledge.
-3. User asks a question.
-4. System retrieves group-scoped evidence.
-5. System returns answer, citations, confidence, knowledge gaps, and next steps.
-6. User reviews the next steps.
-7. User confirms selected next steps into lightweight tasks.
-8. Future Agent workflows may help track, summarize, or coordinate these tasks, but must remain permission-aware and auditable.
+3. System retrieves group-scoped evidence.
+4. System returns answer, citations, confidence, knowledge gaps, and next steps.
+5. User confirms selected next steps into lightweight tasks.
+6. Controlled Agent workflows coordinate multi-step/tool-based work with HITL and audit.
 
-## 4. Near-Term MVP
+The next product workflow adds:
 
-The actionable RAG loop is delivered:
+1. System validates schema/frontmatter and wikilinks in the knowledge base.
+2. System extracts ontology entities and relationships from approved documents.
+3. User inspects entity list, relation graph, broken links, and governance issues.
+4. Future modeling workflows turn validated entities into Object Type, Property, Link Type, and Action Type drafts.
+
+## 4. Current Phase: Phase 8 Experience Integration
+
+Phase 8 should finish the demonstrable loop:
 
 ```text
-Ask -> Evidence -> Confidence -> Gaps -> Next Steps -> User-confirmed Task
+RAG answer -> user-confirmed task -> Agent/HITL -> audit trail
 ```
 
 Current delivered:
@@ -71,14 +101,53 @@ Current delivered:
 - citation-grounded RAG answer
 - RAG run audit
 - frontend answer view with "✓ 确认任务" button
-- lightweight task board v1.1 (status=cancelled, source RAG run inline detail, task filters)
-- controlled conversation and Agent foundations (backend: run, steps, tool registry, role-gated tools, HITL, audit trail, DeepSeek agent_decide, fake eval, audit hardening)
-- knowledge governance v1 (archive audit, status filter, metadata display)
-- production safety checks (APP_ENV, JWT/cookie/database safety validation)
+- lightweight task board v1.1 with `status=cancelled`, source RAG run inline detail, and task filters
+- controlled conversation and Agent foundations: run, steps, tool registry, role-gated tools, HITL, audit trail, DeepSeek `agent_decide`, fake eval, audit hardening
+- Agent frontend visibility initial page
+- knowledge governance v1 foundation: archive audit, status filter, metadata display
+- production safety checks: APP_ENV, JWT/cookie/database safety validation
 
-Current product gap: make controlled Agent workflows visible and usable in the frontend, and extend task source traceability beyond `rag_run` (conversation / agent_run / manual). Agent remains a controlled coordination layer — it does not replace deterministic backend logic.
+Current Phase 8 gap:
 
-## 5. Feature Boundaries
+- task `source_type` should expand beyond `rag_run` to `conversation`, `agent_run`, and `manual`
+- conversation UX needs visible citations, tool calls, and failure states
+- real DeepSeek Agent smoke results should be recorded
+- demo scenario scripts should show the full loop without Swagger
+
+Phase 8 should not add new backend Agent powers. It should make existing backend capabilities visible, usable, and demonstrable.
+
+## 5. Next Phase: Phase 9 Ontology Core v1
+
+Phase 9 starts the actual Ontology product path with **Governance & Graph**.
+
+Goal:
+
+```text
+existing KB schema/frontmatter/wikilinks -> governed ontology entities and relationships -> graph and validation issues
+```
+
+Minimum capabilities:
+
+- schema/frontmatter validation against the knowledge-base schema
+- entity extraction from imported documents
+- wikilink-based relation extraction
+- broken-link detection
+- missing entity detection
+- invalid controlled vocabulary detection
+- duplicate title/alias detection
+- group-scoped ontology entity list
+- group-scoped ontology graph view
+- ontology entity detail page with source document, metadata, inbound links, outbound links, and validation issues
+
+Known first inputs for Phase 9:
+
+- `F:\ontology-kb\knowledge-graph` currently has `INDEX.md` and `AUTO_INDEX.md` references to `research/...`, but the actual `research/` directory is missing in the inspected workspace.
+- `docs/eval/rag-queries-ontology.json` contains some expected document IDs that do not exist in the current KB, including examples such as `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
+- `docs/agent-handoff.md` previously referenced `docs/kgov-v1-report.md`, which is not present in the repository.
+
+Phase 9 should record these as governance findings. It should not silently edit the external KB in this first step.
+
+## 6. Feature Boundaries
 
 ### Needed Capabilities
 
@@ -89,7 +158,8 @@ Current product gap: make controlled Agent workflows visible and usable in the f
 - Multi-turn conversation when it helps preserve consulting context.
 - Controlled Agent tooling only when there is a real multi-step workflow.
 - Lightweight task board for confirmed next steps.
-- Audit trail for generated answers, retrieved citations, and Agent/tool actions.
+- Audit trail for generated answers, retrieved citations, Agent/tool actions, and user confirmations.
+- Ontology governance read model: entities, relations, validation issues, graph, and entity detail.
 
 ### Not Needed In The Near Term
 
@@ -103,8 +173,11 @@ Current product gap: make controlled Agent workflows visible and usable in the f
 - Kubernetes or distributed infrastructure.
 - RabbitMQ/Kafka/Celery unless the current async pipeline becomes a measured bottleneck.
 - Replacing deterministic backend logic with LLM decisions.
+- Full manual Ontology modeling studio before governance and graph visibility.
+- Graph RAG before the entity/relation read model is reliable.
+- Agent auto-writing Ontology entities, relations, or actions.
 
-## 6. Agent Boundary
+## 7. Agent Boundary
 
 Agent should be used only when the workflow has at least one of these properties:
 
@@ -121,6 +194,8 @@ Agent should not be used for deterministic work that the backend can handle dire
 - document status filtering
 - hash verification
 - upload session validation
+- schema validation
+- wikilink parsing
 - ordinary CRUD
 - fixed retrieval ranking rules
 
@@ -132,6 +207,7 @@ Agent should not be used for deterministic work that the backend can handle dire
 - Summarize retrieved evidence.
 - Explain gaps and risks.
 - Produce an auditable plan for a multi-step workflow.
+- In later phases, propose ontology modeling drafts for user review.
 
 ### Disallowed Agent Behaviors For Now
 
@@ -140,8 +216,9 @@ Agent should not be used for deterministic work that the backend can handle dire
 - Ingest external pages into the knowledge base automatically.
 - Execute destructive or cross-group actions.
 - Bypass role checks or group_id boundaries.
+- Write Ontology entities, relations, Object Types, Properties, Link Types, or Action Types without explicit user confirmation and audit.
 
-## 7. Lightweight Task Board Boundary
+## 8. Lightweight Task Board Boundary
 
 The task board exists to turn RAG next steps into trackable work.
 
@@ -149,7 +226,7 @@ It is not a full PM tool.
 
 ### Minimum Task Concept
 
-A task should represent a user-confirmed action item derived from a RAG answer, conversation, or Agent run.
+A task should represent a user-confirmed action item derived from a RAG answer, conversation, Agent run, or manual entry.
 
 Minimum fields:
 
@@ -169,6 +246,7 @@ Optional later fields:
 - assignee display name
 - due date
 - linked citations
+- linked ontology entity or relation
 
 ### Task Creation Rule
 
@@ -176,7 +254,7 @@ RAG and Agent may suggest tasks, but the user must explicitly confirm before a t
 
 This protects against noisy task creation, model overreach, and accidental workflow mutation.
 
-## 8. Web Search Boundary
+## 9. Web Search Boundary
 
 Web search is a Discovery capability, not part of the current core MVP.
 
@@ -192,19 +270,20 @@ Before implementation becomes core, it must be validated with a small evidence s
 - compare whether external evidence improves answer usefulness
 - decide Go / No-Go based on results
 
-Until that validation passes, web search should remain separate from the main RAG answer flow.
+Until that validation passes, web search should remain separate from the main RAG answer flow and separate from the internal ontology graph.
 
-## 9. Success Criteria
+## 10. Success Criteria
 
 The aligned product direction is successful if a new session can answer these questions without chat history:
 
 - What is Semantic Lighthouse?
-- What is the main workflow?
-- Why is it not just a chatbot?
-- Why is it not a full SaaS product?
+- What does Ontology mean in this project?
+- Why is this not just RAG?
+- Why is this not just Agent?
+- What is the current Phase 8 workflow?
+- What is Phase 9 Ontology Core v1?
 - When should Agent be used?
 - When should deterministic backend logic be used instead?
-- What is the next product-aligned feature?
 - Which tempting features are intentionally out of scope?
 
 The next implementation milestone is successful if:
@@ -214,9 +293,10 @@ The next implementation milestone is successful if:
 - Conversation UX is hardened with visible citations, tool calls, and failure states.
 - Real DeepSeek Agent smoke results are recorded.
 - Demo scenario scripts exist for portfolio presentation.
+- Phase 9 starts from KB governance and graph visibility, not from a full modeling studio or Graph RAG.
 
-## 10. Interview Narrative
+## 11. Interview Narrative
 
 The project story should be:
 
-> I did not build a generic chatbot or blindly add Agent features. I first built the permission and knowledge foundations, then made RAG answers traceable through citations, confidence, gaps, and audit records. The next step is turning model suggestions into user-confirmed lightweight tasks, so AI output becomes reviewable work instead of untrusted automation. Agent is used only as a controlled coordination layer when the workflow is multi-step, tool-based, and auditable.
+> I did not build a generic chatbot or blindly add Agent features. I first built the permission and knowledge foundations, then made RAG answers traceable through citations, confidence, gaps, and audit records. I then turned model suggestions into user-confirmed lightweight tasks, so AI output becomes reviewable work instead of untrusted automation. Agent is used only as a controlled coordination layer when the workflow is multi-step, tool-based, and auditable. The next product step is Ontology Core: making the knowledge base governable as entities, relationships, validation issues, and a graph before attempting full modeling or Graph RAG.

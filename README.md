@@ -1,14 +1,16 @@
 # Semantic Lighthouse / 语义灯塔
 
-企业 AI 转型知识证据工作台：用权限隔离的知识库、可信 RAG、引用来源、可信度判断和知识缺口，把企业 AI 转型知识转化为可审阅的回答和可确认的下一步行动。
+企业 AI 转型 Ontology 语义操作层工作台：帮助企业把碎片化知识、文档、系统和流程，逐步建成权限感知、可审计、可操作、可被 Agent 安全调用的 Ontology 语义层。
+
+当前可信 RAG 闭环是底座：用权限隔离的知识库、引用来源、可信度判断、知识缺口和用户确认任务，把企业 AI 转型知识转化为可审阅的回答和可追踪行动。项目终局不是普通 RAG/Agent，而是面向业务对象、关系、动作、权限、证据和 Agent 接口的语义操作层。
 
 当前产品边界见 `docs/product-alignment-prd.md`。核心链路是：
 
 ```text
-注册登录 -> 进入群组 -> 上传/导入知识 -> 提问 -> 查看引用/可信度/知识缺口 -> 确认下一步任务
+注册登录 -> 进入群组 -> 上传/导入知识 -> 提问 -> 查看引用/可信度/知识缺口 -> 确认下一步任务 -> Agent/HITL 审计 -> Ontology 治理与图谱 -> 语义操作层
 ```
 
-Agent 不是默认目标，而是受控协调层：只有多步骤、多工具、需要审计或用户确认的流程才使用 Agent。
+Agent 不是默认目标，而是受控协调层：只有多步骤、多工具、需要审计或用户确认的流程才使用 Agent。下一阶段产品主线是在 Phase 8 演示闭环收口后，进入 Phase 9: Ontology Core v1，从 schema/frontmatter 校验、实体抽取、wikilink 关系抽取、断链检测、ontology graph/entity detail 开始。
 
 ## V1 Scope
 
@@ -124,7 +126,9 @@ alembic upgrade head
 
 ## Project Boundary
 
-- Knowledge source for future RAG: `F:\ontology-kb`
+- Knowledge source and Ontology seed corpus: `F:\ontology-kb`
 - The current prototype intentionally does not implement MinIO/OSS, Elasticsearch, Kubernetes, full SaaS administration, or unrestricted autonomous Agent actions.
 - Chunked upload, hybrid retrieval, answer audit, conversations, and controlled Agent workflow now exist as prototype capabilities; verify current status in `docs/agent-handoff.md`.
+- Do not treat future work as generic RAG expansion. Phase 9 should first make the existing knowledge base governable as entities, relations, validation issues, graph, and entity detail.
+- Do not immediately build a full modeling studio, Graph RAG, or Agent auto-write path for Ontology objects. Those come after the read-only governance and graph layer is reliable.
 - Engineering lessons are tracked in `docs/engineering-memory/`.

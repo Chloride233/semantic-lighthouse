@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-18
-**Current phase**: Integration & Demonstrable Agent Experience — see `docs/agent-handoff.md` and `docs/development-workflow.md`
+**Current phase**: Phase 8 Experience Integration; next major phase is Phase 9 Ontology Core v1. See `docs/agent-handoff.md` and `docs/development-workflow.md`.
 
 ---
 
@@ -21,18 +21,33 @@
 
 ---
 
-## Product Alignment: Actionable RAG Loop ← DELIVERED (2026-06-17)
+## Product Alignment: Ontology Semantic Operating Layer ← UPDATED (2026-06-18)
 
-**Goal**: Keep the project centered on a trusted RAG loop that turns evidence-backed answers into user-confirmed next-step tasks.
+**Goal**: Keep the project centered on the path from trusted evidence and user-confirmed action toward an enterprise Ontology semantic operating layer.
+
+Ontology in this project means business objects, properties, relationships, actions, permissions, evidence, and Agent-facing interfaces. It is not just a database schema, not just a knowledge graph, and not just a RAG document library.
+
+Current Phase 8 remains focused on the demonstrable loop:
+
+```text
+RAG answer -> user-confirmed task -> Agent/HITL -> audit trail
+```
+
+Next Phase 9 starts Ontology Core v1:
+
+```text
+schema/frontmatter validation -> entity extraction -> wikilink relation extraction -> broken-link detection -> ontology graph/entity detail
+```
 
 | # | Task | Acceptance |
 |---|------|------------|
-| A.1 | Product boundary PRD | ✅ `docs/product-alignment-prd.md` explains what the product is, what Agent is for, and what is out of scope |
-| A.2 | Entry-file alignment | ✅ `AGENTS.md`, `CLAUDE.md`, `PRODUCT.md`, `README.md`, and handoff all point to the same product boundary |
+| A.1 | Product boundary PRD | ✅ `docs/product-alignment-prd.md` explains Ontology semantic operating layer, Phase 8, Phase 9, Agent boundaries, and out-of-scope items |
+| A.2 | Entry-file alignment | ✅ `AGENTS.md`, `CLAUDE.md`, `PRODUCT.md`, `README.md`, roadmap, and handoff point to the same Ontology direction |
 | A.3 | Next-step task design | ✅ Task board v1.1 delivered: confirm button, status=cancelled, source RAG run inline detail, task filters, 20 tests |
 | A.4 | Web search status | ✅ Web search remains Discovery until low-confidence question validation proves value |
+| A.5 | Ontology Core v1 sequence | ✅ Phase 9 starts with governance and graph visibility before modeling studio, Graph RAG, or Agent ontology writes |
 
-**Acceptance**: ✅ Task board v1.1 verified. RAG next steps → user-confirmed tasks → source traceability → soft cancel. 20 task tests + 4 verify_ui checks.
+**Acceptance**: A new session should not describe Semantic Lighthouse as only a RAG/Agent project. It should describe the current product as a trusted evidence/action foundation for an Ontology semantic operating layer.
 
 ---
 
@@ -172,7 +187,7 @@
 
 ## Phase 8: Experience Integration ← CURRENT
 
-**Goal**: Make existing backend capabilities visible, usable, and demonstrable. No new backend Agent features. Focus on frontend visibility, UX hardening, demo scripts, and task source traceability expansion.
+**Goal**: Make existing backend capabilities visible, usable, and demonstrable. No new backend Agent features. Focus on frontend visibility, UX hardening, demo scripts, and task source traceability expansion so the current loop can be shown before Phase 9.
 
 | # | Task | Acceptance |
 |---|------|------------|
@@ -182,7 +197,34 @@
 | 8.4 | Conversation UX hardening | Visible citations per message, tool call display, failure/error states, context indicators |
 | 8.5 | Demo scenario scripts | Reproducible walkthrough scripts for portfolio presentation: knowledge import → RAG → tasks → Agent workflow |
 
-**Acceptance**: A reviewer can see the full loop — RAG answer → task creation → Agent tool execution → HITL → audit trail — from the frontend without Swagger.
+**Acceptance**: A reviewer can see the full loop from RAG answer to task creation to Agent tool execution to HITL to audit trail from the frontend without Swagger.
+
+---
+
+## Phase 9: Ontology Core v1 - Governance & Graph ← NEXT
+
+**Goal**: Turn the existing ontology KB seed corpus into governed, group-scoped ontology entities, relationships, validation issues, and graph/detail views. This is the first product step from trusted RAG toward the semantic operating layer.
+
+| # | Task | Acceptance |
+|---|------|------------|
+| 9.1 | Schema/frontmatter validation | Detect missing required fields, invalid `entityType`/`documentType`, invalid status/source values, and entity/document type conflicts |
+| 9.2 | Entity extraction read model | Imported documents produce group-scoped ontology entity records with title, aliases, entity_type, source_path, source, status, tags, and document_id |
+| 9.3 | Wikilink relation extraction | Wikilinks become explicit relation candidates with source entity, target path/entity, evidence document, and unresolved status when missing |
+| 9.4 | Governance issue list | Broken links, missing entities, duplicate titles/aliases, invalid controlled vocabulary, and stale eval gold IDs are visible as validation issues |
+| 9.5 | Ontology graph and entity detail UI | Console shows entity list, graph view, entity detail, inbound/outbound links, source document, and validation issues |
+
+**Known first governance inputs**:
+
+- `F:\ontology-kb\knowledge-graph` references `research/...` in `INDEX.md` / `AUTO_INDEX.md`, while the inspected workspace lacks a `research/` directory.
+- `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, such as `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
+- Handoff previously referenced missing `docs/kgov-v1-report.md`; this is now treated as a documentation drift issue, not a delivered artifact.
+
+**Out of scope for Phase 9**:
+
+- full Object Type / Property / Link Type / Action Type modeling studio
+- Graph RAG
+- Agent auto-writing ontology entities, relations, or actions
+- automatic edits to the external KB
 
 
 ## Phase 7 Follow-up: Deep Agents Pattern Review ← DOCUMENTED
@@ -217,6 +259,9 @@ These items are not permanently rejected. They are deferred until the earlier en
 - Full project management system
 - Autonomous web browsing or automatic web-to-KB ingestion
 - LangGraph / Deep Agents runtime before measured FSM bottlenecks
+- Full Ontology modeling studio before Phase 9 governance/graph is reliable
+- Graph RAG before the entity/relation read model is reliable
+- Agent auto-writing Ontology objects, relations, or actions
 - Mobile app
 - Multilingual RAG (current focus: English + Chinese where noted)
 

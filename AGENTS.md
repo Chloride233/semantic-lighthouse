@@ -4,12 +4,16 @@ These instructions apply to the `F:\semantic-lighthouse` repository.
 
 ## Project Identity
 
-Semantic Lighthouse / 语义灯塔 is a permission-aware knowledge evidence workspace for enterprise AI transformation. It uses trusted RAG to turn group-scoped knowledge into evidence-backed answers, confidence judgments, knowledge gaps, and user-confirmed action items. Agent is only a controlled coordination layer for multi-step, tool-based, auditable workflows. The project should prove engineering judgment, not accumulate unexplained frameworks.
+Semantic Lighthouse / 语义灯塔 is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
+
+In this project, Ontology means the enterprise semantic operating layer: business objects, properties, relationships, actions, permissions, evidence, and Agent-facing interfaces. It is not just a database schema, not just a knowledge graph, and not just a RAG document library.
+
+Trusted RAG, citations, confidence, knowledge gaps, tasks, and controlled Agent orchestration are the current foundation. They should support the Ontology direction, not replace it. Agent is only a controlled coordination layer for multi-step, tool-based, auditable workflows. The project should prove engineering judgment, not accumulate unexplained frameworks.
 
 Core chain:
 
 ```text
-auth and group isolation -> document ingestion -> retrieval -> citation-grounded RAG -> audit -> confirmed action/task -> controlled Agent workflow
+auth and group isolation -> document ingestion -> retrieval evidence -> citation-grounded RAG -> user-confirmed task/action -> controlled Agent workflow -> Ontology governance and graph -> semantic operating layer
 ```
 
 ## Required Reading For New Sessions
@@ -34,6 +38,7 @@ Before changing code, read:
 - Keep `group_id` isolation as a hard invariant across documents, chunks, retrieval, RAG, conversations, tasks, action suggestions, and Agent runs.
 - Do not use Agent behavior to replace deterministic backend logic.
 - Agent or task write behavior must be permission-checked, group-scoped, auditable, and user-confirmed.
+- Do not let new work drift back into "generic RAG app" or "generic Agent platform" framing. If a feature touches product direction, explain how it supports the Ontology semantic operating layer.
 - Every meaningful change must update project memory and be committed to Git.
 - Do not commit secrets, tokens, cookies, database files, runtime storage, `.venv/`, or `.claude/`.
 

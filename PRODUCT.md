@@ -2,13 +2,15 @@
 
 ## One-Line Positioning
 
-语义灯塔 is a permission-aware knowledge evidence workspace for enterprise AI transformation. Its core is a trusted RAG loop: group-scoped knowledge retrieval, citation-grounded answers, confidence judgment, knowledge gaps, and user-confirmed next-step tasks.
+语义灯塔 is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
+
+The current trusted RAG loop is the foundation: group-scoped knowledge retrieval, citation-grounded answers, confidence judgment, knowledge gaps, user-confirmed next-step tasks, and controlled Agent/HITL audit. The product destination is broader than RAG: an enterprise Ontology made of business objects, properties, relationships, actions, permissions, evidence, and Agent-facing interfaces.
 
 The product boundary source of truth is `docs/product-alignment-prd.md`.
 
 ## Why This Project Exists
 
-The project is built for a 2027 AI application / RAG / Agent internship portfolio. Its purpose is to demonstrate that the owner can explain not only model calls, but also the engineering boundary around enterprise AI systems:
+The project is built for a 2027 AI application / RAG / Agent internship portfolio. Its purpose is to demonstrate that the owner can explain not only model calls, but also the engineering boundary around enterprise AI systems and the product path from trusted evidence to an Ontology semantic operating layer:
 
 - user and group isolation
 - document lifecycle
@@ -18,6 +20,7 @@ The project is built for a 2027 AI application / RAG / Agent internship portfoli
 - auditability
 - user-confirmed action handoff
 - controlled Agent workflows when multi-step coordination is genuinely needed
+- ontology governance, entity/relation visibility, and semantic-layer evolution
 
 ## Target User Experience
 
@@ -30,8 +33,9 @@ A user should be able to:
 5. inspect the answer, citations, confidence reason, knowledge gaps, and next steps
 6. confirm selected next steps into lightweight tasks
 7. continue into multi-turn consultation or controlled Agent workflow when needed
+8. inspect ontology governance issues, entity/relation structure, and modeling gaps as the product evolves
 
-The experience should feel like a professional knowledge evidence workspace, not a Swagger-only backend demo and not an unrestricted chatbot.
+The experience should feel like a professional semantic operating layer workspace, not a Swagger-only backend demo, not a generic RAG chatbot, and not an unrestricted autonomous Agent.
 
 ## Current Product Capabilities
 
@@ -46,6 +50,8 @@ The experience should feel like a professional knowledge evidence workspace, not
 - Phase 6: Chinese frontend console and knowledge问答 experience
 - Phase 7: lightweight Agent orchestration with audit trail
 - Product alignment: actionable RAG loop from evidence-backed answer to user-confirmed task
+- Phase 8: experience integration for the demonstrable loop: RAG -> user-confirmed task -> Agent/HITL -> audit
+- Planned Phase 9: Ontology Core v1, starting with schema/frontmatter validation, entity extraction, wikilink relation extraction, broken-link detection, ontology graph, and entity detail
 
 ## Product Non-Goals For Now
 
@@ -57,6 +63,9 @@ The experience should feel like a professional knowledge evidence workspace, not
 - automatic task creation from every answer
 - full project management system
 - autonomous web browsing or automatic web-to-KB ingestion
+- full manual Ontology modeling studio before governance and graph visibility
+- Graph RAG before the entity/relation read model is reliable
+- Agent auto-writing Ontology objects, relations, or actions
 - untested technologies in resume claims
 
 ## Quality Bar
@@ -77,3 +86,4 @@ A feature is not considered finished until:
 - production deployment must protect secrets and runtime storage
 - Agent workflow should remain controlled and auditable before adding framework complexity. The next product gap is not backend Agent capability, but making existing controlled Agent workflows visible and usable in the frontend.
 - deterministic backend rules should not be replaced by LLM decisions
+- Ontology direction must not be reduced to "more RAG". Phase 9 should first make the existing knowledge base governable as entities, relations, validation issues, graph, and entity detail.

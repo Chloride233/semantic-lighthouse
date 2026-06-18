@@ -1,5 +1,18 @@
 # Highlight Log
 
+## Product North Star Re-centered On Ontology Semantic Operating Layer
+
+- Date: 2026-06-18
+- Version: Product Alignment v2
+- Type: decision
+- Context: The project had strong trusted RAG, task, and controlled Agent foundations, but the entry documents still described the destination mostly as a knowledge evidence workspace. That could steer new sessions toward generic RAG/Agent work instead of the user's intended Ontology direction.
+- What happened: Updated `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, `README.md`, `docs/project-roadmap.md`, and `docs/agent-handoff.md` around one north star: Semantic Lighthouse helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic operating layer. Phase 8 remains the demonstrable RAG -> task -> Agent/HITL -> audit loop. Phase 9 starts with Ontology Core v1 governance and graph visibility.
+- Engineering judgment: The project should not skip from trusted RAG directly into a full modeling studio, Graph RAG, or Agent auto-write path. The safer first Ontology step is read-only governance: schema/frontmatter validation, entity extraction, wikilink relation extraction, broken-link detection, ontology graph, and entity detail.
+- Risk if ignored: Future sessions could keep adding RAG or Agent features without moving toward the semantic operating layer, or they could overcorrect by building heavy ontology modeling before the existing KB is governable.
+- Fix or control: Entry-point docs now define Ontology as business objects, properties, relationships, actions, permissions, evidence, and Agent-facing interfaces. Handoff records known KB drift, including missing `research/` directory references, stale eval gold IDs, and the absent `docs/kgov-v1-report.md` reference.
+- Verification: Documentation-only Fast Lane change; verified with `git diff --check`, `git status --short`, and `rg` alignment scans.
+- Interview version: I re-centered the project from "RAG plus Agent" to a staged Ontology product. The current RAG/action loop proves evidence and audit discipline; the next phase turns the knowledge base into governed entities and relationships before attempting Graph RAG or autonomous ontology writes.
+
 ## Agent Audit Hardening — Deterministic Safety Trumps Agent Autonomy
 
 - Date: 2026-06-18
@@ -417,6 +430,7 @@
 - Date: 2026-06-17
 - Version: Product Alignment
 - Type: highlight
+- Superseded by: Product Alignment v2 (2026-06-18), which keeps this RAG-to-action loop as the foundation but updates the north star to Ontology semantic operating layer.
 - Context: The project had grown from auth/RAG into conversations, Agent orchestration, web-search design, and frontend workflows. Without a sharper product boundary, future iterations could drift into "everything is Agent" or a vague consulting chatbot.
 - What happened: Added `docs/product-alignment-prd.md` and synchronized the entry files around a single positioning: Semantic Lighthouse is a permission-aware knowledge evidence workspace for enterprise AI transformation. The near-term loop is answer evidence -> confidence/gaps -> next steps -> user-confirmed lightweight task.
 - Engineering judgment: I separated three levels of AI behavior: answering, suggesting, and executing. Answering can be handled by trusted RAG; suggesting can produce next steps; executing or mutating state needs explicit permission, group isolation, audit, and user confirmation.
