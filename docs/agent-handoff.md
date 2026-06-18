@@ -476,7 +476,21 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Full suite**: 224 passed, ruff clean, migration 0012 at head
 - **Not in scope**: wikilink relations (9.3), governance issue list UI (9.4), ontology graph UI (9.5), Graph RAG, Agent writes to ontology, external KB modification
 
-**Next**: Phase 9 completion review, then real ontology KB import demo with governance findings.
+**Phase 9 complete**. All 9.1–9.5 delivered. Next: Phase 10 planning — do not jump to Graph RAG / modeling studio.
+
+### Real KB Governance Demo — Phase 9 Wrap (2026-06-18)
+
+**Status**: Executed with real F:\ontology-kb\knowledge-graph (74 docs).
+
+| Metric | Count |
+|--------|-------|
+| Imported | 74 |
+| Entities | 74 |
+| Relations | 186 (96 resolved, 90 unresolved) |
+| Issues | 97 (90 unresolved_wikilink, 7 stale_eval_gold_doc_id) |
+
+**Key findings**: 90 unresolved wikilinks (mostly `research/*` missing); 7 stale eval gold IDs; no duplicate titles/aliases. External KB unmodified.
+**Demo runner**: `scripts/run_ontology_governance_demo.py`. **Report**: `docs/ontology-governance-demo-report.md`.
 
 ### Ontology Graph Console — Phase 9.5 (2026-06-18)
 

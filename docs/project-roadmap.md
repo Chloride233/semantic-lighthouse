@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-18
-**Current phase**: Phase 8 Experience Integration; next major phase is Phase 9 Ontology Core v1. See `docs/agent-handoff.md` and `docs/development-workflow.md`.
+**Current phase**: Phase 9 Ontology Core v1 delivered — all 9.1–9.5 complete. Phase 10 planning pending. See `docs/agent-handoff.md` and `docs/development-workflow.md`.
 
 ---
 
