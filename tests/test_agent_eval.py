@@ -37,19 +37,34 @@ def _upload(c, g, h, name, text):
     return r.json()["id"]
 
 
+def _execute(client, gid, h, rid):
+    """Execute one step of the agent loop and assert HTTP < 400."""
+    r = client.post(f"/groups/{gid}/agent/runs/{rid}/execute", headers=h)
+    assert r.status_code < 400, f"execute failed: {r.status_code} {r.text[:200]}"
+    return r
+
+
+def _respond(client, gid, h, rid, response):
+    """Send a respond and assert HTTP < 400."""
+    r = client.post(f"/groups/{gid}/agent/runs/{rid}/respond", json={"response": response}, headers=h)
+    assert r.status_code < 400, f"respond failed: {r.status_code} {r.text[:200]}"
+    return r
+
+
 def _run_agent(client, gid, h, rid, decisions):
+    """Run agent loop to completion, auto-confirming risky prompts."""
     loop_client = FakeLoopChatClient(decisions)
     for _ in range(10):
         with mock.patch("semantic_lighthouse.services.chat.create_chat_client", return_value=loop_client):
-            client.post(f"/groups/{gid}/agent/runs/{rid}/execute", headers=h)
+            _execute(client, gid, h, rid)
         s = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=h).json()["status"]
         if s == "awaiting_confirmation":
-            client.post(f"/groups/{gid}/agent/runs/{rid}/respond", json={"response": "yes"}, headers=h)
+            _respond(client, gid, h, rid, "yes")
         elif s in ("completed", "stopped", "failed"):
             break
 
 
-# ── E1 —————————————————————————————————──────────────────────────────────
+# ── E1 — finalize with useful answer —──────────────────────────────────
 
 def test_eval_finalize_with_useful_answer(client, tmp_path):
     _, _, h = register_and_login(client, "e1@t.com")
@@ -65,7 +80,7 @@ def test_eval_finalize_with_useful_answer(client, tmp_path):
     assert steps and steps[-1]["thought"] and steps[-1]["action_type"]
 
 
-# ── E2 ————————————————————————————————————————————————————————————————————
+# ── E2 — call_tool list_documents —─────────────────────────────────────
 
 def test_eval_list_documents_succeeds(client, tmp_path):
     _, _, h = register_and_login(client, "e2@t.com")
@@ -84,14 +99,15 @@ def test_eval_list_documents_succeeds(client, tmp_path):
     assert ts and ("[ready]" in (ts[0].get("observation") or "") or "ready" in (ts[0].get("observation") or ""))
 
 
-# ── E3 ————————————————————————————————————————————————————————————————————
+# ── E3 — archived doc excluded —────────────────────────────────────────
 
 def test_eval_archived_doc_excluded_from_evidence(client, tmp_path):
     _, _, h = register_and_login(client, "e3@t.com")
     gid = _group(client, h)
     _ovr(client, _settings(tmp_path))
     _upload(client, gid, h, "r.md", "# Ready\n\nOntology content.")
-    aid = _upload(client, gid, h, "arch.md", "# Old\n\nold Ontology notes.")
+    UNIQUE = "ArchivedSecretDoNotLeak"
+    aid = _upload(client, gid, h, "arch.md", f"# Old\n\n{UNIQUE} — outdated Ontology notes.")
     client.post(f"/groups/{gid}/documents/{aid}/archive", headers=h)
     rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "Ontology"}, headers=h).json()["id"]
     _run_agent(client, gid, h, rid, [
@@ -102,10 +118,11 @@ def test_eval_archived_doc_excluded_from_evidence(client, tmp_path):
     d = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=h).json()
     ts = [s for s in d.get("steps", []) if s["action_type"] == "tool_call"]
     obs = (ts[0].get("observation") or "") if ts else ""
-    assert "arch" not in obs.lower() or "No matching" in obs, f"Archived leaked: {obs[:100]}"
+    assert UNIQUE not in obs, f"Archived secret leaked: {obs[:200]}"
+    assert "No matching" not in obs, "Expected ready doc to be found (empty result = weak test)"
 
 
-# ── E4 ————————————————————————————————————————————————————————————————————
+# ── E4 — risky triggers confirmation (no auto-confirm) ─────────────────
 
 def test_eval_risky_triggers_confirmation(client, tmp_path):
     _, _, h = register_and_login(client, "e4@t.com")
@@ -113,18 +130,27 @@ def test_eval_risky_triggers_confirmation(client, tmp_path):
     _ovr(client, _settings(tmp_path))
     _upload(client, gid, h, "doc.md", "# T\n\nc")
     rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "Archive"}, headers=h).json()["id"]
-    _run_agent(client, gid, h, rid, [
-        {"action": "call_tool", "tool_name": "archive_document", "tool_arguments": {"title": "T"}, "thought": "A"},
-    ])
+    decisions = [{"action": "call_tool", "tool_name": "archive_document",
+                   "tool_arguments": {"title": "T"}, "thought": "A"}]
+    loop_client = FakeLoopChatClient(decisions)
+
+    # Step 1: execute — must pause for confirmation
+    with mock.patch("semantic_lighthouse.services.chat.create_chat_client", return_value=loop_client):
+        r = client.post(f"/groups/{gid}/agent/runs/{rid}/execute", headers=h)
+    assert r.status_code < 400
     d = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=h).json()
-    assert d["status"] in ("awaiting_confirmation", "executing", "completed")
-    ask = [s for s in d.get("steps", []) if s["action_type"] == "ask_user"]
-    if ask:
-        ad = ask[-1].get("action_detail", {})
-        assert ad.get("needs_confirmation") or ad.get("requires_confirmation")
+    assert d["status"] == "awaiting_confirmation", f"Expected awaiting_confirmation, got {d['status']}"
+    ask_steps = [s for s in d.get("steps", []) if s["action_type"] == "ask_user"]
+    assert ask_steps, "Expected ask_user step for confirmation"
+    ad = ask_steps[-1].get("action_detail", {})
+    assert ad.get("needs_confirmation") is True or ad.get("requires_confirmation") is True, \
+        f"Confirmation metadata missing: {ad}"
+    # Confirm the risky action was paused — documents still ready
+    docs = client.get(f"/groups/{gid}/documents", headers=h).json()
+    assert any(d["status"] == "ready" for d in docs), "Risky action may have executed without confirmation"
 
 
-# ── E5 ————————————————————————————————————————————————————————————————————
+# ── E5 — invalid tool rejected with audit —─────────────────────────────
 
 def test_eval_invalid_tool_errors(client, tmp_path):
     _, _, h = register_and_login(client, "e5@t.com")
@@ -136,4 +162,11 @@ def test_eval_invalid_tool_errors(client, tmp_path):
     ])
     d = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=h).json()
     failed = [s for s in d.get("steps", []) if s.get("status") == "failed"]
-    assert failed, "Invalid tool not rejected"
+    assert failed, "Invalid tool not rejected — no failed step"
+    fs = failed[0]
+    assert fs["action_type"] == "tool_call", f"Expected tool_call action_type, got {fs['action_type']}"
+    ad = fs.get("action_detail") or {}
+    assert ad.get("tool") == "delete_everything", f"Tool name not recorded: {ad}"
+    err = (fs.get("error_message") or "") + (fs.get("observation") or "")
+    assert any(kw in err.lower() for kw in ("error", "unknown tool", "not in agent_tools")), \
+        f"Audit message missing error/unknown tool keywords: {err[:200]}"

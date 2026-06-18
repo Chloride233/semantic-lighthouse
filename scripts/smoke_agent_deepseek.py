@@ -42,13 +42,16 @@ def main() -> int:
         print(f"FAIL S1: expected finalize, got action={d.action}")
         failed += 1
 
-    # S2: call_tool
+    # S2: call_tool — directive prompt for stable schema validation
     tools = [{"type": "function", "function": {
         "name": "list_documents", "description": "List documents.",
         "parameters": {"type": "object", "properties": {}, "required": []},
     }}]
     d = client.agent_decide(
-        [{"role": "user", "content": "List all documents."}], tools,
+        [{"role": "user", "content": (
+            "你必须返回 action=call_tool，tool_name=list_documents，"
+            "tool_arguments={}。不要 finalize。只返回 JSON。"
+        )}], tools,
     )
     if d.action == "call_tool":
         if not (d.tool_name and isinstance(d.tool_name, str) and d.tool_name.strip()):
@@ -73,7 +76,8 @@ def main() -> int:
     except ChatError as exc:
         print(f"PASS S3: ChatError — {str(exc)[:100]}")
     except Exception as exc:
-        print(f"PASS S3: unexpected {type(exc).__name__}: {exc}")
+        print(f"FAIL S3: unexpected {type(exc).__name__} (expected ChatError): {exc}")
+        failed += 1
 
     if failed:
         print(f"\n{failed} FAILED")
