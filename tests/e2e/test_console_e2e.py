@@ -55,7 +55,8 @@ def test_auth_onboarding_and_navigation(page: Page, base_url: str) -> None:
 
     _onboard(page, "E2E 工作区")
     expect(page.locator(".panelHeader h2").filter(has_text="导入知识")).to_be_visible()
-    expect(page.locator(".panelHeader h2").filter(has_text="文档列表")).to_be_visible()
+    expect(page.locator("#docFileInput")).to_be_visible()
+    expect(page.locator("#uploadDocBtn").filter(has_text="上传选中文件")).to_be_visible()
 
     for label in ("问答", "知识库", "对话", "工作区"):
         expect(page.locator(f".navLinks a:has-text('{label}')")).to_be_visible()

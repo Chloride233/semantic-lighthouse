@@ -413,8 +413,10 @@ def test_agent_loop_records_plan_json_and_raw_response(client, tmp_path):
     _upload(client, gid, h, "doc.md", "# Ontology\n\nContent.")
 
     decisions = [{"action": "call_tool", "tool_name": "search_knowledge_base",
-                  "tool_arguments": {"query": "Ontology"}, "thought": "Search."},
-                 {"action": "finalize", "final_answer": "Done.", "thought": "End."}]
+                  "tool_arguments": {"query": "Ontology"}, "thought": "Search.",
+                  "raw_response": '{"action":"call_tool","tool_name":"search_knowledge_base","thought":"Search.","tool_arguments":{"query":"Ontology"}}'},
+                 {"action": "finalize", "final_answer": "Done.", "thought": "End.",
+                  "raw_response": '{"action":"finalize","final_answer":"Done.","thought":"End."}'}]
     detail = _run_loop(client, gid, h, "Test", decisions)
     assert detail["status"] == "completed"
     # plan_json has llm_decision events
@@ -427,10 +429,20 @@ def test_agent_loop_records_plan_json_and_raw_response(client, tmp_path):
     assert tool_steps, "Expected at least one tool_call step"
     ad = tool_steps[0].get("action_detail") or {}
     assert ad.get("tool") == "search_knowledge_base"
+    raw = ad.get("raw_llm_response", "")
+    assert raw and len(raw) <= 500, f"raw_llm_response missing or > 500: len={len(raw)}"
 
 
 def test_agent_max_steps_capped_to_10(client, tmp_path):
-    """agent_max_steps from settings capped at 10: 999 → 10."""
+    """agent_max_steps=999 → agent_loop receives 10; agent_max_steps=0 → receives 1."""
+    import semantic_lighthouse.routers.agent as agent_router
+
+    captured_max_steps = []
+
+    def fake_loop(db, run, gid, role, decide_fn, max_steps=5):
+        captured_max_steps.append(max_steps)
+        return None  # won't be reached — we just want the captured value
+
     _, _, h = register_and_login(client, "cap@e.com")
     gid = _group(client, h)
     s = _settings(tmp_path)
@@ -438,13 +450,21 @@ def test_agent_max_steps_capped_to_10(client, tmp_path):
     _ovr(client, s)
     _upload(client, gid, h, "doc.md", "# Content\n\ntest")
     rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "test"}, headers=h).json()["id"]
-    # V1 path with ?tool= overrides max_steps check — use V2 path
-    r = client.post(f"/groups/{gid}/agent/runs/{rid}/execute", headers=h)
-    # Should complete with default FakeChatClient (finalizes immediately)
-    assert r.status_code == 200
-    # Verify the cap function works at Python level
-    cap = min(max(999, 1), 10)
-    assert cap == 10
+    with mock.patch.object(agent_router, "agent_loop", side_effect=fake_loop):
+        client.post(f"/groups/{gid}/agent/runs/{rid}/execute", headers=h)
+    assert len(captured_max_steps) == 1
+    assert captured_max_steps[0] == 10, f"Expected 10, got {captured_max_steps[0]}"
+
+    # Test floor: 0 → 1
+    s2 = _settings(tmp_path)
+    s2.agent_max_steps = 0
+    _ovr(client, s2)
+    captured_max_steps.clear()
+    rid2 = client.post(f"/groups/{gid}/agent/runs", json={"goal": "test2"}, headers=h).json()["id"]
+    with mock.patch.object(agent_router, "agent_loop", side_effect=fake_loop):
+        client.post(f"/groups/{gid}/agent/runs/{rid2}/execute", headers=h)
+    assert len(captured_max_steps) == 1
+    assert captured_max_steps[0] == 1, f"Expected 1, got {captured_max_steps[0]}"
 
 
 def test_risky_action_detail_contains_confirmation_metadata(client, tmp_path):
@@ -462,3 +482,26 @@ def test_risky_action_detail_contains_confirmation_metadata(client, tmp_path):
     assert ad.get("requires_confirmation") is True
     assert ad.get("risk_level") == "high"
     assert ad.get("confirmation_reason") is not None
+
+
+def test_agent_chat_error_audited_as_502(client, tmp_path):
+    """ChatError during agent_loop → run=failed, step=failed, HTTP 502."""
+    _, _, h = register_and_login(client, "cer@e.com")
+    gid = _group(client, h)
+    _ovr(client, _settings(tmp_path))
+    rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "test"}, headers=h).json()["id"]
+
+    def bad_decide(*args, **kwargs):
+        from semantic_lighthouse.services.chat import ChatError
+        raise ChatError("Simulated agent failure")
+
+    with mock.patch("semantic_lighthouse.services.chat.create_chat_client") as m:
+        m.return_value = FakeLoopChatClient([{"action": "finalize", "final_answer": "x", "thought": "x"}])
+        m.return_value.agent_decide = bad_decide
+        r = client.post(f"/groups/{gid}/agent/runs/{rid}/execute", headers=h)
+    assert r.status_code == 502
+    detail = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=h).json()
+    assert detail["status"] == "failed"
+    steps = detail.get("steps") or []
+    failed_steps = [s for s in steps if s.get("status") == "failed"]
+    assert failed_steps, "Expected at least one failed step for ChatError"

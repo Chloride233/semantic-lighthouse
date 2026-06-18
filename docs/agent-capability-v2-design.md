@@ -1,8 +1,8 @@
 # Agent Capability v2 — 受控 LLM Tool Loop 设计
 
 **Date**: 2026-06-18
-**Phase**: Agent Capability v2（V2.1 delivered, V2.2 pending）
-**Status**: V2.1 implemented — fake loop, 23 agent tests. V2.2 DeepSeek smoke deferred.
+**Phase**: Agent Capability v2（V2.1 + V2.2 delivered, V2.3 pending）
+**Status**: V2.2 implemented — DeepSeek agent_decide, audit hardening, max_steps config. Real smoke deferred.
 **Depends on**: Agent Workflow Evaluation v1 (delivered, 17 tests)
 
 ## 1. 当前 deterministic FSM 如何工作
@@ -165,9 +165,9 @@ LangChain Academy 的 Deep Agents with LangGraph 对本项目有参考价值，�
 
 ## 15. 分阶段实现
 
-- **V2.0**（当前）：本设计文档
+- **V2.0**：本设计文档
 - **V2.1**（delivered, `78c3d9a`）：`agent_loop()` while 循环 + LLM decide + FakeLoopChatClient + 6 tests
-- **V2.2**（pending）：真实 DeepSeek smoke + Settings.agent_max_steps + `plan_json` / `raw_llm_response` audit hardening
+- **V2.2**（delivered, `898a468`）：DeepSeek agent_decide + Settings.agent_max_steps + plan_json/raw_llm_response audit + ChatError audit。真实 smoke pending
 - **V2.3**：5 个真实 LLM 场景 + 指标对比 + eval report 更新
 
 ## 16. 是否需要 migration

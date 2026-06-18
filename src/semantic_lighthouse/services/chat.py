@@ -215,16 +215,21 @@ class DeepSeekChatClient(ChatClient):
 
         raw_safe = content[:500]
         if action == "call_tool":
+            tool_name = data.get("tool_name", "")
+            if not tool_name or not isinstance(tool_name, str) or not tool_name.strip():
+                raise ChatError("Agent call_tool missing or empty tool_name")
+            tool_args = data.get("tool_arguments")
+            if tool_args is None:
+                tool_args = {}
+            if not isinstance(tool_args, dict):
+                raise ChatError("Agent call_tool tool_arguments must be a dict")
             return AgentDecision(
-                thought=data.get("thought", ""),
-                action="call_tool",
-                tool_name=data.get("tool_name", ""),
-                tool_arguments=data.get("tool_arguments"),
+                thought=data.get("thought", ""), action="call_tool",
+                tool_name=tool_name.strip(), tool_arguments=tool_args,
                 raw_response=raw_safe,
             )
         return AgentDecision(
-            thought=data.get("thought", ""),
-            action="finalize",
+            thought=data.get("thought", ""), action="finalize",
             final_answer=data.get("final_answer", ""),
             raw_response=raw_safe,
         )
@@ -258,6 +263,7 @@ class FakeLoopChatClient(ChatClient):
             tool_name=d.get("tool_name", ""),
             tool_arguments=d.get("tool_arguments"),
             final_answer=d.get("final_answer"),
+            raw_response=d.get("raw_response"),
         )
 
 

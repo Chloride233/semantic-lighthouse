@@ -146,7 +146,15 @@ Manual gates:
 2. max_steps counts all AgentStep types (conservative).
 3. FakeLoopChatClient via `ChatClient.agent_decide()` interface — `create_chat_client` mock injects it.
 
-**Remaining risks**: no real LLM tool decisions (fake only), `Settings.agent_max_steps` not configurable, `plan_json`/`raw_llm_response` audit not stored. See design doc §17.
+**Remaining risks**: DeepSeek agent_decide implemented but real smoke not run; V2.3 real LLM multi-scenario eval pending.
+
+### Agent Capability V2.2 — Provider + Audit Hardening (2026-06-18) — delivered
+
+- **DeepSeek agent_decide()**: real /chat/completions call, json_object, v4 thinking disabled. Validates tool_name (non-empty), tool_arguments (must be dict). ChatError on bad parse.
+- **AgentDecision.raw_response**: 500-char truncation in action_detail.
+- **plan_json**: llm_decision events per step; stopped event on max_steps.
+- **Settings.agent_max_steps**: env AGENT_MAX_STEPS, cap 1–10.
+- **ChatError audit**: V2 path catches ChatError → failed step → fail_run → HTTP 502.
 
 ## Git Repository
 
@@ -254,7 +262,7 @@ Result:
 **Recommended next iteration**:
 1. Agent Capability V2.2: DeepSeek agent_decide + real LLM smoke; V2.3: 5 real LLM eval scenarios.
 2. Deep Agents pattern review: borrow todo/planning, context offloading, subagent isolation, HITL, and event-flow ideas only where they fit the existing lightweight FSM.
-3. Agent Capability audit hardening: `Settings.agent_max_steps`, `plan_json`, and `raw_llm_response` fields deferred from V2.1.
+3. Agent Capability V2.3: real DeepSeek smoke + multi-scenario eval (deferred from V2.2).
 4. V1.2 (task system): manual task creation + `ConversationMessage.next_steps`.
 5. Continue retrieval-quality hardening.
 

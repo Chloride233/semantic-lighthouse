@@ -198,13 +198,33 @@ def execute_agent_step(
     run.updated_at = utc_now()
     db.commit()
 
-    from semantic_lighthouse.services.chat import create_chat_client, FakeLoopChatClient
-    client = create_chat_client(settings)
+    from semantic_lighthouse.services.chat import ChatError, create_chat_client, FakeLoopChatClient
+    try:
+        client = create_chat_client(settings)
+    except ChatError as exc:
+        add_step(db, run, phase="execute", step_index=len(run.steps) if run.steps else 0,
+                 thought="Agent provider failed.", action_type="llm_decision",
+                 action_detail={"action": "agent_decide"},
+                 observation=str(exc)[:200], error_message=str(exc)[:200], status="failed")
+        fail_run(db, run, f"Chat provider unavailable: {exc}")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
+                           detail=f"Chat provider unavailable: {exc}") from exc
+
     if settings.chat_provider == "fake" and not isinstance(client, FakeLoopChatClient):
         client = FakeLoopChatClient([{"action": "finalize", "final_answer": "FakeChatClient fallback.", "thought": "No decisions configured."}])
 
     max_steps = min(max(settings.agent_max_steps, 1), 10)
-    last_step = agent_loop(db, run, group_id, membership.role, client.agent_decide, max_steps=max_steps)
+    try:
+        last_step = agent_loop(db, run, group_id, membership.role, client.agent_decide, max_steps=max_steps)
+    except ChatError as exc:
+        add_step(db, run, phase="execute", step_index=len(run.steps) if run.steps else 0,
+                 thought="Agent provider failed.", action_type="llm_decision",
+                 action_detail={"action": "agent_decide"},
+                 observation=str(exc)[:200], error_message=str(exc)[:200], status="failed")
+        fail_run(db, run, f"Agent decision failed: {exc}")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
+                           detail=f"Agent decision failed: {exc}") from exc
+
     if last_step is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Agent loop produced no step")
     db.refresh(last_step)

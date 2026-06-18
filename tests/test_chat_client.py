@@ -116,3 +116,41 @@ def test_deepseek_agent_decide_invalid_json_raises_chat_error(monkeypatch):
     monkeypatch.setattr(httpx, "post", fake_post)
     with pytest.raises(ChatError):
         DeepSeekChatClient(_settings()).agent_decide([], [])
+
+
+def test_deepseek_agent_decide_tool_args_must_be_dict(monkeypatch):
+    jmod = __import__("json")
+
+    def fake_post(url, json, headers, timeout):
+        request = httpx.Request("POST", url)
+        return httpx.Response(
+            200, request=request,
+            json={"choices": [{"message": {"content": jmod.dumps({
+                "thought": "Search.", "action": "call_tool",
+                "tool_name": "search_knowledge_base",
+                "tool_arguments": "query=Ontology",
+            })}}]},
+        )
+    monkeypatch.setattr(httpx, "post", fake_post)
+    with pytest.raises(ChatError) as exc_info:
+        DeepSeekChatClient(_settings()).agent_decide([], [])
+    assert "tool_arguments must be a dict" in str(exc_info.value)
+
+
+def test_deepseek_agent_decide_empty_tool_name_raises_chat_error(monkeypatch):
+    jmod = __import__("json")
+
+    def fake_post(url, json, headers, timeout):
+        request = httpx.Request("POST", url)
+        return httpx.Response(
+            200, request=request,
+            json={"choices": [{"message": {"content": jmod.dumps({
+                "thought": "Search.", "action": "call_tool",
+                "tool_name": "",
+                "tool_arguments": {},
+            })}}]},
+        )
+    monkeypatch.setattr(httpx, "post", fake_post)
+    with pytest.raises(ChatError) as exc_info:
+        DeepSeekChatClient(_settings()).agent_decide([], [])
+    assert "tool_name" in str(exc_info.value).lower()
