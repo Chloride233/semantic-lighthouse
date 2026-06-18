@@ -210,7 +210,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 | 9.1 | Schema/frontmatter validation | ✅ Detect missing required fields, invalid `entityType`/`documentType`, invalid status/source values, and entity/document type conflicts (2026-06-18) |
 | 9.2 | Entity extraction read model | ✅ Imported documents produce group-scoped ontology entity records with title, aliases, entity_type, source_path, source, status, tags, and document_id (2026-06-18) |
 | 9.3 | Wikilink relation extraction | ✅ Wikilinks parsed into `ontology_relations` with resolved/unresolved status, target_label, relative-path resolution, anchor stripping, idempotent rebuild (2026-06-18) |
-| 9.4 | Governance issue list | Broken links, missing entities, duplicate titles/aliases, invalid controlled vocabulary, and stale eval gold IDs are visible as validation issues |
+| 9.4 | Governance issue list | ✅ Unresolved wikilinks, duplicate titles/aliases, stale eval gold IDs surfaced as `OntologyValidationIssue` records; `document_id` made nullable for eval-scoped issues (2026-06-18) |
 | 9.5 | Ontology graph and entity detail UI | Console shows entity list, graph view, entity detail, inbound/outbound links, source document, and validation issues |
 
 **Known first governance inputs**:

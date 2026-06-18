@@ -433,7 +433,7 @@ class OntologyEntityListResponse(BaseModel):
 class OntologyValidationIssueResponse(BaseModel):
     id: str
     group_id: str
-    document_id: str
+    document_id: str | None = None
     entity_id: str | None = None
     severity: str
     code: str

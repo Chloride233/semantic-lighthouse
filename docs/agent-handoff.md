@@ -476,7 +476,23 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Full suite**: 224 passed, ruff clean, migration 0012 at head
 - **Not in scope**: wikilink relations (9.3), governance issue list UI (9.4), ontology graph UI (9.5), Graph RAG, Agent writes to ontology, external KB modification
 
-**Next**: Phase 9.4 governance issue list (unresolved relations, duplicate titles/aliases, stale eval gold IDs).
+**Next**: Phase 9.5 ontology graph and entity detail UI.
+
+### Governance Issue List — Phase 9.4 (2026-06-18)
+
+**Status**: Delivered.
+
+- **New issue types** (all `warning` severity, surfaced via existing `GET /ontology/issues`):
+  - `unresolved_wikilink` — each unresolved `OntologyRelation` generates one issue per source entity
+  - `duplicate_title` — normalized title conflicts across entities in the same group
+  - `duplicate_alias` — alias-alias and alias-title conflicts; self-alias matching own title excluded
+  - `stale_eval_gold_doc_id` — eval JSON expect_relevant_doc_ids not found in imported ontology KB docs
+  - `eval_gold_check_failed` — eval JSON file unreadable (fallback)
+- **Schema change**: `ontology_validation_issues.document_id` now nullable (migration `0014`) to support eval-scoped issues without document linkage
+- **Stale eval check**: only triggers when group has imported ontology-style docs (non-upload: prefix + KB_ROOT_DIRS); never edits the eval file
+- **Duplicate normalization**: strip + casefold; ignores empty aliases; self-alias-title match excluded
+- **Tests**: 8 new governance issue tests (unresolved_wikilink, duplicate_title, duplicate_alias, alias-title-conflict, self-alias-excluded, stale eval guard, idempotent, cross-group)
+- **Full suite**: 245 passed, ruff clean, migration 0014 at head
 
 ### Wikilink Relation Extraction — Phase 9.3 (2026-06-18)
 

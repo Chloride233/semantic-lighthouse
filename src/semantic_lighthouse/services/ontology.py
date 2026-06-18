@@ -1,14 +1,18 @@
-"""Ontology scan service — frontmatter validation, entity extraction, and wikilink relation extraction.
+"""Ontology scan service — frontmatter validation, entity extraction, wikilink relation extraction, and governance issue surfacing.
 
 Phase 9.1 + 9.2: validates Document.frontmatter, generates entities and issues.
 Phase 9.3: extracts Obsidian wikilinks from raw_content as OntologyRelation records.
+Phase 9.4: surfaces unresolved relations, duplicate titles/aliases, and stale eval gold IDs as governance issues.
 
 Read-only governance: does NOT modify external KB files.
 """
 
 from __future__ import annotations
 
+import json
 import re
+from collections import defaultdict
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -38,7 +42,7 @@ WIKILINK_RE = re.compile(r"(?<!!)\[\[([^\[\]]+?)\]\]")
 
 def _issue(
     group_id: str,
-    document_id: str,
+    document_id: str | None,
     severity: str,
     code: str,
     message: str,
@@ -326,6 +330,30 @@ def scan_group(db: Session, group_id: str) -> dict:
                 evidence_document_id=doc.id,
             ))
 
+    # ── Phase 9.4: governance issues ──────────────────────────────────
+    # unresolved wikilinks
+    for rel in relations:
+        if rel.status == "unresolved":
+            src_doc = db.get(Document, rel.source_document_id)
+            src_sp = src_doc.source_path if src_doc else ""
+            issues.append(_issue(
+                group_id, rel.source_document_id, "warning", "unresolved_wikilink",
+                f"Wikilink target is unresolved: {rel.target_path}",
+                src_sp, entity_id=rel.source_entity_id, field="raw_content",
+                details={
+                    "target_path": rel.target_path,
+                    "target_label": rel.target_label,
+                    "relation_id": rel.id,
+                    "relation_type": rel.relation_type,
+                },
+            ))
+
+    # duplicate title / alias detection
+    _generate_duplicate_issues(group_id, entities, issues)
+
+    # stale eval gold doc id detection
+    _generate_stale_eval_issues(group_id, docs, issues)
+
     db.add_all(issues)
     db.add_all(relations)
     db.commit()
@@ -336,6 +364,177 @@ def scan_group(db: Session, group_id: str) -> dict:
         "issue_count": len(issues),
         "relation_count": len(relations),
     }
+
+
+def _generate_duplicate_issues(
+    group_id: str,
+    entities: list[OntologyEntity],
+    issues: list[OntologyValidationIssue],
+) -> None:
+    """Detect duplicate titles and aliases among entities.
+
+    Generates duplicate_title and duplicate_alias issues.
+    Does not treat an entity alias matching its own title as a conflict.
+    """
+    # ── Title duplicates ────────────────────────────────────────────
+    title_map: dict[str, list[OntologyEntity]] = defaultdict(list)
+    for e in entities:
+        key = e.title.strip().casefold()
+        title_map[key].append(e)
+
+    for norm_title, group in title_map.items():
+        if len(group) < 2:
+            continue
+        dup_ids = [e.id for e in group]
+        dup_paths = [e.source_path for e in group]
+        for e in group:
+            issues.append(_issue(
+                group_id, e.document_id, "warning", "duplicate_title",
+                f"Duplicate ontology entity title: {e.title}",
+                e.source_path, entity_id=e.id, field="title",
+                details={
+                    "normalized_title": norm_title,
+                    "duplicate_entity_ids": dup_ids,
+                    "duplicate_source_paths": dup_paths,
+                },
+            ))
+
+    # ── Alias conflicts ─────────────────────────────────────────────
+    # Build index: normalized string → set of entity ids
+    # We'll track two maps: aliases and titles (excluding self)
+    entity_title_key: dict[str, str] = {}
+    alias_keys_map: dict[str, set[str]] = defaultdict(set)  # normalized → entity ids
+
+    for e in entities:
+        title_key = e.title.strip().casefold()
+        entity_title_key[e.id] = title_key
+        for alias in (e.aliases or []):
+            if isinstance(alias, str) and alias.strip():
+                key = alias.strip().casefold()
+                if key != title_key:  # exclude self
+                    alias_keys_map[key].add(e.id)
+
+    # Build global conflict set per entity
+    entity_conflict_aliases: dict[str, set[str]] = defaultdict(set)
+
+    # Alias vs alias conflicts
+    for norm_key, eids in alias_keys_map.items():
+        if len(eids) < 2:
+            continue
+        for eid in eids:
+            entity_conflict_aliases[eid].add(norm_key)
+
+    # Alias vs title conflicts
+    for norm_key, eids in alias_keys_map.items():
+        for e in entities:
+            if e.id not in eids and entity_title_key[e.id] == norm_key:
+                entity_conflict_aliases[e.id].add(norm_key)
+                for alias_eid in eids:
+                    entity_conflict_aliases[alias_eid].add(norm_key)
+
+    # Generate per-entity issues
+    for eid, norm_keys in entity_conflict_aliases.items():
+        e = next((x for x in entities if x.id == eid), None)
+        if e is None:
+            continue
+        for nk in sorted(norm_keys):
+            # Find conflicting entities
+            other_ids = [
+                o.id for o in entities
+                if o.id != e.id and (
+                    o.id in alias_keys_map.get(nk, set()) or
+                    entity_title_key[o.id] == nk
+                )
+            ]
+            other_titles = [o.title for o in entities if o.id in other_ids]
+            other_paths = [o.source_path for o in entities if o.id in other_ids]
+            issues.append(_issue(
+                group_id, e.document_id, "warning", "duplicate_alias",
+                f"Duplicate or conflicting ontology alias: {nk}",
+                e.source_path, entity_id=e.id, field="aliases",
+                details={
+                    "normalized_alias": nk,
+                    "conflicting_entity_ids": other_ids,
+                    "conflicting_titles": other_titles,
+                    "conflicting_source_paths": other_paths,
+                },
+            ))
+
+
+KB_ROOT_DIRS = {
+    "concepts", "vendors", "products", "methodologies",
+    "cases", "persons", "research", "proposals", "faqs",
+}
+
+EVAL_JSON_PATH = Path(__file__).resolve().parents[3] / "docs" / "eval" / "rag-queries-ontology.json"
+
+
+def _generate_stale_eval_issues(
+    group_id: str,
+    docs: list[Document],
+    issues: list[OntologyValidationIssue],
+) -> None:
+    """Cross-reference eval gold doc IDs against imported ontology KB docs.
+
+    Only runs when group has imported ontology-style docs (non-upload: prefix,
+    matching KB_ROOT_DIRS). Never edits the eval file.
+    """
+    # Check if this group has imported ontology KB docs
+    has_imported = any(
+        d.source_path and not d.source_path.startswith("upload:")
+        and any(
+            d.source_path.startswith(d2 + "/") or d.source_path == d2
+            for d2 in KB_ROOT_DIRS
+        )
+        for d in docs
+    )
+    if not has_imported:
+        return
+
+    # Load eval JSON
+    try:
+        with open(EVAL_JSON_PATH, encoding="utf-8") as f:
+            eval_data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as exc:
+        issues.append(_issue(
+            group_id, None, "warning", "eval_gold_check_failed",
+            f"Cannot load eval gold file: {EVAL_JSON_PATH}",
+            str(EVAL_JSON_PATH),
+            details={"error": str(exc)[:200]},
+        ))
+        return
+
+    # Collect expected doc IDs
+    expected_ids: set[str] = set()
+    id_to_questions: dict[str, list[str]] = defaultdict(list)
+    for q in eval_data:
+        for doc_id in q.get("expect_relevant_doc_ids", []):
+            if doc_id:
+                expected_ids.add(doc_id)
+                id_to_questions[doc_id].append(q.get("id", "?"))
+
+    # Build available paths set (strip upload: prefix)
+    available_paths: set[str] = set()
+    for d in docs:
+        sp = d.source_path or ""
+        if sp.startswith("upload:"):
+            sp = sp[7:]
+        available_paths.add(sp)
+        available_paths.add(sp + ".md" if not sp.endswith(".md") else sp)
+
+    for expect_id in sorted(expected_ids):
+        normalized = expect_id if expect_id.endswith(".md") else expect_id + ".md"
+        if normalized not in available_paths:
+            issues.append(_issue(
+                group_id, None, "warning", "stale_eval_gold_doc_id",
+                f"Eval gold document id is not present in imported ontology KB: {expect_id}",
+                str(EVAL_JSON_PATH), field="expect_relevant_doc_ids",
+                details={
+                    "expected_doc_id": expect_id,
+                    "expected_path": normalized,
+                    "question_ids": id_to_questions.get(expect_id, []),
+                },
+            ))
 
 
 def _normalize_path(target: str, source_sp: str) -> str | None:

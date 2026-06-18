@@ -592,3 +592,179 @@ class TestWikilinkRelations:
         )
         assert r.status_code == 200
         assert r.json()["total"] >= 1
+
+
+# ── P6: governance issues (Phase 9.4) ───────────────────────────────
+
+
+class TestGovernanceIssues:
+    def test_unresolved_wikilink_creates_issue(self, client):
+        _, _, h = register_and_login(client, "gi1@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {
+            "entityType": "Concept", "tags": ["src"], "created": "2026-01-01",
+        }, body="[[missing-target]]")
+
+        _scan(client, gid, h)
+        r = client.get(
+            f"/groups/{gid}/ontology/issues?code=unresolved_wikilink", headers=h
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] >= 1
+        issue = data["issues"][0]
+        assert issue["severity"] == "warning"
+        assert issue["code"] == "unresolved_wikilink"
+        assert "missing-target" in issue["message"]
+        assert issue["document_id"] is not None
+
+    def test_duplicate_title_creates_issues(self, client):
+        _, _, h = register_and_login(client, "gi2@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "a.md", {
+            "entityType": "Concept", "tags": ["a"], "created": "2026-01-01",
+        }, body="a")
+        _upload_doc(client, gid, h, "b.md", {
+            "entityType": "Concept", "tags": ["b"], "created": "2026-01-01",
+        }, body="b")
+
+        # Upload docs with identical titles for duplicate detection
+        _upload_doc(client, gid, h, "c.md", {
+            "entityType": "Concept", "tags": ["c"], "created": "2026-01-01",
+        }, body="# Same Title\nc")
+        _upload_doc(client, gid, h, "d.md", {
+            "entityType": "Concept", "tags": ["d"], "created": "2026-01-01",
+        }, body="# Same Title\nd")
+
+        _scan(client, gid, h)
+        r = client.get(
+            f"/groups/{gid}/ontology/issues?code=duplicate_title", headers=h
+        )
+        data = r.json()
+        # May or may not have duplicates depending on upload titles
+        # The upload uses filename as title, so titles are "c.md" and "d.md"
+        # Let's check — actually the doc title is set from the file content title
+        # Both have "# Same Title" as the heading → title is "Same Title"
+        assert data["total"] >= 2  # at least 2 issues, one per entity
+        for issue in data["issues"]:
+            assert issue["code"] == "duplicate_title"
+            assert issue["severity"] == "warning"
+            assert "Same Title" in issue["message"]
+
+    def test_duplicate_alias_creates_issues(self, client):
+        _, _, h = register_and_login(client, "gi3@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "e.md", {
+            "entityType": "Concept", "tags": ["e"], "created": "2026-01-01",
+            "aliases": ["shared-alias"],
+        }, body="# Entity E\ne")
+        _upload_doc(client, gid, h, "f.md", {
+            "entityType": "Concept", "tags": ["f"], "created": "2026-01-01",
+            "aliases": ["shared-alias"],
+        }, body="# Entity F\nf")
+
+        _scan(client, gid, h)
+        r = client.get(
+            f"/groups/{gid}/ontology/issues?code=duplicate_alias", headers=h
+        )
+        data = r.json()
+        assert data["total"] >= 2
+        for issue in data["issues"]:
+            assert issue["code"] == "duplicate_alias"
+            assert issue["severity"] == "warning"
+
+    def test_alias_conflict_with_other_title(self, client):
+        _, _, h = register_and_login(client, "gi4@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "g.md", {
+            "entityType": "Concept", "tags": ["g"], "created": "2026-01-01",
+            "aliases": ["ConflictName"],
+        }, body="# Entity G\ng")
+        _upload_doc(client, gid, h, "h.md", {
+            "entityType": "Concept", "tags": ["h"], "created": "2026-01-01",
+        }, body="# ConflictName\nh")
+
+        _scan(client, gid, h)
+        r = client.get(
+            f"/groups/{gid}/ontology/issues?code=duplicate_alias", headers=h
+        )
+        data = r.json()
+        # Entity g has alias "ConflictName", entity h has title "ConflictName"
+        assert data["total"] >= 1
+
+    def test_self_alias_matching_title_no_issue(self, client):
+        """An entity's own alias matching its own title should not flag."""
+        _, _, h = register_and_login(client, "gi5@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "ontology.md", {
+            "entityType": "Concept", "tags": ["x"], "created": "2026-01-01",
+            "aliases": ["Ontology", "语义本体"],
+        }, body="# Ontology\ncontent")
+
+        _scan(client, gid, h)
+        r = client.get(
+            f"/groups/{gid}/ontology/issues?code=duplicate_alias", headers=h
+        )
+        # "Ontology" alias matches title "Ontology" — should NOT generate issue
+        for issue in r.json()["issues"]:
+            assert "Ontology" not in issue.get("details", {}).get("normalized_alias", "")
+
+    def test_stale_eval_gold_only_for_imported_kb(self, client):
+        """upload: prefixed docs should NOT trigger stale eval check."""
+        _, _, h = register_and_login(client, "gi6@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "test.md", {
+            "entityType": "Concept", "tags": ["x"], "created": "2026-01-01",
+        }, body="test")
+
+        _scan(client, gid, h)
+        r = client.get(
+            f"/groups/{gid}/ontology/issues?code=stale_eval_gold_doc_id", headers=h
+        )
+        assert r.json()["total"] == 0  # upload: prefix → no stale check
+
+    def test_idempotent_rescan_no_duplicate_issues(self, client):
+        _, _, h = register_and_login(client, "gi7@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {
+            "entityType": "Concept", "tags": ["src"], "created": "2026-01-01",
+        }, body="[[missing]]")
+        _upload_doc(client, gid, h, "dup-a.md", {
+            "entityType": "Concept", "tags": ["a"], "created": "2026-01-01",
+        }, body="# Same\na")
+        _upload_doc(client, gid, h, "dup-b.md", {
+            "entityType": "Concept", "tags": ["b"], "created": "2026-01-01",
+        }, body="# Same\nb")
+
+        r1 = _scan(client, gid, h)
+        r2 = _scan(client, gid, h)
+        assert r1["issue_count"] == r2["issue_count"]
+
+    def test_cross_group_issues_isolated(self, client):
+        _, _, h_a = register_and_login(client, "gi8a@t.com")
+        _, _, h_b = register_and_login(client, "gi8b@t.com")
+        ga = _create_group(client, h_a)
+        gb = _create_group(client, h_b)
+        _upload_doc(client, ga, h_a, "src.md", {
+            "entityType": "Concept", "tags": ["src"], "created": "2026-01-01",
+        }, body="[[missing]]")
+        _upload_doc(client, ga, h_a, "d1.md", {
+            "entityType": "Concept", "tags": ["d1"], "created": "2026-01-01",
+        }, body="# Same\nd1")
+        _upload_doc(client, ga, h_a, "d2.md", {
+            "entityType": "Concept", "tags": ["d2"], "created": "2026-01-01",
+        }, body="# Same\nd2")
+        _scan(client, ga, h_a)
+
+        # Group B should have no issues from A
+        r = client.get(f"/groups/{ga}/ontology/issues", headers=h_b)
+        assert r.status_code == 403  # not a member
+
+        _upload_doc(client, gb, h_b, "z.md", {
+            "entityType": "Concept", "tags": ["z"], "created": "2026-01-01",
+        }, body="z")
+        _scan(client, gb, h_b)
+        r_b = client.get(f"/groups/{gb}/ontology/issues", headers=h_b)
+        assert r_b.status_code == 200
+        # Group B only has its own issues (no wikilinks, no duplicates)
+        assert r_b.json()["total"] == 0

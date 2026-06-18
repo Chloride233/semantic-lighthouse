@@ -366,7 +366,7 @@ class OntologyValidationIssue(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), index=True, nullable=False)
-    document_id: Mapped[str] = mapped_column(String(36), ForeignKey("documents.id"), index=True, nullable=False)
+    document_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("documents.id"), index=True, nullable=True)
     entity_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("ontology_entities.id"), index=True, nullable=True)
     severity: Mapped[str] = mapped_column(String(20), index=True, nullable=False)
     code: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
