@@ -211,7 +211,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 | 9.2 | Entity extraction read model | ✅ Imported documents produce group-scoped ontology entity records with title, aliases, entity_type, source_path, source, status, tags, and document_id (2026-06-18) |
 | 9.3 | Wikilink relation extraction | ✅ Wikilinks parsed into `ontology_relations` with resolved/unresolved status, target_label, relative-path resolution, anchor stripping, idempotent rebuild (2026-06-18) |
 | 9.4 | Governance issue list | ✅ Unresolved wikilinks, duplicate titles/aliases, stale eval gold IDs surfaced as `OntologyValidationIssue` records; `document_id` made nullable for eval-scoped issues (2026-06-18) |
-| 9.5 | Ontology graph and entity detail UI | Console shows entity list, graph view, entity detail, inbound/outbound links, source document, and validation issues |
+| 9.5 | Ontology graph and entity detail UI | ✅ Console page with entity list (filterable), SVG graph (read-only), entity detail panel (relations + issues), governance issue list, scan button for owner/admin (2026-06-18) |
 
 **Known first governance inputs**:
 

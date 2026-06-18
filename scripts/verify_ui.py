@@ -249,6 +249,20 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         agent_page_ok = has_title and has_create and has_input and has_btn and has_examples and has_list
     results.append(("Agent page renders", agent_page_ok))
 
+    # ── Ontology page ──────────────────────────────────────────────────
+    onto_page_ok = False
+    if gid:
+        page.goto(f"{base}/console#/groups/{gid}/ontology")
+        page.wait_for_timeout(800)
+        onto_page_ok = (
+            page.locator("text=Ontology 治理").count() > 0
+            and page.locator("#ontoMetrics").count() > 0
+            and (page.locator("text=只读视图").count() > 0
+                 or page.locator("#ontoScanBtn").count() > 0
+                 or page.locator(".muted").count() > 0)
+        )
+    results.append(("Ontology page renders", onto_page_ok))
+
     # ── 19. Document filter tabs ──────────────────────────────────────
     doc_filter_ok = False
     if gid:

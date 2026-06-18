@@ -476,7 +476,25 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Full suite**: 224 passed, ruff clean, migration 0012 at head
 - **Not in scope**: wikilink relations (9.3), governance issue list UI (9.4), ontology graph UI (9.5), Graph RAG, Agent writes to ontology, external KB modification
 
-**Next**: Phase 9.5 ontology graph and entity detail UI.
+**Next**: Phase 9 completion review, then real ontology KB import demo with governance findings.
+
+### Ontology Graph Console — Phase 9.5 (2026-06-18)
+
+**Status**: Delivered.
+
+- **New page**: `static/js/pages/ontology.js` — `#/groups/:gid/ontology`
+- **Navbar**: "Ontology" link added
+- **Capabilities**:
+  - Summary metrics: entity count, relation count, unresolved count, issue count
+  - Entity list (left): filterable by entity_type, status, q (title/alias search); click to select
+  - Graph view (center): SVG circular layout with color-coded nodes per entity_type; resolved=实线, unresolved=虚线; click nodes to navigate
+  - Entity detail (right): title, type, status, source, aliases, tags, path; outbound/inbound relations with resolved/unresolved status and target entity titles; related validation issues
+  - Governance issue list (bottom): grouped by severity (error/warning), clickable entity links
+  - Scan button: visible to owner/admin only; POSTs /scan then refreshes
+  - Member: read-only view (scan button hidden, ALL API calls are GET only)
+- **UI smoke**: `verify_ui` check "Ontology page renders" PASS
+- **Still read-only**: No graph editing, no entity writing, no relation writing, no modeling studio, no Graph RAG, no Agent auto-write
+- **Verification**: 36/36 ontology tests, ruff clean, verify_ui 20/23
 
 ### Governance Issue List — Phase 9.4 (2026-06-18)
 

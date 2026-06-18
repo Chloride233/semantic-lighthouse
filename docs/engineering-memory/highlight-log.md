@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 9.5 — Ontology Graph UI as Read Model Visibility, Not Graph Database
+
+- Date: 2026-06-18
+- Version: Phase 9.5
+- Type: highlight
+- Context: Phase 9.1–9.4 had entities, relations, and governance issues in the API. The final Phase 9 step was making that visible.
+- What happened: Built `static/js/pages/ontology.js` — a three-column read-only governance console. Entity list with type/status/q filters, SVG graph with color-coded per-type nodes (resolved=实线, unresolved=虚线), entity detail panel with inbound/outbound relations and linked issues, and a governance issue list grouped by severity. Owner/admin can trigger scan; member sees read-only view. All backed by existing group-scoped REST APIs.
+- Engineering judgment: The Ontology graph UI is read model visibility — it renders what the scan produces. No graph database, no layout library, no modeling studio, no Agent auto-write. The SVG layout is deterministic circular for up to ~40 related nodes. This proves the governance pipeline (scan → entities → relations → issues → visible) without introducing a graph runtime.
+- Verification: 36/36 ontology tests, verify_ui Ontology page renders PASS, ruff clean.
+
 ## Phase 9.3 — Wikilink Relations as Read Model, Not Graph Database
 
 - Date: 2026-06-18

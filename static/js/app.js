@@ -11,6 +11,7 @@ import { render as ragPage } from './pages/rag.js';
 import { render as conversationsPage } from './pages/conversations.js';
 import { render as tasksPage } from './pages/tasks.js';
 import { render as agentPage } from './pages/agent.js';
+import { render as ontologyPage } from './pages/ontology.js';
 
 route('/login', authPage);
 route('/onboarding', onboardingPage);
@@ -22,6 +23,7 @@ route('/groups/:gid/rag', ragPage);
 route('/groups/:gid/conversations', conversationsPage);
 route('/groups/:gid/tasks', tasksPage);
 route('/groups/:gid/agent', agentPage);
+route('/groups/:gid/ontology', ontologyPage);
 
 initNavbar('navbar');
 initRouter('outlet');
