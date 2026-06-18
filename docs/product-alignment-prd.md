@@ -109,7 +109,7 @@ Current delivered:
 
 Current Phase 8 gap:
 
-- task `source_type` should expand beyond `rag_run` to `conversation`, `agent_run`, and `manual`
+- task `source_type` now supports `rag_run`, `conversation`, `agent_run`, and `manual` — delivered Phase 8.3
 - conversation UX needs visible citations, tool calls, and failure states
 - real DeepSeek Agent smoke results should be recorded
 - demo scenario scripts should show the full loop without Swagger
@@ -289,8 +289,8 @@ The aligned product direction is successful if a new session can answer these qu
 The next implementation milestone is successful if:
 
 - Agent run/step/HITL frontend pages make existing backend capabilities visible.
-- Task source_type expands beyond `rag_run` to `conversation`, `agent_run`, and `manual`.
-- Conversation UX is hardened with visible citations, tool calls, and failure states.
+- Task source_type supports `rag_run`, `conversation`, `agent_run`, and `manual` (Phase 8.3).
+- Conversation UX is hardened with visible citations, tool calls, and failure states (Phase 8.4 in progress).
 - Real DeepSeek Agent smoke results are recorded.
 - Demo scenario scripts exist for portfolio presentation.
 - Phase 9 starts from KB governance and graph visibility, not from a full modeling studio or Graph RAG.

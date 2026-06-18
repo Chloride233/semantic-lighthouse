@@ -97,7 +97,7 @@ Manual gates:
 2. Owner/Admin cannot edit others' task title/description — creator-only semantics.
 3. Migration named `0010_v10_tasks.py` — aligns with existing `v<N>` convention.
 4. verify_ui check 15 is button-existence only (not full click flow) — full E2E deferred to Playwright.
-5. V1 source_type only supports `rag_run`. conversation/agent_run/manual deferred.
+5. source_type expanded to `rag_run`, `conversation`, `agent_run`, `manual` (Phase 8.3, commit `f703c7a`).
 6. Manual task creation deferred to V1.1.
 7. No task comments, attachments, due dates, priorities, assignees, or external integrations.
 
@@ -113,8 +113,8 @@ Manual gates:
 - **5 new tests**: cancelled CRUD + member reopen + non-member detail isolation.
 - **2 new verify_ui checks**: task card render + cancelled filter tab.
 
-**Still deferred to v1.2+**:
-- Manual task creation, conversation/agent_run source_type, independent detail page route, task edit modal, edit/delete by non-creator.
+**Phase 8.3 delivered (source_type = rag_run | conversation | agent_run | manual). Still deferred**:
+- Manual task creation UI, independent detail page route, task edit modal, edit/delete by non-creator.
 
 ### Product Alignment (2026-06-18)
 
@@ -399,7 +399,22 @@ Do not store real `DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, database passwords, c
 - **Not in scope**: conversation_id selection, multi-Agent, web search, LangGraph, DB migrations
 - **Verification**: 37 agent tests pass, ruff clean, verify_ui 18/21 (3 pre-existing failures unrelated to Agent page)
 
-**Next on Phase 8**: 8.4 conversation UX hardening, 8.1 real DeepSeek smoke recording, 8.5 demo scenario scripts.
+**Next on Phase 8**: 8.1 real DeepSeek smoke recording, 8.5 demo scenario scripts.
+
+### Conversation UX Hardening — Phase 8.4 (2026-06-18)
+
+**Status**: Delivered.
+
+- **`static/js/pages/conversations.js`**: Rewritten with structured message rendering
+  - `renderUserMessage` / `renderAssistantMessage` / `renderToolMessage` functions
+  - Assistant: content + confidenceBadge + context bar (🔍 retrieval method · 📄 N 条引用 · model) + citations list (title, snippet, score, retrieval method) + knowledge_gaps list
+  - Tool: tool name + arguments + result summary (300-char truncate with expand)
+  - User: kept simple
+  - Send button: disabled during send ("发送中..."), restored on error with clear Chinese error message
+  - Load error: styled panel instead of bare error text
+  - Now imports `esc` from `../util/esc.js` and `confidenceBadge` from `../components/badge.js`
+- **Cleanup**: models.py Task docstring, product-alignment-prd.md Phase 8 gap list, agent-handoff.md old "V1 only rag_run" text — all updated
+- **Verification**: verify_ui 19/22 (Conversations renders PASS, 3 pre-existing failures unrelated), test_tasks.py 22/22 PASS, ruff clean
 
 ### Task Source Type Expansion — Phase 8.3 (2026-06-18)
 

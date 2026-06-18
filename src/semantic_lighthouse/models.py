@@ -341,7 +341,7 @@ class Task(Base):
     """Lightweight user-confirmed task from RAG next_steps.
 
     Product alignment §7 — tasks are traceable work items, not a full PM system.
-    V1: source_type='rag_run' only.
+    source_type: rag_run | conversation | agent_run | manual.
     """
 
     __tablename__ = "tasks"

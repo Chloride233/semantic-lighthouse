@@ -194,7 +194,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 | 8.1 | Real DeepSeek Agent smoke recording | Run `scripts/smoke_agent_deepseek.py` with API key, record results in `docs/agent-capability-v23-eval.md` |
 | 8.2 | Agent run/step/HITL frontend page | Agent runs visible in console: timeline of steps, tool calls, observations, HITL confirm/reject events |
 | 8.3 | Task source_type expansion | ✅ `conversation`, `agent_run`, `manual` source types alongside existing `rag_run` (2026-06-18) |
-| 8.4 | Conversation UX hardening | Visible citations per message, tool call display, failure/error states, context indicators |
+| 8.4 | Conversation UX hardening | ✅ Visible citations, knowledge gaps, context indicators, tool details, send/error states (2026-06-18) |
 | 8.5 | Demo scenario scripts | Reproducible walkthrough scripts for portfolio presentation: knowledge import → RAG → tasks → Agent workflow |
 
 **Acceptance**: A reviewer can see the full loop from RAG answer to task creation to Agent tool execution to HITL to audit trail from the frontend without Swagger.

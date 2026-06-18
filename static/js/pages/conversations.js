@@ -2,31 +2,33 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { panel } from '../components/panel.js';
 import { confidenceBadge } from '../components/badge.js';
+import { esc } from '../util/esc.js';
 import { showToast } from '../util/toast.js';
+
+const RETRIEVAL_LABELS = {
+  hybrid: '混合检索', keyword: '关键词', semantic: '语义', auto: '自动',
+};
+const CITATION_LABELS = {
+  keyword: '关键词', semantic: '语义', hybrid: '混合',
+};
 
 export async function render(container, params) {
   const gid = params.gid || state.currentGroupId;
-  if (!gid) { container.innerHTML = '<p>请先选择工作区。</p>'; return; }
+  if (!gid) { container.innerHTML = '<p class="muted">请先选择工作区。</p>'; return; }
 
-  container.innerHTML = '<h1 class="pageTitle">多轮对话</h1><p class="pageMeta">围绕同一咨询主题持续追问、补充背景和沉淀建议。</p><div class="loading"><span class="spinner"></span>正在加载对话...</div>';
+  container.innerHTML = '<h1 class="pageTitle">多轮对话</h1><p class="pageMeta">围绕同一咨询主题持续追问、补充背景和沉淀建议。</p><div class="loading"><span class="spinner"></span> 正在加载对话...</div>';
 
-  async function loadList() {
-    try {
-      return await api(`/groups/${gid}/conversations`) || [];
-    } catch (_) { return []; }
-  }
+  const convs = await loadList(gid);
 
-  const convs = await loadList();
-
-  const newPanel = panel('新建对话', `
-    <label>对话标题 <input id="convTitle" type="text" placeholder="客户 AI 转型诊断" /></label>
+  const newPanelHtml = panel('新建对话', `
+    <label class="formLabel">对话标题 <input id="convTitle" type="text" placeholder="客户 AI 转型诊断" /></label>
     <button id="createConvBtn">创建对话</button>
   `);
 
   const listHtml = convs.length === 0
     ? '<div class="emptyState"><div class="emptyIcon">问</div><p class="emptyTitle">还没有对话</p><p class="emptyHint">新建一个咨询对话，围绕客户画像和业务问题持续追问。</p></div>'
     : `<table class="dataTable">
-        <thead><tr><th>标题</th><th>消息数</th><th>更新时间</th><th>打开</th></tr></thead>
+        <thead><tr><th>标题</th><th>消息数</th><th>更新时间</th><th>操作</th></tr></thead>
         <tbody>${convs.map((c) => `
           <tr>
             <td><strong>${esc(c.title)}</strong></td>
@@ -40,7 +42,7 @@ export async function render(container, params) {
   container.innerHTML = `
     <h1 class="pageTitle">多轮对话</h1>
     <p class="pageMeta">围绕同一咨询主题持续追问、补充背景和沉淀建议。</p>
-    ${newPanel}${panel('对话列表', listHtml)}
+    ${newPanelHtml}${panel('对话列表', listHtml)}
     <div id="chatArea" style="margin-top:16px"></div>
   `;
 
@@ -59,9 +61,16 @@ export async function render(container, params) {
   });
 }
 
+async function loadList(gid) {
+  try { return await api(`/groups/${gid}/conversations`) || []; }
+  catch (_) { return []; }
+}
+
+/* ── Chat View ──────────────────────────────────────────────────────── */
+
 async function renderChat(container, gid, convId) {
   const area = document.getElementById('chatArea');
-  area.innerHTML = '<div class="loading"><span class="spinner"></span>正在加载消息...</div>';
+  area.innerHTML = '<div class="loading"><span class="spinner"></span> 正在加载消息...</div>';
 
   try {
     const detail = await api(`/groups/${gid}/conversations/${convId}`);
@@ -70,14 +79,7 @@ async function renderChat(container, gid, convId) {
       <div class="chatPanel">
         <h3>${esc(detail.title)}</h3>
         <div class="chatMessages" id="chatMessages">
-          ${messages.map((m) => `
-            <div class="chatMsg chatMsg-${m.role}">
-              <div class="chatRole">${roleLabel(m.role)}</div>
-              <div class="chatContent">${esc(m.content)}</div>
-              ${m.confidence ? `<span class="chatConfidence">${confidenceBadge(m.confidence)}</span>` : ''}
-              ${m.tool_calls?.length ? `<div class="chatToolCalls">工具：${esc(m.tool_calls[0]?.name || '')}</div>` : ''}
-            </div>
-          `).join('')}
+          ${messages.map((m) => renderMessage(m)).join('')}
         </div>
         <p id="chatError" class="formError" style="display:none"></p>
         <div class="chatInput">
@@ -87,49 +89,161 @@ async function renderChat(container, gid, convId) {
       </div>
     `;
 
-    const msgContainer = document.getElementById('chatMessages');
-    if (msgContainer) msgContainer.scrollTop = msgContainer.scrollHeight;
-
-    document.getElementById('chatSendBtn').addEventListener('click', async () => {
-      const input = document.getElementById('chatInput');
-      const question = input.value.trim();
-      if (!question) return;
-      const errEl = document.getElementById('chatError');
-      if (errEl) errEl.style.display = 'none';
-      input.value = '';
-      input.disabled = true;
-      try {
-        await api(`/groups/${gid}/conversations/${convId}/messages`, {
-          method: 'POST',
-          body: JSON.stringify({ question, retrieval_method: 'hybrid', limit: 8 }),
-        });
-        await renderChat(container, gid, convId);
-      } catch (err) {
-        const errMsg = document.getElementById('chatError');
-        if (errMsg) {
-          errMsg.textContent = '发送失败：' + (err.detail || '请检查服务是否正常运行');
-          errMsg.style.display = 'block';
-        } else {
-          showToast('发送失败：' + (err.detail || '服务异常'), 'error');
-        }
-        input.disabled = false;
-      }
-    });
-
-    document.getElementById('chatInput').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') document.getElementById('chatSendBtn').click();
-    });
+    scrollToBottom();
+    bindChatEvents(gid, convId);
   } catch (err) {
-    area.innerHTML = `<div class="error">加载对话失败：${esc(err.detail)}</div>`;
+    area.innerHTML = `<div class="panel"><div class="panelBody" style="color:var(--danger, #e74c3c)">加载对话失败：${esc(err.detail || '请刷新页面重试')}</div></div>`;
   }
 }
 
-function roleLabel(role) {
-  if (role === 'user') return '你';
-  if (role === 'tool') return '工具';
-  return '顾问';
+/* ── Message Rendering ──────────────────────────────────────────────── */
+
+function renderMessage(m) {
+  switch (m.role) {
+    case 'user': return renderUserMessage(m);
+    case 'assistant': return renderAssistantMessage(m);
+    case 'tool': return renderToolMessage(m);
+    default: return `<div class="chatMsg"><div class="chatContent">${esc(m.content)}</div></div>`;
+  }
 }
 
-function esc(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function renderUserMessage(m) {
+  return `
+    <div class="chatMsg chatMsg-user">
+      <div class="chatRole">你</div>
+      <div class="chatContent">${esc(m.content)}</div>
+    </div>`;
+}
+
+function renderAssistantMessage(m) {
+  const citations = m.citations || [];
+  const gaps = m.knowledge_gaps || [];
+  const retrievalLabel = RETRIEVAL_LABELS[m.retrieval_method] || m.retrieval_method || '';
+  const citationCount = citations.length;
+
+  let contextParts = [];
+  if (retrievalLabel) contextParts.push(`<span>🔍 ${retrievalLabel}</span>`);
+  if (citationCount > 0) contextParts.push(`<span>📄 ${citationCount} 条引用</span>`);
+  if (m.model) contextParts.push(`<span class="muted">模型：${esc(m.model)}</span>`);
+  const contextBar = contextParts.length
+    ? `<div class="msgContext">${contextParts.join(' · ')}</div>`
+    : '';
+
+  let citationsHtml = '';
+  if (citationCount > 0) {
+    citationsHtml = `
+      <details class="msgCitations">
+        <summary>引用来源 (${citationCount})</summary>
+        <ul class="citationList">
+          ${citations.map((c, i) => `
+            <li class="citationItem">
+              <span class="citationIdx">[${i + 1}]</span>
+              <span class="citationTitle">${esc(c.title || c.file_name || '未命名文档')}</span>
+              ${c.retrieval_method ? `<span class="citationMethod muted">${CITATION_LABELS[c.retrieval_method] || c.retrieval_method}</span>` : ''}
+              ${c.score != null ? `<span class="citationScore muted">相关度：${Number(c.score).toFixed(2)}</span>` : ''}
+              ${c.snippet ? `<p class="citationSnippet">${esc(c.snippet)}</p>` : ''}
+            </li>
+          `).join('')}
+        </ul>
+      </details>`;
+  }
+
+  let gapsHtml = '';
+  if (gaps.length > 0) {
+    gapsHtml = `
+      <div class="msgGaps">
+        <strong>知识缺口：</strong>
+        <ul>${gaps.map(g => `<li>${esc(g)}</li>`).join('')}</ul>
+      </div>`;
+  }
+
+  return `
+    <div class="chatMsg chatMsg-assistant">
+      <div class="chatRole">顾问</div>
+      <div class="chatContent">${esc(m.content)}</div>
+      ${m.confidence ? `<span class="chatConfidence">${confidenceBadge(m.confidence)}</span>` : ''}
+      ${contextBar}
+      ${citationsHtml}
+      ${gapsHtml}
+    </div>`;
+}
+
+function renderToolMessage(m) {
+  const toolCalls = m.tool_calls || [];
+  const toolNames = toolCalls.map(tc => tc.name || '未知工具').join(', ');
+  const args = toolCalls[0]?.arguments || {};
+  const argsStr = Object.keys(args).length ? esc(JSON.stringify(args)) : '';
+
+  let resultHtml = '';
+  if (m.content) {
+    const maxLen = 300;
+    const full = esc(m.content);
+    if (full.length > maxLen) {
+      resultHtml = `
+        <details class="msgToolResult">
+          <summary>工具结果（${full.length} 字符，点击展开）</summary>
+          <pre class="toolResultPre">${full}</pre>
+        </details>`;
+    } else {
+      resultHtml = `<pre class="toolResultPre">${full}</pre>`;
+    }
+  }
+
+  return `
+    <div class="chatMsg chatMsg-tool">
+      <div class="chatRole">🔧 工具</div>
+      <div class="toolInfo">
+        <span class="toolName">${esc(toolNames)}</span>
+        ${argsStr ? `<span class="toolArgs">参数：${argsStr}</span>` : ''}
+      </div>
+      ${resultHtml}
+    </div>`;
+}
+
+/* ── Chat Events ────────────────────────────────────────────────────── */
+
+function bindChatEvents(gid, convId) {
+  const sendBtn = document.getElementById('chatSendBtn');
+  const input = document.getElementById('chatInput');
+  const errEl = document.getElementById('chatError');
+
+  sendBtn.addEventListener('click', () => sendMessage(gid, convId, input, sendBtn, errEl));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendBtn.click();
+  });
+}
+
+async function sendMessage(gid, convId, input, sendBtn, errEl) {
+  const question = input.value.trim();
+  if (!question) return;
+
+  input.disabled = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = '发送中...';
+  if (errEl) errEl.style.display = 'none';
+
+  try {
+    await api(`/groups/${gid}/conversations/${convId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ question, retrieval_method: 'hybrid', limit: 8 }),
+    });
+    input.value = '';
+    await renderChat(document.getElementById('outlet') || document.body, gid, convId);
+  } catch (err) {
+    const errMsg = '发送失败：' + (err.detail || '请检查服务是否正常运行');
+    if (errEl) {
+      errEl.textContent = errMsg;
+      errEl.style.display = 'block';
+    } else {
+      showToast(errMsg, 'error');
+    }
+    input.disabled = false;
+    sendBtn.disabled = false;
+    sendBtn.textContent = '发送';
+  }
+}
+
+function scrollToBottom() {
+  const el = document.getElementById('chatMessages');
+  if (el) el.scrollTop = el.scrollHeight;
 }
