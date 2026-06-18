@@ -36,10 +36,11 @@
 
 - fake chat provider — tool decisions are deterministic, not LLM-driven
 - single-step execution — multi-step plan→execute→observe loops are V2
-- 5 scenarios by design — v1 baseline, not complete suite
+- 7 scenarios by design — v1 baseline, not complete suite
 
 ## Test Results
 
 ```
+17 passed, 0 failed (10 original + 7 new eval tests)
 14 passed, 0 failed (10 original + 4 new eval tests)
 ```

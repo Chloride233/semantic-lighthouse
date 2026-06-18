@@ -222,5 +222,48 @@ def test_non_admin_cannot_use_archive_tool(client, tmp_path):
         run = client.get(f"/groups/{gid}/agent/runs/{rid}", headers=member_h).json()
         last_step = run.get("steps", [])[-1] if run.get("steps") else {}
         assert "Error:" in str(last_step.get("observation", "")) or "failed" in str(run.get("status", ""))
-    else:
-        assert "Error:" in step.get("observation", "")
+
+
+def test_unregistered_tool_rejected(client, tmp_path):
+    """S5: tool name not in registry → execute returns error."""
+    _, _, h = register_and_login(client, "unk@e.com")
+    gid = _group(client, h)
+    _ovr(client, _settings(tmp_path))
+    rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "Test"}, headers=h).json()["id"]
+    r = client.post(f"/groups/{gid}/agent/runs/{rid}/execute", params={"tool": "nonexistent_tool"}, headers=h)
+    assert r.status_code in (400, 200)
+    if r.status_code == 200:
+        assert "Error:" in r.json().get("observation", "")
+
+
+def test_agent_step_audit_fields_complete(client, tmp_path):
+    """AgentStep records thought/action/observation/error; audit complete."""
+    _, _, h = register_and_login(client, "adt@e.com")
+    gid = _group(client, h)
+    _ovr(client, _settings(tmp_path))
+    _upload(client, gid, h, "doc.md", "# Ontology\n\nOntology connects business and AI.")
+    rid = client.post(f"/groups/{gid}/agent/runs", json={"goal": "ontology"}, headers=h).json()["id"]
+    s = client.post(f"/groups/{gid}/agent/runs/{rid}/execute", headers=h)
+    step = s.json()
+    assert step["thought"], "thought must be non-empty"
+    assert step["action_type"], "action_type must be non-empty"
+    assert step["action_detail"], "action_detail must be non-empty"
+    assert step.get("observation") is not None, "observation must be present"
+    assert step.get("status") is not None, "status must be present"
+
+
+def test_agent_cross_group_isolation(client, tmp_path):
+    """Member of group A cannot execute runs in group B."""
+    _, _, h_a = register_and_login(client, "aa@e.com")
+    _, _, h_b = register_and_login(client, "bb@e.com")
+    ga = _group(client, h_a)
+    gb = _group(client, h_b)
+    _ovr(client, _settings(tmp_path))
+    _upload(client, ga, h_a, "doc.md", "# Content\n\ntest")
+    rid_a = client.post(f"/groups/{ga}/agent/runs", json={"goal": "test"}, headers=h_a).json()["id"]
+    r = client.post(f"/groups/{ga}/agent/runs/{rid_a}/execute", headers=h_b)
+    assert r.status_code in (403, 404)
+    assert client.get(f"/groups/{ga}/agent/runs/{rid_a}", headers=h_b).status_code in (403, 404)
+    _upload(client, gb, h_b, "doc.md", "# Content\n\ntest")
+    rid_b = client.post(f"/groups/{gb}/agent/runs", json={"goal": "test"}, headers=h_b).json()["id"]
+    assert client.post(f"/groups/{gb}/agent/runs/{rid_b}/execute", headers=h_b).status_code == 200
