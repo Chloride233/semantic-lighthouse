@@ -1,6 +1,6 @@
 """Tests for lightweight task board — product alignment A.3 / v1.1.
 
-V1: source_type='rag_run' only. No DELETE endpoint.
+source_type: rag_run | conversation | agent_run | manual. No DELETE endpoint.
 V1.1: status=cancelled (soft cancel). Source traceability.
 Permissions: any member can create/list/view/update-status.
 Only creator can edit title/description.
@@ -59,6 +59,19 @@ class TestCreateTask:
         assert t["source_id"] == "abc-123-run"
         assert t["group_id"] == gid
 
+    @pytest.mark.parametrize("source_type,source_id", [
+        ("conversation", "conv-456"),
+        ("agent_run", "run-789"),
+        ("manual", "manual"),
+    ])
+    def test_create_from_expanded_source_types(self, client, source_type, source_id):
+        _, _, h = register_and_login(client, "create-ts@t.com")
+        gid = _create_group(client, h)
+        t = _create_task(client, gid, h, title="expand test", source_type=source_type, source_id=source_id)
+        assert t["source_type"] == source_type
+        assert t["source_id"] == source_id
+        assert t["status"] == "pending"
+
     def test_create_empty_title_422(self, client):
         _, _, h = register_and_login(client, "b@t.com")
         gid = _create_group(client, h)
@@ -69,7 +82,7 @@ class TestCreateTask:
         )
         assert r.status_code == 422
 
-    @pytest.mark.parametrize("bad_type", ["manual", "conversation", "", "invalid"])
+    @pytest.mark.parametrize("bad_type", ["", "invalid", "unknown"])
     def test_create_invalid_source_type_422(self, client, bad_type):
         _, _, h = register_and_login(client, "c@t.com")
         gid = _create_group(client, h)

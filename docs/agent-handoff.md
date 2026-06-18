@@ -399,7 +399,18 @@ Do not store real `DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, database passwords, c
 - **Not in scope**: conversation_id selection, multi-Agent, web search, LangGraph, DB migrations
 - **Verification**: 37 agent tests pass, ruff clean, verify_ui 18/21 (3 pre-existing failures unrelated to Agent page)
 
-**Next on Phase 8**: 8.3 task source_type expansion, 8.4 conversation UX hardening, 8.1 real DeepSeek smoke recording.
+**Next on Phase 8**: 8.4 conversation UX hardening, 8.1 real DeepSeek smoke recording, 8.5 demo scenario scripts.
+
+### Task Source Type Expansion — Phase 8.3 (2026-06-18)
+
+**Status**: Delivered.
+
+- **Schema**: `TaskCreateRequest.source_type` expanded from `^rag_run$` to `^(rag_run|conversation|agent_run|manual)$`
+- **Router docstring**: Updated to reflect all 4 source types
+- **Tests**: 22 task tests pass (added parametrized test for conversation/agent_run/manual create; invalid-type test covers "", "invalid", "unknown")
+- **Frontend**: `tasks.js` already has Chinese labels for all 4 source types; non-rag_run sources show "暂不支持预览此来源类型"
+- **Not in scope**: manual task creation UI, task editor, delete endpoint, DB migration
+- **Verification**: 22/22 task tests pass, ruff clean
 
 ## Development Workflow Update (2026-06-18)
 

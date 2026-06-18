@@ -403,7 +403,7 @@ class AgentMemoryUpsertRequest(BaseModel):
 class TaskCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=240)
     description: str = ""
-    source_type: str = Field(pattern="^rag_run$")  # V1: rag_run only
+    source_type: str = Field(pattern="^(rag_run|conversation|agent_run|manual)$")
     source_id: str = Field(min_length=1, max_length=36)
 
 

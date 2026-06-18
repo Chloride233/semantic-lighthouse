@@ -1,7 +1,7 @@
 """Lightweight tasks — user-confirmed next steps from RAG answers.
 
 Product alignment §7: tasks are traceable work items, not a full PM system.
-V1: only source_type='rag_run'. No DELETE endpoint.
+source_type: rag_run | conversation | agent_run | manual. No DELETE endpoint.
 """
 
 from __future__ import annotations
