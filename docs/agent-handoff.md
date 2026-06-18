@@ -476,7 +476,19 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Full suite**: 224 passed, ruff clean, migration 0012 at head
 - **Not in scope**: wikilink relations (9.3), governance issue list UI (9.4), ontology graph UI (9.5), Graph RAG, Agent writes to ontology, external KB modification
 
-**Phase 9 complete**. Phase 10.1 delivered. Next: Phase 10.2 real KB curation demo script.
+**Phase 9 complete**. Phase 10.1–10.2 delivered. Next: Phase 10.3 Ontology graph UX polish.
+
+### Real KB Curation Demo — Phase 10.2 (2026-06-18)
+
+**Status**: Delivered.
+
+- **Demo runner**: `scripts/run_ontology_curation_demo.py` — imports 74 docs, scans, deterministic triage, generates curation backlog
+- **Triage**: 97 issues all confirmed — 90 unresolved_wikilink (classified by target_path), 7 stale_eval_gold_doc_id
+- **Backlog**: 39 entries — 30 review_link_target, 7 update_eval_gold_doc_id, 2 create_missing_research_doc
+- **Persistence**: rescan confirmed 97/97 triage preserved via stable issue_key
+- **Report**: `docs/ontology-curation-demo-report.md`
+- **Tests**: 15 unit tests for classify/priority/backlog helpers (`tests/test_ontology_curation_demo.py`)
+- **Verification**: 56/56 tests, ruff clean
 
 ### Governance Issue Triage — Phase 10.1 (2026-06-18)
 
