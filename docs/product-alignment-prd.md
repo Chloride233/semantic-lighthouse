@@ -56,13 +56,13 @@ The near-term workflow is:
 
 ## 4. Near-Term MVP
 
-The near-term MVP is the actionable RAG loop:
+The actionable RAG loop is delivered:
 
 ```text
 Ask -> Evidence -> Confidence -> Gaps -> Next Steps -> User-confirmed Task
 ```
 
-The current system already has most of the first half:
+Current delivered:
 
 - auth and group isolation
 - document ingestion
@@ -70,10 +70,13 @@ The current system already has most of the first half:
 - keyword / semantic / hybrid-style retrieval foundation
 - citation-grounded RAG answer
 - RAG run audit
-- frontend answer view
-- controlled conversation and Agent foundations
+- frontend answer view with "✓ 确认任务" button
+- lightweight task board v1.1 (status=cancelled, source RAG run inline detail, task filters)
+- controlled conversation and Agent foundations (backend: run, steps, tool registry, role-gated tools, HITL, audit trail, DeepSeek agent_decide, fake eval, audit hardening)
+- knowledge governance v1 (archive audit, status filter, metadata display)
+- production safety checks (APP_ENV, JWT/cookie/database safety validation)
 
-The next product-aligned capability should be lightweight task handoff, not a broad Agent framework rewrite.
+Current product gap: make controlled Agent workflows visible and usable in the frontend, and extend task source traceability beyond `rag_run` (conversation / agent_run / manual). Agent remains a controlled coordination layer — it does not replace deterministic backend logic.
 
 ## 5. Feature Boundaries
 
@@ -206,11 +209,11 @@ The aligned product direction is successful if a new session can answer these qu
 
 The next implementation milestone is successful if:
 
-- RAG next steps can be reviewed by the user.
-- The user can confirm selected next steps into lightweight group-scoped tasks.
-- Tasks preserve source traceability to the RAG run, conversation, or Agent run.
-- Non-members cannot view or mutate group tasks.
-- Agent does not auto-create tasks.
+- Agent run/step/HITL frontend pages make existing backend capabilities visible.
+- Task source_type expands beyond `rag_run` to `conversation`, `agent_run`, and `manual`.
+- Conversation UX is hardened with visible citations, tool calls, and failure states.
+- Real DeepSeek Agent smoke results are recorded.
+- Demo scenario scripts exist for portfolio presentation.
 
 ## 10. Interview Narrative
 

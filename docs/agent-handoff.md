@@ -4,7 +4,7 @@ Last updated: 2026-06-18
 
 ## Current Phase
 
-**Phases 0–7 delivered** — see `docs/project-roadmap.md`.
+**Phases 0–7 delivered; current focus is Phase 8 Experience Integration** — see `docs/project-roadmap.md`.
 
 - **Phase 3**: RAG quality review with real ontology KB ← **P4 delivered 2026-06-15**
   - 74 real ontology documents imported from `F:\ontology-kb\knowledge-graph`
@@ -21,7 +21,7 @@ Last updated: 2026-06-18
   - `scripts/deploy/smoke-cloud.sh` passed with keyword RAG and `citation_count: 1`
   - Public `/health`, `/docs`, and `/console` reachable through temporary TCP `8000` demo access
 
-**Verified test baseline**: 175+ pytest, ruff clean, alembic `0011` at head, verify_ui 17/19 (2 known-fragile on fake chat timing).
+**Verified test baseline**: 207 pytest passed, ruff clean, alembic `0011` at head, production safety checks delivered. verify_ui 17/19 (2 known-fragile on fake chat timing).
 
 ### Agent Workflow Evaluation v1 (2026-06-17) — delivered
 
@@ -282,10 +282,11 @@ Result:
 - `read_bytes()` on final parse step — fine for 50 MiB but monitor on 2 GiB ECS.
 
 **Recommended next iteration**:
-1. Run real DeepSeek smoke manually; record results in `docs/agent-capability-v23-eval.md`.
-2. V1.2 (task system): manual task creation + `ConversationMessage.next_steps`.
-3. Continue retrieval-quality hardening.
-4. Decide V2.4 scope based on smoke results.
+1. Run real DeepSeek Agent smoke manually and record results in `docs/agent-capability-v23-eval.md`.
+2. Build Agent frontend visibility for existing backend (run/step/HITL timeline page).
+3. Expand task source traceability beyond `rag_run` (conversation / agent_run / manual).
+4. Harden conversation UX: visible citations, tool call display, failure states.
+5. Write demo scenario scripts for portfolio presentation.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed

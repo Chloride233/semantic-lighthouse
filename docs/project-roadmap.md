@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-18
-**Current phase**: Product Alignment delivered; next work should strengthen the actionable RAG loop before adding broader Agent or web-search features — see `docs/product-alignment-prd.md` and `docs/agent-handoff.md`
+**Current phase**: Integration & Demonstrable Agent Experience — see `docs/agent-handoff.md` and `docs/development-workflow.md`
 
 ---
 
@@ -17,26 +17,26 @@
 | V3.3 | RAG run audit persistence, group-scoped replay | Stable |
 | V3.4 | Async ETL pipeline, structure-aware chunking, ingestion jobs, HNSW | Stable (hardened) |
 
-**Metrics**: 146 pytest, verify_ui 13/13, Alembic `0009_v9_rag_audit` (head). Eval: real ontology quality review plus citation-control regression tests.
+**Metrics**: 207 pytest, ruff clean, alembic `0011` at head. Production safety checks delivered (APP_ENV, JWT/cookie/database validation). verify_ui 17/19 (2 known-fragile on fake chat timing).
 
 ---
 
-## Product Alignment: Actionable RAG Loop ← CURRENT
+## Product Alignment: Actionable RAG Loop ← DELIVERED (2026-06-17)
 
 **Goal**: Keep the project centered on a trusted RAG loop that turns evidence-backed answers into user-confirmed next-step tasks.
 
 | # | Task | Acceptance |
 |---|------|------------|
-| A.1 | Product boundary PRD | `docs/product-alignment-prd.md` explains what the product is, what Agent is for, and what is out of scope |
-| A.2 | Entry-file alignment | `AGENTS.md`, `CLAUDE.md`, `PRODUCT.md`, `README.md`, and handoff all point to the same product boundary |
-| A.3 | Next-step task design | RAG/Agent can suggest tasks, but user confirmation is required before creation |
-| A.4 | Web search status | Web search remains Discovery until low-confidence question validation proves value |
+| A.1 | Product boundary PRD | ✅ `docs/product-alignment-prd.md` explains what the product is, what Agent is for, and what is out of scope |
+| A.2 | Entry-file alignment | ✅ `AGENTS.md`, `CLAUDE.md`, `PRODUCT.md`, `README.md`, and handoff all point to the same product boundary |
+| A.3 | Next-step task design | ✅ Task board v1.1 delivered: confirm button, status=cancelled, source RAG run inline detail, task filters, 20 tests |
+| A.4 | Web search status | ✅ Web search remains Discovery until low-confidence question validation proves value |
 
-**Acceptance**: A new session can read the entry files and understand that Semantic Lighthouse is a knowledge evidence workspace, not a generic autonomous Agent product.
+**Acceptance**: ✅ Task board v1.1 verified. RAG next steps → user-confirmed tasks → source traceability → soft cancel. 20 task tests + 4 verify_ui checks.
 
 ---
 
-## Phase 0: Engineering Baseline Stabilization ← CURRENT
+## Phase 0: Engineering Baseline Stabilization ← DELIVERED (2026-06-16)
 
 **Goal**: Confirm every deliverable from V1–V3.4 is verifiable, clean, and deployable.
 
@@ -53,15 +53,17 @@
 
 ---
 
-## Phase 1: Retrieval Quality Engineering
+## Phase 1: Retrieval Quality Engineering ← FOUNDATION EXISTS
+
+**Status**: hybrid search and eval harness have a working foundation. Not starting from zero.
 
 **Goal**: The system can measure and improve what it retrieves.
 
 | # | Task | Acceptance |
 |---|------|------------|
-| 1.1 | Hybrid search (keyword + vector fusion) | Configurable weights, measurable recall improvement |
+| 1.1 | Hybrid search (keyword + vector fusion) | ✅ Foundation exists; remaining: configurable weights, measurable recall improvement |
 | 1.2 | Rerank pass on retrieval results | Rerank model or cross-encoder, latency budget documented |
-| 1.3 | Retrieval evaluation harness | Gold-standard Q&A pairs, recall@k, MRR, NDCG |
+| 1.3 | Retrieval evaluation harness | ✅ Foundation exists (`scripts/run_eval.py`, `check_eval_thresholds.py`, 24 ontology queries); remaining: gold-standard Q&A pairs, recall@k, MRR, NDCG |
 | 1.4 | Chunk overlap and context window tuning | Evidence that overlap improves retrieval on real documents |
 | 1.5 | Embedding model comparison | Measured quality difference, cost/latency tradeoff |
 
@@ -69,19 +71,19 @@
 
 ---
 
-## Phase 2: Knowledge Governance & Document Lifecycle
+## Phase 2: Knowledge Governance & Document Lifecycle ← PARTIALLY DELIVERED
 
-**Goal**: Documents have a managed lifecycle and metadata that powers retrieval.
+**Status**: Knowledge Governance v1 delivered (2026-06-17). Remaining items are v2 enhancements.
 
 | # | Task | Acceptance |
 |---|------|------------|
-| 2.1 | Document metadata schema (entity type, status, source, tags) | Frontmatter validation, search/filter by metadata fields |
-| 2.2 | Document deprecation and archival | `status=archived` excludes from search; soft-delete with audit |
+| 2.1 | Document metadata schema (entity type, status, source, tags) | ✅ Frontmatter validation, metadata badges in UI, search/filter by entityType/source/ontology status |
+| 2.2 | Document deprecation and archival | ✅ `status=archived` excludes from search, `archived_by`/`archived_at`/`archive_reason` audit fields (migration `0011`), `GET /documents?status=` server-side filter |
 | 2.3 | Group-level knowledge graph view | Entities and relations from ingested docs |
 | 2.4 | DOCX table/header/footer extraction | Table content appears in chunks with structure preserved |
 | 2.5 | Bulk import with progress tracking | `POST /import-local` returns job ID, async progress queryable |
 
-**Acceptance**: Upload 50 documents, filter by metadata, archive stale ones, search excludes archived.
+**Acceptance**: Archive audit + status filter + metadata display delivered. Next: versioning, bulk governance, KG view.
 
 ---
 
@@ -101,19 +103,19 @@
 
 ---
 
-## Phase 4: V4 Agent Multi-Turn Dialogue
+## Phase 4: V4 Agent Multi-Turn Dialogue ← PARTIALLY DELIVERED
 
-**Goal**: The system maintains conversation state and tool-use capability across turns.
+**Status**: Conversation session + frontend exist. Remaining items are UX hardening.
 
 | # | Task | Acceptance |
 |---|------|------------|
-| 4.1 | Conversation session management | `POST /conversations`, `POST /conversations/{id}/messages`, group-scoped |
+| 4.1 | Conversation session management | ✅ `POST /conversations`, `POST /conversations/{id}/messages`, group-scoped, frontend console |
 | 4.2 | Multi-turn context window management | Sliding window or summarization; token budget enforced |
 | 4.3 | Tool-use: search within conversation | Agent can call keyword/semantic search as a tool |
 | 4.4 | Agent memory across sessions | User preferences, past questions, cited documents remembered |
 | 4.5 | Agent audit trail | Every tool call, retrieved chunk, and generated response logged |
 
-**Acceptance**: 5-turn conversation maintains context, cites documents from earlier turns, all actions auditable.
+**Acceptance**: Conversations API + frontend delivered. Next: UX hardening (citations, tool calls, failure states), source traceability, context management.
 
 ---
 
@@ -150,9 +152,11 @@
 
 ---
 
-## Phase 7: Advanced Agent Orchestration ← DELIVERED (2026-06-13)
+## Phase 7: Advanced Agent Orchestration ← DELIVERED (backend)
 
-**Status**: 7.1–7.5 delivered. V2.1 LLM tool loop (`78c3d9a`); V2.2 provider + audit hardening (`ca58506`); V2.3 fake-provider eval delivered + real smoke script ready (`2c243a0`), pending manual terminal run with API key. No LangGraph runtime.
+**Status**: 7.1–7.5 delivered. V2.1 LLM tool loop (`78c3d9a`); V2.2 provider + audit hardening (`ca58506`); V2.3 fake-provider eval delivered + real smoke script ready (`2c243a0`), pending manual terminal run. Agent audit hardening delivered (`a761afc`). 39 agent tests + 6 audit tests + 6 config tests. No LangGraph runtime.
+
+**Current gap**: Agent backend is complete — run, steps, tool registry, role-gated tools, HITL, audit trail, DeepSeek agent_decide, fake eval, audit hardening, production safety checks all exist. What's missing is **frontend visibility** for Agent runs/steps/HITL, and real DeepSeek smoke result recording.
 
 | # | Task | Acceptance |
 |---|------|------------|
@@ -160,13 +164,26 @@
 | 7.2 | Workflow planning with explicit state | ✅ 4-state FSM, step audit records |
 | 7.3 | Long-term memory governance | ✅ KV store with scope/ttl/source |
 | 7.4 | Human-in-the-loop checkpoints | ✅ risky → awaiting_confirmation |
-| 7.5 | Agent evaluation set | ✅ 17 tests, 7 scenarios, 100% risky enforcement |
+| 7.5 | Agent evaluation set | ✅ 39 tests, 5 fake-provider scenarios, 6 audit tests, 6 config tests |
 
-**Acceptance**: 38 agent + chat + E2E tests pass. V2.2 provider/audit delivered. See docs/agent-capability-v2-design.md.
-
-**Next**: Run real DeepSeek smoke manually; record results; decide V2.4 scope. No LangGraph runtime until lightweight FSM + agent_loop shows measured limits.
+**Acceptance**: 39 agent tests pass. Backend delivered. Next: frontend visibility, real smoke recording, V2.4 scope.
 
 ---
+
+## Phase 8: Experience Integration ← CURRENT
+
+**Goal**: Make existing backend capabilities visible, usable, and demonstrable. No new backend Agent features. Focus on frontend visibility, UX hardening, demo scripts, and task source traceability expansion.
+
+| # | Task | Acceptance |
+|---|------|------------|
+| 8.1 | Real DeepSeek Agent smoke recording | Run `scripts/smoke_agent_deepseek.py` with API key, record results in `docs/agent-capability-v23-eval.md` |
+| 8.2 | Agent run/step/HITL frontend page | Agent runs visible in console: timeline of steps, tool calls, observations, HITL confirm/reject events |
+| 8.3 | Task source_type expansion | `conversation`, `agent_run`, `manual` source types alongside existing `rag_run` |
+| 8.4 | Conversation UX hardening | Visible citations per message, tool call display, failure/error states, context indicators |
+| 8.5 | Demo scenario scripts | Reproducible walkthrough scripts for portfolio presentation: knowledge import → RAG → tasks → Agent workflow |
+
+**Acceptance**: A reviewer can see the full loop — RAG answer → task creation → Agent tool execution → HITL → audit trail — from the frontend without Swagger.
+
 
 ## Phase 7 Follow-up: Deep Agents Pattern Review ← DOCUMENTED
 

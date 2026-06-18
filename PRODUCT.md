@@ -75,5 +75,5 @@ A feature is not considered finished until:
 - retrieval needs eval metrics, not subjective judgment
 - PDF/DOCX parsing is limited to extractable text and ordinary paragraphs
 - production deployment must protect secrets and runtime storage
-- Agent workflow should remain controlled and auditable before adding framework complexity
+- Agent workflow should remain controlled and auditable before adding framework complexity. The next product gap is not backend Agent capability, but making existing controlled Agent workflows visible and usable in the frontend.
 - deterministic backend rules should not be replaced by LLM decisions
