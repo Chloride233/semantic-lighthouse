@@ -9,6 +9,8 @@ const ENTITY_COLORS = {
   Research: '#0891b2', Proposal: '#9333ea', FAQ: '#4b5563',
 };
 const ELABEL = { Concept: '概念', Vendor: '厂商', Product: '产品', Methodology: '方法论', Case: '案例', Person: '人物', Research: '研究', Proposal: '方案', FAQ: 'FAQ' };
+const TL = { pending: '待处理', confirmed: '已确认', ignored: '已忽略' };
+const TS = { pending: 'badgeInfo', confirmed: 'badgeOk', ignored: 'badgeMuted' };
 const SLABEL = { stub: '存根', draft: '草稿', reviewed: '已审校', canonical: '权威' };
 const SRC = { 'official-doc': '官方', 'market-research': '调研', 'public-article': '公开', 'case-report': '案例', 'personal-analysis': '个人' };
 const ICODE = { unresolved_wikilink: '未解析引用', duplicate_title: '重复标题', duplicate_alias: '重复别名', stale_eval_gold_doc_id: '过期评估引用', type_conflict: '类型冲突', missing_entity_type: '缺少实体类型', invalid_entity_type: '无效实体类型', invalid_document_type: '无效文档类型', missing_required_field: '缺少必填字段', invalid_controlled_value: '无效受控词', invalid_list_field: '列表格式错误' };
@@ -144,8 +146,34 @@ function renderDetail(e) {
 function renderIssues() {
   const c = document.getElementById('ontoIssues'); if (!_is.length) { c.innerHTML = ''; return; }
   const by = {}; _is.forEach(i => { (by[i.severity] || (by[i.severity] = [])).push(i); });
-  c.innerHTML = `<div class="panel"><div class="panelHeader">治理问题 (${_is.length})</div><div class="panelBody">${['error', 'warning'].map(s => by[s]?.length ? `<div class="ontoIssueGroup"><strong style="color:${s==='error'?'var(--danger)':'var(--warn)'}">${s==='error'?'❌ 错误' : '⚠ 警告'} (${by[s].length})</strong><div class="ontoIssueList">${by[s].slice(0,30).map(i => `<div class="ontoIssueItem ${i.entity_id ? 'clickable' : ''}" data-eid="${i.entity_id || ''}"><span class="badge ${i.severity==='error'?'badgeErr':'badgeWarn'}">${ICODE[i.code]||i.code}</span><span>${esc(i.message)}</span><span class="muted" style="font-size:11px">${esc(i.source_path)}</span></div>`).join('')}</div></div>` : '').join('')}</div></div>`;
+  const canTriage = state.currentRole === 'owner' || state.currentRole === 'admin';
+  c.innerHTML = `<div class="panel"><div class="panelHeader">治理问题 (${_is.length})</div><div class="panelBody">${['error', 'warning'].map(s => by[s]?.length ? `<div class="ontoIssueGroup"><strong style="color:${s==='error'?'var(--danger)':'var(--warn)'}">${s==='error'?'❌ 错误' : '⚠ 警告'} (${by[s].length})</strong><div class="ontoIssueList">${by[s].slice(0,30).map(i => {
+    const ts = i.triage_status || 'pending';
+    const triageBadge = `<span class="badge ${TRIAGE_STYLE[ts]||'badgeInfo'}">${TRIAGE_LABELS[ts]||ts}</span>`;
+    const triageBtns = canTriage ? `<span class="ontoTriageBtns">
+      <button class="triageBtn triageConfirm" data-iid="${i.id}" title="确认">✓</button>
+      <button class="triageBtn triageIgnore" data-iid="${i.id}" title="忽略">✕</button>
+      <button class="triageBtn triageReset" data-iid="${i.id}" title="重置">↺</button>
+    </span>` : '';
+    return `<div class="ontoIssueItem ${i.entity_id ? 'clickable' : ''}" data-eid="${i.entity_id || ''}"><span class="badge ${i.severity==='error'?'badgeErr':'badgeWarn'}">${ICODE[i.code]||i.code}</span><span>${esc(i.message)}</span>${triageBadge}${triageBtns}<span class="muted" style="font-size:11px">${esc(i.source_path)}</span></div>`;
+  }).join('')}</div></div>` : '').join('')}</div></div>`;
   c.querySelectorAll('.ontoIssueItem.clickable').forEach(el => el.addEventListener('click', () => selectEnt(el.dataset.eid)));
+  if (canTriage) {
+    const gid = state.currentGroupId;
+    c.querySelectorAll('.triageConfirm').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); doTriage(gid, b.dataset.iid, 'confirmed'); }));
+    c.querySelectorAll('.triageIgnore').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); doTriage(gid, b.dataset.iid, 'ignored'); }));
+    c.querySelectorAll('.triageReset').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); doTriage(gid, b.dataset.iid, 'pending'); }));
+  }
+}
+
+async function doTriage(gid, iid, status) {
+  try {
+    await api(`/groups/${gid}/ontology/issues/${iid}/triage`, { method: 'POST', body: JSON.stringify({ triage_status: status }) });
+    // Refresh local data
+    const issuesResp = await api(`/groups/${gid}/ontology/issues?limit=100`);
+    _is = issuesResp.issues || [];
+    renderIssues();
+  } catch (e) { showToast('操作失败：' + (e.detail || '服务异常'), 'error'); }
 }
 
 function trunc(s, n) { return s && s.length > n ? s.slice(0, n) + '...' : s; }

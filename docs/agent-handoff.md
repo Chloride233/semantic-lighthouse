@@ -476,7 +476,19 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Full suite**: 224 passed, ruff clean, migration 0012 at head
 - **Not in scope**: wikilink relations (9.3), governance issue list UI (9.4), ontology graph UI (9.5), Graph RAG, Agent writes to ontology, external KB modification
 
-**Phase 9 complete**. All 9.1–9.5 delivered, real KB demo verified. Phase 10 planning doc at `docs/phase10-planning.md`. Next: Phase 10.1 governance issue triage design.
+**Phase 9 complete**. Phase 10.1 delivered. Next: Phase 10.2 real KB curation demo script.
+
+### Governance Issue Triage — Phase 10.1 (2026-06-18)
+
+**Status**: Delivered.
+
+- **New fields**: `issue_key` (stable key for scan persistence), `triage_status` (pending/confirmed/ignored), `triaged_by`, `triaged_at`, `triage_note`
+- **Migration**: `0015_v15_ontology_issue_triage.py`
+- **Triage persistence**: Before scan clears old issues, saves `issue_key → {triage_status, triaged_by, triaged_at, triage_note}`. After generating new issues, restores triage for matching keys.
+- **API**: `POST /ontology/issues/{id}/triage` (owner/admin only), `GET /ontology/issues?triage_status=`
+- **Frontend**: Triage badges + ✓/✕/↺ buttons in governance issue list (owner/admin only); member sees read-only badges
+- **Tests**: 5 triage tests (new issue pending / owner triage / member 403 / filter / scan persistence)
+- **Verification**: 41/41 ontology tests, ruff clean, migration 0015 at head
 
 ### Real KB Governance Demo — Phase 9 Wrap (2026-06-18)
 

@@ -20,11 +20,13 @@ from semantic_lighthouse.models import (
     OntologyRelation,
     OntologyValidationIssue,
     User,
+    utc_now,
 )
 from semantic_lighthouse.schemas import (
     OntologyEntityListResponse,
     OntologyEntityResponse,
     OntologyIssueListResponse,
+    OntologyIssueTriageRequest,
     OntologyRelationListResponse,
     OntologyRelationResponse,
     OntologyScanResponse,
@@ -94,6 +96,7 @@ def list_issues(
     group_id: str,
     severity: str | None = Query(default=None),
     code: str | None = Query(default=None),
+    triage_status: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),
@@ -109,6 +112,8 @@ def list_issues(
         base = base.where(OntologyValidationIssue.severity == severity)
     if code:
         base = base.where(OntologyValidationIssue.code == code)
+    if triage_status:
+        base = base.where(OntologyValidationIssue.triage_status == triage_status)
 
     total = db.scalar(select(func.count()).select_from(base.subquery()))
     rows = db.scalars(
@@ -121,6 +126,39 @@ def list_issues(
         issues=[_issue_response(i) for i in rows],
         total=total or 0,
     )
+
+
+# ── triage ──────────────────────────────────────────────────────────
+
+
+@router.post("/issues/{issue_id}/triage", response_model=OntologyValidationIssueResponse)
+def triage_issue(
+    group_id: str,
+    issue_id: str,
+    body: OntologyIssueTriageRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyValidationIssueResponse:
+    """Set triage status on a governance issue. Owner or admin only."""
+    require_group_role(db, current_user.id, group_id, {"owner", "admin"})
+
+    issue = db.scalar(
+        select(OntologyValidationIssue).where(
+            OntologyValidationIssue.id == issue_id,
+            OntologyValidationIssue.group_id == group_id,
+        )
+    )
+    if issue is None:
+        from fastapi import HTTPException, status
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
+
+    issue.triage_status = body.triage_status
+    issue.triage_note = body.triage_note or None
+    issue.triaged_by = current_user.id
+    issue.triaged_at = utc_now()
+    db.commit()
+    db.refresh(issue)
+    return _issue_response(issue)
 
 
 # ── relations ────────────────────────────────────────────────────────
@@ -213,4 +251,9 @@ def _issue_response(i: OntologyValidationIssue) -> OntologyValidationIssueRespon
         source_path=i.source_path,
         details=i.details,
         created_at=i.created_at,
+        issue_key=i.issue_key,
+        triage_status=i.triage_status,
+        triaged_by=i.triaged_by,
+        triaged_at=i.triaged_at,
+        triage_note=i.triage_note,
     )

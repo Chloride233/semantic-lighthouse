@@ -375,6 +375,11 @@ class OntologyValidationIssue(Base):
     source_path: Mapped[str] = mapped_column(String(1024), nullable=False)
     details: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    issue_key: Mapped[str | None] = mapped_column(String(400), index=True, nullable=True)
+    triage_status: Mapped[str] = mapped_column(String(20), index=True, nullable=False, default="pending")
+    triaged_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    triaged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    triage_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class OntologyRelation(Base):

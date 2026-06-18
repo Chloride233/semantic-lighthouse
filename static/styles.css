@@ -794,6 +794,11 @@ button.ghost:hover { background: var(--brand-light); }
 .ontoIssueItem { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; padding: 4px 8px; background: var(--bg); border-radius: var(--radius-sm); font-size: var(--text-sm); }
 .ontoIssueItem.clickable { cursor: pointer; }
 .ontoIssueItem.clickable:hover { background: var(--brand-light); }
+.ontoTriageBtns { display: inline-flex; gap: 2px; margin-left: 4px; }
+.triageBtn { padding: 1px 6px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); cursor: pointer; font-size: var(--text-xs); transition: background .15s; }
+.triageConfirm:hover { background: var(--ok-light); border-color: var(--ok); }
+.triageIgnore:hover { background: var(--danger-light); border-color: var(--danger); }
+.triageReset:hover { background: var(--info-light); border-color: var(--info); }
 @media (max-width: 900px) {
   .ontoBody { grid-template-columns: 1fr; }
   .ontoColLeft, .ontoColRight { max-height: none; }

@@ -442,6 +442,16 @@ class OntologyValidationIssueResponse(BaseModel):
     source_path: str
     details: dict = Field(default_factory=dict)
     created_at: datetime
+    issue_key: str | None = None
+    triage_status: str = "pending"
+    triaged_by: str | None = None
+    triaged_at: datetime | None = None
+    triage_note: str | None = None
+
+
+class OntologyIssueTriageRequest(BaseModel):
+    triage_status: str = Field(pattern="^(pending|confirmed|ignored)$")
+    triage_note: str = Field(default="", max_length=1000)
 
 
 class OntologyIssueListResponse(BaseModel):

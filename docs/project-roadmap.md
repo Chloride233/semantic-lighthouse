@@ -233,7 +233,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 
 | # | Task | Description |
 |---|------|-------------|
-| 10.1 | Governance issue triage design | `triage_status`, `POST /ontology/issues/{id}/triage`, frontend controls |
+| 10.1 | Governance issue triage design | ✅ `triage_status` (pending/confirmed/ignored), `POST /issues/{id}/triage`, stable `issue_key` for scan persistence, frontend triage controls for owner/admin (2026-06-18) |
 | 10.2 | Real KB curation demo script | Governance findings → triage decisions → curation backlog |
 | 10.3 | Ontology graph UX polish | Filterable graph, improved labels, edge hover, mobile |
 | 10.4 | Evidence-to-ontology bridge | RAG citations / tasks link to ontology entities (read-only) |

@@ -40,6 +40,24 @@ SOURCE_VALUES = {
 WIKILINK_RE = re.compile(r"(?<!!)\[\[([^\[\]]+?)\]\]")
 
 
+def _make_issue_key(code: str, source_path: str, details: dict | None = None, field: str | None = None) -> str:
+    """Stable issue_key from code + facts, not entity/relation IDs."""
+    parts = [code, source_path]
+    d = details or {}
+    if code == "unresolved_wikilink":
+        parts.append(d.get("target_path") or "")
+        parts.append(d.get("target_label") or "")
+    elif code == "duplicate_title":
+        parts.append(d.get("normalized_title", ""))
+    elif code == "duplicate_alias":
+        parts.append(d.get("normalized_alias", ""))
+    elif code == "stale_eval_gold_doc_id":
+        parts.append(d.get("expected_doc_id", ""))
+    elif field:
+        parts.append(field)
+    return "::".join(parts)
+
+
 def _issue(
     group_id: str,
     document_id: str | None,
@@ -50,7 +68,10 @@ def _issue(
     entity_id: str | None = None,
     field: str | None = None,
     details: dict | None = None,
+    issue_key: str | None = None,
 ) -> OntologyValidationIssue:
+    d = details or {}
+    key = issue_key or _make_issue_key(code, source_path, d, field)
     return OntologyValidationIssue(
         group_id=group_id,
         document_id=document_id,
@@ -60,7 +81,8 @@ def _issue(
         field=field,
         message=message,
         source_path=source_path,
-        details=details or {},
+        details=d,
+        issue_key=key,
     )
 
 
@@ -76,13 +98,21 @@ def scan_group(db: Session, group_id: str) -> dict:
         )
     ).all()
 
-    # Clear existing ontology data (order: issues → relations → entities)
-    for issue in db.scalars(
+    # Save triage state from old issues before clearing
+    old_triage: dict[str, dict] = {}
+    for old in db.scalars(
         select(OntologyValidationIssue).where(
             OntologyValidationIssue.group_id == group_id,
         )
     ).all():
-        db.delete(issue)
+        if old.issue_key and old.triage_status != "pending":
+            old_triage[old.issue_key] = {
+                "triage_status": old.triage_status,
+                "triaged_by": old.triaged_by,
+                "triaged_at": old.triaged_at,
+                "triage_note": old.triage_note,
+            }
+        db.delete(old)
 
     for relation in db.scalars(
         select(OntologyRelation).where(
@@ -353,6 +383,15 @@ def scan_group(db: Session, group_id: str) -> dict:
 
     # stale eval gold doc id detection
     _generate_stale_eval_issues(group_id, docs, issues)
+
+    # Restore triage state for issues with matching keys
+    for iss in issues:
+        if iss.issue_key and iss.issue_key in old_triage:
+            t = old_triage[iss.issue_key]
+            iss.triage_status = t["triage_status"]
+            iss.triaged_by = t["triaged_by"]
+            iss.triaged_at = t["triaged_at"]
+            iss.triage_note = t["triage_note"]
 
     db.add_all(issues)
     db.add_all(relations)

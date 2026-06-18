@@ -768,3 +768,61 @@ class TestGovernanceIssues:
         assert r_b.status_code == 200
         # Group B only has its own issues (no wikilinks, no duplicates)
         assert r_b.json()["total"] == 0
+
+
+class TestIssueTriage:
+    def test_new_issue_pending(self, client):
+        _, _, h = register_and_login(client, "tr1@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {"entityType": "Concept", "tags": ["x"], "created": "2026-01-01"}, body="[[missing]]")
+        _scan(client, gid, h)
+        for i in client.get(f"/groups/{gid}/ontology/issues", headers=h).json()["issues"]:
+            assert i["triage_status"] == "pending"
+
+    def test_owner_triage_confirmed(self, client):
+        _, _, h = register_and_login(client, "tr2@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {"entityType": "Concept", "tags": ["x"], "created": "2026-01-01"}, body="[[missing]]")
+        _scan(client, gid, h)
+        iid = client.get(f"/groups/{gid}/ontology/issues", headers=h).json()["issues"][0]["id"]
+        r = client.post(f"/groups/{gid}/ontology/issues/{iid}/triage", json={"triage_status": "confirmed", "triage_note": "curate"}, headers=h)
+        assert r.status_code == 200
+        d = r.json()
+        assert d["triage_status"] == "confirmed"
+        assert d["triage_note"] == "curate"
+        assert d["triaged_by"] is not None
+
+    def test_member_cannot_triage(self, client):
+        _, _, oh = register_and_login(client, "tr3o@t.com")
+        _, _, mh = register_and_login(client, "tr3m@t.com")
+        gid = _create_group(client, oh)
+        _join_group(client, gid, oh, mh)
+        _upload_doc(client, gid, oh, "src.md", {"entityType": "Concept", "tags": ["x"], "created": "2026-01-01"}, body="[[missing]]")
+        _scan(client, gid, oh)
+        iid = client.get(f"/groups/{gid}/ontology/issues", headers=oh).json()["issues"][0]["id"]
+        assert client.post(f"/groups/{gid}/ontology/issues/{iid}/triage", json={"triage_status": "confirmed"}, headers=mh).status_code == 403
+
+    def test_triage_filter(self, client):
+        _, _, h = register_and_login(client, "tr4@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {"entityType": "Concept", "tags": ["x"], "created": "2026-01-01"}, body="[[missing]]")
+        _scan(client, gid, h)
+        iid = client.get(f"/groups/{gid}/ontology/issues", headers=h).json()["issues"][0]["id"]
+        client.post(f"/groups/{gid}/ontology/issues/{iid}/triage", json={"triage_status": "confirmed"}, headers=h)
+        r = client.get(f"/groups/{gid}/ontology/issues?triage_status=confirmed", headers=h)
+        assert r.json()["total"] >= 1
+
+    def test_triage_persists_across_rescan(self, client):
+        _, _, h = register_and_login(client, "tr5@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {"entityType": "Concept", "tags": ["x"], "created": "2026-01-01"}, body="[[missing]]")
+        _scan(client, gid, h)
+        iid = client.get(f"/groups/{gid}/ontology/issues", headers=h).json()["issues"][0]["id"]
+        client.post(f"/groups/{gid}/ontology/issues/{iid}/triage", json={"triage_status": "confirmed", "triage_note": "keep"}, headers=h)
+        _scan(client, gid, h)
+        for i in client.get(f"/groups/{gid}/ontology/issues", headers=h).json()["issues"]:
+            if i["code"] == "unresolved_wikilink":
+                assert i["triage_status"] == "confirmed"
+                assert i["triage_note"] == "keep"
+                return
+        assert False, "triage not preserved"
