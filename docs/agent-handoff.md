@@ -483,12 +483,12 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 **Status**: Delivered.
 
 - **Demo runner**: `scripts/run_ontology_curation_demo.py` — imports 74 docs, scans, deterministic triage, generates curation backlog
-- **Triage**: 97 issues all confirmed — 90 unresolved_wikilink (classified by target_path), 7 stale_eval_gold_doc_id
-- **Backlog**: 39 entries — 30 review_link_target, 7 update_eval_gold_doc_id, 2 create_missing_research_doc
+- **Triage**: 97 issues all confirmed — 90 unresolved_wikilink (classified by target_path: research/* → missing_research_doc_or_directory, KB_ENTITY_DIRS → missing_or_renamed_entity_doc, other → review_link_target), 7 stale_eval_gold_doc_id
+- **Backlog**: 39 entries — 30 review_link_target, 7 update_eval_gold_doc_id, 2 create_missing_research_doc; priority: 20 high, 19 medium
 - **Persistence**: rescan confirmed 97/97 triage preserved via stable issue_key
 - **Report**: `docs/ontology-curation-demo-report.md`
-- **Tests**: 15 unit tests for classify/priority/backlog helpers (`tests/test_ontology_curation_demo.py`)
-- **Verification**: 56/56 tests, ruff clean
+- **Tests**: 35 unit tests for classify/priority/backlog helpers (`tests/test_ontology_curation_demo.py`)
+- **Verification**: 76/76 tests (35 new + 41 ontology), ruff clean
 
 ### Governance Issue Triage — Phase 10.1 (2026-06-18)
 

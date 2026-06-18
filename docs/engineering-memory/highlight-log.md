@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 10.1/10.2 — Governance Issue Triage Turns Scan Findings into Human Curation Backlog
+
+- Date: 2026-06-18
+- Version: Phase 10.1 + 10.2
+- Type: highlight
+- Context: Phase 9 surfaced 97 governance issues from the real KB — but without triage or actionable next steps, they were just a list. Phase 10 needed to operationalize them into a curation workflow.
+- What happened: Phase 10.1 added `triage_status` (pending/confirmed/ignored), `triaged_by`, `triaged_at`, `triage_note`, and stable `issue_key` fields. Triage state persists across rescans via issue_key matching. Phase 10.2 built `scripts/run_ontology_curation_demo.py` — a deterministic rule-based triage (NOT LLM-driven) that classifies all 97 issues into actionable categories and aggregates them into 39 curation backlog entries. The backlog is human action guidance only — no automated KB fix.
+- Engineering judgment: The governance pipeline is now operational: scan → issue detection → deterministic triage → curation backlog → human curator action. This proves that governance issues can be systematically managed without LLM, Graph RAG, modeling studio, or Agent auto-write. The backlog is a prioritized work queue for a human knowledge curator, not an automated pipeline. This is the right level of automation for enterprise ontology governance — surface, classify, prioritize, suggest, but never auto-modify the knowledge base.
+- Verification: 76/76 tests (35 curation demo + 41 ontology), ruff clean, rescan persistence confirmed (97/97 triage preserved), `docs/ontology-curation-demo-report.md` generated.
+
 ## Phase 9.5 — Ontology Graph UI as Read Model Visibility, Not Graph Database
 
 - Date: 2026-06-18
