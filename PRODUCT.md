@@ -52,6 +52,8 @@ The experience should feel like a professional semantic operating layer workspac
 - Product alignment: actionable RAG loop from evidence-backed answer to user-confirmed task
 - Phase 8: experience integration for the demonstrable loop: RAG -> user-confirmed task -> Agent/HITL -> audit
 - Phase 9 delivered: Ontology Core v1 — schema/frontmatter validation, entity extraction, wikilink relation extraction, governance issue list, ontology graph, and entity detail UI. Real KB demo: 74 docs → 74 entities, 186 relations, 97 issues.
+- Phase 10 delivered: Governance Operations — issue triage, real KB curation demo (97 issues → 39 backlog entries), graph UX polish, evidence-to-ontology bridge, end-to-end review.
+- Phase 11 planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning.md`.
 
 ## Product Non-Goals For Now
 
@@ -86,4 +88,4 @@ A feature is not considered finished until:
 - production deployment must protect secrets and runtime storage
 - Agent workflow should remain controlled and auditable before adding framework complexity. The next product gap is not backend Agent capability, but making existing controlled Agent workflows visible and usable in the frontend.
 - deterministic backend rules should not be replaced by LLM decisions
-- Ontology direction must not be reduced to "more RAG". Phase 9 made the knowledge base governable as entities, relations, validation issues, graph, and entity detail. Phase 10 planning focuses on governance operations and demo polish before Graph RAG or modeling studio.
+- Ontology direction must not be reduced to "more RAG". Phase 9 made the knowledge base governable as entities, relations, validation issues, graph, and entity detail. Phase 10 delivered governance operations: issue triage, curation demo, graph UX polish, evidence bridge. Phase 11 planning focuses on modeling drafts v1 before Graph RAG, full modeling studio, or Agent auto-write.

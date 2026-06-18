@@ -4,7 +4,7 @@ Last updated: 2026-06-18
 
 ## Current Phase
 
-**Phases 0–9 delivered; Phase 10.1–10.4 delivered; 10.5 review complete** — see `docs/project-roadmap.md` and `docs/phase10-planning.md`. Phase 10 governance operations and demo polish complete. Next: Phase 11 planning (see roadmap).
+**Phases 0–9 delivered; Phase 10 Governance Operations complete (10.1–10.5 delivered); Phase 11 planning** — see `docs/project-roadmap.md`, `docs/phase10-planning.md`, and `docs/phase11-planning.md`. Phase 11 focuses on ontology modeling drafts v1 before Graph RAG or modeling studio.
 
 **Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
 
@@ -13,11 +13,13 @@ In this project, Ontology means business objects, properties, relationships, act
 **Current sequencing**:
 
 ```text
-Phase 8: RAG -> user-confirmed task -> Agent/HITL -> audit
-Phase 9: schema/frontmatter validation -> entity extraction -> wikilink relation extraction -> broken-link detection -> ontology graph/entity detail
+Phase 8: RAG -> user-confirmed task -> Agent/HITL -> audit (DELIVERED)
+Phase 9: schema/frontmatter validation -> entity extraction -> wikilink relation extraction -> broken-link detection -> ontology graph/entity detail (DELIVERED)
+Phase 10: governance issue triage -> curation demo -> graph UX polish -> evidence bridge -> review (DELIVERED)
+Phase 11: modeling drafts v1 — Object Type / Property / Link Type / Action Type proposals from governed entities (PLANNING — see docs/phase11-planning.md)
 ```
 
-Do not start Phase 9 by building a full modeling studio, Graph RAG, or Agent auto-write path. Phase 9 starts with read-only governance and graph visibility.
+Phase 9 started with read-only governance and graph visibility (not a full modeling studio, Graph RAG, or Agent auto-write path). Phase 10 operationalized governance findings into a curation pipeline. Phase 11 continues the read-first approach: modeling drafts are human-reviewed proposals, not production schema, and Agent may read/propose but never auto-create/accept/publish.
 
 - **Phase 3**: RAG quality review with real ontology KB ← **P4 delivered 2026-06-15**
   - 74 real ontology documents imported from `F:\ontology-kb\knowledge-graph`
@@ -298,7 +300,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 11 planning. See `docs/project-roadmap.md`.
+**Next iteration**: Phase 11.1 Modeling draft boundary + schema design. See `docs/phase11-planning.md`.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
@@ -470,7 +472,7 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Full suite**: 224 passed, ruff clean, migration 0012 at head
 - **Not in scope**: wikilink relations (9.3), governance issue list UI (9.4), ontology graph UI (9.5), Graph RAG, Agent writes to ontology, external KB modification
 
-**Phase 9 complete**. Phase 10.1–10.5 delivered (governance operations complete). Next: Phase 11 planning.
+**Phase 9 complete**. Phase 10.1–10.5 delivered (governance operations complete). Phase 11 planning — see `docs/phase11-planning.md`.
 
 ### Real KB Curation Demo — Phase 10.2 (2026-06-18)
 
@@ -706,6 +708,6 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.
 
-Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 10 is complete (governance operations: triage, curation demo, graph UX, evidence bridge, review). Next: Phase 11 planning.
+Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 10 is complete (governance operations: triage, curation demo, graph UX, evidence bridge, review). Phase 11 (modeling drafts v1) is next — see `docs/phase11-planning.md`. Do not start Phase 11 by building a full modeling studio, Graph RAG, or Agent auto-write.
 
-Do not rely on chat history. The latest verified baseline is commit `93d5415 feat: link rag evidence to ontology entities`; the working tree should be clean before the next iteration.
+Do not rely on chat history. The latest verified baseline is commit `d1c9b25 docs: record phase 10 review`; the working tree should be clean before the next iteration.

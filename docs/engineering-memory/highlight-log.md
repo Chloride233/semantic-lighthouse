@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 10 Complete — Governance Pipeline Operational, Phase 11 Modeling Drafts Next
+
+- Date: 2026-06-18
+- Version: Phase 10.5 (review complete)
+- Type: decision
+- Context: Phase 10 governance operations delivered. The next step toward the Ontology semantic operating layer is making governed entities inform structured modeling proposals.
+- What happened: Phase 10 turned the Phase 9 read model into an operational governance pipeline: deterministic issue triage, curation backlog aggregation, graph scope/status controls with tooltips, and a read-only evidence-to-entity navigation bridge. Phase 10.5 review verified the full chain (76 tests pass, ruff clean, demo reproducible). Phase 11 is planned as Ontology Modeling Drafts v1 — see `docs/phase11-planning.md`.
+- Engineering judgment: After governance operations are reliable, the next increment is letting humans review structured modeling proposals derived from governed entities — without Graph RAG, a full modeling studio, or Agent auto-write. Phase 11 drafts are app-internal, group-scoped, audit-trailed proposals (proposed/accepted/rejected), not production schema. The deterministic generation path avoids LLM noise. Agent may read/propose, never auto-create/accept/publish.
+- Verification: `docs/phase11-planning.md` created with task slices, non-goals, guardrails. All entry docs sync'd: roadmap Phase 8/9/10 headers fixed, handoff sequencing updated, PRD/README/PRODUCT reflect Phase 10 complete, Phase 11 planning.
+
 ## Phase 10.4 — Evidence-to-Ontology Bridge Links RAG Citations to Entities Without Graph RAG
 
 - Date: 2026-06-18

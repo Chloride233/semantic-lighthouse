@@ -84,39 +84,34 @@ The next product workflow adds:
 3. User inspects entity list, relation graph, broken links, and governance issues.
 4. Future modeling workflows turn validated entities into Object Type, Property, Link Type, and Action Type drafts.
 
-## 4. Current Phase: Phase 10 Governance Operations (delivered)
+## 4. Current Phase: Phase 10 Complete / Phase 11 Planning
 
-Phase 8 should finish the demonstrable loop:
+Phases 8–10 delivered the foundation chain:
 
 ```text
-RAG answer -> user-confirmed task -> Agent/HITL -> audit trail
+Phase 8: RAG answer -> user-confirmed task -> Agent/HITL -> audit trail (DELIVERED)
+Phase 9: schema/frontmatter validation -> entity extraction -> wikilink relation extraction -> broken-link detection -> ontology graph/entity detail (DELIVERED)
+Phase 10: governance issue triage -> curation demo -> graph UX polish -> evidence bridge -> review (DELIVERED)
 ```
 
-Current delivered:
+Current delivered capabilities:
 
 - auth and group isolation
-- document ingestion
-- ETL and chunking
-- keyword / semantic / hybrid-style retrieval foundation
-- citation-grounded RAG answer
-- RAG run audit
-- frontend answer view with "✓ 确认任务" button
-- lightweight task board v1.1 with `status=cancelled`, source RAG run inline detail, and task filters
-- controlled conversation and Agent foundations: run, steps, tool registry, role-gated tools, HITL, audit trail, DeepSeek `agent_decide`, fake eval, audit hardening
-- Agent frontend visibility initial page
-- knowledge governance v1 foundation: archive audit, status filter, metadata display
-- production safety checks: APP_ENV, JWT/cookie/database safety validation
+- document ingestion and ETL
+- keyword / semantic / hybrid retrieval
+- citation-grounded RAG answer with confidence, gaps, next steps
+- RAG run audit and history
+- lightweight task board with source traceability
+- controlled Agent orchestration with HITL and audit
+- production safety checks
+- ontology governance read model: entities, relations, validation issues
+- governance issue triage and curation backlog
+- ontology graph console with scope/status controls
+- RAG evidence-to-ontology entity bridge (read-only navigation)
 
-Current Phase 8 gap:
+Phase 11 is planning: Ontology Modeling Drafts v1 — turn governed entities into human-reviewed Object Type / Property / Link Type / Action Type proposals. Not a full modeling studio, not Graph RAG, not Agent auto-write. See `docs/phase11-planning.md`.
 
-- task `source_type` now supports `rag_run`, `conversation`, `agent_run`, and `manual` — delivered Phase 8.3
-- conversation UX now includes visible citations, tool calls, and failure states — delivered Phase 8.4
-- real DeepSeek Agent smoke results recorded — delivered Phase 8.1
-- demo scenario scripts delivered — Phase 8.5
-
-Phase 8 should not add new backend Agent powers. It should make existing backend capabilities visible, usable, and demonstrable.
-
-## 5. Phase 9 Delivered / Phase 10 Delivered
+## 5. Phase 9 Delivered / Phase 10 Delivered / Phase 11 Planning
 
 Phase 9 Ontology Core v1 — delivered (2026-06-18). All planned capabilities delivered and verified against real KB (74 documents, 74 entities, 186 relations, 97 issues). See `docs/ontology-governance-demo-report.md`.
 

@@ -10,7 +10,7 @@
 注册登录 -> 进入群组 -> 上传/导入知识 -> 提问 -> 查看引用/可信度/知识缺口 -> 确认下一步任务 -> Agent/HITL 审计 -> Ontology 治理与图谱 -> 语义操作层
 ```
 
-Agent 不是默认目标，而是受控协调层：只有多步骤、多工具、需要审计或用户确认的流程才使用 Agent。下一阶段产品主线是在 Phase 8 演示闭环收口后，进入 Phase 9: Ontology Core v1，从 schema/frontmatter 校验、实体抽取、wikilink 关系抽取、断链检测、ontology graph/entity detail 开始。
+Agent 不是默认目标，而是受控协调层：只有多步骤、多工具、需要审计或用户确认的流程才使用 Agent。当前 Phase 8（体验整合）、Phase 9（Ontology Core v1 治理与图谱）、Phase 10（治理运营与演示打磨）已全部交付。下一阶段是 Phase 11: Ontology Modeling Drafts v1 —— 从已治理实体生成可审阅的 Object Type / Property / Link Type / Action Type 草稿，但不做完整建模器、Graph RAG 或 Agent 自动写入。见 `docs/phase11-planning.md`。
 
 ## V1 Scope
 
@@ -129,6 +129,6 @@ alembic upgrade head
 - Knowledge source and Ontology seed corpus: `F:\ontology-kb`
 - The current prototype intentionally does not implement MinIO/OSS, Elasticsearch, Kubernetes, full SaaS administration, or unrestricted autonomous Agent actions.
 - Chunked upload, hybrid retrieval, answer audit, conversations, and controlled Agent workflow now exist as prototype capabilities; verify current status in `docs/agent-handoff.md`.
-- Do not treat future work as generic RAG expansion. Phase 9 should first make the existing knowledge base governable as entities, relations, validation issues, graph, and entity detail.
+- Do not treat future work as generic RAG expansion. Phases 9–10 delivered group-scoped governance: entities, relations, validation issues, triage, curation demo, graph console, and RAG evidence bridge. Phase 11 planning: modeling drafts v1.
 - Do not immediately build a full modeling studio, Graph RAG, or Agent auto-write path for Ontology objects. Those come after the read-only governance and graph layer is reliable.
 - Engineering lessons are tracked in `docs/engineering-memory/`.

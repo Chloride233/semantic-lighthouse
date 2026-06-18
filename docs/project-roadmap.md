@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-18
-**Current phase**: Phase 9 Ontology Core v1 delivered — all 9.1–9.5 complete. Phase 10.1–10.4 delivered; 10.5 review complete. See `docs/agent-handoff.md`, `docs/phase10-planning.md`, and `docs/development-workflow.md`.
+**Current phase**: Phase 10 Governance Operations complete (10.1–10.5 delivered). Phase 11 planning — see `docs/phase11-planning.md`. Base docs: `docs/agent-handoff.md`, `docs/phase10-planning.md`, `docs/development-workflow.md`.
 
 ---
 
@@ -27,17 +27,15 @@
 
 Ontology in this project means business objects, properties, relationships, actions, permissions, evidence, and Agent-facing interfaces. It is not just a database schema, not just a knowledge graph, and not just a RAG document library.
 
-Current Phase 8 remains focused on the demonstrable loop:
+Phases 8–10 delivered the foundation:
 
 ```text
-RAG answer -> user-confirmed task -> Agent/HITL -> audit trail
+RAG answer -> user-confirmed task -> Agent/HITL -> audit trail (Phase 8)
+schema/frontmatter validation -> entity extraction -> wikilink relation extraction -> broken-link detection -> ontology graph/entity detail (Phase 9)
+governance issue triage -> curation demo -> graph UX polish -> evidence bridge -> review (Phase 10)
 ```
 
-Phase 9 delivered (Ontology Core v1). Next is Phase 10 planning:
-
-```text
-schema/frontmatter validation -> entity extraction -> wikilink relation extraction -> broken-link detection -> ontology graph/entity detail
-```
+Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning.md`.
 
 | # | Task | Acceptance |
 |---|------|------------|
@@ -185,7 +183,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 
 ---
 
-## Phase 8: Experience Integration ← CURRENT
+## Phase 8: Experience Integration ← DELIVERED
 
 **Goal**: Make existing backend capabilities visible, usable, and demonstrable. No new backend Agent features. Focus on frontend visibility, UX hardening, demo scripts, and task source traceability expansion so the current loop can be shown before Phase 9.
 
@@ -201,7 +199,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 
 ---
 
-## Phase 9: Ontology Core v1 - Governance & Graph ← NEXT
+## Phase 9: Ontology Core v1 - Governance & Graph ← DELIVERED
 
 **Goal**: Turn the existing ontology KB seed corpus into governed, group-scoped ontology entities, relationships, validation issues, and graph/detail views. This is the first product step from trusted RAG toward the semantic operating layer.
 
@@ -242,7 +240,23 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 **Out of scope**: Graph RAG, modeling studio, Agent auto-write, external KB auto-fix, graph database migration.
 
 
-## Phase 7 Follow-up: Deep Agents Pattern Review ← DOCUMENTED
+## Phase 11: Ontology Modeling Drafts v1 ← PLANNING
+
+**Goal**: Turn the governed entity/relation/issue read model into human-reviewable Object Type, Property, Link Type, and Action Type drafts — without Graph RAG, a full modeling studio, or Agent auto-write. See `docs/phase11-planning.md`.
+
+| # | Task | Description |
+|---|------|-------------|
+| 11.1 | Modeling draft boundary + schema | Draft data model, status lifecycle, migration |
+| 11.2 | Draft read model / API | Group-scoped CRUD for object/property/link/action drafts |
+| 11.3 | Draft generation | Deterministic rules from existing entities/relations, no LLM |
+| 11.4 | Human review workflow | proposed → accepted/rejected, reviewer audit |
+| 11.5 | UI modeling panel | Entity detail panel + draft list, read-only review UX |
+| 11.6 | Agent boundary review | Agent may read/propose, never auto-create/accept/publish |
+
+**Out of scope**: Full modeling studio, Graph RAG, graph database, Agent auto-write, external KB auto-fix, draft-to-production pipeline.
+
+
+## Explicitly Out of Scope (current phases only)
 
 **Goal**: Learn from LangChain Deep Agents / LangGraph without turning Semantic Lighthouse into a generic autonomous Agent platform.
 
