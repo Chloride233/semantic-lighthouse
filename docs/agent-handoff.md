@@ -363,6 +363,26 @@ docs/cloud-smoke-playbook.md
 
 Do not store real `DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, database passwords, cookies, or tokens in this file.
 
+### Agent Frontend Visibility — Phase 8.2 (2026-06-18)
+
+**Status**: In progress — initial page delivered.
+
+- **New page**: `static/js/pages/agent.js` — `#/groups/:gid/agent`
+- **Navbar**: "Agent" link added next to "任务"
+- **Capabilities delivered**:
+  - Create Agent Run: goal input + 3 example goal buttons → `POST /groups/{gid}/agent/runs`
+  - Agent Run list: goal, status badge, phase, step count, timestamps → `GET /groups/{gid}/agent/runs`
+  - Agent Run detail: run meta, plan_json collapsible, final answer, step timeline → `GET /groups/{gid}/agent/runs/{run_id}`
+  - Step timeline: step_index, phase, thought, action_type, status dot, action_detail (collapsible JSON), observation (truncated with expand), error_message, timestamps
+  - Execute next step: button for created/planning/executing status → `POST /groups/{gid}/agent/runs/{run_id}/execute`
+  - HITL confirm/reject/stop: confirmation card with warning → `POST /groups/{gid}/agent/runs/{run_id}/respond`
+  - Status-aware UI: completed shows final_answer, failed shows error, stopped shows stopped message, awaiting_confirmation shows risk warning
+  - User audit: confirm/reject response steps visible in timeline with user tags
+- **Not in scope**: conversation_id selection, multi-Agent, web search, LangGraph, DB migrations
+- **Verification**: 37 agent tests pass, ruff clean, verify_ui 18/21 (3 pre-existing failures unrelated to Agent page)
+
+**Next on Phase 8**: 8.3 task source_type expansion, 8.4 conversation UX hardening, 8.1 real DeepSeek smoke recording.
+
 ## Development Workflow Update (2026-06-18)
 
 The project has adopted a **three-lane tiered iteration workflow** (`docs/development-workflow.md`):

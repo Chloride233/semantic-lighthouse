@@ -10,6 +10,7 @@ import { render as jobsPage } from './pages/jobs.js';
 import { render as ragPage } from './pages/rag.js';
 import { render as conversationsPage } from './pages/conversations.js';
 import { render as tasksPage } from './pages/tasks.js';
+import { render as agentPage } from './pages/agent.js';
 
 route('/login', authPage);
 route('/onboarding', onboardingPage);
@@ -20,6 +21,7 @@ route('/groups/:gid/jobs', jobsPage);
 route('/groups/:gid/rag', ragPage);
 route('/groups/:gid/conversations', conversationsPage);
 route('/groups/:gid/tasks', tasksPage);
+route('/groups/:gid/agent', agentPage);
 
 initNavbar('navbar');
 initRouter('outlet');

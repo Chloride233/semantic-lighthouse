@@ -28,6 +28,7 @@ export function initNavbar(containerId) {
             <a href="#/groups/${gid}/documents" class="${isActive(`/groups/${gid}/documents`)}">知识库</a>
             <a href="#/groups/${gid}/conversations" class="${isActive(`/groups/${gid}/conversations`)}">对话</a>
             <a href="#/groups/${gid}/tasks" class="${isActive(`/groups/${gid}/tasks`)}">任务</a>
+            <a href="#/groups/${gid}/agent" class="${isActive(`/groups/${gid}/agent`)}">Agent</a>
           ` : ''}
           ${signedIn ? `<a href="#/groups" class="${isActive('/groups') && !gid ? 'active' : ''}">工作区</a>` : ''}
         </nav>
