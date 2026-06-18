@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { panel } from '../components/panel.js';
 import { confidenceBadge } from '../components/badge.js';
 import { answerCard } from '../components/answer-card.js';
+import { loadOntologyEntityIndex } from '../util/ontology-links.js';
 
 export async function render(container, params) {
   const gid = params.gid || state.currentGroupId;
@@ -77,12 +78,13 @@ export async function render(container, params) {
           limit: Number(document.getElementById('ragLimit').value || 5),
         }),
       });
+      const oIdx = await loadOntologyEntityIndex(gid);
       resultEl.innerHTML = `
         <div class="ragAnswerHeader">
           ${confidenceBadge(data.confidence)}
           <span class="muted">模型：${esc(data.model)} | 检索方式：${esc(retrievalMethodLabel(data.retrieval_method))}</span>
         </div>
-        ${answerCard(data, { showConfirm: false })}`;
+        ${answerCard(data, { showConfirm: false, groupId: gid, ontologyIndex: oIdx })}`;
       loadRuns();
     } catch (err) {
       errEl.textContent = err.detail || 'RAG 请求失败';

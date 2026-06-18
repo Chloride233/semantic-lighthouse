@@ -892,3 +892,22 @@ button.ghost:hover { background: var(--brand-light); }
   .ontoIssueFilters { flex-direction: column; }
   .ontoIssueFilters select { width: 100%; }
 }
+
+/* ── citation ontology link badge ───────────────────────────────── */
+
+.citationOntoLink {
+  display: inline-flex; align-items: center; gap: 2px;
+  margin-left: auto; padding: 1px 8px;
+  border: 1px solid var(--brand); border-radius: 99px;
+  font-size: var(--text-xs); font-weight: 500;
+  color: var(--brand); text-decoration: none;
+  white-space: nowrap; max-width: 180px;
+  overflow: hidden; text-overflow: ellipsis;
+  flex-shrink: 0;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.citationOntoLink:hover { background: var(--brand-light); color: var(--brand-hover); }
+
+/* ── ontology deep-link highlight ──────────────────────────────── */
+
+.ontoItem.deepLinked { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-light); }

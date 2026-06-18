@@ -278,6 +278,17 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
     results.append(("Ontology graph controls or legend", onto_controls_ok))
     results.append(("Ontology issues filter area", onto_issues_filter_ok))
 
+    # ── Ontology deep link ────────────────────────────────────────────
+    onto_deeplink_ok = False
+    if gid:
+        page.goto(f"{base}/console#/groups/{gid}/ontology?entity_id=nonexistent")
+        page.wait_for_timeout(800)
+        onto_deeplink_ok = (
+            page.locator("text=Ontology 治理").count() > 0
+            and page.locator("#ontoMetrics").count() > 0
+        )
+    results.append(("Ontology deep link does not crash", onto_deeplink_ok))
+
     # ── 19. Document filter tabs ──────────────────────────────────────
     doc_filter_ok = False
     if gid:

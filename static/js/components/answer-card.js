@@ -1,12 +1,13 @@
 import { esc } from '../util/esc.js';
 import { confidenceLabel } from './badge.js';
+import { findEntityForCitation } from '../util/ontology-links.js';
 
 const VALID_LEVELS = new Set(['high', 'medium', 'low']);
 
 const CONFIDENCE_PCT = { high: 85, medium: 60, low: 30, unknown: 0 };
 
 export function answerCard(data, opts = {}) {
-  const { showConfirm = false, groupId = '', hideNextSteps = false } = opts;
+  const { showConfirm = false, groupId = '', hideNextSteps = false, ontologyIndex = null } = opts;
   const taskBoardLink = showConfirm && groupId
     ? `<a class="answerNextLink" href="#/groups/${groupId}/tasks">查看任务 →</a>`
     : '';
@@ -63,17 +64,22 @@ export function answerCard(data, opts = {}) {
       ${citations.length ? `
         <div class="citationList">
           <div class="citationList-title">引用来源（${citations.length}）</div>
-          ${citations.map((c, i) => `
-            <div class="citationCard">
+          ${citations.map((c, i) => {
+            const onto = findEntityForCitation(c, ontologyIndex);
+            const ontoBadge = onto && groupId
+              ? `<a class="citationOntoLink" href="#/groups/${groupId}/ontology?entity_id=${onto.id}" title="Ontology: ${esc(onto.title)}">🔗 ${esc(trunc(onto.title, 20))}</a>`
+              : '';
+            return `<div class="citationCard">
               <div class="citationCard-header">
                 <span class="citationCard-index">[${i + 1}]</span>
                 <span class="citationCard-title">${esc(c.title || '未命名文档')}</span>
                 ${typeof c.score === 'number' && c.score > 0 ? `<span class="citationCard-score">匹配分 ${c.score.toFixed(2)}</span>` : ''}
+                ${ontoBadge}
               </div>
               ${c.snippet ? `<p class="citationCard-snippet">${esc(c.snippet)}</p>` : ''}
               ${c.match_reason ? `<p class="citationMatchReason">${esc(c.match_reason)}</p>` : ''}
-            </div>
-          `).join('')}
+            </div>`;
+          }).join('')}
         </div>
       ` : ''}
     </div>
@@ -99,3 +105,5 @@ function renderEvidenceQuality(eq) {
     </div>
   `;
 }
+
+function trunc(s, n) { return s && s.length > n ? s.slice(0, n) + '...' : s; }

@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 10.4 — Evidence-to-Ontology Bridge Links RAG Citations to Entities Without Graph RAG
+
+- Date: 2026-06-18
+- Version: Phase 10.4
+- Type: highlight
+- Context: RAG answers showed citations with document titles and snippets, but there was no path from a citation to its corresponding ontology entity. Tasks sourced from RAG runs had the same gap. Phase 10.1–10.3 built the ontology governance pipeline; Phase 10.4 needed to close the loop by making RAG evidence traceable to governed entities.
+- What happened: Created `ontology-links.js` with a cached entity index (`byDocumentId` + `bySourcePath` Maps) and a `findEntityForCitation()` matcher. Updated `answerCard` to accept an optional `ontologyIndex` and render `🔗 <entity_title>` pill badges on matched citations linking to `#/groups/{gid}/ontology?entity_id={id}`. Updated `ask.js`, `rag.js`, and `tasks.js` to load the index and pass it through. Added ontology page `?entity_id=` deep link support.
+- Engineering judgment: This is a read-only bridge — it links existing data without changing the retrieval algorithm, adding a graph database, or introducing Graph RAG. The citation→entity link is purely navigational: it tells the user "this citation maps to this governed entity" and lets them navigate to verify. This is the correct enterprise governance posture: evidence is traceable to governed entities, but the retrieval pipeline remains deterministic and the ontology read model has no write-back path from RAG. The `ontologyIndex` opt pattern ensures backward compatibility — old `answerCard` callers are unaffected.
+- Verification: All JS valid (node --check), ruff clean, git diff --check clean. 1 new file + 7 modified. verify_ui adds ontology deep-link crash check.
+
 ## Phase 10.3 — Graph UX Polish Improves Operability Without Crossing the Graph Runtime Boundary
 
 - Date: 2026-06-18

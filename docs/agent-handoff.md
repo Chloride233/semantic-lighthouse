@@ -4,7 +4,7 @@ Last updated: 2026-06-18
 
 ## Current Phase
 
-**Phases 0–9 delivered; Phase 10.1–10.2 delivered; 10.3–10.5 pending** — see `docs/project-roadmap.md` and `docs/phase10-planning.md`. Phase 10 focuses on governance operations and demo polish before Graph RAG or modeling studio.
+**Phases 0–9 delivered; Phase 10.1–10.4 delivered; 10.5 pending** — see `docs/project-roadmap.md` and `docs/phase10-planning.md`. Phase 10 focuses on governance operations and demo polish before Graph RAG or modeling studio.
 
 **Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
 
@@ -298,7 +298,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 10.3 Ontology graph UX polish (filterable graph, improved labels, edge hover, mobile). See `docs/phase10-planning.md`.
+**Next iteration**: Phase 10.5 Phase 10 review (end-to-end governance pipeline verification). See `docs/phase10-planning.md`.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
@@ -470,7 +470,7 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Full suite**: 224 passed, ruff clean, migration 0012 at head
 - **Not in scope**: wikilink relations (9.3), governance issue list UI (9.4), ontology graph UI (9.5), Graph RAG, Agent writes to ontology, external KB modification
 
-**Phase 9 complete**. Phase 10.1–10.2 delivered. Next: Phase 10.3 Ontology graph UX polish.
+**Phase 9 complete**. Phase 10.1–10.4 delivered. Next: Phase 10.5 Phase 10 review.
 
 ### Real KB Curation Demo — Phase 10.2 (2026-06-18)
 
@@ -499,6 +499,19 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Empty state**: clear empty message instead of blank area when no graph data
 - **Still read-only SVG**: no graph library, no Graph RAG, no modeling studio, no Agent auto-write
 - **Verification**: JS syntax valid (node --check), ruff clean, git diff --check clean. UI smoke blocked by pre-existing auth timing issue (unrelated to ontology)
+
+### Evidence-to-Ontology Bridge — Phase 10.4 (2026-06-18)
+
+**Status**: Delivered.
+
+- **`static/js/util/ontology-links.js`**: cached entity index with `byDocumentId` and `bySourcePath` Maps; `findEntityForCitation()` matches citations to entities; `clearOntologyEntityCache()` for scan refresh
+- **answer-card.js**: `ontologyIndex` opt (default null, backward-compatible); each citation that matches an entity shows `🔗 <title>` pill linking to `#/groups/{gid}/ontology?entity_id={id}`
+- **ask.js**: loads ontology index after RAG answer + in recent detail; passes to answerCard
+- **rag.js**: loads ontology index after RAG answer; passes to answerCard
+- **tasks.js**: loads ontology index when expanding rag_run source detail; passes to answerCard
+- **ontology.js**: supports `?entity_id=<id>` deep link — auto-selects entity on load; graceful when entity missing
+- **Still read-only bridge**: RAG retrieval algorithm unchanged; no Graph RAG; no entity editing; no Agent auto-write
+- **Verification**: all JS valid (node --check), ruff clean, git diff --check clean
 
 ### Governance Issue Triage — Phase 10.1 (2026-06-18)
 
@@ -660,12 +673,12 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - External KB has real drift (90 unresolved wikilinks, 7 stale eval gold IDs) — these are curation findings, not bugs
 - Backlog items require human curator action — no automated KB fix path
 
-**Next**: Phase 10.3 Ontology graph UX polish.
+**Next**: Phase 10.5 Phase 10 review (end-to-end governance pipeline verification).
 
 ## Agent Instructions For The Next Session
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.
 
-Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 10.1–10.2 are delivered (governance issue triage + curation demo). Phase 10.3 (ontology graph UX polish) is next.
+Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 10.1–10.4 are delivered. Phase 10.5 (Phase 10 review) is next.
 
 Do not rely on chat history. The latest verified baseline before this handoff refresh was commit `398865f chore: add ontology curation demo runner`; the working tree should be clean before the next iteration.

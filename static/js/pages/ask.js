@@ -5,6 +5,7 @@ import { answerCard } from '../components/answer-card.js';
 import { confidenceBadge } from '../components/badge.js';
 import { showToast } from '../util/toast.js';
 import { confirmTask, markConfirmed } from '../util/task-confirm.js';
+import { loadOntologyEntityIndex } from '../util/ontology-links.js';
 
 export async function render(container) {
   if (state.accessToken && !state.currentUser) {
@@ -110,7 +111,8 @@ function renderQuestionUI(inner, gid) {
       });
       currentRunId = data.run_id || '';
       data._sourceId = currentRunId;
-      resultEl.innerHTML = answerCard(data, { showConfirm: true, groupId: gid });
+      const oIdx = await loadOntologyEntityIndex(gid);
+      resultEl.innerHTML = answerCard(data, { showConfirm: true, groupId: gid, ontologyIndex: oIdx });
       loadRecent(gid);
     } catch (err) {
       errEl.textContent = err.detail || '获取回答失败';
@@ -169,6 +171,7 @@ async function loadRecent(gid) {
         try {
           const detail = await api(`/groups/${gid}/rag/runs/${runId}`);
           const normalized = { ...detail, _sourceId: detail.id || detail.run_id };
+          const oIdx = await loadOntologyEntityIndex(gid);
           detailEl.innerHTML = `
             <div class="recentDetailCard">
               <div class="recentDetailMeta">
@@ -181,7 +184,7 @@ async function loadRecent(gid) {
                 <span><strong>时间：</strong>${new Date(detail.created_at).toLocaleString()}</span>
               </div>
               ${detail.error_message ? `<div class="recentDetailError">错误信息：${esc(detail.error_message)}</div>` : ''}
-              ${answerCard(normalized, { showConfirm: false })}
+              ${answerCard(normalized, { showConfirm: false, ontologyIndex: oIdx })}
             </div>`;
         } catch (err) {
           showToast('加载历史详情失败', 'error');

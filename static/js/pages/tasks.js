@@ -2,6 +2,7 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { taskCard, bindTaskCardEvents } from '../components/task-card.js';
 import { answerCard } from '../components/answer-card.js';
+import { loadOntologyEntityIndex } from '../util/ontology-links.js';
 import { esc } from '../util/esc.js';
 import { showToast } from '../util/toast.js';
 
@@ -110,7 +111,8 @@ function bindExpandEvents(container, gid) {
 
       try {
         const run = await api(`/groups/${gid}/rag/runs/${sourceId}`);
-        const html = buildSourceDetail(run, sourceId, gid);
+        const oIdx = await loadOntologyEntityIndex(gid);
+        const html = buildSourceDetail(run, sourceId, gid, oIdx);
         sourceCache.set(cacheKey, html);
         detailEl.innerHTML = html;
       } catch (err) {
@@ -123,14 +125,14 @@ function bindExpandEvents(container, gid) {
   });
 }
 
-function buildSourceDetail(run, sourceId, gid) {
+function buildSourceDetail(run, sourceId, gid, ontologyIndex = null) {
   return `
     <div class="taskSourceHeader">
       <span>🔗 来源追溯 · RAG问答</span>
       <span class="taskSourceMeta">${new Date(run.created_at).toLocaleString()} · ${esc(retrievalLabel(run.retrieval_method))}</span>
     </div>
     <div class="taskSourceQuestion">原始提问：${esc(run.question)}</div>
-    ${answerCard(run, { showConfirm: false, hideNextSteps: true })}
+    ${answerCard(run, { showConfirm: false, hideNextSteps: true, groupId: gid, ontologyIndex })}
     <a class="taskSourceLink" href="#/groups/${gid}/rag">在调试台查看 →</a>`;
 }
 

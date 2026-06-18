@@ -23,6 +23,10 @@ export async function render(container, params) {
   if (!state.accessToken) { container.innerHTML = '<p class="muted">请先登录。</p>'; return; }
   if (!gid) { container.innerHTML = '<p class="muted">请先选择工作区。</p>'; return; }
 
+  const hash = location.hash.replace('#', '');
+  const qp = new URLSearchParams(hash.split('?')[1] || '');
+  const deepLinkEntityId = qp.get('entity_id') || '';
+
   container.innerHTML = `
     <div class="ontoPage">
       <div class="ontoHeader"><div><h1 class="pageTitle">Ontology 治理</h1><p class="pageMeta">实体、关系和治理问题的只读视图。编辑与建模在后续版本中开放。</p></div><div id="ontoActions"></div></div>
@@ -35,10 +39,10 @@ export async function render(container, params) {
       <div id="ontoIssues"></div>
     </div>`;
 
-  await init(gid);
+  await init(gid, deepLinkEntityId);
 }
 
-async function init(gid) {
+async function init(gid, deepLinkEntityId = '') {
   const can = state.currentRole === 'owner' || state.currentRole === 'admin';
   document.getElementById('ontoActions').innerHTML = can
     ? '<button id="ontoScanBtn" class="primary">扫描 Ontology</button>'
@@ -50,17 +54,24 @@ async function init(gid) {
     catch (e) { showToast('扫描失败：' + (e.detail || '服务异常'), 'error'); }
     finally { b.disabled = false; b.textContent = '扫描 Ontology'; }
   });
-  await load(gid);
+  await load(gid, deepLinkEntityId);
 }
 
-async function load(gid) {
+async function load(gid, deepLinkEntityId = '') {
   document.getElementById('ontoMetrics').innerHTML = '<span class="spinner"></span> 加载中...';
   try {
     const [er, rr, ir] = await Promise.all([
       api(`/groups/${gid}/ontology/entities?limit=100`), api(`/groups/${gid}/ontology/relations?limit=100`), api(`/groups/${gid}/ontology/issues?limit=100`)]);
     _e = er.entities || []; _r = rr.relations || []; _is = ir.issues || [];
     renderMetrics(); renderFilters(); renderList(); renderIssues();
-    if (_sel && _e.some(x => x.id === _sel)) selectEnt(_sel); else _sel = null;
+    // Deep link: auto-select entity if provided and exists
+    if (deepLinkEntityId && _e.some(x => x.id === deepLinkEntityId)) {
+      selectEnt(deepLinkEntityId);
+    } else if (_sel && _e.some(x => x.id === _sel)) {
+      selectEnt(_sel);
+    } else {
+      _sel = null;
+    }
   } catch (e) { document.getElementById('ontoMetrics').innerHTML = `<span class="error">加载失败：${esc(e.detail || '')}</span>`; }
 }
 
