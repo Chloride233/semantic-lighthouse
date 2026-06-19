@@ -18,6 +18,17 @@ const DRAFT_TYPE_LABEL = { object_type: '对象类型', property: '属性', link
 const DRAFT_STATUS = { proposed: '待审核', accepted: '已接受', rejected: '已拒绝' };
 const QUALITY_L = { PASS: '通过', WARN: '警告', FAIL: '失败' };
 
+/** Extract a human-readable message from an APIError for UI display. */
+function errMsg(e) {
+  const d = e?.detail;
+  if (!d) return e?.message || e?.statusText || '请求失败';
+  if (typeof d === 'string') return d;
+  if (Array.isArray(d)) {
+    return d.map(i => (i?.msg || i?.message || String(i))).join('; ');
+  }
+  return d.message || d.detail || String(e.status || '') + ' 错误';
+}
+
 let _e = [], _r = [], _is = [], _drafts = [], _packages = [], _quality = null;
 let _sel = null, _activeTab = 'graph';
 let _graphScope = 'selected', _graphStatus = 'all';
@@ -103,7 +114,7 @@ async function init(gid, deepLinkEntityId) {
   document.getElementById('ontoScanBtn')?.addEventListener('click', async () => {
     const b = document.getElementById('ontoScanBtn'); b.disabled = true; b.textContent = '扫描中…';
     try { const r = await api(`/groups/${gid}/ontology/scan`, { method: 'POST' }); showToast(`扫描完成：${r.entity_count} 实体, ${r.relation_count} 关系, ${r.issue_count} 问题`, 'success'); await loadAll(gid); }
-    catch (e) { showToast('扫描失败：' + (e.detail || '服务异常'), 'error'); }
+    catch (e) { showToast('扫描失败：' + errMsg(e), 'error'); }
     finally { b.disabled = false; b.textContent = '扫描 Ontology'; }
   });
 
@@ -116,7 +127,7 @@ async function loadAll(gid, deepLinkEntityId) {
     const [er, rr, ir] = await Promise.all([
       api(`/groups/${gid}/ontology/entities?limit=100`),
       api(`/groups/${gid}/ontology/relations?limit=100`),
-      api(`/groups/${gid}/ontology/issues?limit=200`),
+      api(`/groups/${gid}/ontology/issues?limit=100`),
     ]);
     _e = er.entities || []; _r = rr.relations || []; _is = ir.issues || [];
 
@@ -149,7 +160,7 @@ async function loadAll(gid, deepLinkEntityId) {
     // Render overview after all data loaded
     renderOverview();
   } catch (e) {
-    document.getElementById('ontoMetrics').innerHTML = `<span class="error">加载失败：${esc(e.detail || '')}</span>`;
+    document.getElementById('ontoMetrics').innerHTML = `<span class="error">加载失败：${esc(errMsg(e))}</span>`;
   }
 }
 
@@ -458,11 +469,11 @@ function renderIssues() {
 async function doTriage(gid, iid, status) {
   try {
     await api(`/groups/${gid}/ontology/issues/${iid}/triage`, { method: 'POST', body: JSON.stringify({ triage_status: status }) });
-    const r = await api(`/groups/${gid}/ontology/issues?limit=200`);
+    const r = await api(`/groups/${gid}/ontology/issues?limit=100`);
     _is = r.issues || [];
     renderIssues();
     renderMetrics();
-  } catch (e) { showToast('操作失败：' + (e.detail || '服务异常'), 'error'); }
+  } catch (e) { showToast('操作失败：' + errMsg(e), 'error'); }
 }
 
 /* ── Modeling Drafts ─────────────────────────────────────────── */
@@ -620,7 +631,7 @@ async function generateDrafts() {
     try { _quality = await api(`/groups/${gid}/ontology/drafts/quality`); } catch (_) {}
     _selDraft = null; _batchSelected = new Set();
     renderMetrics(); renderList(); renderModeling(gid); renderOverview();
-  } catch (e) { showToast('生成失败：' + (e.detail || '服务异常'), 'error'); }
+  } catch (e) { showToast('生成失败：' + errMsg(e), 'error'); }
   finally { btn.disabled = false; btn.textContent = '生成草稿'; }
 }
 
@@ -634,7 +645,7 @@ async function singleReview(gid, draftId, status, note) {
     _selDraft = null; _batchSelected = new Set();
     renderDraftList(); renderDraftDetail(); renderMetrics(); renderOverview();
     showToast(status === 'accepted' ? '已接受草稿' : '已拒绝草稿', 'success');
-  } catch (e) { if (msg) msg.textContent = e.detail || '操作失败'; }
+  } catch (e) { if (msg) msg.textContent = errMsg(e); }
 }
 
 async function reviewBatch(gid, status, note) {
@@ -652,7 +663,7 @@ async function reviewBatch(gid, status, note) {
     document.getElementById('reviewNoteBatch').value = '';
     renderDraftList(); renderDraftDetail(); renderMetrics(); renderOverview();
     showToast(`已${status==='accepted'?'接受':status==='rejected'?'拒绝':''} ${r.reviewed_count} 个草稿`, 'success');
-  } catch (e) { showToast('批量审核失败：' + (e.detail || '服务异常'), 'error'); }
+  } catch (e) { showToast('批量审核失败：' + errMsg(e), 'error'); }
 }
 
 /* ── Contracts (packages) ────────────────────────────────────── */
@@ -706,7 +717,7 @@ async function renderContract(gid) {
     const contract = await api(`/groups/${gid}/ontology/packages/${_selPackage}/contract`);
     el.innerHTML = buildContractHTML(contract, pkg);
   } catch (e) {
-    el.innerHTML = `<div class="errorCard"><p class="errorTitle">加载契约失败</p><p class="errorDetail">${esc(e.detail?.message || e.detail || '服务异常')}</p></div>`;
+    el.innerHTML = `<div class="errorCard"><p class="errorTitle">加载契约失败</p><p class="errorDetail">${esc(errMsg(e))}</p></div>`;
   }
 }
 
@@ -759,7 +770,7 @@ async function buildPackage() {
     const pr = await api(`/groups/${gid}/ontology/packages?limit=20`);
     _packages = pr.packages || [];
     renderContracts(gid); renderMetrics(); renderOverview();
-  } catch (e) { showToast('构建失败：' + (e.detail || '服务异常'), 'error'); }
+  } catch (e) { showToast('构建失败：' + errMsg(e), 'error'); }
   finally { btn.disabled = false; btn.textContent = '构建模型包'; }
 }
 
