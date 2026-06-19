@@ -1,7 +1,7 @@
 # Phase 13 Planning — Typed Business Ontology Contract & Manufacturing Pilot v1
 
 **Date**: 2026-06-19
-**Status**: 13.1–13.2 complete (profile spec + deterministic validator), 13.3–13.6 PLANNED.
+**Status**: 13.1–13.3 complete (profile spec + validator + compiler), 13.4–13.6 PLANNED.
 
 ---
 
@@ -124,9 +124,15 @@ Proposal, Research         Alert, Asset
 
 ---
 
-### 13.3 Business Contract Compiler
+### 13.3 Business Contract Compiler ✅
 
-**Goal**: Derive a stable, application-consumable `compiled business manifest` from a validated business_v1 immutable package.
+**Goal**: Derive a stable, application-consumable `compiled business manifest` from a validated business_v1 immutable package. **Delivered 2026-06-19.**
+
+**Deliverables**:
+- `src/semantic_lighthouse/services/business_contract_compiler.py` — `compile_business_contract(package)` raises `BusinessContractCompilationError` on validator FAIL, returns manifest dict on PASS/WARN.
+- `tests/test_business_contract_compiler.py` — 7 tests covering structure, field whitelist, FAIL block, WARN allow, sorting, hash stability, immutability.
+- Field whitelist per entity_type — no arbitrary payload leakage.
+- `api_name` from `payload.api_name` (not root `name`); `description` from root; `action_contract` from top-level item.
 
 **Input**: An existing Phase 12 `OntologyModelPackage` whose `contract_json` satisfies business_v1 validation (13.2).
 **Output**: A compiled manifest dict — not persisted, not published, not written to external systems.

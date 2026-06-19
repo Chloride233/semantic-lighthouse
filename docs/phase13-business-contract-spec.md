@@ -296,14 +296,16 @@ Each entity in the compiled manifest is derived from a Phase 12 `contract_json` 
 - `description`
 - All fields from `payload` except `contract_profile`, `generator`, `scope`, `generation_key`, `observed_value_types`, `observed_entity_count`, `source_entity_type`, `source_entity_count`.
 
-**Renamed fields**:
-- The draft root `name` → compiled `api_name`.
-- The draft root `description` → compiled `description`.
-- `payload.display_name` → compiled `display_name`.
-- For Object Type: `payload.primary_key` → compiled `primary_key`.
-- For Property: `payload.object_type` → compiled `object_type`; `payload.value_type` → compiled `value_type`; `payload.required` → compiled `required`.
-- For Link Type: `payload.source_object_type` → compiled `source_object_type`; `payload.target_object_type` → compiled `target_object_type`; `payload.cardinality` → compiled `cardinality`.
-- For Action Type: `payload.target_object_type` → compiled `target_object_type`; `payload.parameters` → compiled `parameters`; `payload.declared_effects` → compiled `declared_effects`; `action_contract` preserved as-is (already validated by Phase 12 builder).
+**Renamed/sourced fields** (compiler rules — authoritative):
+- `entity_type` = `item.draft_type` (e.g., `"object_type"`, `"property"`, `"link_type"`, `"action_type"`).
+- `api_name` = `item.payload.api_name` — **NOT** `item.name`. The draft root `name` is a Phase 11 artifact and MUST NOT appear in the compiled manifest.
+- `description` = `item.description` — the root-level description from the contract_json item.
+- `display_name` = `item.payload.display_name`.
+- For Object Type: `primary_key` = `item.payload.primary_key`.
+- For Property: `object_type` = `item.payload.object_type`; `value_type` = `item.payload.value_type`; `required` = `item.payload.required`.
+- For Link Type: `source_object_type` = `item.payload.source_object_type`; `target_object_type` = `item.payload.target_object_type`; `cardinality` = `item.payload.cardinality`.
+- For Action Type: `target_object_type` = `item.payload.target_object_type`; `parameters` = `item.payload.parameters` (copied, sorted by `name`); `declared_effects` = `item.payload.declared_effects` (copied, manual order preserved).
+- **`action_contract`** = `item.action_contract` — the **top-level** field on the contract_json item, set by the Phase 12 package builder. It is NOT taken from `item.payload`.
 
 **`action_contract` in compiled manifest**: The `action_contract` is carried through to the compiled entity unchanged from its validated form in the Phase 12 package. It is part of the business definition and participates in `semantic_hash`.
 
@@ -312,11 +314,12 @@ Each entity in the compiled manifest is derived from a Phase 12 `contract_json` 
 All arrays in the compiled manifest are deterministically sorted:
 
 - `object_types`: by `api_name` ascending.
-- `properties`: by `api_name` ascending.
+- `properties`: by `(object_type, api_name)` ascending.
 - `link_types`: by `api_name` ascending.
 - `action_types`: by `api_name` ascending.
 
 Within an Action's `parameters` array: by `name` ascending.
+`declared_effects` preserves manual order — **not** sorted.
 
 These sorting rules are applied before `semantic_hash` computation. The compiler never preserves insertion order.
 
