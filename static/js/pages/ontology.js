@@ -23,11 +23,20 @@ let _sel = null, _activeTab = 'graph';
 let _graphScope = 'selected', _graphStatus = 'all';
 let _issueTriageFilter = 'all', _issueCodeFilter = 'all';
 let _selDraft = null, _selPackage = null;
+let _batchSelected = new Set();
+
+function resetState() {
+  _e = []; _r = []; _is = []; _drafts = []; _packages = []; _quality = null;
+  _sel = null; _selDraft = null; _selPackage = null; _batchSelected = new Set();
+  _graphScope = 'selected'; _graphStatus = 'all'; _activeTab = 'graph';
+  _issueTriageFilter = 'all'; _issueCodeFilter = 'all';
+}
 
 export async function render(container, params) {
   const gid = params.gid || state.currentGroupId;
   if (!state.accessToken) { container.innerHTML = '<p class="muted">请先登录。</p>'; return; }
   if (!gid) { container.innerHTML = '<p class="muted">请先选择工作区。</p>'; return; }
+  resetState();
 
   const hash = location.hash.replace('#', '');
   const qp = new URLSearchParams(hash.split('?')[1] || '');
@@ -462,15 +471,19 @@ function renderModeling(gid) {
   const area = document.getElementById('ontoDraftsArea');
   if (!area) return;
   const can = state.currentRole === 'owner' || state.currentRole === 'admin';
+  _batchSelected = new Set();
 
-  let html = '<div class="draftToolbar">';
+  let html = '';
   if (can) {
+    const hasProposed = _drafts.some(d => d.status === 'proposed');
+    html += '<div class="draftToolbar">';
     html += `<button id="genDraftsBtn" class="secondary small">生成草稿</button>`;
     html += `<button id="batchAcceptBtn" class="small" disabled>批量接受</button>`;
     html += `<button id="batchRejectBtn" class="secondary small" disabled>批量拒绝</button>`;
-    html += `<input id="reviewNoteBatch" class="draftNote" placeholder="审核备注（拒绝时必填）..." style="display:none" />`;
+    html += `<div id="batchRejectGroup" style="display:none;margin-top:6px"><input id="reviewNoteBatch" class="draftNote" placeholder="拒绝时必须填写备注…" /><button id="batchRejectConfirmBtn" class="danger small" style="margin-top:4px">确认拒绝</button><button id="batchRejectCancelBtn" class="secondary small" style="margin-top:4px">取消</button></div>`;
+    html += `<span id="batchReviewMsg" class="muted" style="font-size:var(--text-xs);margin-left:8px"></span>`;
+    html += '</div>';
   }
-  html += '</div>';
 
   if (!_drafts.length) {
     html += '<div class="emptyState"><div class="emptyTitle">暂无建模草稿</div><div class="emptyHint">扫描 Ontology 后生成建模草稿，或从实体详情手动创建。</div></div>';
@@ -484,33 +497,67 @@ function renderModeling(gid) {
   if (can) {
     document.getElementById('genDraftsBtn')?.addEventListener('click', generateDrafts);
     document.getElementById('batchAcceptBtn')?.addEventListener('click', () => reviewBatch(gid, 'accepted'));
-    document.getElementById('batchRejectBtn')?.addEventListener('click', () => { document.getElementById('reviewNoteBatch').style.display = ''; });
-    // Bind note input to enable batch reject
-    const noteInput = document.getElementById('reviewNoteBatch');
-    noteInput?.addEventListener('input', () => {
-      document.getElementById('batchRejectBtn').disabled = !noteInput.value.trim();
+    document.getElementById('batchRejectBtn')?.addEventListener('click', () => {
+      document.getElementById('batchRejectGroup').style.display = '';
+      document.getElementById('reviewNoteBatch').focus();
     });
-    document.getElementById('batchRejectBtn')?.addEventListener('click', () => reviewBatch(gid, 'rejected'));
+    document.getElementById('batchRejectCancelBtn')?.addEventListener('click', () => {
+      document.getElementById('batchRejectGroup').style.display = 'none';
+      document.getElementById('reviewNoteBatch').value = '';
+      document.getElementById('batchReviewMsg').textContent = '';
+    });
+    document.getElementById('batchRejectConfirmBtn')?.addEventListener('click', () => {
+      const note = document.getElementById('reviewNoteBatch')?.value.trim();
+      if (!note) { document.getElementById('batchReviewMsg').textContent = '拒绝时必须填写审核备注。'; return; }
+      reviewBatch(gid, 'rejected', note);
+    });
   }
+}
+
+function updateBatchButtons() {
+  document.getElementById('batchAcceptBtn').disabled = _batchSelected.size === 0;
+  document.getElementById('batchRejectBtn').disabled = _batchSelected.size === 0;
 }
 
 function renderDraftList() {
   const el = document.getElementById('draftList');
   if (!el) return;
-  const selected = new Set();
-  el.querySelectorAll('.draftItem.selected').forEach(d => selected.add(d.dataset.id));
+  const can = state.currentRole === 'owner' || state.currentRole === 'admin';
 
-  el.innerHTML = _drafts.map(d => `
-    <div class="draftItem${_selDraft === d.id ? ' selected' : ''}" data-id="${d.id}">
-      <div class="draftItemTitle">${esc(d.name)}</div>
-      <div class="draftItemMeta">
-        <span class="badge badgeInfo">${DRAFT_TYPE_LABEL[d.draft_type]||d.draft_type}</span>
-        <span class="badge badgeMuted">${DRAFT_STATUS[d.status]||d.status}</span>
+  el.innerHTML = _drafts.map(d => {
+    const isProposed = d.status === 'proposed';
+    const isSel = _selDraft === d.id;
+    const isBatch = _batchSelected.has(d.id);
+    const cb = (can && isProposed)
+      ? `<input type="checkbox" class="draftCheck" data-id="${d.id}" ${isBatch ? 'checked' : ''} ${!isProposed ? 'disabled' : ''} />`
+      : `<span class="draftCheckPlaceholder"></span>`;
+    return `
+    <div class="draftItem${isSel ? ' draftItem--detail' : ''}${isBatch ? ' draftItem--batch' : ''}" data-id="${d.id}">
+      ${cb}
+      <div class="draftItemInfo">
+        <div class="draftItemTitle">${esc(d.name)}</div>
+        <div class="draftItemMeta">
+          <span class="badge badgeInfo">${DRAFT_TYPE_LABEL[d.draft_type]||d.draft_type}</span>
+          <span class="badge badgeMuted">${DRAFT_STATUS[d.status]||d.status}</span>
+        </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   el.querySelectorAll('.draftItem').forEach(item => {
-    item.addEventListener('click', () => { _selDraft = item.dataset.id; renderDraftList(); renderDraftDetail(); });
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.draftCheck')) return;
+      _selDraft = item.dataset.id; renderDraftList(); renderDraftDetail();
+    });
+  });
+  el.querySelectorAll('.draftCheck').forEach(cb => {
+    cb.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (cb.checked) _batchSelected.add(cb.dataset.id);
+      else _batchSelected.delete(cb.dataset.id);
+      renderDraftList();
+      updateBatchButtons();
+    });
   });
 }
 
@@ -543,8 +590,8 @@ function renderDraftDetail() {
     ${d.review_note ? `<div class="ontoDMeta">审核备注：${esc(d.review_note)}</div>` : ''}
     ${can && d.status === 'proposed' ? `
       <div class="actions" style="margin-top:12px">
-        <button class="acceptDraftBtn small" data-id="${d.id}">接受</button>
-        <button class="rejectDraftBtn secondary small" data-id="${d.id}">拒绝</button>
+        <button class="singleAcceptBtn small" data-id="${d.id}">接受</button>
+        <button class="singleRejectBtn secondary small" data-id="${d.id}">拒绝</button>
         <input id="singleReviewNote" class="draftNote" placeholder="拒绝时必须填写备注…" style="margin-top:6px" />
         <span id="draftReviewMsg" class="muted" style="font-size:var(--text-xs)"></span>
       </div>` : ''}
@@ -553,8 +600,8 @@ function renderDraftDetail() {
   el.querySelector('.ontoRelTarget')?.addEventListener('click', (e2) => {
     _activeTab = 'graph'; switchTabUI(gid); selectEnt(e2.target.dataset.eid);
   });
-  el.querySelector('.acceptDraftBtn')?.addEventListener('click', () => singleReview(gid, d.id, 'accepted'));
-  el.querySelector('.rejectDraftBtn')?.addEventListener('click', () => {
+  el.querySelector('.singleAcceptBtn')?.addEventListener('click', () => singleReview(gid, d.id, 'accepted'));
+  el.querySelector('.singleRejectBtn')?.addEventListener('click', () => {
     const note = document.getElementById('singleReviewNote')?.value.trim();
     if (!note) { document.getElementById('draftReviewMsg').textContent = '拒绝时必须填写审核备注。'; return; }
     singleReview(gid, d.id, 'rejected', note);
@@ -571,7 +618,8 @@ async function generateDrafts() {
     const dr = await api(`/groups/${gid}/ontology/drafts?limit=100`);
     _drafts = dr.drafts || [];
     try { _quality = await api(`/groups/${gid}/ontology/drafts/quality`); } catch (_) {}
-    renderMetrics(); renderModeling(gid); renderOverview();
+    _selDraft = null; _batchSelected = new Set();
+    renderMetrics(); renderList(); renderModeling(gid); renderOverview();
   } catch (e) { showToast('生成失败：' + (e.detail || '服务异常'), 'error'); }
   finally { btn.disabled = false; btn.textContent = '生成草稿'; }
 }
@@ -583,29 +631,25 @@ async function singleReview(gid, draftId, status, note) {
     const dr = await api(`/groups/${gid}/ontology/drafts?limit=100`);
     _drafts = dr.drafts || [];
     try { _quality = await api(`/groups/${gid}/ontology/drafts/quality`); } catch (_) {}
-    _selDraft = null;
+    _selDraft = null; _batchSelected = new Set();
     renderDraftList(); renderDraftDetail(); renderMetrics(); renderOverview();
     showToast(status === 'accepted' ? '已接受草稿' : '已拒绝草稿', 'success');
   } catch (e) { if (msg) msg.textContent = e.detail || '操作失败'; }
 }
 
-async function reviewBatch(gid, status) {
-  const selected = [];
-  document.querySelectorAll('#draftList .draftItem').forEach(d => {
-    if (d.classList.contains('selected') && _drafts.find(x => x.id === d.dataset.id)?.status === 'proposed') {
-      selected.push(d.dataset.id);
-    }
-  });
-  if (!selected.length) { showToast('请先选择待审核的草稿。', 'warn'); return; }
-
-  const note = document.getElementById('reviewNoteBatch')?.value.trim() || null;
+async function reviewBatch(gid, status, note) {
+  if (!_batchSelected.size) { showToast('请先勾选待审核的草稿。', 'warn'); return; }
   if (status === 'rejected' && !note) { showToast('拒绝时必须填写审核备注。', 'warn'); return; }
 
+  const selected = [..._batchSelected];
   try {
-    const r = await api(`/groups/${gid}/ontology/drafts/review-batch`, { method: 'POST', body: JSON.stringify({ draft_ids: selected, status, review_note: note }) });
+    const r = await api(`/groups/${gid}/ontology/drafts/review-batch`, { method: 'POST', body: JSON.stringify({ draft_ids: selected, status, review_note: note || null }) });
     const dr = await api(`/groups/${gid}/ontology/drafts?limit=100`);
     _drafts = dr.drafts || [];
     try { _quality = await api(`/groups/${gid}/ontology/drafts/quality`); } catch (_) {}
+    _selDraft = null; _batchSelected = new Set();
+    document.getElementById('batchRejectGroup').style.display = 'none';
+    document.getElementById('reviewNoteBatch').value = '';
     renderDraftList(); renderDraftDetail(); renderMetrics(); renderOverview();
     showToast(`已${status==='accepted'?'接受':status==='rejected'?'拒绝':''} ${r.reviewed_count} 个草稿`, 'success');
   } catch (e) { showToast('批量审核失败：' + (e.detail || '服务异常'), 'error'); }
