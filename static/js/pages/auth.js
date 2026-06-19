@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { state, setState } from '../state.js';
+import { state, setState, restoreGroupContext } from '../state.js';
 import { navigate } from '../router.js';
 import { showToast } from '../util/toast.js';
 
@@ -126,10 +126,8 @@ export async function render(container) {
         setState({
           accessToken: data.access_token,
           currentUser: me,
-          groups,
-          currentGroupId: groups[0].group_id,
-          currentRole: groups[0].role,
         });
+        restoreGroupContext(groups);
         navigate('/ask');
       } else {
         setState({

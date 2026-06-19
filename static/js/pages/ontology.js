@@ -254,7 +254,6 @@ function renderDetail(e) {
     el.addEventListener('click', () => selectEnt(el.dataset.eid));
   });
 }
-}
 
 function renderIssues() {
   const c = document.getElementById('ontoIssues'); if (!_is.length) { c.innerHTML = ''; return; }

@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 13 COMPLETE — business_v1 backend contract stable, 495 tests, 12/12 gates PASS. Next: Kimi frontend refactor handoff, using typed contract as data model surface. CC remains backend-only — no frontend work.)
+Last updated: 2026-06-19 (Phase 13 COMPLETE — business_v1 backend contract stable, 495 tests, 12/12 gates PASS. Frontend Refactor F1A complete: Swiss app shell, global group context, reorganized navigation. Executor: CC. F1B Ontology workspace pending.)
 
 ## Current Phase
 
@@ -309,7 +309,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 13 COMPLETE (all 12 review gates PASS, `docs/phase13-review.md`). Kimi frontend refactor planning is the next workstream — the backend business_v1 contract surface (profile spec, validator, compiler, export API, manufacturing pilot) is stable and typed. CC does not execute frontend work. Future backend phases (14a Object Runtime, 14b SDK, 14c Contract Refinement, MCP) remain candidates, not pre-committed.
+**Next iteration**: Phase 13 COMPLETE (all 12 review gates PASS, `docs/phase13-review.md`). Frontend Refactor F1A delivered by CC — Swiss minimalism app shell, persistent group context, workspace-oriented navigation (工作台/知识/Ontology/执行). F1B Ontology internal workspace to follow. Future backend phases (14a Object Runtime, 14b SDK, 14c Contract Refinement, MCP) remain candidates, not pre-committed.
 
 ### Phase 11.1+11.2 Review Hardening — Rescan Evidence Lifecycle (2026-06-19)
 
@@ -777,7 +777,7 @@ Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CL
 
 Do not frame the project as only a RAG/Agent portfolio. The current product direction is the Ontology semantic operating layer. Phase 11 backend and Phase 12 are complete; Phase 13.1 has defined the `business_v1` contract profile and 13.2 validator is next. Phase 12 packages and Phase 13 manifests are not published or executable Ontology. Phase 11.5 UI is **deferred** to Kimi unified frontend refactor — do NOT implement frontend work in current CC iterations. Do not build a full modeling studio, Graph RAG, Agent auto-write, package publishing, or external KB writes.
 
-**Frontend moratorium**: current CC iterations do zero frontend work. Do not modify static/js, static/styles.css, HTML templates, or frontend routes. Do not run verify_ui, Playwright, or browser smoke.
+**Frontend**: moratorium lifted 2026-06-19 for Frontend Refactor F1 (Swiss app shell F1A delivered, Ontology workspace F1B pending).
 
 **MCP moratorium**: do not implement MCP runtime during Phase 13. Do not add an
 MCP SDK/dependency or register MCP resources/tools. The read-only gateway is a

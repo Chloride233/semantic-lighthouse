@@ -1,7 +1,17 @@
-import { state, onStateChange, setState } from '../state.js';
+import { state, onStateChange, setState, currentGroup } from '../state.js';
 import { navigate } from '../router.js';
 import { api } from '../api.js';
 import { esc } from '../util/esc.js';
+
+const NAV_SECTIONS = [
+  { label: '问答', path: '/ask', needsGroup: false },
+  { label: '知识库', path: '/groups/{gid}/documents', needsGroup: true },
+  { label: '对话', path: '/groups/{gid}/conversations', needsGroup: true },
+  { label: '任务', path: '/groups/{gid}/tasks', needsGroup: true },
+  { label: 'Agent', path: '/groups/{gid}/agent', needsGroup: true },
+  { label: 'Ontology', path: '/groups/{gid}/ontology', needsGroup: true },
+  { label: '工作区', path: '/groups', needsGroup: false },
+];
 
 export function initNavbar(containerId) {
   const el = document.getElementById(containerId);
@@ -11,33 +21,42 @@ export function initNavbar(containerId) {
     const signedIn = !!state.accessToken;
     const groups = state.groups || [];
     const gid = state.currentGroupId;
+    const group = currentGroup();
+
+    const hash = location.hash.replace('#', '') || '/';
+    const isActive = (path) => {
+      if (path === '/ask') return hash === '/ask' || hash === '/';
+      if (path === '/groups') return hash === '/groups' || hash.startsWith('/groups?');
+      return hash.startsWith(path.replace('{gid}', gid || '___'));
+    };
 
     const groupOptions = groups
       .map((g) => `<option value="${g.group_id}" ${g.group_id === gid ? 'selected' : ''}>${esc(g.group_name)}</option>`)
       .join('');
 
-    const hash = location.hash.replace('#', '');
-    const isActive = (path) => hash.startsWith(path) ? ' active' : '';
+    const navLinks = NAV_SECTIONS.map((section) => {
+      if (!signedIn) return '';
+      if (section.needsGroup && !gid) return '';
+      const href = section.needsGroup ? `#${section.path.replace('{gid}', gid)}` : `#${section.path}`;
+      const active = isActive(section.path) ? ' active' : '';
+      return `<a href="${href}" class="${active}">${esc(section.label)}</a>`;
+    }).join('');
 
     el.innerHTML = `
       <div class="navLeft">
         <a class="navBrand" href="#/ask">语义灯塔</a>
-        <nav class="navLinks">
-          ${signedIn ? `<a href="#/ask" class="${isActive('/ask')}">问答</a>` : ''}
-          ${signedIn && gid ? `
-            <a href="#/groups/${gid}/documents" class="${isActive(`/groups/${gid}/documents`)}">知识库</a>
-            <a href="#/groups/${gid}/conversations" class="${isActive(`/groups/${gid}/conversations`)}">对话</a>
-            <a href="#/groups/${gid}/tasks" class="${isActive(`/groups/${gid}/tasks`)}">任务</a>
-            <a href="#/groups/${gid}/agent" class="${isActive(`/groups/${gid}/agent`)}">Agent</a>
-            <a href="#/groups/${gid}/ontology" class="${isActive(`/groups/${gid}/ontology`)}">Ontology</a>
-          ` : ''}
-          ${signedIn ? `<a href="#/groups" class="${isActive('/groups') && !gid ? 'active' : ''}">工作区</a>` : ''}
+        <nav class="navLinks" aria-label="主导航">
+          ${navLinks}
         </nav>
       </div>
       <div class="navRight">
         ${signedIn && groups.length ? `
-          <select class="groupSelect" id="navGroupSelect">
-            <option value="">切换工作区...</option>
+          <div class="navContext">
+            <span id="navGroupName">${group ? esc(group.group_name) : '未选择'}</span>
+            <span class="badge badgeMuted" id="navGroupRole">${esc(state.currentRole || '-')}</span>
+          </div>
+          <select class="groupSelect" id="navGroupSelect" aria-label="切换工作区">
+            <option value="">切换工作区…</option>
             ${groupOptions}
           </select>
         ` : ''}
@@ -57,10 +76,9 @@ export function initNavbar(containerId) {
       document.getElementById('navGroupSelect')?.addEventListener('change', (e) => {
         const newGid = e.target.value;
         const grp = groups.find((g) => g.group_id === newGid);
-        setState({ currentGroupId: newGid, currentRole: grp?.role || '' });
-        if (newGid) {
-          navigate('/ask');
-        }
+        if (!grp) return;
+        setState({ currentGroupId: newGid, currentRole: grp.role || '' });
+        navigate('/ask');
       });
     }
   }

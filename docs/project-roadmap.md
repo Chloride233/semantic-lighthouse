@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-19
-**Current phase**: Phase 13 **COMPLETE** — business_v1 backend contract is stable (see `docs/phase13-review.md`). Phase 12 delivered. Phase 11.5 UI deferred to Kimi frontend refactor — now has a typed contract model as backend surface. Future: Phase 14, MCP, Object Runtime, SDK are candidates, not pre-committed. Base docs: `docs/agent-handoff.md`, `docs/phase13-planning.md`, `docs/phase13-review.md`.
+**Current phase**: Phase 13 **COMPLETE** — business_v1 backend contract is stable (see `docs/phase13-review.md`). Frontend Refactor F1A complete by CC (Swiss app shell, persistent group context, reorganized nav). F1B Ontology workspace pending. Future: Phase 14, MCP, Object Runtime, SDK are candidates, not pre-committed. Base docs: `docs/agent-handoff.md`, `docs/phase13-planning.md`, `docs/phase13-review.md`.
 
 ---
 

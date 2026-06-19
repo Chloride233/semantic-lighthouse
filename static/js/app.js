@@ -1,5 +1,7 @@
 import { route, initRouter } from './router.js';
 import { initNavbar } from './components/navbar.js';
+import { state, setState, restoreGroupContext } from './state.js';
+import { api } from './api.js';
 
 import { render as authPage } from './pages/auth.js';
 import { render as onboardingPage } from './pages/onboarding.js';
@@ -26,4 +28,20 @@ route('/groups/:gid/agent', agentPage);
 route('/groups/:gid/ontology', ontologyPage);
 
 initNavbar('navbar');
-initRouter('outlet');
+
+(async function start() {
+  await bootstrap();
+  initRouter('outlet');
+})();
+
+async function bootstrap() {
+  if (!state.accessToken) return;
+  try {
+    const me = await api('/auth/me');
+    const groups = me.groups || [];
+    restoreGroupContext(groups);
+    setState({ currentUser: me, groups });
+  } catch (_) {
+    // 401 will redirect to login via router
+  }
+}

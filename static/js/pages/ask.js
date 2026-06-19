@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { state, setState } from '../state.js';
+import { state, setState, restoreGroupContext } from '../state.js';
 import { esc } from '../util/esc.js';
 import { answerCard } from '../components/answer-card.js';
 import { confidenceBadge } from '../components/badge.js';
@@ -12,9 +12,8 @@ export async function render(container) {
     try {
       const me = await api('/auth/me');
       const groups = me.groups || [];
-      const gid = groups[0]?.group_id || '';
-      const role = groups[0]?.role || '';
-      setState({ currentUser: me, groups, currentGroupId: gid, currentRole: role });
+      setState({ currentUser: me });
+      restoreGroupContext(groups);
     } catch (_) { /* router will handle 401 */ }
   }
 
