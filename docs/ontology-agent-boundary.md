@@ -1,8 +1,12 @@
 # Ontology Agent Boundary
 
-**Phase 11.6 — Agent-facing boundary review.**
+**Phase 11.6 — Agent/MCP-facing boundary review.**
 **Status**: Delivered (2026-06-19).
-**Scope**: Defines what the Agent may and may not do with ontology modeling drafts. No code changes; no new Agent tools.
+**Scope**: Defines what the Agent may and may not do with ontology modeling drafts. No code changes; no new Agent or MCP tools.
+
+The MCP extension is defined in `docs/mcp-agent-boundary-design.md`. MCP remains
+a future read-only Agent-facing adapter candidate, not current runtime and not the
+Ontology itself.
 
 ---
 
@@ -82,3 +86,7 @@ separate, explicitly planned feature meeting **all** of these conditions:
 
 Until these conditions are met, Agent write access to ontology modeling
 drafts remains **prohibited**.
+
+The same gate applies to MCP. A future MCP adapter must reuse server-side
+identity, group authorization, audit, and HITL rather than implementing parallel
+security or trusting client/model-supplied `group_id`.

@@ -489,6 +489,7 @@ Phase 13 review (13.6) will decide the next direction. This section lists option
 | Phase 14b: OSDK / Client Generation | Generate TypeScript/Java/Python typed clients from compiled manifest. | Compiled manifest structure is stable and consumer patterns are understood. |
 | Phase 14c: Contract Refinement | Add value_type constraints, enum types, parameter validation rules, or multi-profile support. | Phase 13 review finds gaps in type expressiveness or validation depth. |
 | Defer to Phase 11.5 UI | Start Kimi frontend refactor with modeling panel. | Contract backend is sufficiently stable for UI work to begin. |
+| Future MCP Read-only Gateway | Expose evidence and Ontology read models through a standard Agent-facing adapter. | Phase 13 contract is stable; identity mapping, server-side group authorization, invocation audit, output limits, and prompt-injection tests are designed. |
 
 **None of these options is decided in Phase 13.** The review will assess what Phase 13 proved and what the next highest-value increment is.
 

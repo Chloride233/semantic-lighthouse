@@ -1,7 +1,7 @@
 # Phase 11 Planning — Ontology Modeling Drafts v1
 
 **Date**: 2026-06-19
-**Status**: Phase 11 backend complete (11.1–11.4+11.6 delivered). UI (11.5) deferred to Kimi frontend refactor. Next → Phase 12 planning.
+**Status**: Phase 11 backend complete (11.1–11.4+11.6 delivered). UI (11.5) deferred to Kimi frontend refactor. Phase 11.6 boundary later extended with MCP design; no runtime implemented.
 
 ---
 
@@ -44,7 +44,7 @@ Turn the governed entity/relation/issue read model from Phase 9/10 into a human-
 | 11.4 | Human review workflow | ✅ Delivered (2026-06-19). Single + batch review endpoints. Status transitions: proposed → accepted/rejected (one-way, final, 409 on re-review). Batch atomic (all-or-nothing). Rejected requires non-empty review_note (model_validator). Review never modifies payload, evidence_refs, created_by, created_at, or source pointers. 33 tests. No Agent access. |
 
 | 11.5 | UI: entity detail modeling panel + draft list | **Deferred** — panel and draft list UI deferred to Kimi unified frontend refactor. CC iterations do no frontend work (no static/js, no CSS, no HTML, no verify_ui, no Playwright). |
-| 11.6 | Agent-facing boundary review | ✅ Delivered (2026-06-19). `docs/ontology-agent-boundary.md` defines current runtime boundary (3 tools, no ontology draft tool), allowed behavior (evidence retrieval, non-persistent suggestions), disallowed behavior (no draft create/generate/review/publish Agent tool, no auto-persist, no HITL/audit bypass), and future gate (6 required conditions). Zero code changes. |
+| 11.6 | Agent/MCP Boundary Design | ✅ Design-only. `docs/ontology-agent-boundary.md` defines current Agent boundary; `docs/mcp-agent-boundary-design.md` adds future MCP identity, permission, audit, output-safety, read-only capability mapping, and runtime entry gates. No MCP server/client, SDK, dependency, or tool registration. |
 
 ---
 
@@ -63,8 +63,8 @@ Turn the governed entity/relation/issue read model from Phase 9/10 into a human-
 
 - **Tests**: ≥10 new modeling draft tests per slice (CRUD, status lifecycle, group isolation, permissions, evidence linkage)
 - **ruff**: clean across all changed files
-- **pytest**: full suite pass at phase boundaries
-- **verify_ui**: add smoke checks for draft panel and draft list
+- **pytest**: backend full suite uses `--ignore=tests/e2e` at phase boundaries
+- **frontend verification**: deferred with 11.5 to the later Kimi frontend refactor; CC does not run `verify_ui`, Playwright, or `tests/e2e`
 - **git diff --check**: clean on every commit
 
 ---
@@ -92,6 +92,7 @@ Turn the governed entity/relation/issue read model from Phase 9/10 into a human-
 - Web search integration with modeling
 - Draft-to-production promotion pipeline
 - Draft versioning / diff / merge
+- MCP server/client runtime, MCP SDK dependency, and MCP tool registration
 
 ---
 

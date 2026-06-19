@@ -6,6 +6,13 @@ Last updated: 2026-06-19 (Phase 12 complete. Phase 13.1 complete — business co
 
 **Phases 0–10 delivered; Phase 11 backend complete; Phase 12 complete (12.1–12.6)** — see `docs/project-roadmap.md`, `docs/phase12-planning.md`, and `docs/phase12-review.md`. Phase 12 now provides real-KB draft quality measurement, accepted-only quality/dependency gates, immutable versioned model packages, package create/read/export API, and declarative Action permission contracts. The final real demo produced a five-draft WARN package and verified hash idempotency plus reviewer/creator audit metadata. Accepted packages are not production schema and cannot publish or execute actions.
 
+**MCP planning boundary**: `docs/mcp-agent-boundary-design.md` records a future
+read-only gateway candidate after Phase 13. MCP is an Agent-facing adapter, not
+the Ontology. No MCP server/client, SDK, dependency, resource, or tool is
+implemented. Future runtime requires authenticated caller mapping, server-side
+group/role checks, invocation audit, bounded provenance-preserving output, and
+no-write enforcement.
+
 **Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
 
 In this project, Ontology means business objects, properties, relationships, actions, permissions, evidence, and Agent-facing interfaces. The current trusted RAG / task / Agent loop is the foundation, not the destination.
@@ -18,6 +25,7 @@ Phase 9: schema/frontmatter validation -> entity extraction -> wikilink relation
 Phase 10: governance issue triage -> curation demo -> graph UX polish -> evidence bridge -> review (DELIVERED)
 Phase 11: modeling drafts v1 — Object Type / Property / Link Type / Action Type proposals from governed entities (BACKEND DELIVERED — 11.5 UI deferred, see docs/phase11-planning.md)
 Phase 12: quality gates -> accepted-only immutable contract package -> declarative Action permissions -> real demo/review (DELIVERED)
+Phase 13: business_v1 profile specification (13.1 DELIVERED) -> deterministic validator (13.2 NEXT) -> compiler/export/pilot/review
 ```
 
 Phase 9 started with read-only governance and graph visibility (not a full modeling studio, Graph RAG, or Agent auto-write path). Phase 10 operationalized governance findings into a curation pipeline. Phase 11 continues the read-first approach: modeling drafts are human-reviewed proposals, not production schema, and Agent may read/propose but never auto-create/accept/publish.
@@ -761,14 +769,20 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - ✅ Evidence bridge is read-only navigation, not retrieval change
 - ✅ Curation backlog is human action guidance only
 
-**Next**: Phase 13.1 business contract profile specification. See `docs/phase13-planning.md`.
+**Next**: Phase 13.2 deterministic business contract validator. See `docs/phase13-business-contract-spec.md` and `docs/phase13-planning.md`.
 
 ## Agent Instructions For The Next Session
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.
 
-Do not frame the project as only a RAG/Agent portfolio. The current product direction is the Ontology semantic operating layer. Phase 11 backend and Phase 12 are complete. Phase 12 ends at quality-gated, immutable internal contract packages with declarative Action permission requirements; accepted packages are not published or executable Ontology. Phase 11.5 UI is **deferred** to Kimi unified frontend refactor — do NOT implement frontend work in current CC iterations. Next work is Phase 13 planning, not an assumed feature implementation. Do not build a full modeling studio, Graph RAG, Agent auto-write, package publishing, or external KB writes.
+Do not frame the project as only a RAG/Agent portfolio. The current product direction is the Ontology semantic operating layer. Phase 11 backend and Phase 12 are complete; Phase 13.1 has defined the `business_v1` contract profile and 13.2 validator is next. Phase 12 packages and Phase 13 manifests are not published or executable Ontology. Phase 11.5 UI is **deferred** to Kimi unified frontend refactor — do NOT implement frontend work in current CC iterations. Do not build a full modeling studio, Graph RAG, Agent auto-write, package publishing, or external KB writes.
 
 **Frontend moratorium**: current CC iterations do zero frontend work. Do not modify static/js, static/styles.css, HTML templates, or frontend routes. Do not run verify_ui, Playwright, or browser smoke.
 
-Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 12 completion is documented in `docs/phase12-planning.md` and `docs/phase12-review.md`: 69 Phase 12 tests, 33 review-workflow tests, and 434 full non-E2E tests passed; fresh migration reached `0017`. Next: align Phase 13 scope before coding.
+**MCP moratorium**: do not implement MCP runtime during Phase 13. Do not add an
+MCP SDK/dependency or register MCP resources/tools. The read-only gateway is a
+post-Phase-13 candidate only. Any future prompt must follow
+`docs/mcp-agent-boundary-design.md`; no write capability is allowed without a
+separate Safety Lane plan reusing backend authorization, audit, and HITL.
+
+Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 13.1 is documented in `docs/phase13-business-contract-spec.md`; next is the deterministic 13.2 validator with 5–8 parametrized tests, no API or migration. MCP runtime remains a post-Phase-13 candidate only.

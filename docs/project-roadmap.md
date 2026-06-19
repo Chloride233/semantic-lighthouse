@@ -251,7 +251,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 11.3 | Draft generation | ✅ Deterministic rules from existing entities/relations, no LLM |
 | 11.4 | Human review workflow | ✅ proposed → accepted/rejected, reviewer audit, single + batch API, atomic semantics, status transition rules, 33 tests (2026-06-19) |
 | 11.5 | UI modeling panel | **Deferred** — entity detail panel + draft list deferred to Kimi unified frontend refactor. CC not implementing. |
-| 11.6 | Agent boundary review | ✅ `docs/ontology-agent-boundary.md` — current runtime boundary (3 tools, no draft tool), allowed/disallowed behavior, future gate (6 required conditions). Zero code changes (2026-06-19) |
+| 11.6 | Agent/MCP Boundary Design | ✅ Design-only boundary: existing Agent registry plus future MCP identity mapping, server-side group authorization, invocation audit, bounded/provenance-preserving output, and no-write gates. See `docs/ontology-agent-boundary.md` and `docs/mcp-agent-boundary-design.md`. No MCP runtime or dependency. |
 
 **Out of scope**: Full modeling studio, Graph RAG, graph database, Agent auto-write, external KB auto-fix, draft-to-production pipeline. Phase 11.5 UI deferred to later Kimi frontend refactor — current CC iterations do no frontend work (no static/js, no CSS, no HTML, no verify_ui, no Playwright).
 
@@ -290,6 +290,31 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 13.6 | Phase 13 review | End-to-end boundary verification, hash stability, knowledge_meta rejection, audit/provenance chain, next-phase decision gate. (PLANNED) |
 
 **Out of scope**: Frontend, modeling UI, business object instance tables, package activate/publish, Action execution, Functions runtime, OSDK/code generation, MCP/Agent tool registration, Graph RAG, ERP/MES/PLC integration, external KB modification, knowledge_meta→business_v1 auto-conversion, full JSON Schema/OpenAPI generation, generic manufacturing framework.
+
+
+## Future Candidate: MCP Read-only Gateway v1 ← NOT STARTED
+
+**Timing**: Candidate after Phase 13 review. The originally proposed Phase 12
+number is no longer available because Phase 12 has already delivered Model
+Quality & Contract Packages. A future phase number will be assigned only if the
+Phase 13 review approves this direction.
+
+**Candidate scope**:
+
+- MCP server only; no client, external enterprise integration, or orchestration.
+- Read-only `search_evidence`, `get_entity`, `list_relations`,
+  `list_modeling_drafts`, and `get_governance_issues`.
+- Authenticated caller mapping to Semantic Lighthouse user/group membership.
+- Server-side `group_id` and role checks on every invocation.
+- Durable invocation audit and bounded, provenance-preserving output.
+- Shared service logic with REST/Agent paths; no direct table access or duplicated
+  business rules.
+
+**Not included**: writes, draft review/publish, Ontology mutation, external KB
+repair, Graph RAG, CRM/ERP/BI integration, frontend UI, or multi-MCP orchestration.
+
+See `docs/mcp-agent-boundary-design.md`. This candidate is planning context, not
+authorization to implement runtime.
 
 
 ## Explicitly Out of Scope (current phases only)
