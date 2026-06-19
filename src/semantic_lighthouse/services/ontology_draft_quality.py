@@ -141,10 +141,11 @@ def _validate_draft(
     """Validate a single draft. Appends findings to issues list."""
     dt = d.draft_type
     payload = d.payload or {}
+    generator = payload.get("generator", "")
+    is_det = generator == "deterministic_v1"
     gen_key = payload.get("generation_key", "")
-    is_deterministic = gen_key and gen_key != ""
 
-    # ── Errors: basic integrity ──────────────────────────────────────
+    # ── Errors: basic integrity (applies to all drafts) ──────────────
     if dt not in VALID_DRAFT_TYPES:
         issues.append(_issue("error", "invalid_draft_type", d, "draft_type",
                              f"Invalid draft_type: {dt}"))
@@ -189,7 +190,7 @@ def _validate_draft(
             details={"source_rag_run_id": d.source_rag_run_id},
         ))
 
-    # Evidence
+    # Evidence (all drafts)
     if not isinstance(d.evidence_refs, list):
         issues.append(_issue("error", "invalid_evidence_refs", d, "evidence_refs",
                              "evidence_refs is not a list"))
@@ -197,107 +198,120 @@ def _validate_draft(
         issues.append(_issue("error", "empty_evidence_refs", d, "evidence_refs",
                              "evidence_refs is empty"))
 
-    # ── Deterministic draft required fields ──────────────────────────
-    if is_deterministic and not gen_key:
-        issues.append(_issue(
-            "error", "missing_generation_key", d, "payload.generation_key",
-            "Deterministic draft missing generation_key",
-        ))
-
-    if dt in REQUIRED_PAYLOAD_FIELDS:
-        required = REQUIRED_PAYLOAD_FIELDS[dt]
-        missing = [f for f in required if f not in payload]
-        if missing:
+    # ── deterministic_v1 specific checks ─────────────────────────────
+    if is_det:
+        # generation_key must be present and non-empty
+        if not gen_key:
             issues.append(_issue(
-                "error", "missing_required_payload_fields", d, "payload",
-                f"Missing required payload fields: {', '.join(sorted(missing))}",
-                details={"missing_fields": sorted(missing), "required": sorted(required)},
+                "error", "missing_generation_key", d, "payload.generation_key",
+                "Deterministic draft missing generation_key",
             ))
 
-    # ── Errors: cross-reference consistency ──────────────────────────
-    if dt == "property":
-        ot = payload.get("object_type", "")
-        if ot and ot.strip().casefold() not in object_type_names:
-            issues.append(_issue(
-                "error", "property_object_type_not_found", d, "payload.object_type",
-                f"Property object_type '{ot}' not found in any object_type draft in group",
-                details={"object_type": ot},
-            ))
+        # Required payload fields
+        if dt in REQUIRED_PAYLOAD_FIELDS:
+            required = REQUIRED_PAYLOAD_FIELDS[dt]
+            missing = [f for f in required if f not in payload]
+            if missing:
+                issues.append(_issue(
+                    "error", "missing_required_payload_fields", d, "payload",
+                    f"Missing required payload fields: {', '.join(sorted(missing))}",
+                    details={"missing_fields": sorted(missing),
+                             "required": sorted(required)},
+                ))
 
-    if dt == "link_type":
-        src_ot = payload.get("source_object_type", "")
-        tgt_ot = payload.get("target_object_type", "")
-        if src_ot and src_ot.strip().casefold() not in object_type_names:
-            issues.append(_issue(
-                "error", "link_source_object_type_not_found", d,
-                "payload.source_object_type",
-                f"Link source_object_type '{src_ot}' not found",
-                details={"source_object_type": src_ot},
-            ))
-        if tgt_ot and tgt_ot.strip().casefold() not in object_type_names:
-            issues.append(_issue(
-                "error", "link_target_object_type_not_found", d,
-                "payload.target_object_type",
-                f"Link target_object_type '{tgt_ot}' not found",
-                details={"target_object_type": tgt_ot},
-            ))
+        # Cross-reference consistency (only deterministic_v1 — manual
+        # drafts may not have standard payload shapes)
+        if dt == "property":
+            ot = payload.get("object_type", "")
+            if ot and ot.strip().casefold() not in object_type_names:
+                issues.append(_issue(
+                    "error", "property_object_type_not_found", d,
+                    "payload.object_type",
+                    f"Property object_type '{ot}' not found",
+                    details={"object_type": ot},
+                ))
 
-    # ── Warnings: semantic / noise indicators ────────────────────────
-    if dt == "property":
-        observed_count = payload.get("observed_count", 0)
-        if isinstance(observed_count, (int, float)) and observed_count <= 1:
-            issues.append(_issue(
-                "warning", "weak_property_evidence", d, "payload.observed_count",
-                f"Property observed_count={observed_count} — weak evidence",
-                details={"observed_count": observed_count},
-            ))
-        observed_types = payload.get("observed_value_types", [])
-        if isinstance(observed_types, list) and len(observed_types) > 1:
-            issues.append(_issue(
-                "warning", "mixed_property_value_types", d,
-                "payload.observed_value_types",
-                f"Property has {len(observed_types)} value types: {observed_types}",
-                details={"observed_value_types": observed_types},
-            ))
+        if dt == "link_type":
+            src_ot = payload.get("source_object_type", "")
+            tgt_ot = payload.get("target_object_type", "")
+            if src_ot and src_ot.strip().casefold() not in object_type_names:
+                issues.append(_issue(
+                    "error", "link_source_object_type_not_found", d,
+                    "payload.source_object_type",
+                    f"Link source_object_type '{src_ot}' not found",
+                    details={"source_object_type": src_ot},
+                ))
+            if tgt_ot and tgt_ot.strip().casefold() not in object_type_names:
+                issues.append(_issue(
+                    "error", "link_target_object_type_not_found", d,
+                    "payload.target_object_type",
+                    f"Link target_object_type '{tgt_ot}' not found",
+                    details={"target_object_type": tgt_ot},
+                ))
 
-    if dt == "link_type":
-        rc = payload.get("relation_count", 0)
-        if isinstance(rc, (int, float)) and rc <= 1:
-            issues.append(_issue(
-                "warning", "weak_link_evidence", d, "payload.relation_count",
-                f"Link relation_count={rc} — weak evidence",
-                details={"relation_count": rc},
-            ))
-        rt = payload.get("relation_type", "")
-        if rt == "wikilink":
-            issues.append(_issue(
-                "warning", "untyped_wikilink_candidate", d, "payload.relation_type",
-                "Link based on wikilink — not a typed business relation",
-                details={"relation_type": rt},
-            ))
+        # ── Warnings: semantic / noise (deterministic_v1 only) ──────
+        if dt == "property":
+            oc = payload.get("observed_count")
+            if isinstance(oc, (int, float)) and oc <= 1:
+                issues.append(_issue(
+                    "warning", "weak_property_evidence", d,
+                    "payload.observed_count",
+                    f"Property observed_count={oc} — weak evidence",
+                    details={"observed_count": oc},
+                ))
+            ovt = payload.get("observed_value_types")
+            if isinstance(ovt, list) and len(ovt) > 1:
+                issues.append(_issue(
+                    "warning", "mixed_property_value_types", d,
+                    "payload.observed_value_types",
+                    f"Property has {len(ovt)} value types: {ovt}",
+                    details={"observed_value_types": ovt},
+                ))
 
-    if dt == "action_type":
-        ic = payload.get("issue_count", 0)
-        if isinstance(ic, (int, float)) and ic <= 1:
-            issues.append(_issue(
-                "warning", "weak_action_evidence", d, "payload.issue_count",
-                f"Action issue_count={ic} — weak evidence",
-                details={"issue_count": ic},
-            ))
-        scope = payload.get("scope", "")
-        if scope == "ontology_governance":
-            issues.append(_issue(
-                "warning", "governance_action_candidate", d, "payload.scope",
-                "Action type scoped to ontology_governance — not a business action",
-                details={"scope": scope},
-            ))
+        if dt == "link_type":
+            rc = payload.get("relation_count")
+            if isinstance(rc, (int, float)) and rc <= 1:
+                issues.append(_issue(
+                    "warning", "weak_link_evidence", d,
+                    "payload.relation_count",
+                    f"Link relation_count={rc} — weak evidence",
+                    details={"relation_count": rc},
+                ))
+            rt = payload.get("relation_type", "")
+            if rt == "wikilink":
+                issues.append(_issue(
+                    "warning", "untyped_wikilink_candidate", d,
+                    "payload.relation_type",
+                    "Link based on wikilink — not a typed business relation",
+                    details={"relation_type": rt},
+                ))
 
-    if dt == "object_type" and d.source_entity_id:
-        issues.append(_issue(
-            "warning", "knowledge_meta_model_candidate", d, "source_entity_id",
-            "Object type derived from knowledge entity — may not be a business object type",
-            details={"source_entity_id": d.source_entity_id},
-        ))
+        if dt == "action_type":
+            ic = payload.get("issue_count")
+            if isinstance(ic, (int, float)) and ic <= 1:
+                issues.append(_issue(
+                    "warning", "weak_action_evidence", d,
+                    "payload.issue_count",
+                    f"Action issue_count={ic} — weak evidence",
+                    details={"issue_count": ic},
+                ))
+            scope = payload.get("scope", "")
+            if scope == "ontology_governance":
+                issues.append(_issue(
+                    "warning", "governance_action_candidate", d,
+                    "payload.scope",
+                    "Action scope=ontology_governance — not a business action",
+                    details={"scope": scope},
+                ))
+
+        if dt == "object_type" and payload.get("source_entity_type"):
+            issues.append(_issue(
+                "warning", "knowledge_meta_model_candidate", d,
+                "payload.source_entity_type",
+                "Object type from deterministic generation "
+                "— may not be a business object type",
+                details={"source_entity_type": payload["source_entity_type"]},
+            ))
 
 
 def _issue(

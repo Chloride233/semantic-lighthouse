@@ -202,7 +202,17 @@ drafts, commits, or calls external systems.
 
 **Status**: PASS (0 errors + 0 warnings) / WARN (0 errors + ≥1 warning) / FAIL (≥1 error).
 
-**Tests**: 9 tests in `tests/test_ontology_draft_quality.py` covering valid
+**Tests**: 11 tests in `tests/test_ontology_draft_quality.py` covering valid
 draft (no errors), missing source → FAIL, deterministic field errors →
 FAIL, property cross-ref error, link cross-ref error, weak+ mixed property
-WARN, wikilink+governance semantic WARN, read-only immutability.
+WARN, wikilink+governance semantic WARN, read-only immutability,
+deterministic missing gen_key → FAIL, manual draft no det errors/warnings.
+
+**Hotfix (2026-06-19)**: Fixed generated/manual draft identification.
+`is_deterministic` now uses `payload.generator == "deterministic_v1"`
+instead of generation_key presence. REQUIRED_PAYLOAD_FIELDS and all
+semantic/noise warnings only apply to deterministic_v1 drafts.
+`knowledge_meta_model_candidate` fires on deterministic object_type
+drafts with `payload.source_entity_type`. Manual drafts with valid
+source+evidence pass basic checks without generating det-specific
+errors or warnings.

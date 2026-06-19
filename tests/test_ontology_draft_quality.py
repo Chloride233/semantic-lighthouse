@@ -136,14 +136,16 @@ class TestCrossReferenceErrors:
         ot = OntologyModelingDraft(
             group_id=gid, draft_type="object_type", name="Concept",
             status="proposed", source_entity_id="fake-eid",
-            payload={"generation_key": "object_type:concept",
+            payload={"generator": "deterministic_v1",
+                     "generation_key": "object_type:concept",
                      "source_entity_type": "Concept", "entity_count": 5},
             evidence_refs=[{"e": 1}], created_by=uid,
         )
         prop = OntologyModelingDraft(
             group_id=gid, draft_type="property", name="BadObj.Property",
             status="proposed", source_entity_id="fake-eid",
-            payload={"generation_key": "property:x", "object_type": "UnknownType",
+            payload={"generator": "deterministic_v1",
+                     "generation_key": "property:x", "object_type": "UnknownType",
                      "property_name": "p", "observed_value_types": ["str"],
                      "observed_count": 5, "entity_count": 1},
             evidence_refs=[{"e": 2}], created_by=uid,
@@ -168,7 +170,8 @@ class TestCrossReferenceErrors:
         link = OntologyModelingDraft(
             group_id=gid, draft_type="link_type", name="X -> Y (wikilink)",
             status="proposed", source_relation_id="fake-rid",
-            payload={"generation_key": "link_type:x:y",
+            payload={"generator": "deterministic_v1",
+                     "generation_key": "link_type:x:y",
                      "source_object_type": "X", "target_object_type": "Y",
                      "relation_type": "wikilink", "relation_count": 3},
             evidence_refs=[{"r": 1}], created_by=uid,
@@ -205,14 +208,16 @@ class TestWarnings:
         ot = OntologyModelingDraft(
             group_id=gid, draft_type="object_type", name="Concept",
             status="proposed", source_entity_id=eid,
-            payload={"generation_key": "object_type:concept",
+            payload={"generator": "deterministic_v1",
+                     "generation_key": "object_type:concept",
                      "source_entity_type": "Concept", "entity_count": 5},
             evidence_refs=[{"e": 1}], created_by=uid,
         )
         prop = OntologyModelingDraft(
             group_id=gid, draft_type="property", name="Concept.weak",
             status="proposed", source_entity_id=eid,
-            payload={"generation_key": "property:concept:weak",
+            payload={"generator": "deterministic_v1",
+                     "generation_key": "property:concept:weak",
                      "object_type": "Concept", "property_name": "weak",
                      "observed_value_types": ["str", "list"],
                      "observed_count": 1, "entity_count": 1},
@@ -263,7 +268,8 @@ class TestWarnings:
         ot = OntologyModelingDraft(
             group_id=gid, draft_type="object_type", name="Concept",
             status="proposed", source_entity_id=eid,
-            payload={"generation_key": "object_type:concept",
+            payload={"generator": "deterministic_v1",
+                     "generation_key": "object_type:concept",
                      "source_entity_type": "Concept", "entity_count": 5},
             evidence_refs=[{"e": 1}], created_by=uid,
         )
@@ -271,7 +277,8 @@ class TestWarnings:
             group_id=gid, draft_type="link_type",
             name="Concept -> Concept (wikilink)",
             status="proposed", source_relation_id=rid,
-            payload={"generation_key": "link_type:c:c:w",
+            payload={"generator": "deterministic_v1",
+                     "generation_key": "link_type:c:c:w",
                      "source_object_type": "Concept", "target_object_type": "Concept",
                      "relation_type": "wikilink", "relation_count": 10},
             evidence_refs=[{"r": 1}], created_by=uid,
@@ -279,7 +286,8 @@ class TestWarnings:
         action = OntologyModelingDraft(
             group_id=gid, draft_type="action_type", name="Review Links",
             status="proposed", source_issue_id=iid,
-            payload={"generation_key": "action_type:review",
+            payload={"generator": "deterministic_v1",
+                     "generation_key": "action_type:review",
                      "scope": "ontology_governance", "issue_count": 30,
                      "issue_codes": ["unresolved_wikilink"]},
             evidence_refs=[{"i": 1}], created_by=uid,
@@ -292,6 +300,73 @@ class TestWarnings:
         assert "untyped_wikilink_candidate" in codes
         assert "governance_action_candidate" in codes
         assert result["status"] == "WARN"
+
+
+class TestHotfixDetVsManual:
+    def test_deterministic_missing_gen_key_fails(self, db_session: Session):
+        """Deterministic draft (generator=deterministic_v1) missing
+        generation_key must produce missing_generation_key error."""
+        from semantic_lighthouse.models import Group, User
+        gid, uid = "g-h1", "u-h1"
+        db_session.add(Group(id=gid, name="H1", created_by=uid))
+        db_session.add(User(id=uid, email="h1@t.com", password_hash="x",
+                            display_name="H1"))
+        db_session.flush()
+
+        draft = OntologyModelingDraft(
+            group_id=gid, draft_type="object_type", name="NoKey",
+            status="proposed", source_entity_id="fake-eid",
+            payload={"generator": "deterministic_v1",
+                     "source_entity_type": "Concept", "entity_count": 5},
+            evidence_refs=[{"e": 1}], created_by=uid,
+        )
+        db_session.add(draft)
+        db_session.commit()
+
+        result = validate_modeling_drafts(db_session, gid)
+        codes = {i["code"] for i in result["issues"]}
+        assert "missing_generation_key" in codes
+        assert result["status"] == "FAIL"
+
+    def test_manual_object_draft_no_det_errors_or_warnings(self, db_session: Session):
+        """Legal manual object draft with payload={}, valid source + evidence
+        must NOT produce: missing_generation_key, missing_required_payload_fields,
+        weak_*_evidence, or knowledge_meta_model_candidate."""
+        from semantic_lighthouse.models import Group, User, OntologyEntity, Document
+        gid, uid = "g-h2", "u-h2"
+        db_session.add(Group(id=gid, name="H2", created_by=uid))
+        db_session.add(User(id=uid, email="h2@t.com", password_hash="x",
+                            display_name="H2"))
+        eid, did = "e-h2", "d-h2"
+        db_session.add(Document(id=did, group_id=gid, title="H2 Doc",
+                                file_name="h2.md", source_path="h2.md",
+                                content_hash="h", raw_content="x",
+                                created_by=uid, status="ready"))
+        db_session.add(OntologyEntity(id=eid, group_id=gid, document_id=did,
+                                      title="ManualOT", entity_type="Concept",
+                                      source_path="h2.md"))
+        db_session.flush()
+
+        draft = OntologyModelingDraft(
+            group_id=gid, draft_type="object_type", name="ManualOT",
+            status="proposed", source_entity_id=eid,
+            payload={},
+            evidence_refs=[{"manual": True}], created_by=uid,
+        )
+        db_session.add(draft)
+        db_session.commit()
+
+        result = validate_modeling_drafts(db_session, gid)
+        codes = {i["code"] for i in result["issues"]}
+
+        # Must NOT have deterministic-specific errors/warnings
+        assert "missing_generation_key" not in codes
+        assert "missing_required_payload_fields" not in codes
+        assert "knowledge_meta_model_candidate" not in codes
+
+        # Must still pass basic checks
+        assert result["error_count"] == 0
+        assert result["status"] == "PASS"
 
 
 class TestReadOnly:

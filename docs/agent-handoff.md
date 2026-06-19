@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 12.2a validator core delivered — 9 error codes, 7 warning codes, PASS/WARN/FAIL. Next: 12.2b API)
+Last updated: 2026-06-19 (Phase 12.2a validator hotfix — generated/manual recognition fixed, 11 tests. Next: 12.2b API)
 
 ## Current Phase
 
