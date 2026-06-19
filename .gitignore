@@ -27,8 +27,9 @@ logs/
 .runtime/
 .tmp/
 
-# External datasets (downloaded for testing)
+# External datasets (downloaded / generated for testing)
 data/ecommerce/
+data/manufacturing/
 
 # Storage volumes
 document-storage/

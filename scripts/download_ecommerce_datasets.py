@@ -212,7 +212,7 @@ def print_summary(results: dict[str, bool]) -> None:
     ok = sum(1 for v in results.values() if v)
     fail = len(results) - ok
     for key, success in results.items():
-        print(f"  {'✓' if success else '✗'} {DATASETS[key]['name']}")
+        print(f"  {'[OK]' if success else '[FAIL]'} {DATASETS[key]['name']}")
     print(f"\n  {ok} succeeded, {fail} failed")
 
 
