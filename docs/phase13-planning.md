@@ -1,7 +1,7 @@
 # Phase 13 Planning — Typed Business Ontology Contract & Manufacturing Pilot v1
 
 **Date**: 2026-06-19
-**Status**: **PLANNING** — no implementation has started. Slices 13.1–13.6 defined but not begun.
+**Status**: 13.1 complete (profile spec defined), 13.2–13.6 PLANNED — no implementation has started.
 
 ---
 
@@ -58,24 +58,25 @@ Proposal, Research         Alert, Asset
 
 ## 2. Phase 13 Scope
 
-### 13.1 Business Contract Profile Specification
+### 13.1 Business Contract Profile Specification ✅
 
 **Goal**: Define the `business_v1` contract profile as a specification document, distinct from the Phase 12 audit package format.
 
 **Deliverables**:
-- `docs/phase13-business-contract-spec.md` — normative specification of the business_v1 contract profile.
+- `docs/phase13-business-contract-spec.md` — normative specification of the business_v1 contract profile. **Delivered 2026-06-19.**
 - Declare the relationship: a business_v1 contract is **derived from** a Phase 12 immutable package, but is a **separate artifact** with its own identity, hash, and validation rules.
-- Define the profile identifier: `contract_profile: business_v1` in the package metadata.
+- Define the profile identifier: `contract_profile: business_v1` as a **payload field** on each draft, not a database column or package-root field.
 - Define the distinction between `raw audit contract` (Phase 12 `contract_json`) and `compiled business manifest` (Phase 13 output).
+- Profile detection is by `payload.contract_profile` only — NOT by name patterns (Concept, Vendor, Product, etc.).
 
 **Non-goals**:
 - Do not modify the Phase 12 package schema, builder, or export API.
 - Do not define additional profiles (no `knowledge_meta`, `hybrid`, `v2`).
 - Do not generate OpenAPI, JSON Schema, or GraphQL artifacts.
 
-**Tests**: 5–8 specification assertion tests. No API or migration.
+**Tests**: None. 13.1 is a documentation-only slice — the profile spec is the deliverable. No pytest, no API, no migration.
 
-**Risk controlled**: knowledge_meta packages are not misrepresented as business Ontology contracts.
+**Risk controlled**: Diffs are distinguishable — a missing `contract_profile` causes validation failure; knowledge_meta packages are not wrongly identified by name heuristics.
 
 ---
 
@@ -102,7 +103,7 @@ Proposal, Research         Alert, Asset
 | `link_target_not_in_package` | ERROR | Link `target_object_type` not present in package object_types. |
 | `action_target_not_in_package` | ERROR | Action `target_object_type` not present in package object_types. |
 | `property_object_type_not_in_package` | ERROR | Property `object_type` not present in package object_types. |
-| `knowledge_meta_masquerade` | ERROR | Object type `api_name` matches knowledge_meta patterns (Concept, Vendor, Product, Methodology, Case, FAQ, Person, Proposal, Research) without explicit `contract_profile` override. |
+| `contract_profile_mismatch` | ERROR | Draft `payload.contract_profile` missing or not exactly `"business_v1"`. Detection is by payload field only — NOT by api_name patterns. |
 | `duplicate_api_name` | ERROR | Two entities of same type share `api_name`. |
 | `missing_display_name` | WARN | Entity has no `display_name` — defaults to `api_name`. |
 
@@ -112,7 +113,7 @@ Proposal, Research         Alert, Asset
 - No LLM-based type inference.
 - No validation of knowledge_meta packages against business_v1 rules.
 
-**Tests**: 5–8 validator tests per error/warning code (parametrized). No API, no migration.
+**Tests**: 5–8 parametrized tests **total** (not per error code). Organized by category: profile check, object type validation, property validation, link validation, action validation. No API, no migration.
 
 **Risk controlled**: A structurally invalid business_v1 package cannot proceed to compilation.
 
@@ -129,9 +130,9 @@ Proposal, Research         Alert, Asset
 
 1. **Remove audit noise**: Strip `reviewed_at`, `review_note`, `draft_id`, `source_entity_id`, `source_relation_id`, `source_issue_id`, `source_rag_run_id`, `evidence_refs` from each entity entry.
 2. **Sort deterministically**: Object types, properties, link types, action types sorted by `api_name`. Properties within an object type sorted by `api_name`. Parameters within an action sorted by `name`.
-3. **Compute semantic_hash**: SHA-256 of the canonical compiled JSON (sort_keys, ensure_ascii=False, fixed separators). The hash covers ONLY the business content — NOT `source_package_id`, `source_package_version`, `source_content_hash`, `compiled_at`, or any environment-dependent field.
+3. **Compute semantic_hash**: SHA-256 of the canonical compiled JSON (sort_keys, ensure_ascii=False, fixed separators). The hash covers ONLY the four business definition arrays — NOT `manifest`, `provenance`, or any top-level metadata.
 4. **Preserve provenance**: Include `source_package_id`, `source_package_version`, `source_content_hash` as a `provenance` block — these identify which immutable audit package produced this manifest, but do not participate in `semantic_hash`.
-5. **Add manifest metadata**: `contract_profile: business_v1`, `schema_version: 1.0`, `compiled_at` (ISO timestamp), `semantic_hash`.
+5. **Add manifest metadata**: `contract_profile: business_v1`, `schema_version: 1.0`, `semantic_hash`. No `compiled_at` — timestamps break hash stability.
 
 **Compiled manifest structure**:
 
@@ -140,7 +141,6 @@ Proposal, Research         Alert, Asset
   "manifest": {
     "contract_profile": "business_v1",
     "schema_version": "1.0",
-    "compiled_at": "2026-06-19T00:00:00Z",
     "semantic_hash": "sha256:…"
   },
   "provenance": {
@@ -166,6 +166,8 @@ Proposal, Research         Alert, Asset
 
 **Tests**: 5–8 compiler tests covering hash stability, audit noise removal, provenance correctness, deterministic sort, empty package handling. No API, no migration.
 
+**Cross-database hash independence**: The Phase 12 `content_hash` may differ across database instances (different draft UUIDs produce different contract_json), but the `semantic_hash` MUST be identical for the same business definitions regardless of database. The two hashes cover different content and serve different purposes.
+
 **Risk controlled**: The same business_v1 package always produces the same semantic_hash, independent of when or by whom it was compiled.
 
 ---
@@ -184,7 +186,7 @@ Proposal, Research         Alert, Asset
 
 **Behavior**:
 - If the package's `contract_json` does not satisfy business_v1 validation → `422 Unprocessable Entity` with structured validation errors (from 13.2). The endpoint does NOT compile invalid packages.
-- If the package is a knowledge_meta package → `422` with `knowledge_meta_masquerade` error.
+- If the package contains any draft missing `payload.contract_profile: business_v1` → `422` with `contract_profile_mismatch` errors.
 - On success → `200` with compiled manifest and `Content-Type: application/json`.
 
 **Non-goals**:
@@ -195,7 +197,7 @@ Proposal, Research         Alert, Asset
 - No `?format=openapi` or `?format=typescript`.
 - No write to external systems.
 
-**Tests**: 5–8 API tests covering member read, outsider 403, cross-group 404, knowledge_meta 422, invalid business_v1 422, success 200 with hash stability, no-mutate 405. No migration.
+**Tests**: 5–8 API tests covering member read, outsider 403, cross-group 404, contract_profile_mismatch 422, invalid business_v1 422, success 200 with hash stability, no-mutate 405. No migration.
 
 **Risk controlled**: Applications and Agents can only consume contracts that have passed deterministic validation.
 
@@ -214,8 +216,8 @@ Proposal, Research         Alert, Asset
 
 | Entity | api_name | Key Properties |
 |--------|----------|----------------|
-| Equipment | `equipment` | `equipment_id` (string, primary_key), `name` (string, required), `status` (string, required), `location` (string), `installed_date` (date), `last_maintenance_date` (date) |
-| WorkOrder | `work_order` | `work_order_id` (string, primary_key), `title` (string, required), `status` (string, required), `priority` (string, required), `description` (string), `created_date` (date), `due_date` (date) |
+| Equipment | `equipment` | `equipment_id` (string, primary_key, required), `name` (string, required), `status` (string, required) |
+| WorkOrder | `work_order` | `work_order_id` (string, primary_key, required), `title` (string, required), `status` (string, required) |
 
 | Link | api_name | cardinality |
 |------|----------|-------------|
@@ -441,7 +443,7 @@ Phase 13 does **NOT** do any of the following:
 
 | Risk | Likelihood | Severity | Mitigation |
 |------|-----------|----------|------------|
-| knowledge_meta package mislabeled as business_v1 | Medium | HIGH | Validator error code `knowledge_meta_masquerade` blocks compilation. 13.2 test explicitly verifies rejection. |
+| Drafts missing `contract_profile: business_v1` enter business_v1 validation | Medium | HIGH | Validator error code `contract_profile_mismatch` blocks compilation for every item missing the profile field. 13.2 test explicitly verifies rejection. |
 | Raw package hash confused with semantic_hash | Medium | MEDIUM | Two separate fields: `source_content_hash` in provenance, `semantic_hash` in manifest. 13.3 tests verify independence. |
 | Hand-crafted payload as arbitrary dict causes contract instability | Medium | MEDIUM | business_v1 validator enforces required fields, allowed value_type set, and cross-reference consistency BEFORE compilation. |
 | Action `declared_effects` mistaken for executable behavior | Medium | MEDIUM | `declared_effects` are string arrays with no executable binding. API docs + test names explicitly state "declaration-only." |
@@ -466,7 +468,7 @@ Phase 13 is complete when:
 
 1. business_v1 profile spec is written and reviewed.
 2. Validator catches all defined error/warning conditions deterministically.
-3. knowledge_meta packages are rejected with a clear error.
+3. Non-business_v1 packages are rejected with `contract_profile_mismatch`.
 4. Compiler produces stable semantic_hash across identical inputs.
 5. Compiled manifest excludes audit noise and preserves provenance.
 6. Export API enforces group isolation and permissions.

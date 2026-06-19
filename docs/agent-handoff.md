@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 12 complete — real package demo and backend review passed. Phase 13 planning complete — 13.1–13.6 slices defined in `docs/phase13-planning.md`. Next: 13.1 business contract profile specification)
+Last updated: 2026-06-19 (Phase 12 complete. Phase 13.1 complete — business contract profile spec defined in `docs/phase13-business-contract-spec.md`. Next: 13.2 deterministic business contract validator)
 
 ## Current Phase
 
@@ -301,7 +301,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 13 planning is complete (`docs/phase13-planning.md`). Next step is 13.1 business contract profile specification — a documentation-only slice. Do not begin implementation until 13.1 spec is written and reviewed. Phase 11.5 UI remains deferred to Kimi.
+**Next iteration**: Phase 13.1 complete (profile spec: `docs/phase13-business-contract-spec.md`). Next step is 13.2 deterministic business contract validator — 5–8 parametrized tests, no API, no migration. Phase 11.5 UI remains deferred to Kimi.
 
 ### Phase 11.1+11.2 Review Hardening — Rescan Evidence Lifecycle (2026-06-19)
 
