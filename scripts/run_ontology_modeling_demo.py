@@ -253,6 +253,22 @@ def main() -> int:
         hard_pass = (missing_keys == 0 and missing_source == 0
                      and empty_evidence == 0 and dup_names == 0 and idempotent)
 
+        # ── Quality validator ────────────────────────────────────────────
+        from semantic_lighthouse.services.ontology_draft_quality import (
+            validate_modeling_drafts,
+        )
+
+        qr = validate_modeling_drafts(db, gid)
+        warning_codes: dict[str, int] = {}
+        for i in qr["issues"]:
+            if i["severity"] == "warning":
+                c = i["code"]
+                warning_codes[c] = warning_codes.get(c, 0) + 1
+        print(
+            f"  Validator: status={qr['status']}, "
+            f"errors={qr['error_count']}, warnings={qr['warning_count']}"
+        )
+
         # ── Candidate samples ──────────────────────────────────────────
         samples: dict[str, list[dict]] = {}
         for dtype in ("object_type", "property", "link_type", "action_type"):
@@ -283,6 +299,10 @@ def main() -> int:
             props_per_ot=props_per_ot,
             samples=samples,
             db_url=os.environ.get("DATABASE_URL", "N/A"),
+            validator_status=qr["status"],
+            validator_errors=qr["error_count"],
+            validator_warnings=qr["warning_count"],
+            warning_codes=warning_codes,
         )
 
         report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -320,6 +340,10 @@ def _build_report(
     props_per_ot: dict[str, int],
     samples: dict[str, list[dict]],
     db_url: str,
+    validator_status: str = "N/A",
+    validator_errors: int = 0,
+    validator_warnings: int = 0,
+    warning_codes: dict[str, int] | None = None,
 ) -> list[str]:
     today = date_type.today().isoformat()
 
@@ -364,6 +388,27 @@ def _build_report(
         f"| Second generation idempotent | {'YES' if idempotent else 'NO'} | must be YES |",
         "",
         f"**Technical integrity**: {'**PASS**' if hard_pass else '**ISSUES FOUND**'}",
+        "",
+        "### 3.5 Quality Validator (Phase 12.2b)",
+        "",
+        "| Metric | Value |",
+        "|--------|-------|",
+        f"| Validator status | **{validator_status}** |",
+        f"| Error count | {validator_errors} |",
+        f"| Warning count | {validator_warnings} |",
+        "",
+    ]
+
+    if warning_codes:
+        lines.append("**Warning code distribution**:")
+        lines.append("")
+        lines.append("| Code | Count |")
+        lines.append("|------|-------|")
+        for c, n in sorted(warning_codes.items(), key=lambda x: -x[1]):
+            lines.append(f"| {c} | {n} |")
+        lines.append("")
+
+    lines += [
         "",
         "## 4. Noise Indicators",
         "",

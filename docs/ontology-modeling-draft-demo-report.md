@@ -24,7 +24,7 @@
 | action_type | 3 |
 | **Total** | **76** |
 
-First generation: 76 generated, 0 existing, 0 skipped.
+First generation: 0 generated, 76 existing, 0 skipped.
 
 ## 3. Hard Quality Checks
 
@@ -37,6 +37,26 @@ First generation: 76 generated, 0 existing, 0 skipped.
 | Second generation idempotent | YES | must be YES |
 
 **Technical integrity**: **PASS**
+
+### 3.5 Quality Validator (Phase 12.2b)
+
+| Metric | Value |
+|--------|-------|
+| Validator status | **WARN** |
+| Error count | 0 |
+| Warning count | 53 |
+
+**Warning code distribution**:
+
+| Code | Count |
+|------|-------|
+| weak_property_evidence | 19 |
+| untyped_wikilink_candidate | 17 |
+| knowledge_meta_model_candidate | 8 |
+| weak_link_evidence | 5 |
+| governance_action_candidate | 3 |
+| mixed_property_value_types | 1 |
+
 
 ## 4. Noise Indicators
 

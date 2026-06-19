@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 12.2a validator hotfix — generated/manual recognition fixed, 11 tests. Next: 12.2b API)
+Last updated: 2026-06-19 (Phase 12.2 complete — API + real validation, 0 errors, 53 warnings, WARN status. Next: 12.3 model packages)
 
 ## Current Phase
 

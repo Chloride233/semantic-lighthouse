@@ -32,6 +32,7 @@ from semantic_lighthouse.schemas import (
     OntologyEntityResponse,
     OntologyIssueListResponse,
     OntologyIssueTriageRequest,
+    OntologyDraftQualityResponse,
     OntologyModelingDraftBatchReviewRequest,
     OntologyModelingDraftBatchReviewResponse,
     OntologyModelingDraftCreateRequest,
@@ -466,6 +467,30 @@ def review_draft(
     db.commit()
     db.refresh(draft)
     return _draft_response(draft)
+
+
+# ── Phase 12.2b: draft quality gate ──────────────────────────────────
+
+
+@router.get("/drafts/quality", response_model=OntologyDraftQualityResponse)
+def get_draft_quality(
+    group_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyDraftQualityResponse:
+    """Validate all modeling drafts in this group. Any member can read.
+
+    Returns PASS/WARN/FAIL status with per-draft issues.
+    Read-only — never modifies drafts, commits, or calls external systems.
+    """
+    get_membership_or_404(db, current_user.id, group_id)
+
+    from semantic_lighthouse.services.ontology_draft_quality import (
+        validate_modeling_drafts,
+    )
+
+    result = validate_modeling_drafts(db, group_id)
+    return OntologyDraftQualityResponse(**result)
 
 
 # ── helpers ───────────────────────────────────────────────────────────

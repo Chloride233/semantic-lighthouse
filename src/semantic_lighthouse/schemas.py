@@ -615,3 +615,24 @@ class OntologyModelingDraftBatchReviewResponse(BaseModel):
     draft_ids: list[str]
     reviewed_by: str
     reviewed_at: datetime
+
+
+# ── Phase 12.2b: draft quality API ────────────────────────────────────
+
+
+class OntologyDraftQualityIssueResponse(BaseModel):
+    severity: str
+    code: str
+    draft_id: str
+    draft_type: str
+    field: str | None = None
+    message: str
+    details: dict = Field(default_factory=dict)
+
+
+class OntologyDraftQualityResponse(BaseModel):
+    status: str
+    draft_count: int
+    error_count: int
+    warning_count: int
+    issues: list[OntologyDraftQualityIssueResponse] = Field(default_factory=list)

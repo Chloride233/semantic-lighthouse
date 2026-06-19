@@ -1,7 +1,7 @@
 # Phase 12 Planning — Ontology Model Quality & Contract Packages v1
 
 **Date**: 2026-06-19
-**Status**: 12.1 delivered, 12.2a validator core delivered. Next → 12.2b API/real validation.
+**Status**: 12.1 delivered, 12.2 complete (API + real validation). Next → 12.3 model packages.
 
 ---
 
@@ -216,3 +216,41 @@ semantic/noise warnings only apply to deterministic_v1 drafts.
 drafts with `payload.source_entity_type`. Manual drafts with valid
 source+evidence pass basic checks without generating det-specific
 errors or warnings.
+
+---
+
+## Phase 12.2b Delivery Record (2026-06-19)
+
+### API
+
+`GET /groups/{group_id}/ontology/drafts/quality` — any member can read. Returns
+`OntologyDraftQualityResponse` with status, draft_count, error_count, warning_count,
+and per-issue details. Uses `get_membership_or_404` (member+), outsider → 403.
+Read-only — never commits or modifies drafts.
+
+### Real Validation
+
+Ran against real KB (76 drafts): status=**WARN**, errors=0, warnings=53.
+
+| Warning code | Count |
+|-------------|-------|
+| weak_property_evidence | 19 |
+| untyped_wikilink_candidate | 17 |
+| knowledge_meta_model_candidate | 8 |
+| mixed_property_value_types | 8 |
+| weak_link_evidence | 5 |
+| governance_action_candidate | 3 |
+
+No structural errors — all drafts pass basic integrity. Warnings are
+informational semantic flags for human review.
+
+### Gate
+
+- FAIL → blocked from package assembly.
+- WARN → allowed into review; warning summary retained at package creation.
+- PASS → no issues. Package creation (12.3) not yet implemented.
+
+### Tests
+
+5 new API tests: member read, outsider 403, generated WARN, malformed FAIL,
+read-only immutability. 16 total quality tests pass.
