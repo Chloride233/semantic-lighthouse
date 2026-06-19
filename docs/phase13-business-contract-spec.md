@@ -424,6 +424,7 @@ The 13.2 business contract validator produces structured issues. All codes defin
 |------|-----------|------|
 | `empty_parameters` | Action | `payload.parameters` is an empty list — action has no inputs |
 | `declared_effects_single` | Action | `payload.declared_effects` has only one entry — consider declaring all intended outcomes |
+| `declared_effects_binding_hint` | Action | A `declared_effects` string contains text suggesting executable binding (handler:, function:, endpoint:, SQL keywords, URLs, tool:, mcp:, call_/invoke_ patterns) |
 
 ### 13.2 Test Constraint
 

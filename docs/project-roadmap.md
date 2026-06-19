@@ -276,14 +276,14 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 **Out of scope**: Frontend, modeling studio, Graph RAG, graph database, Agent auto-write/auto-publish, external KB modification, production schema write, Phase 11.5 UI (deferred to Kimi).
 
 
-## Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 ← IN PROGRESS (13.1 complete, 13.2–13.6 PLANNED)
+## Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 ← IN PROGRESS (13.1–13.2 complete, 13.3–13.6 PLANNED)
 
 **Goal**: Advance the Phase 12 audit-type model package into a deterministically validated, application-readable business Ontology contract with stable type definitions — without publishing to production, storing object instances, executing Actions, or generating an SDK. See `docs/phase13-planning.md`.
 
 | # | Task | Description |
 |---|------|-------------|
 | 13.1 | Business contract profile specification | ✅ `docs/phase13-business-contract-spec.md` — profile identity, payload fields, controlled vocabularies, compiled manifest spec, validator error codes. Documentation-only, no tests. (2026-06-19) |
-| 13.2 | Deterministic business contract validator | Validate business_v1 packages against minimum type, structure, and completeness rules. Deterministic — no LLM. Returns structured errors/warnings. (PLANNED) |
+| 13.2 | Deterministic business contract validator | ✅ `validate_business_contract()` pure function — 22 error + 3 warning codes, 7 parametrized tests (38 total). No DB, no LLM, deterministic output order. (2026-06-19) |
 | 13.3 | Business contract compiler | Derive stable compiled business manifest from a validated business_v1 package. Remove audit noise, sort deterministically, compute semantic_hash. (PLANNED) |
 | 13.4 | Read-only contract export API | `GET /groups/{gid}/ontology/packages/{pid}/contract` — member+ read. Returns compiled manifest or 422 with validation errors. No mutation. (PLANNED) |
 | 13.5 | Manufacturing pilot v1 | Hand-crafted Equipment + WorkOrder + CreateWorkOrder model. Full pipeline demo: drafts → review → package → validate → compile → export. No object instances, no ERP/MES/PLC, no action execution. (PLANNED) |

@@ -1,7 +1,7 @@
 # Phase 13 Planning — Typed Business Ontology Contract & Manufacturing Pilot v1
 
 **Date**: 2026-06-19
-**Status**: 13.1 complete (profile spec defined), 13.2–13.6 PLANNED — no implementation has started.
+**Status**: 13.1–13.2 complete (profile spec + deterministic validator), 13.3–13.6 PLANNED.
 
 ---
 
@@ -80,9 +80,14 @@ Proposal, Research         Alert, Asset
 
 ---
 
-### 13.2 Deterministic Business Contract Validator
+### 13.2 Deterministic Business Contract Validator ✅
 
-**Goal**: Validate that a `business_v1` drafted package satisfies minimum type, structure, and completeness rules before compilation.
+**Goal**: Validate that a `business_v1` drafted package satisfies minimum type, structure, and completeness rules before compilation. **Delivered 2026-06-19.**
+
+**Deliverables**:
+- `src/semantic_lighthouse/services/business_contract_validator.py` — `validate_business_contract(contract_json)` pure function. No DB, no LLM, no mutation.
+- `tests/test_business_contract_validator.py` — 7 parametrized tests, 38 total assertions across profile, OT/property/link/action validation, duplicate scoping, immutability/determinism.
+- 22 error codes + 3 warning codes implemented per `docs/phase13-business-contract-spec.md` §7.
 
 **Core rule**: The validator is **deterministic** — no LLM, no type inference from field values, no modification of drafts. It returns structured errors/warnings. It never auto-corrects.
 
