@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 12.3a schema delivered — migration 0017, 8 tests. Next: 12.3b package builder)
+Last updated: 2026-06-19 (Phase 12.3 complete — schema + builder, 27 tests. Next: 12.4 package API)
 
 ## Current Phase
 

@@ -1,7 +1,7 @@
 # Phase 12 Planning — Ontology Model Quality & Contract Packages v1
 
 **Date**: 2026-06-19
-**Status**: 12.1 delivered, 12.2 complete, 12.3a schema foundation delivered. Next → 12.3b package builder.
+**Status**: 12.1–12.3 delivered (schema + builder). Next → 12.4 package API.
 
 ---
 
@@ -291,5 +291,39 @@ compatible (unique constraints defined inside create_table for SQLite).
 ### Tests
 
 8 tests: full snapshot create, JSON round-trip, same-group version unique,
+same-group hash unique, cross-group version allowed, cross-group hash
+allowed, no mutable lifecycle fields, no FK source_draft_id column.
+
+---
+
+## Phase 12.3b Delivery Record (2026-06-19)
+
+### Package Builder
+
+`build_model_package(db, group_id, created_by)` → `(OntologyModelPackage, bool)`.
+Raises `PackageBuildError(code, message)`.
+
+**Rules**:
+- Accepted-only: only `status=accepted` drafts enter the package.
+- Quality gate: accepted drafts must have 0 errors (validator `error_count` in accepted subset).
+- Dependency gate: accepted property `payload.object_type` and link
+  `payload.source/target_object_type` must reference accepted object_type drafts.
+  Proposed/rejected drafts cannot satisfy dependencies.
+- Contract snapshot: stable JSON with `schema_version`, `object_types`, `properties`,
+  `link_types`, `action_types`. Each draft includes id, draft_type, name, description,
+  payload, evidence_refs, reviewed_by, reviewed_at (ISO string), review_note.
+  Excluded: source_entity_id, source_relation_id, source_issue_id (volatile across rescans).
+- Sorting: canonical name + id within each type. `source_draft_ids` uses same order.
+- Content hash: SHA-256 of canonical JSON (sort_keys, fixed separators, ensure_ascii=False).
+  Based on contract_json only (not id/version/created_at).
+- Version: `max(version) + 1` starting from 1. Idempotent: same content_hash → return
+  existing package, `created=False`.
+
+**quality_summary**: status, error_count (0), warning_count, warning_codes distribution,
+accepted_draft_count.
+
+**Tests**: 8 tests covering no-accepted error, quality error block, property dependency
+block, link dependency block, WARN package with summary, idempotency, version 2 on
+content change, cross-group isolation. 27 total package+quality tests pass.
 same-group hash unique, cross-group version allowed, cross-group hash
 allowed, no mutable lifecycle fields, no FK source_draft_id column.
