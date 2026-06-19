@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 14.1 delivered — Business Pilot Project Foundation. Phase 13 COMPLETE — business_v1 backend contract stable, 495 tests, 12/12 gates PASS. Frontend Refactor F1 complete: F1A Swiss app shell + F1B Ontology 5-view workspace with batch review.)
+Last updated: 2026-06-19 (Phase 14 Backend Review A complete — 14.1–14.2 hardened. Phase 13 COMPLETE. Frontend Refactor F1 complete.)
 
 ## Current Phase
 
@@ -806,7 +806,27 @@ Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CL
 
 Do not frame the project as only a RAG/Agent portfolio. The current product direction is the Ontology semantic operating layer. Phase 14 is underway — 14.1–14.2 delivered; 14.3 Data-to-Model Bridge is next. Old RAG/Agent/Ontology features remain available as parallel capabilities but the product main chain is now the business pilot five-stage pipeline.
 
-**Next**: Backend Review A (NOT 14.3). Review 14.1–14.2 models, APIs, permissions, storage boundaries, and test coverage before proceeding to the data-to-model bridge.
+### Backend Review A (2026-06-19) — Complete
+
+**Findings fixed**:
+
+| Severity | Issue | Fix |
+|----------|-------|-----|
+| HIGH | File upload `read()` unbounded before size check — OOM risk | `read(max_bytes + 1)` prevents unbounded allocation |
+| HIGH | Archive didn't update `updated_at` in both projects and datasets | `updated_at = utc_now()` before commit |
+| MEDIUM | Duplicate upload race: IntegrityError orphaned permanent file | Catch `IntegrityError`, clean up file, return existing |
+| MEDIUM | Dead code: `_safe_name`, `FKMatch` dataclass unused | Removed |
+| MEDIUM | `file.file.seek(0)` no-op after full read | Removed (redundant with `read(N)` approach) |
+| MEDIUM | `BusinessProjectUpdateRequest` lacked name trim validator | Added `@field_validator("name")` for `None`-safe trim |
+| MEDIUM | `openpyxl` missing from `pyproject.toml` | Added to dependencies |
+| LOW | Documentation drift: stale status lines | Fixed all: planning v2, handoff header + footer, roadmap |
+
+**Residual risks (accepted, not blocking)**:
+- Concurrent upload race for different content with same filename: temp file naming uses `uuid4().hex` prefix — collision probability negligible.
+- Double file read (upload stream → disk, disk → profiling) — same pattern as document upload path; acceptable for 50 MiB cap.
+- No latency/cost tracking for profiling — profiling is pure Python, no LLM; negligible.
+
+**Next**: Phase 14.3 Data-to-Model Bridge.
 
 **Frontend**: moratorium lifted 2026-06-19 for Frontend Refactor F1 (Swiss app shell F1A delivered, Ontology workspace F1B pending).
 
@@ -816,4 +836,4 @@ post-Phase-14 candidate only. Any future prompt must follow
 `docs/mcp-agent-boundary-design.md`; no write capability is allowed without a
 separate Safety Lane plan reusing backend authorization, audit, and HITL.
 
-Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 14.1 is complete; Phase 14.2 Dataset Asset is next.
+Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 14.1–14.2 delivered; Backend Review A complete. Phase 14.3 Data-to-Model Bridge is next.

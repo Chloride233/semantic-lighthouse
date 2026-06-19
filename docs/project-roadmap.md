@@ -292,7 +292,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 **Out of scope**: Frontend, modeling UI, business object instance tables, package activate/publish, Action execution, Functions runtime, OSDK/code generation, MCP/Agent tool registration, Graph RAG, ERP/MES/PLC integration, external KB modification, knowledge_meta→business_v1 auto-conversion, full JSON Schema/OpenAPI generation, generic manufacturing framework.
 
 
-## Phase 14: Business Pilot Project ← Data → Model → Validate → Pilot ← IN PROGRESS (14.1–14.2 delivered)
+## Phase 14: Business Pilot Project ← Data → Model → Validate → Pilot ← IN PROGRESS (14.1–14.2 delivered, Backend Review A complete)
 
 **Goal**: Shift the product from parallel features toward a guided five-stage business pilot main chain. See `docs/phase14-planning.md`.
 

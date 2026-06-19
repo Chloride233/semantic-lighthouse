@@ -16,6 +16,7 @@ dependencies = [
     "PyYAML>=6.0.0",
     "PyJWT>=2.9.0",
     "python-multipart>=0.0.9",
+    "openpyxl>=3.1.0",
     "SQLAlchemy>=2.0.0",
     "uvicorn[standard]>=0.30.0",
 ]

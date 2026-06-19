@@ -111,17 +111,6 @@ class ColumnProfile:
 
 
 @dataclass
-class FKMatch:
-    source_column: str
-    target_dataset_id: str
-    target_column: str
-    target_dataset_name: str | None = None
-    confidence: str = "low"
-    reason: str = ""
-    overlap_ratio: float = 0.0
-
-
-@dataclass
 class ProfileResult:
     schema_version: str = _PROFILE_SCHEMA_VERSION
     sheet_name: str | None = None
@@ -172,13 +161,6 @@ class ProfileResult:
 
 
 # ── profiling engine ────────────────────────────────────────────────────
-
-
-def _safe_name(original: str) -> str:
-    """Return a filesystem-safe stem from an original filename."""
-    stem = Path(original).stem
-    safe = re.sub(r"[^a-zA-Z0-9._-]", "_", stem)[:100]
-    return safe if safe else "dataset"
 
 
 def profile_csv(

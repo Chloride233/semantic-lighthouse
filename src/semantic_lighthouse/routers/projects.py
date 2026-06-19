@@ -17,7 +17,7 @@ from semantic_lighthouse.dependencies import (
     get_membership_or_404,
     require_group_role,
 )
-from semantic_lighthouse.models import BusinessProject, User
+from semantic_lighthouse.models import BusinessProject, User, utc_now
 from semantic_lighthouse.schemas import (
     BusinessProjectCreateRequest,
     BusinessProjectListResponse,
@@ -171,6 +171,7 @@ def archive_project(
         )
 
     project.status = "archived"
+    project.updated_at = utc_now()
     db.commit()
     db.refresh(project)
     return _project_response(project)

@@ -730,6 +730,16 @@ class BusinessProjectUpdateRequest(BaseModel):
     entry_mode: str | None = Field(default=None, pattern="^(problem_first|data_first)$")
     industry_template: str | None = Field(default=None, max_length=80)
 
+    @field_validator("name")
+    @classmethod
+    def _trim_and_check_name(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("name must not be empty after trimming")
+        return v
+
 
 class BusinessProjectResponse(BaseModel):
     id: str

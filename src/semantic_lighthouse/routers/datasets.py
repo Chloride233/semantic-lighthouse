@@ -10,6 +10,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from semantic_lighthouse.config import get_settings
@@ -19,7 +20,7 @@ from semantic_lighthouse.dependencies import (
     get_membership_or_404,
     require_group_role,
 )
-from semantic_lighthouse.models import BusinessProject, DatasetAsset, User
+from semantic_lighthouse.models import BusinessProject, DatasetAsset, User, utc_now
 from semantic_lighthouse.schemas_dataset import (
     DatasetAssetListResponse,
     DatasetAssetResponse,
@@ -129,15 +130,13 @@ def upload_dataset(
     settings = get_settings()
     max_bytes = settings.max_document_upload_bytes
 
-    # Read entire file into memory with size limit
-    content = file.file.read()
+    # Read with bounded size to prevent unbounded memory allocation
+    content = file.file.read(max_bytes + 1)
     if len(content) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"File exceeds maximum size of {max_bytes} bytes",
         )
-
-    file.file.seek(0)
 
     # Ensure storage directory exists
     storage_root = Path(settings.dataset_storage_path).resolve()
@@ -247,7 +246,39 @@ def upload_dataset(
             created_by=current_user.id,
         )
         db.add(asset)
-        db.commit()
+
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            # Race: another upload with same content won. Return theirs.
+            final_path.unlink(missing_ok=True)
+            existing = db.scalar(
+                select(DatasetAsset).where(
+                    DatasetAsset.project_id == project_id,
+                    DatasetAsset.content_hash == content_hash,
+                )
+            )
+            if existing is not None:
+                return DatasetAssetUploadResponse(
+                    id=existing.id,
+                    group_id=existing.group_id,
+                    project_id=existing.project_id,
+                    original_name=existing.original_name,
+                    file_format=existing.file_format,
+                    file_size=existing.file_size,
+                    content_hash=existing.content_hash,
+                    status=existing.status,
+                    row_count=existing.row_count,
+                    column_count=existing.column_count,
+                    profile_json=existing.profile_json,
+                    created_by=existing.created_by,
+                    created_at=existing.created_at,
+                    updated_at=existing.updated_at,
+                    deduplicated=True,
+                )
+            raise
+
         db.refresh(asset)
 
         # Advance project stage if this is the first ready asset
@@ -373,6 +404,7 @@ def archive_dataset(
         )
 
     asset.status = "archived"
+    asset.updated_at = utc_now()
     db.commit()
     db.refresh(asset)
     return _asset_response(asset)
