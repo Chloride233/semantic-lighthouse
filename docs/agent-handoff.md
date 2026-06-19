@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 14.3 delivered — Data-to-Model Bridge. 14.1–14.2 hardened by Review A. Phase 13 COMPLETE. Frontend Refactor F1 complete.)
+Last updated: 2026-06-19 (Phase 14.4 delivered — Project Model Validation Gate. 14.1–14.3 delivered. Backend Review B next.)
 
 ## Current Phase
 

@@ -114,6 +114,7 @@ def compile_business_contract(package: OntologyModelPackage) -> dict:
             "source_package_id": package.id,
             "source_package_version": package.version,
             "source_content_hash": package.content_hash,
+            "project_id": package.project_id,
         },
         "object_types": compiled_ots,
         "properties": compiled_props,

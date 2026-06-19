@@ -301,8 +301,8 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 14.1 | Business Pilot Project Foundation | ✅ `BusinessProject` model, migration `0018`, CRUD/archive API, permissions, stage helper. 57 tests. |
 | 14.2 | Dataset Asset & Profiling | ✅ `DatasetAsset` model, migration `0019`, CSV/XLSX upload, metadata-first profiling, PK/FK suggestions, PII masking, stage advancement goal→data. 53 tests. |
 | 14.3 | Data-to-Model Bridge | ✅ Migration `0020` (project_id + source_dataset_id on drafts), deterministic dataset→business_v1 draft generation (object/property/link types), evidence privacy, idempotency, stage advancement data→model, review chain reuse. 27 tests. |
-| 14.4 | Model Validation Gate | Quality gate enforcement before validate stage — **NEXT** |
-| 14.5 | Pilot Execution Baseline | Pilot stage status, outcome recording |
+| 14.4 | Model Validation Gate | ✅ Migration `0021` (scope_key + project_id on packages), project-scoped quality/package/contract API, WARN override audit, FAIL blocks absolutely, stage model→validate, legacy isolation. 23 tests. |
+| 14.5 | Pilot Execution Baseline | Pilot stage status, outcome recording — **NEXT** |
 | 14.4 | Model Validation Gate | Quality gate enforcement before validate stage |
 | 14.5 | Pilot Execution Baseline | Pilot stage status, outcome recording |
 

@@ -1,6 +1,6 @@
 # Phase 14: Business Pilot Project ← Data → Model → Validate → Pilot
 
-**Status**: 14.1–14.3 delivered. Backend Review A complete. 14.4 next.
+**Status**: 14.1–14.4 delivered. Backend Review B next. 14.5 pending.
 
 Phase 14 shifts Semantic Lighthouse from parallel product features (RAG, Agent, Ontology drafts, tasks) toward a guided business pilot main chain. A group workspace contains one or more business pilot projects, each progressing through a fixed five-stage pipeline:
 
@@ -31,8 +31,8 @@ Each stage is backend-controlled. Clients cannot skip, reverse, or directly set 
 | 14.1 | Business Pilot Project Foundation — model, API, permissions, stage helper | ✅ Delivered |
 | 14.2 | Dataset Asset — dataset upload, basic profiling, data stage advancement | ✅ Delivered |
 | 14.3 | Data-to-Model Bridge — link dataset profile to modeling draft generation | ✅ Delivered |
-| 14.4 | Model Validation Gate — quality gate enforcement before validate stage | **Next** |
-| 14.5 | Pilot Execution Baseline — pilot stage status, outcome recording | Planned |
+| 14.4 | Model Validation Gate — quality gate enforcement before validate stage | ✅ Delivered |
+| 14.5 | Pilot Execution Baseline — pilot stage status, outcome recording | **Next** |
 
 ---
 

@@ -647,6 +647,14 @@ class DatasetModelingResponse(BaseModel):
     issues: list[DatasetModelingIssue] = Field(default_factory=list)
 
 
+# ── Phase 14.4: Project Validation Gate ──────────────────────────────────
+
+
+class ProjectPackageBuildRequest(BaseModel):
+    allow_warnings: bool = False
+    override_reason: str | None = Field(default=None, max_length=2000)
+
+
 # ── Phase 12.2b: draft quality API ────────────────────────────────────
 
 
@@ -679,6 +687,7 @@ class OntologyModelPackageSummaryResponse(BaseModel):
     content_hash: str
     draft_count: int
     quality_status: str
+    project_id: str | None = None
     created_by: str
     created_at: datetime
 
@@ -695,6 +704,7 @@ class OntologyModelPackageBuildResponse(BaseModel):
     content_hash: str
     draft_count: int
     quality_status: str
+    project_id: str | None = None
     created: bool
 
 
@@ -725,6 +735,7 @@ class BusinessContractProvenance(BaseModel):
     source_package_id: str
     source_package_version: int
     source_content_hash: str
+    project_id: str | None = None
 
 
 class BusinessContractManifestResponse(BaseModel):

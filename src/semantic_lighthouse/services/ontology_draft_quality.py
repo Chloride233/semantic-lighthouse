@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from semantic_lighthouse.models import (
+    DatasetAsset,
     OntologyEntity,
     OntologyModelingDraft,
     OntologyRelation,
@@ -30,34 +31,49 @@ REQUIRED_PAYLOAD_FIELDS: dict[str, set[str]] = {
     "action_type": {"scope", "issue_count", "issue_codes"},
 }
 
+DATASET_REQUIRED_PAYLOAD_FIELDS: dict[str, set[str]] = {
+    "object_type": {"api_name", "display_name", "primary_key"},
+    "property": {"object_type", "property_name", "value_type"},
+    "link_type": {"source_object_type", "target_object_type", "source_property",
+                  "target_property", "cardinality"},
+}
+
 VALID_DRAFT_TYPES = {"object_type", "property", "link_type", "action_type"}
 VALID_STATUSES = {"proposed", "accepted", "rejected"}
 
 
-def validate_modeling_drafts(db: Session, group_id: str) -> dict:
-    """Validate all modeling drafts in a group. Read-only — no mutations.
+def validate_modeling_drafts(
+    db: Session, group_id: str, project_id: str | None = None,
+) -> dict:
+    """Validate modeling drafts. Read-only — no mutations.
+
+    If project_id is provided, validates only that project's drafts.
+    Otherwise validates all group drafts (legacy behavior).
 
     Returns: {status, draft_count, error_count, warning_count, issues}
     """
-    drafts = list(
-        db.scalars(
-            select(OntologyModelingDraft).where(
-                OntologyModelingDraft.group_id == group_id,
-            )
-        ).all()
+    base = select(OntologyModelingDraft).where(
+        OntologyModelingDraft.group_id == group_id,
     )
+    if project_id is not None:
+        base = base.where(OntologyModelingDraft.project_id == project_id)
+
+    drafts = list(db.scalars(base).all())
 
     # Build lookup sets for cross-reference validation
     entity_ids: set[str] = set()
     relation_ids: set[str] = set()
     issue_ids: set[str] = set()
     rag_run_ids: set[str] = set()
+    dataset_ids: set[str] = set()
+    project_ds_ids: set[str] = set()
 
     if drafts:
         eids = {d.source_entity_id for d in drafts if d.source_entity_id}
         rids = {d.source_relation_id for d in drafts if d.source_relation_id}
         iids = {d.source_issue_id for d in drafts if d.source_issue_id}
         ragids = {d.source_rag_run_id for d in drafts if d.source_rag_run_id}
+        dsids = {d.source_dataset_id for d in drafts if d.source_dataset_id}
 
         if eids:
             entity_ids = set(
@@ -95,19 +111,50 @@ def validate_modeling_drafts(db: Session, group_id: str) -> dict:
                     )
                 ).all()
             )
+        if dsids:
+            dataset_ids = set(
+                db.scalars(
+                    select(DatasetAsset.id).where(
+                        DatasetAsset.id.in_(dsids),
+                        DatasetAsset.group_id == group_id,
+                    )
+                ).all()
+            )
+            project_ds_ids = dataset_ids
+            if project_id is not None:
+                # Also verify datasets belong to the project
+                project_ds_ids = set(
+                    db.scalars(
+                        select(DatasetAsset.id).where(
+                            DatasetAsset.id.in_(dsids),
+                            DatasetAsset.group_id == group_id,
+                            DatasetAsset.project_id == project_id,
+                        )
+                    ).all()
+                )
 
-    # Collect object_type names from same-group drafts for cross-reference
+    # Collect object_type names from same-scope drafts for cross-reference.
+    # For dataset_deterministic_v1, the cross-reference uses api_name from payload.
+    # For legacy deterministic_v1 and manual drafts, the cross-reference uses d.name.
     object_type_names: set[str] = set()
     for d in drafts:
         if d.draft_type == "object_type":
+            p = d.payload or {}
+            if p.get("generator") == "dataset_deterministic_v1":
+                api_name = p.get("api_name", "")
+                if api_name:
+                    object_type_names.add(api_name.strip().casefold())
+            # Also add d.name for backward compatibility and manual drafts
             object_type_names.add(d.name.strip().casefold())
 
     issues: list[dict] = []
 
+    ds_ids_context = project_ds_ids if project_id is not None else dataset_ids
+
     for d in drafts:
         _validate_draft(
             d, entity_ids, relation_ids, issue_ids, rag_run_ids,
-            object_type_names, issues,
+            ds_ids_context, object_type_names, issues,
         )
 
     error_count = sum(1 for i in issues if i["severity"] == "error")
@@ -135,6 +182,7 @@ def _validate_draft(
     relation_ids: set[str],
     issue_ids: set[str],
     rag_run_ids: set[str],
+    dataset_ids: set[str],
     object_type_names: set[str],
     issues: list[dict],
 ) -> None:
@@ -142,7 +190,8 @@ def _validate_draft(
     dt = d.draft_type
     payload = d.payload or {}
     generator = payload.get("generator", "")
-    is_det = generator == "deterministic_v1"
+    is_det = generator in ("deterministic_v1", "dataset_deterministic_v1")
+    is_dataset = generator == "dataset_deterministic_v1"
     gen_key = payload.get("generation_key", "")
 
     # ── Errors: basic integrity (applies to all drafts) ──────────────
@@ -159,12 +208,13 @@ def _validate_draft(
     has_source = bool(
         d.source_entity_id or d.source_relation_id
         or d.source_issue_id or d.source_rag_run_id
+        or d.source_dataset_id
     )
     if not has_source:
         issues.append(_issue("error", "missing_source_pointer", d, None,
                              "No source pointer set"))
 
-    # Source pointer validity (must exist in same group)
+    # Source pointer validity (must exist in same group/scope)
     if d.source_entity_id and d.source_entity_id not in entity_ids:
         issues.append(_issue(
             "error", "source_pointer_not_in_group", d, "source_entity_id",
@@ -189,6 +239,28 @@ def _validate_draft(
             f"source_rag_run_id {d.source_rag_run_id} not found in group",
             details={"source_rag_run_id": d.source_rag_run_id},
         ))
+    if d.source_dataset_id and d.source_dataset_id not in dataset_ids:
+        issues.append(_issue(
+            "error", "source_dataset_not_in_scope", d, "source_dataset_id",
+            f"source_dataset_id {d.source_dataset_id} not found in scope",
+            details={"source_dataset_id": d.source_dataset_id},
+        ))
+
+    # Phase 14.3+14.4: project/dataset consistency
+    p = d.payload or {}
+    if d.project_id and p.get("project_id") and p["project_id"] != d.project_id:
+        issues.append(_issue(
+            "error", "payload_project_id_mismatch", d, "payload.project_id",
+            f"payload.project_id {p['project_id']} != draft.project_id {d.project_id}",
+        ))
+    if d.source_dataset_id and p.get("source_dataset_id") and (
+        p["source_dataset_id"] != d.source_dataset_id
+    ):
+        issues.append(_issue(
+            "error", "payload_dataset_id_mismatch", d, "payload.source_dataset_id",
+            f"payload.source_dataset_id {p['source_dataset_id']} != "
+            f"draft.source_dataset_id {d.source_dataset_id}",
+        ))
 
     # Evidence (all drafts)
     if not isinstance(d.evidence_refs, list):
@@ -207,8 +279,18 @@ def _validate_draft(
                 "Deterministic draft missing generation_key",
             ))
 
-        # Required payload fields
-        if dt in REQUIRED_PAYLOAD_FIELDS:
+        # Required payload fields — use correct set per generator
+        if is_dataset and dt in DATASET_REQUIRED_PAYLOAD_FIELDS:
+            required = DATASET_REQUIRED_PAYLOAD_FIELDS[dt]
+            missing = [f for f in required if f not in payload]
+            if missing:
+                issues.append(_issue(
+                    "error", "missing_required_payload_fields", d, "payload",
+                    f"Missing required payload fields: {', '.join(sorted(missing))}",
+                    details={"missing_fields": sorted(missing),
+                             "required": sorted(required)},
+                ))
+        elif not is_dataset and dt in REQUIRED_PAYLOAD_FIELDS:
             required = REQUIRED_PAYLOAD_FIELDS[dt]
             missing = [f for f in required if f not in payload]
             if missing:
@@ -219,7 +301,7 @@ def _validate_draft(
                              "required": sorted(required)},
                 ))
 
-        # Cross-reference consistency (only deterministic_v1 — manual
+        # Cross-reference consistency (all deterministic — manual
         # drafts may not have standard payload shapes)
         if dt == "property":
             ot = payload.get("object_type", "")
@@ -249,7 +331,8 @@ def _validate_draft(
                     details={"target_object_type": tgt_ot},
                 ))
 
-        # ── Warnings: semantic / noise (deterministic_v1 only) ──────
+    # ── Warnings: legacy deterministic_v1 only (skip for dataset drafts) ─
+    if is_det and not is_dataset:
         if dt == "property":
             oc = payload.get("observed_count")
             if isinstance(oc, (int, float)) and oc <= 1:

@@ -212,6 +212,8 @@ def generate_dataset_drafts(
             None,
         )
 
+        pk_api_name = f"{api_name}_{_snake_case(pk_col_name)}"
+
         payload = {
             "contract_profile": "business_v1",
             "generator": "dataset_deterministic_v1",
@@ -220,7 +222,7 @@ def generate_dataset_drafts(
             "source_dataset_id": ds.id,
             "api_name": api_name,
             "display_name": display_name,
-            "primary_key": pk_col_name,
+            "primary_key": pk_api_name,
             "primary_key_type": pk_col.get("inferred_type", "string") if pk_col else "string",
         }
 
@@ -284,12 +286,17 @@ def generate_dataset_drafts(
                 ds, column_name=col_name, is_pk=is_pk,
             )
 
+            api_name_prop = f"{obj_api_name}_{_snake_case(col_name)}"
+            display_name_prop = f"{_title_case(ds.original_name)} {col_name}"
+
             payload = {
                 "contract_profile": "business_v1",
                 "generator": "dataset_deterministic_v1",
                 "generation_key": gen_key,
                 "project_id": project_id,
                 "source_dataset_id": ds.id,
+                "api_name": api_name_prop,
+                "display_name": display_name_prop,
                 "object_type": obj_api_name,
                 "property_name": col_name,
                 "value_type": value_type,
@@ -367,12 +374,19 @@ def generate_dataset_drafts(
                 ds, column_name=source_col, is_fk=True,
             )
 
+            api_name_link = (
+                f"{src_api_name}_{_snake_case(source_col)}_to_"
+                f"{tgt_api_name}_{_snake_case(target_col)}"
+            )
+
             payload = {
                 "contract_profile": "business_v1",
                 "generator": "dataset_deterministic_v1",
                 "generation_key": gen_key,
                 "project_id": project_id,
                 "source_dataset_id": ds.id,
+                "api_name": api_name_link,
+                "display_name": link_name,
                 "source_object_type": src_api_name,
                 "source_property": source_col,
                 "target_object_type": tgt_api_name,

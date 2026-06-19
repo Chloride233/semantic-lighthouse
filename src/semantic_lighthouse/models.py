@@ -470,22 +470,34 @@ class OntologyModelingDraft(Base):
 
 
 class OntologyModelPackage(Base):
-    """Phase 12.3 — immutable snapshot of accepted modeling drafts.
+    """Phase 12.3+14.4 — immutable snapshot of accepted modeling drafts.
 
     Versioned, content-hashed JSON contract. Immutable after creation
     (no UPDATE path). source_draft_ids is audit trail only, not a
     mutable FK relationship.
+
+    Phase 14.4: project_id and scope_key enable project-scoped packages.
+    scope_key = "group" for legacy group-wide packages.
+    scope_key = "project:{project_id}" for project-scoped packages.
     """
 
     __tablename__ = "ontology_model_packages"
     __table_args__ = (
-        UniqueConstraint("group_id", "version", name="uq_onto_pkg_group_version"),
-        UniqueConstraint("group_id", "content_hash", name="uq_onto_pkg_group_hash"),
+        UniqueConstraint("group_id", "scope_key", "version",
+                         name="uq_onto_pkg_scope_version"),
+        UniqueConstraint("group_id", "scope_key", "content_hash",
+                         name="uq_onto_pkg_scope_hash"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     group_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("groups.id"), index=True, nullable=False
+    )
+    project_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("business_projects.id"), index=True, nullable=True
+    )
+    scope_key: Mapped[str] = mapped_column(
+        String(80), nullable=False, default="group"
     )
     version: Mapped[int] = mapped_column(nullable=False)
     schema_version: Mapped[str] = mapped_column(

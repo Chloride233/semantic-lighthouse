@@ -33,6 +33,7 @@ from semantic_lighthouse.schemas import (
     DRAFT_TYPES,
     DatasetModelingResponse,
     DraftGenerationResponse,
+    ProjectPackageBuildRequest,
     OntologyEntityListResponse,
     OntologyEntityResponse,
     OntologyIssueListResponse,
@@ -563,11 +564,12 @@ def list_packages(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> OntologyModelPackageListResponse:
-    """List packages in this group, newest version first. Any member can read."""
+    """List legacy group-scoped packages. Any member can read."""
     get_membership_or_404(db, current_user.id, group_id)
 
     base = select(OntologyModelPackage).where(
-        OntologyModelPackage.group_id == group_id
+        OntologyModelPackage.group_id == group_id,
+        OntologyModelPackage.scope_key == "group",
     )
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
     rows = db.scalars(
@@ -798,6 +800,7 @@ def _pkg_summary(p: OntologyModelPackage) -> OntologyModelPackageSummaryResponse
         id=p.id, group_id=p.group_id, version=p.version,
         schema_version=p.schema_version, content_hash=p.content_hash,
         draft_count=p.draft_count, quality_status=p.quality_status,
+        project_id=p.project_id,
         created_by=p.created_by, created_at=p.created_at,
     )
 
@@ -807,6 +810,7 @@ def _pkg_detail(p: OntologyModelPackage) -> OntologyModelPackageDetailResponse:
         id=p.id, group_id=p.group_id, version=p.version,
         schema_version=p.schema_version, content_hash=p.content_hash,
         draft_count=p.draft_count, quality_status=p.quality_status,
+        project_id=p.project_id,
         created_by=p.created_by, created_at=p.created_at,
         contract_json=p.contract_json,
         source_draft_ids=p.source_draft_ids,
@@ -820,6 +824,18 @@ project_model_router = APIRouter(
     prefix="/groups/{group_id}/projects/{project_id}/model-drafts",
     tags=["dataset-modeling"],
 )
+
+
+def _get_project_or_404(
+    db: Session, project_id: str, group_id: str
+) -> "BusinessProject":
+    """Fetch project and enforce group_id match (404 on mismatch)."""
+    project = db.get(BusinessProject, project_id)
+    if project is None or project.group_id != group_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
+    return project
 
 
 @project_model_router.post("/generate", response_model=DatasetModelingResponse)
@@ -898,3 +914,221 @@ def generate_dataset_model_drafts(
         counts_by_type=result["counts_by_type"],
         issues=result["issues"],
     )
+
+
+# ── Phase 14.4: Project Validation Gate ───────────────────────────────────
+
+
+@project_model_router.get("/quality", response_model=OntologyDraftQualityResponse)
+def get_project_model_quality(
+    group_id: str,
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyDraftQualityResponse:
+    """Get quality status of project-scoped drafts (member+)."""
+    get_membership_or_404(db, current_user.id, group_id)
+    _get_project_or_404(db, project_id, group_id)
+
+    from semantic_lighthouse.services.ontology_draft_quality import (
+        validate_modeling_drafts,
+    )
+
+    result = validate_modeling_drafts(db, group_id, project_id=project_id)
+    return OntologyDraftQualityResponse(**result)
+
+
+@project_model_router.post("/packages", response_model=OntologyModelPackageBuildResponse,
+                           status_code=status.HTTP_201_CREATED)
+def create_project_package(
+    group_id: str,
+    project_id: str,
+    body: ProjectPackageBuildRequest | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Build an immutable model package from project accepted drafts.
+
+    Owner/admin only. WARN overrides require allow_warnings=true + non-empty
+    override_reason. FAIL always blocks. Idempotent by content hash.
+    """
+    require_group_role(db, current_user.id, group_id, {"owner", "admin"})
+    project = _get_project_or_404(db, project_id, group_id)
+
+    if project.status == "archived":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot build packages for an archived project",
+        )
+    if project.stage == "goal":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Project must reach model stage before building packages",
+        )
+
+    allow_warnings = body.allow_warnings if body else False
+    override_reason = (body.override_reason or "").strip() if body else ""
+
+    # Check for proposed drafts (must all be reviewed)
+    proposed_count = db.scalar(
+        select(func.count()).select_from(
+            select(OntologyModelingDraft).where(
+                OntologyModelingDraft.project_id == project_id,
+                OntologyModelingDraft.group_id == group_id,
+                OntologyModelingDraft.status == "proposed",
+            ).subquery()
+        )
+    ) or 0
+
+    if proposed_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{proposed_count} draft(s) still in proposed status. "
+            "All drafts must be accepted or rejected before building a package.",
+        )
+
+    from semantic_lighthouse.services.ontology_draft_quality import (
+        validate_modeling_drafts,
+    )
+    from semantic_lighthouse.services.ontology_packages import (
+        PackageBuildError,
+        build_model_package,
+    )
+    from semantic_lighthouse.services.projects import advance_stage
+
+    quality = validate_modeling_drafts(db, group_id, project_id=project_id)
+
+    if quality["status"] == "FAIL":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Quality FAIL: {quality['error_count']} error(s). "
+            "FAIL status cannot be overridden.",
+        )
+
+    if quality["status"] == "WARN":
+        if not allow_warnings:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Quality WARN: {quality['warning_count']} warning(s). "
+                "Set allow_warnings=true and provide override_reason to proceed.",
+            )
+        if not override_reason:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="override_reason is required when allow_warnings=true",
+            )
+
+    try:
+        pkg, created = build_model_package(
+            db, group_id, current_user.id, project_id=project_id,
+        )
+    except PackageBuildError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message)
+
+    # Write WARN override audit to quality_summary (immutable after creation)
+    if quality["status"] == "WARN" and created and allow_warnings:
+        pkg.quality_summary = {
+            **pkg.quality_summary,
+            "warning_override": True,
+            "override_reason": override_reason,
+            "overridden_by": current_user.id,
+            "overridden_at": utc_now().isoformat(),
+        }
+        db.commit()
+        db.refresh(pkg)
+
+    # Advance stage model → validate
+    if created and project.stage == "model":
+        advance_stage("model", "validate")
+        project.stage = "validate"
+        db.commit()
+
+    return OntologyModelPackageBuildResponse(
+        id=pkg.id, version=pkg.version, content_hash=pkg.content_hash,
+        draft_count=pkg.draft_count, quality_status=pkg.quality_status,
+        project_id=pkg.project_id, created=created,
+    )
+
+
+@project_model_router.get("/packages", response_model=OntologyModelPackageListResponse)
+def list_project_packages(
+    group_id: str,
+    project_id: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyModelPackageListResponse:
+    """List project-scoped packages (member+)."""
+    get_membership_or_404(db, current_user.id, group_id)
+    _get_project_or_404(db, project_id, group_id)
+
+    scope_key = f"project:{project_id}"
+    base = select(OntologyModelPackage).where(
+        OntologyModelPackage.group_id == group_id,
+        OntologyModelPackage.scope_key == scope_key,
+    )
+    total = db.scalar(select(func.count()).select_from(base.subquery()))
+    pkgs = db.scalars(
+        base.order_by(OntologyModelPackage.version.desc()).offset(offset).limit(limit)
+    ).all()
+    return OntologyModelPackageListResponse(
+        packages=[_pkg_summary(p) for p in pkgs],
+        total=total or 0,
+    )
+
+
+@project_model_router.get("/packages/{package_id}",
+                          response_model=OntologyModelPackageDetailResponse)
+def get_project_package(
+    package_id: str,
+    group_id: str,
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyModelPackageDetailResponse:
+    """Get a project-scoped package detail (member+)."""
+    get_membership_or_404(db, current_user.id, group_id)
+    _get_project_or_404(db, project_id, group_id)
+
+    pkg = db.get(OntologyModelPackage, package_id)
+    if pkg is None or pkg.group_id != group_id or pkg.project_id != project_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Package not found"
+        )
+    return _pkg_detail(pkg)
+
+
+@project_model_router.get("/packages/{package_id}/contract",
+                          response_model=BusinessContractManifestResponse)
+def get_project_contract(
+    package_id: str,
+    group_id: str,
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> BusinessContractManifestResponse:
+    """Export a compiled business contract from a project package (member+)."""
+    get_membership_or_404(db, current_user.id, group_id)
+    _get_project_or_404(db, project_id, group_id)
+
+    pkg = db.get(OntologyModelPackage, package_id)
+    if pkg is None or pkg.group_id != group_id or pkg.project_id != project_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Package not found"
+        )
+
+    from semantic_lighthouse.services.business_contract_compiler import (
+        BusinessContractCompilationError,
+        compile_business_contract,
+    )
+
+    try:
+        compiled = compile_business_contract(pkg)
+    except BusinessContractCompilationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        ) from e
+
+    return BusinessContractManifestResponse(**compiled)

@@ -31,36 +31,56 @@ class PackageBuildError(Exception):
 
 
 def build_model_package(
-    db: Session, group_id: str, created_by: str
+    db: Session, group_id: str, created_by: str,
+    project_id: str | None = None,
 ) -> tuple[OntologyModelPackage, bool]:
     """Build an immutable model package from accepted drafts.
 
     Returns (package, created). created=False if identical package exists.
+
+    If project_id is provided, builds a project-scoped package from
+    only that project's accepted drafts. Otherwise builds a legacy
+    group-wide package from group-level drafts (project_id is null).
 
     Raises PackageBuildError if:
     - No accepted drafts exist
     - Accepted drafts have quality errors
     - Accepted property/link references missing accepted object_type
     """
+    # ── Scope key ──────────────────────────────────────────────────────
+    if project_id is not None:
+        scope_key = f"project:{project_id}"
+        draft_filter = [
+            OntologyModelingDraft.group_id == group_id,
+            OntologyModelingDraft.project_id == project_id,
+            OntologyModelingDraft.status == "accepted",
+        ]
+        no_drafts_msg = "No accepted drafts in this project"
+    else:
+        scope_key = "group"
+        draft_filter = [
+            OntologyModelingDraft.group_id == group_id,
+            OntologyModelingDraft.project_id.is_(None),
+            OntologyModelingDraft.status == "accepted",
+        ]
+        no_drafts_msg = "No accepted drafts in this group"
+
     # ── Accepted drafts only ──────────────────────────────────────────
     accepted = list(
         db.scalars(
-            select(OntologyModelingDraft).where(
-                OntologyModelingDraft.group_id == group_id,
-                OntologyModelingDraft.status == "accepted",
-            )
+            select(OntologyModelingDraft).where(*draft_filter)
         ).all()
     )
     if not accepted:
         raise PackageBuildError(
             code="no_accepted_drafts",
-            message="No accepted drafts in this group",
+            message=no_drafts_msg,
         )
 
     accepted_ids = {d.id for d in accepted}
 
     # ── Quality gate ──────────────────────────────────────────────────
-    qr = validate_modeling_drafts(db, group_id)
+    qr = validate_modeling_drafts(db, group_id, project_id=project_id)
     accepted_errors = [
         i for i in qr["issues"]
         if i["severity"] == "error" and i["draft_id"] in accepted_ids
@@ -84,10 +104,16 @@ def build_model_package(
     quality_status = "WARN" if accepted_warnings else "PASS"
 
     # ── Accepted-only dependency gate ─────────────────────────────────
-    obj_type_names = {
-        d.name.strip().casefold()
-        for d in accepted if d.draft_type == "object_type"
-    }
+    # Collect both d.name and (for dataset drafts) payload.api_name
+    obj_type_names: set[str] = set()
+    for d in accepted:
+        if d.draft_type == "object_type":
+            obj_type_names.add(d.name.strip().casefold())
+            p = d.payload or {}
+            if p.get("generator") == "dataset_deterministic_v1":
+                api_name = p.get("api_name", "")
+                if api_name:
+                    obj_type_names.add(api_name.strip().casefold())
 
     for d in accepted:
         payload = d.payload or {}
@@ -280,6 +306,7 @@ def build_model_package(
     existing = db.scalar(
         select(OntologyModelPackage).where(
             OntologyModelPackage.group_id == group_id,
+            OntologyModelPackage.scope_key == scope_key,
             OntologyModelPackage.content_hash == content_hash,
         )
     )
@@ -289,6 +316,7 @@ def build_model_package(
     max_ver = db.scalar(
         select(func.max(OntologyModelPackage.version)).where(
             OntologyModelPackage.group_id == group_id,
+            OntologyModelPackage.scope_key == scope_key,
         )
     ) or 0
     version = max_ver + 1
@@ -303,6 +331,8 @@ def build_model_package(
 
     pkg = OntologyModelPackage(
         group_id=group_id,
+        project_id=project_id,
+        scope_key=scope_key,
         version=version,
         content_hash=content_hash,
         contract_json=contract,
