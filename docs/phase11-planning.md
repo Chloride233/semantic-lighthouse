@@ -1,7 +1,7 @@
 # Phase 11 Planning — Ontology Modeling Drafts v1
 
-**Date**: 2026-06-18
-**Status**: Planning — not started
+**Date**: 2026-06-19
+**Status**: In progress — 11.1+11.2 delivered. Next: 11.3 deterministic draft generation.
 
 ---
 
@@ -37,8 +37,8 @@ Turn the governed entity/relation/issue read model from Phase 9/10 into a human-
 
 | # | Task | Description |
 |---|------|-------------|
-| 11.1 | Modeling draft boundary + schema design | Define draft data model (object/property/link/action), status lifecycle (proposed/accepted/rejected), evidence links, group scope. SQLite/PostgreSQL compatible. Migration. |
-| 11.2 | Draft read model / API | `POST/GET /ontology/drafts/objects` (and properties/links/actions). Group-scoped, permission-aware. Draft links to source entities, relations, and RAG runs as evidence. |
+| 11.1 | Modeling draft boundary + schema design | ✅ Delivered (2026-06-19). `OntologyModelingDraft` model in `ontology_modeling_drafts` table, migration `0016_v16_ontology_modeling_drafts`. Fields: id, group_id, draft_type (object_type/property/link_type/action_type), name, description, status (proposed/accepted/rejected), source_entity_id, source_relation_id, source_issue_id, source_rag_run_id, evidence_refs, payload, created_by, created_at, updated_at, reviewed_by, reviewed_at, review_note. No unique constraint on (group_id, draft_type, name). |
+| 11.2 | Draft read model / API | ✅ Delivered (2026-06-19). `POST /groups/{gid}/ontology/drafts` (owner/admin create proposed draft, validates source ids in group), `GET /groups/{gid}/ontology/drafts` (member+ read, filters: draft_type, status, source_entity_id, q). 16 tests covering create, read, permissions, isolation, evidence linkage ×4, draft_type/status/q filters, invalid draft_type 422, no-evidence rejection. |
 | 11.3 | Draft generation from existing entities | Deterministic rules: entity_type → Object Type candidate, existing wikilinks → Link Type candidates, frontmatter fields → Property candidates. Backlog action_types (`create_missing_*`, `update_eval_gold_doc_id`) → human-action suggestions. No LLM, no Agent. |
 | 11.4 | Human review workflow | Draft status: proposed → accepted / rejected. Review metadata: reviewer, reviewed_at, review_note. Bulk accept/reject for curated batches. |
 | 11.5 | UI: entity detail modeling panel + draft list | Panel on entity detail (ontology.js): "Modeling Drafts" section showing proposed object/property/link drafts for this entity. Separate draft list view with status filter, source-entity links, review controls. Still not a full studio — focused, read-review-accept/reject workflow. |

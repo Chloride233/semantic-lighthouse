@@ -1,11 +1,12 @@
-"""Ontology governance router — scan, entity list, validation issues, relations.
+"""Ontology governance router — scan, entity list, validation issues, relations, modeling drafts.
 
 Phase 9.1–9.3: read-only governance. No external KB modification.
+Phase 11.1–11.2: modeling drafts read model — group-scoped, permission-aware.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -17,16 +18,22 @@ from semantic_lighthouse.dependencies import (
 )
 from semantic_lighthouse.models import (
     OntologyEntity,
+    OntologyModelingDraft,
     OntologyRelation,
     OntologyValidationIssue,
+    RagRun,
     User,
     utc_now,
 )
 from semantic_lighthouse.schemas import (
+    DRAFT_TYPES,
     OntologyEntityListResponse,
     OntologyEntityResponse,
     OntologyIssueListResponse,
     OntologyIssueTriageRequest,
+    OntologyModelingDraftCreateRequest,
+    OntologyModelingDraftListResponse,
+    OntologyModelingDraftResponse,
     OntologyRelationListResponse,
     OntologyRelationResponse,
     OntologyScanResponse,
@@ -202,7 +209,155 @@ def list_relations(
     )
 
 
+# ── Phase 11 modeling drafts ───────────────────────────────────────────
+
+
+@router.get("/drafts", response_model=OntologyModelingDraftListResponse)
+def list_drafts(
+    group_id: str,
+    draft_type: str | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
+    source_entity_id: str | None = Query(default=None),
+    q: str | None = Query(default=None, description="Search name"),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyModelingDraftListResponse:
+    """List group-scoped modeling drafts. Any member can read."""
+    get_membership_or_404(db, current_user.id, group_id)
+
+    base = select(OntologyModelingDraft).where(
+        OntologyModelingDraft.group_id == group_id
+    )
+    if draft_type:
+        base = base.where(OntologyModelingDraft.draft_type == draft_type)
+    if status_filter:
+        base = base.where(OntologyModelingDraft.status == status_filter)
+    if source_entity_id:
+        base = base.where(OntologyModelingDraft.source_entity_id == source_entity_id)
+    if q:
+        base = base.where(OntologyModelingDraft.name.ilike(f"%{q}%"))
+
+    total = db.scalar(select(func.count()).select_from(base.subquery()))
+    rows = db.scalars(
+        base.order_by(OntologyModelingDraft.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    ).all()
+
+    return OntologyModelingDraftListResponse(
+        drafts=[_draft_response(d) for d in rows],
+        total=total or 0,
+    )
+
+
+@router.post(
+    "/drafts",
+    response_model=OntologyModelingDraftResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_draft(
+    group_id: str,
+    body: OntologyModelingDraftCreateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyModelingDraftResponse:
+    """Create a proposed modeling draft. Owner or admin only. Status always starts as proposed."""
+    require_group_role(db, current_user.id, group_id, {"owner", "admin"})
+
+    # Validate draft_type
+    if body.draft_type not in DRAFT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid draft_type: {body.draft_type}. Allowed: {sorted(DRAFT_TYPES)}",
+        )
+
+    # At least one evidence pointer or evidence_refs non-empty
+    has_evidence = (
+        body.source_entity_id
+        or body.source_relation_id
+        or body.source_issue_id
+        or body.source_rag_run_id
+        or bool(body.evidence_refs)
+    )
+    if not has_evidence:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one evidence pointer (source_entity_id, source_relation_id, "
+            "source_issue_id, source_rag_run_id) or non-empty evidence_refs is required",
+        )
+
+    # Validate all source ids belong to this group
+    _validate_source_in_group(db, group_id, OntologyEntity, body.source_entity_id, "source_entity_id")
+    _validate_source_in_group(db, group_id, OntologyRelation, body.source_relation_id, "source_relation_id")
+    _validate_source_in_group(
+        db, group_id, OntologyValidationIssue, body.source_issue_id, "source_issue_id"
+    )
+    _validate_source_in_group(db, group_id, RagRun, body.source_rag_run_id, "source_rag_run_id")
+
+    draft = OntologyModelingDraft(
+        group_id=group_id,
+        draft_type=body.draft_type,
+        name=body.name,
+        description=body.description or "",
+        status="proposed",
+        source_entity_id=body.source_entity_id,
+        source_relation_id=body.source_relation_id,
+        source_issue_id=body.source_issue_id,
+        source_rag_run_id=body.source_rag_run_id,
+        evidence_refs=body.evidence_refs,
+        payload=body.payload,
+        created_by=current_user.id,
+    )
+    db.add(draft)
+    db.commit()
+    db.refresh(draft)
+    return _draft_response(draft)
+
+
 # ── helpers ───────────────────────────────────────────────────────────
+
+
+def _validate_source_in_group(
+    db: Session,
+    group_id: str,
+    model: type,
+    source_id: str | None,
+    field_name: str,
+) -> None:
+    """Validate that a source id exists and belongs to the given group. 404 if not found."""
+    if source_id is None:
+        return
+    obj = db.get(model, source_id)
+    if obj is None or getattr(obj, "group_id", None) != group_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"{field_name} not found in this group",
+        )
+
+
+def _draft_response(d: OntologyModelingDraft) -> OntologyModelingDraftResponse:
+    return OntologyModelingDraftResponse(
+        id=d.id,
+        group_id=d.group_id,
+        draft_type=d.draft_type,
+        name=d.name,
+        description=d.description,
+        status=d.status,
+        source_entity_id=d.source_entity_id,
+        source_relation_id=d.source_relation_id,
+        source_issue_id=d.source_issue_id,
+        source_rag_run_id=d.source_rag_run_id,
+        evidence_refs=d.evidence_refs,
+        payload=d.payload,
+        created_by=d.created_by,
+        created_at=d.created_at,
+        updated_at=d.updated_at,
+        reviewed_by=d.reviewed_by,
+        reviewed_at=d.reviewed_at,
+        review_note=d.review_note,
+    )
 
 
 def _relation_response(r: OntologyRelation) -> OntologyRelationResponse:

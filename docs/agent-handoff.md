@@ -1,10 +1,10 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-18
+Last updated: 2026-06-19
 
 ## Current Phase
 
-**Phases 0–9 delivered; Phase 10 Governance Operations complete (10.1–10.5 delivered); Phase 11 planning** — see `docs/project-roadmap.md`, `docs/phase10-planning.md`, and `docs/phase11-planning.md`. Phase 11 focuses on ontology modeling drafts v1 before Graph RAG or modeling studio.
+**Phases 0–10 delivered; Phase 11 in progress (11.1+11.2 delivered)** — see `docs/project-roadmap.md`, `docs/phase10-planning.md`, and `docs/phase11-planning.md`. Phase 11 focuses on ontology modeling drafts v1 before Graph RAG or modeling studio.
 
 **Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
 
@@ -300,7 +300,18 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 11.1 Modeling draft boundary + schema design. See `docs/phase11-planning.md`.
+**Next iteration**: Phase 11.3 Deterministic draft generation from existing entities. See `docs/phase11-planning.md`.
+
+### Phase 11.1+11.2 — Ontology Modeling Drafts Backend Foundation (2026-06-19)
+
+**Status**: Delivered.
+
+- **New model**: `OntologyModelingDraft` (`ontology_modeling_drafts`) — group-scoped, audit-trailed draft proposals for Object Type / Property / Link Type / Action Type. Fields: id, group_id, draft_type, name, description, status (proposed/accepted/rejected), source_entity_id, source_relation_id, source_issue_id, source_rag_run_id, evidence_refs, payload, created_by, created_at, updated_at, reviewed_by, reviewed_at, review_note. No unique constraint on (group_id, draft_type, name).
+- **Migration**: `0016_v16_ontology_modeling_drafts.py` — down_revision `0015_v15_ontology_issue_triage`. SQLite/PostgreSQL compatible.
+- **API**: `POST /groups/{gid}/ontology/drafts` (owner/admin create proposed draft, validates all source ids in group, 400 on no evidence, 422 on invalid draft_type). `GET /groups/{gid}/ontology/drafts` (member+ read, filters: draft_type, status, source_entity_id, q; limit/offset pagination).
+- **Boundaries**: No PATCH/DELETE/review endpoints, no Agent access, no draft generation, no UI, no Graph RAG, no external KB write. Status always starts as `proposed` — accepted/rejected are Phase 11.4.
+- **Tests**: 16 new tests in `tests/test_ontology_modeling_drafts.py` (create/read permissions, group isolation, cross-group source rejection, evidence linkage ×4, draft_type/status/q filters, invalid draft_type 422, no-evidence rejection, admin create).
+- **Verification**: 297 passed (4 pre-existing E2E failures), ruff clean, migration 0016 at head, git diff --check clean.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed

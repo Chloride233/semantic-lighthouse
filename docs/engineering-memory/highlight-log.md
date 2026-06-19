@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 11.1+11.2 — Modeling Drafts Start as App-Internal, Group-Scoped Proposals, Not a Full Modeler
+
+- Date: 2026-06-19
+- Version: Phase 11.1 + 11.2
+- Type: decision
+- Context: Phase 10 turned governance issues into a curation pipeline. The next step toward the Ontology semantic operating layer is making governed entities inform structured modeling proposals — without Graph RAG, a full modeling studio, or Agent auto-write.
+- What happened: Added `OntologyModelingDraft` as an app-internal, group-scoped, audit-trailed read model (`ontology_modeling_drafts`, migration `0016`). Each draft carries a `draft_type` (object_type/property/link_type/action_type), evidence linkage to source entities/relations/issues/RAG runs, and a status lifecycle (proposed → accepted/rejected in Phase 11.4). API: `POST /groups/{gid}/ontology/drafts` (owner/admin create proposed) and `GET /groups/{gid}/ontology/drafts` (member+ read with filters). All source evidence IDs are validated against group membership — cross-group references return 404 without leaking existence. 16 tests cover permissions, isolation, evidence linkage, and filter behavior.
+- Engineering judgment: The right first step for modeling drafts is a simple read model with group-scoped evidence pointers — not a generation engine, not a review workflow, and not a UI. Phase 11.1+11.2 establishes the data model, permission boundary, and evidence validation before any automation. Drafts are app-internal proposals only; they are never written back to the external KB. The absence of unique constraints and complex dedup logic keeps the schema open for future generation patterns without premature locking. Status always defaults to `proposed` on create — accepted/rejected will be added by the human review workflow in 11.4.
+- Verification: 297 pytest passed (4 pre-existing E2E failures), ruff clean, migration 0016 at head, git diff --check clean.
+
 ## Phase 10 Complete — Governance Pipeline Operational, Phase 11 Modeling Drafts Next
 
 - Date: 2026-06-18

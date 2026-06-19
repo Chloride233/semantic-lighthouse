@@ -510,3 +510,46 @@ class TaskResponse(BaseModel):
 class TaskListResponse(BaseModel):
     tasks: list[TaskResponse]
     total: int
+
+
+# ── Phase 11: Ontology Modeling Drafts ──────────────────────────────────
+
+DRAFT_TYPES = {"object_type", "property", "link_type", "action_type"}
+
+
+class OntologyModelingDraftCreateRequest(BaseModel):
+    draft_type: str = Field(min_length=1, max_length=20)
+    name: str = Field(min_length=1, max_length=240)
+    description: str = ""
+    source_entity_id: str | None = None
+    source_relation_id: str | None = None
+    source_issue_id: str | None = None
+    source_rag_run_id: str | None = None
+    evidence_refs: list = Field(default_factory=list)
+    payload: dict = Field(default_factory=dict)
+
+
+class OntologyModelingDraftResponse(BaseModel):
+    id: str
+    group_id: str
+    draft_type: str
+    name: str
+    description: str
+    status: str
+    source_entity_id: str | None = None
+    source_relation_id: str | None = None
+    source_issue_id: str | None = None
+    source_rag_run_id: str | None = None
+    evidence_refs: list = Field(default_factory=list)
+    payload: dict = Field(default_factory=dict)
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
+    review_note: str | None = None
+
+
+class OntologyModelingDraftListResponse(BaseModel):
+    drafts: list[OntologyModelingDraftResponse]
+    total: int

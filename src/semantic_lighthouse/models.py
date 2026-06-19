@@ -409,6 +409,60 @@ class OntologyRelation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
 
+class OntologyModelingDraft(Base):
+    """Phase 11 read model — human-reviewable Object Type / Property / Link Type / Action Type proposals.
+
+    Drafts are app-internal, group-scoped, audit-trailed proposals (proposed / accepted / rejected).
+    They are NOT production schema and are NOT written back to the external KB.
+    Agent may read but never auto-create/accept/publish.
+    """
+
+    __tablename__ = "ontology_modeling_drafts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    group_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("groups.id"), index=True, nullable=False
+    )
+    draft_type: Mapped[str] = mapped_column(
+        String(20), index=True, nullable=False
+    )  # object_type | property | link_type | action_type
+    name: Mapped[str] = mapped_column(String(240), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    status: Mapped[str] = mapped_column(
+        String(20), index=True, nullable=False, default="proposed"
+    )  # proposed | accepted | rejected
+    source_entity_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("ontology_entities.id"), index=True, nullable=True
+    )
+    source_relation_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("ontology_relations.id"), index=True, nullable=True
+    )
+    source_issue_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("ontology_validation_issues.id"), index=True, nullable=True
+    )
+    source_rag_run_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("rag_runs.id"), index=True, nullable=True
+    )
+    evidence_refs: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_by: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    reviewed_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class Task(Base):
     """Lightweight user-confirmed task from RAG next_steps.
 
