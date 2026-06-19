@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 12.4 complete — package create/read/export API, 34 tests. Next: 12.5 action/permission contract)
+Last updated: 2026-06-19 (Phase 12.5 complete — action contract, 38 tests. Next: 12.6 real demo and phase review)
 
 ## Current Phase
 

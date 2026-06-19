@@ -258,7 +258,7 @@ Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning
 **Next**: Phase 12.3 model package read model.
 
 
-## Phase 12: Ontology Model Quality & Contract Packages v1 ← IN PROGRESS (12.1–12.3 delivered)
+## Phase 12: Ontology Model Quality & Contract Packages v1 ← IN PROGRESS (12.1–12.5 delivered)
 
 **Goal**: Turn Phase 11 accepted drafts into verified, quality-gated, immutable model contract packages — without treating accepted as production, without Graph RAG, without Agent auto-write. See `docs/phase12-planning.md`.
 
@@ -268,7 +268,7 @@ Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning
 | 12.2 | Draft quality gates | ✅ Validator service + API. 9 error codes, 7 warning codes. Real validation: 0 errors, 53 warnings, WARN status. `GET /drafts/quality` (member+). 16 tests (2026-06-19) |
 | 12.3 | Immutable model package read model | ✅ Migration 0017 + builder service. Accepted-only, quality gate, dependency gate, content hash, versioned, idempotent. 27 tests (2026-06-19) |
 | 12.4 | Package read/export API | ✅ POST create + GET list/detail/export. Owner/admin create, member+ read. No PATCH/DELETE. 8 API tests (2026-06-19) |
-| 12.5 | Action and permission contract | Declare required_role, confirmation, evidence for action_type drafts. Declarative only. |
+| 12.5 | Action and permission contract | ✅ Package builder enforces action_contract (required_role, confirmation_requirement, evidence_requirement). Deterministic defaults + manual validation. 14 tests (2026-06-19) |
 | 12.6 | Real demo and phase review | End-to-end: accepted drafts → package → JSON contract. Audit chain verification. |
 
 **First slice**: 12.1 real KB demo — no new migration, no API changes, verify generation quality before building on top.

@@ -20,6 +20,8 @@ from semantic_lighthouse.services.ontology_draft_quality import (
     validate_modeling_drafts,
 )
 
+DT = "deterministic_v1"
+
 
 class PackageBuildError(Exception):
     def __init__(self, code: str, message: str):
@@ -124,6 +126,97 @@ def build_model_package(
                         f"'{ot_raw.strip()}' not in accepted object_type drafts",
                     )
 
+    # ── Action contract validation ────────────────────────────────────
+    VALID_ROLES = {"admin", "owner", "member"}
+    VALID_CONFIRMATION = {"always", "conditional", "none"}
+    DET_ACTION_DEFAULTS = {
+        "required_role": "admin",
+        "confirmation_requirement": "always",
+        "evidence_requirement": ["ontology_validation_issue"],
+    }
+
+    action_contracts: dict[str, dict] = {}
+
+    for d in accepted:
+        if d.draft_type != "action_type":
+            continue
+        payload = d.payload or {}
+        ac = payload.get("action_contract")
+
+        if ac is None:
+            generator = payload.get("generator", "")
+            scope = payload.get("scope", "")
+            if generator == DT and scope == "ontology_governance":
+                action_contracts[d.id] = dict(DET_ACTION_DEFAULTS)
+                continue
+            raise PackageBuildError(
+                code="invalid_action_contract",
+                message=(
+                    f"Action draft '{d.name}' missing payload.action_contract. "
+                    f"Deterministic governance actions auto-derive defaults; "
+                    f"manual action drafts must provide required_role, "
+                    f"confirmation_requirement, and evidence_requirement."
+                ),
+            )
+
+        # Validate explicit action_contract
+        if not isinstance(ac, dict):
+            raise PackageBuildError(
+                code="invalid_action_contract",
+                message=(
+                    f"Action draft '{d.name}' payload.action_contract "
+                    f"must be a dict"
+                ),
+            )
+
+        role = ac.get("required_role")
+        if role not in VALID_ROLES:
+            raise PackageBuildError(
+                code="invalid_action_contract",
+                message=(
+                    f"Action draft '{d.name}' action_contract.required_role "
+                    f"must be one of {sorted(VALID_ROLES)}, got {role!r}"
+                ),
+            )
+
+        confirm = ac.get("confirmation_requirement")
+        if confirm not in VALID_CONFIRMATION:
+            raise PackageBuildError(
+                code="invalid_action_contract",
+                message=(
+                    f"Action draft '{d.name}' "
+                    f"action_contract.confirmation_requirement "
+                    f"must be one of {sorted(VALID_CONFIRMATION)}, "
+                    f"got {confirm!r}"
+                ),
+            )
+
+        evidence = ac.get("evidence_requirement")
+        if not isinstance(evidence, list) or len(evidence) == 0:
+            raise PackageBuildError(
+                code="invalid_action_contract",
+                message=(
+                    f"Action draft '{d.name}' "
+                    f"action_contract.evidence_requirement "
+                    f"must be a non-empty list of strings"
+                ),
+            )
+        cleaned = [s.strip() for s in evidence if isinstance(s, str)]
+        if len(cleaned) != len(evidence) or any(not c for c in cleaned):
+            raise PackageBuildError(
+                code="invalid_action_contract",
+                message=(
+                    f"Action draft '{d.name}' "
+                    f"action_contract.evidence_requirement "
+                    f"elements must be non-empty strings after trimming"
+                ),
+            )
+        action_contracts[d.id] = {
+            "required_role": role,
+            "confirmation_requirement": confirm,
+            "evidence_requirement": cleaned,
+        }
+
     # ── Stable contract snapshot ──────────────────────────────────────
     contract: dict = {
         "schema_version": "1.0",
@@ -134,7 +227,7 @@ def build_model_package(
     }
 
     def _draft_snapshot(d: OntologyModelingDraft) -> dict:
-        return {
+        snap = {
             "id": d.id,
             "draft_type": d.draft_type,
             "name": d.name,
@@ -145,6 +238,10 @@ def build_model_package(
             "reviewed_at": d.reviewed_at.isoformat() if d.reviewed_at else None,
             "review_note": d.review_note,
         }
+        ac = action_contracts.get(d.id)
+        if ac is not None:
+            snap["action_contract"] = ac
+        return snap
 
     type_key = {
         "object_type": "object_types",

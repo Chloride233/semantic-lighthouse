@@ -1,7 +1,7 @@
 # Phase 12 Planning — Ontology Model Quality & Contract Packages v1
 
 **Date**: 2026-06-19
-**Status**: 12.1–12.4 delivered. Next → 12.5 action/permission contract.
+**Status**: 12.1–12.5 delivered. Next → 12.6 real demo and phase review.
 
 ---
 
@@ -347,5 +347,38 @@ No PATCH/PUT/DELETE/publish. Immutable.
 8 API tests: owner 201, admin/member 403, no-accepted 409, idempotent 200,
 member list/detail/export, outsider 403, cross-group 404, version desc +
 no-mutate 405. 34 total package tests.
+
+---
+
+## Phase 12.5 Delivery Record (2026-06-19)
+
+### Action Contract Rules
+
+Every `action_type` entry in `contract_json` now carries a normalized `action_contract`:
+
+| Field | Valid values | Default (deterministic governance) |
+|-------|-------------|-------------------------------------|
+| `required_role` | `admin`, `owner`, `member` | `admin` |
+| `confirmation_requirement` | `always`, `conditional`, `none` | `always` |
+| `evidence_requirement` | non-empty list of trimmed strings | `["ontology_validation_issue"]` |
+
+**Rules**:
+- Deterministic `generator=deterministic_v1` + `scope=ontology_governance` without
+  explicit `action_contract` → auto-derived conservative defaults (above).
+- Manual action drafts MUST provide explicit `action_contract` → `invalid_action_contract`
+  error if missing.
+- Explicit contract validated for all drafts (deterministic or manual) — invalid values
+  → `PackageBuildError`, never silently overridden.
+- Contract participates in stable contract snapshot and content hash (idempotent).
+
+No new tables, migrations, API endpoints, Agent tools, or execution paths.
+
+### Tests
+
+14 action contract tests: deterministic defaults, explicit in hash, manual valid,
+manual missing → blocked, 8 parametrized invalid field values, explicit invalid
+not overridden, no-action packages unaffected.
+
+38 total package tests (14 action + 10 builder + 8 schema + 6 old).
 same-group hash unique, cross-group version allowed, cross-group hash
 allowed, no mutable lifecycle fields, no FK source_draft_id column.
