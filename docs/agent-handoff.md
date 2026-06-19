@@ -1,10 +1,10 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 11.3 deterministic draft generation delivered)
+Last updated: 2026-06-19 (Phase 11.4 human review workflow delivered, backend checkpoint passed)
 
 ## Current Phase
 
-**Phases 0–10 delivered; Phase 11 in progress (11.1+11.2+11.3 delivered)** — see `docs/project-roadmap.md`, `docs/phase10-planning.md`, and `docs/phase11-planning.md`. Phase 11 focuses on ontology modeling drafts v1 before Graph RAG or modeling studio.
+**Phases 0–10 delivered; Phase 11 in progress (11.1–11.4 delivered, 11.6 next)** — see `docs/project-roadmap.md`, `docs/phase10-planning.md`, and `docs/phase11-planning.md`. Phase 11 focuses on ontology modeling drafts v1 before Graph RAG or modeling studio.
 
 **Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
 
@@ -300,7 +300,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 11.4 Human review workflow → backend checkpoint → 11.6 Agent boundary review. Phase 11.5 UI deferred to Kimi. See `docs/phase11-planning.md`.
+**Next iteration**: Phase 11.6 Agent-facing boundary review. Phase 11.5 UI deferred to Kimi. See `docs/phase11-planning.md`.
 
 ### Phase 11.1+11.2 Review Hardening — Rescan Evidence Lifecycle (2026-06-19)
 
@@ -358,7 +358,7 @@ Result:
 - **Verification**: 365 passed (4 pre-existing Playwright E2E failures), 125 related tests pass, ruff clean, git diff clean. No new migration.
 - **Boundaries**: No UI, no publish, no production Ontology write, no Agent review, no external KB modification, no DELETE/reopen/PATCH, no new migration, no 11.5/11.6.
 
-**Next**: Review checkpoint — verify generation + review permissions, idempotency, and audit semantics before 11.5. Phase 11.5 UI is **deferred** to Kimi unified frontend refactor; CC does no frontend work. After 11.6 → Phase 12 planning.
+**Next**: Phase 11.6 Agent-facing boundary review. Backend checkpoint (11.1–11.4) passed 2026-06-19 — 84 related tests, ruff clean, all 10 audit gates verified. Phase 11.5 UI is **deferred** to Kimi unified frontend refactor; CC does no frontend work. After 11.6 → Phase 12 planning.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
