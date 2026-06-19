@@ -3,6 +3,7 @@
 Phase 9.1 + 9.2: validates Document.frontmatter, generates entities and issues.
 Phase 9.3: extracts Obsidian wikilinks from raw_content as OntologyRelation records.
 Phase 9.4: surfaces unresolved relations, duplicate titles/aliases, and stale eval gold IDs as governance issues.
+Phase 11.2 hardening: preserves OntologyModelingDraft evidence pointers across rescans via stable-key relink.
 
 Read-only governance: does NOT modify external KB files.
 """
@@ -20,6 +21,7 @@ from sqlalchemy.orm import Session
 from semantic_lighthouse.models import (
     Document,
     OntologyEntity,
+    OntologyModelingDraft,
     OntologyRelation,
     OntologyValidationIssue,
 )
@@ -98,6 +100,47 @@ def scan_group(db: Session, group_id: str) -> dict:
         )
     ).all()
 
+    # ── Phase 11.2: preserve draft evidence pointers across rescan ────
+    # Save stable keys from current drafts before clearing old records.
+    # Entity stable key: document_id (one entity per document).
+    # Relation stable key: (source_document_id, target_path, target_label, relation_type).
+    # Issue stable key: issue_key.
+    drafts = db.scalars(
+        select(OntologyModelingDraft).where(
+            OntologyModelingDraft.group_id == group_id,
+        )
+    ).all()
+
+    draft_entity_doc_ids: dict[str, str] = {}
+    draft_relation_keys: dict[str, tuple[str, str, str, str]] = {}
+    draft_issue_keys: dict[str, str] = {}
+
+    for draft in drafts:
+        if draft.source_entity_id:
+            entity = db.get(OntologyEntity, draft.source_entity_id)
+            if entity:
+                draft_entity_doc_ids[draft.id] = entity.document_id
+        if draft.source_relation_id:
+            rel = db.get(OntologyRelation, draft.source_relation_id)
+            if rel:
+                draft_relation_keys[draft.id] = (
+                    rel.source_document_id,
+                    rel.target_path,
+                    rel.target_label or "",
+                    rel.relation_type,
+                )
+        if draft.source_issue_id:
+            iss = db.get(OntologyValidationIssue, draft.source_issue_id)
+            if iss and iss.issue_key:
+                draft_issue_keys[draft.id] = iss.issue_key
+
+    # Null out draft FK pointers so FK constraints don't block deletes.
+    for draft in drafts:
+        draft.source_entity_id = None
+        draft.source_relation_id = None
+        draft.source_issue_id = None
+    db.flush()
+
     # Save triage state from old issues before clearing
     old_triage: dict[str, dict] = {}
     for old in db.scalars(
@@ -113,6 +156,7 @@ def scan_group(db: Session, group_id: str) -> dict:
                 "triage_note": old.triage_note,
             }
         db.delete(old)
+    db.flush()  # ensure issues are deleted before relations (FK safety)
 
     for relation in db.scalars(
         select(OntologyRelation).where(
@@ -120,12 +164,12 @@ def scan_group(db: Session, group_id: str) -> dict:
         )
     ).all():
         db.delete(relation)
+    db.flush()  # ensure relations are deleted before entities (FK safety)
 
     for entity in db.scalars(
         select(OntologyEntity).where(OntologyEntity.group_id == group_id)
     ).all():
         db.delete(entity)
-
     db.flush()
 
     issues: list[OntologyValidationIssue] = []
@@ -395,6 +439,53 @@ def scan_group(db: Session, group_id: str) -> dict:
 
     db.add_all(issues)
     db.add_all(relations)
+    db.flush()  # get IDs for new records before relinking drafts
+
+    # ── Phase 11.2: relink drafts to new entity/relation/issue IDs ────
+    for draft in drafts:
+        if draft.id in draft_entity_doc_ids:
+            doc_id = draft_entity_doc_ids[draft.id]
+            new_entity = db.scalar(
+                select(OntologyEntity).where(
+                    OntologyEntity.group_id == group_id,
+                    OntologyEntity.document_id == doc_id,
+                )
+            )
+            if new_entity:
+                draft.source_entity_id = new_entity.id
+
+        if draft.id in draft_relation_keys:
+            sd_id, tp, tl, rt = draft_relation_keys[draft.id]
+            relation_query = select(OntologyRelation).where(
+                OntologyRelation.group_id == group_id,
+                OntologyRelation.source_document_id == sd_id,
+                OntologyRelation.target_path == tp,
+                OntologyRelation.relation_type == rt,
+            )
+            # target_label can be None or empty string — match accordingly
+            if tl:
+                relation_query = relation_query.where(
+                    OntologyRelation.target_label == tl
+                )
+            else:
+                relation_query = relation_query.where(
+                    OntologyRelation.target_label.is_(None)
+                )
+            new_rel = db.scalar(relation_query)
+            if new_rel:
+                draft.source_relation_id = new_rel.id
+
+        if draft.id in draft_issue_keys:
+            ik = draft_issue_keys[draft.id]
+            new_issue = db.scalar(
+                select(OntologyValidationIssue).where(
+                    OntologyValidationIssue.group_id == group_id,
+                    OntologyValidationIssue.issue_key == ik,
+                )
+            )
+            if new_issue:
+                draft.source_issue_id = new_issue.id
+
     db.commit()
 
     return {

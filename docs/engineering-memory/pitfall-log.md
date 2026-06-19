@@ -1,5 +1,17 @@
 # Pitfall Log
 
+## Draft FKs Cannot Depend Directly On Scan-Rebuilt Read-Model IDs
+
+- Date: 2026-06-19
+- Version: Phase 11.1+11.2
+- Type: pitfall → **FIXED**
+- Context: `OntologyModelingDraft` FK columns (`source_entity_id`, `source_relation_id`, `source_issue_id`) pointed to `ontology_entities`, `ontology_relations`, `ontology_validation_issues` — tables that `scan_group()` deletes and rebuilds on every scan.
+- What happened: Without the fix, rescan would (a) fail on PostgreSQL with strict FK enforcement because deletes target records still referenced by drafts, or (b) silently leave dangling FK pointers on SQLite (default FK=OFF). Draft evidence linkage broken after any rescan.
+- Engineering judgment: FKs to records with shorter lifecycle than referencing rows are a design hazard. Drafts should survive scans. FK should reflect current evidence identity, not creation-time identity.
+- Risk if ignored: Every rescan (normal ops: scan→triage→curate→rescan) would crash or corrupt draft evidence links. Modeling draft feature unusable.
+- Fix or control: `scan_group()` preserves evidence via stable keys: entity→`document_id`, relation→`(source_document_id, target_path, target_label, relation_type)`, issue→`issue_key`. Before deleting: null FKs+flush, delete with intermediate flushes (FK-safe order), rebuild, relink via stable keys. If evidence vanished, source pointer stays null. No ON DELETE SET NULL migration — service-level relink is the primary control.
+- Verification: 10 new tests (entity/relation/issue relink, vanished evidence, metadata preservation, rag_run unaffected, cross-group isolation, PRAGMA foreign_keys=ON regression). 67 related pass. Full suite 307/311 (4 pre-existing E2E). Ruff clean.
+
 ## Handoff Baseline Pointer Can Drift After Documentation Commits
 
 - Date: 2026-06-16

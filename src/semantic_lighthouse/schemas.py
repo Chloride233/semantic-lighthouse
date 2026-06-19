@@ -525,7 +525,10 @@ class OntologyModelingDraftCreateRequest(BaseModel):
     source_relation_id: str | None = None
     source_issue_id: str | None = None
     source_rag_run_id: str | None = None
-    evidence_refs: list = Field(default_factory=list)
+    evidence_refs: list = Field(
+        default_factory=list,
+        description="Supplemental evidence snapshot — not a substitute for a proper source_*_id.",
+    )
     payload: dict = Field(default_factory=dict)
 
 

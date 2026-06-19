@@ -1,7 +1,7 @@
 # Phase 11 Planning — Ontology Modeling Drafts v1
 
 **Date**: 2026-06-19
-**Status**: In progress — 11.1+11.2 delivered. Next: 11.3 deterministic draft generation.
+**Status**: In progress — 11.1+11.2 delivered + review hardened (rescan evidence lifecycle). Next: 11.3 deterministic draft generation.
 
 ---
 
@@ -38,7 +38,8 @@ Turn the governed entity/relation/issue read model from Phase 9/10 into a human-
 | # | Task | Description |
 |---|------|-------------|
 | 11.1 | Modeling draft boundary + schema design | ✅ Delivered (2026-06-19). `OntologyModelingDraft` model in `ontology_modeling_drafts` table, migration `0016_v16_ontology_modeling_drafts`. Fields: id, group_id, draft_type (object_type/property/link_type/action_type), name, description, status (proposed/accepted/rejected), source_entity_id, source_relation_id, source_issue_id, source_rag_run_id, evidence_refs, payload, created_by, created_at, updated_at, reviewed_by, reviewed_at, review_note. No unique constraint on (group_id, draft_type, name). |
-| 11.2 | Draft read model / API | ✅ Delivered (2026-06-19). `POST /groups/{gid}/ontology/drafts` (owner/admin create proposed draft, validates source ids in group), `GET /groups/{gid}/ontology/drafts` (member+ read, filters: draft_type, status, source_entity_id, q). 16 tests covering create, read, permissions, isolation, evidence linkage ×4, draft_type/status/q filters, invalid draft_type 422, no-evidence rejection. |
+| 11.1r | **Review hardening: rescan evidence lifecycle** | ✅ Review hardened (2026-06-19). `scan_group()` preserves draft evidence pointers across rescans: nulls FK → deletes old entities/relations/issues → rebuilds → relinks via stable keys (entity: `document_id`, relation: `(source_document_id, target_path, target_label, relation_type)`, issue: `issue_key`). Intermediate flushes added for strict FK safety. evidence_refs tightened: must have real `source_*_id`, evidence_refs-only rejected. 10 new tests (entity/relation/issue relink, vanished evidence, metadata preservation, rag_run unaffected, cross-group isolation, evidence_refs-only rejection, FK enforcement regression). 26 draft + 41 ontology = 67 related tests passing. Full suite 307/311 (4 pre-existing E2E failures). |
+| 11.2 | Draft read model / API | ✅ Delivered (2026-06-19). `POST /groups/{gid}/ontology/drafts` (owner/admin create proposed draft, validates source ids in group), `GET /groups/{gid}/ontology/drafts` (member+ read, filters: draft_type, status, source_entity_id, q). |
 | 11.3 | Draft generation from existing entities | Deterministic rules: entity_type → Object Type candidate, existing wikilinks → Link Type candidates, frontmatter fields → Property candidates. Backlog action_types (`create_missing_*`, `update_eval_gold_doc_id`) → human-action suggestions. No LLM, no Agent. |
 | 11.4 | Human review workflow | Draft status: proposed → accepted / rejected. Review metadata: reviewer, reviewed_at, review_note. Bulk accept/reject for curated batches. |
 | 11.5 | UI: entity detail modeling panel + draft list | Panel on entity detail (ontology.js): "Modeling Drafts" section showing proposed object/property/link drafts for this entity. Separate draft list view with status filter, source-entity links, review controls. Still not a full studio — focused, read-review-accept/reject workflow. |

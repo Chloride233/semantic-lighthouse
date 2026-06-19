@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19
+Last updated: 2026-06-19 (Phase 11.1+11.2 review hardened)
 
 ## Current Phase
 
@@ -256,22 +256,22 @@ New eval tools:
 Latest local verification:
 
 ```text
-2026-06-17
+2026-06-19 (Phase 11.1+11.2 review hardened)
 
 Command:
-.\.venv\Scripts\python -m pytest -p no:cacheprovider
+.\.venv\Scripts\python -m pytest tests/test_ontology_modeling_drafts.py tests/test_ontology.py -p no:cacheprovider
 
 Result:
-175+ passed (17 agent, 20 task, 25+ document, 28+ RAG, 11+ retrieval)
+67 passed (26 draft + 41 ontology)
 
 Command:
-.\.venv\Scripts\python scripts\verify_ui.py
+.\.venv\Scripts\python -m pytest -p no:cacheprovider --basetemp=.tmp\pytest-phase11-rescan
 
 Result:
-17 passed, 2 failed (known-fragile on fake chat timing)
+307 passed, 4 failed (pre-existing E2E: auth timing in test_console_e2e.py)
 
 Command:
-.\.venv\Scripts\python -m ruff check src tests scripts
+.\.venv\Scripts\python -m ruff check src tests
 
 Result:
 All checks passed!
@@ -280,7 +280,7 @@ Command:
 .\.venv\Scripts\python -m alembic upgrade head && .\.venv\Scripts\python -m alembic current
 
 Result:
-0011_v11_document_archive_audit (head)
+0016_v16_ontology_modeling_drafts (head)
 ```
 
 ## Current Risks And Next Priority
@@ -301,6 +301,21 @@ Result:
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
 **Next iteration**: Phase 11.3 Deterministic draft generation from existing entities. See `docs/phase11-planning.md`.
+
+### Phase 11.1+11.2 Review Hardening — Rescan Evidence Lifecycle (2026-06-19)
+
+**Status**: Delivered. Fix: `scan_group()` now preserves draft evidence pointers across rescans.
+
+**Problem found**: `OntologyModelingDraft` FKs to `ontology_entities`/`ontology_relations`/`ontology_validation_issues` would break on rescan — `scan_group()` deletes and rebuilds these tables. In PostgreSQL, strict FK enforcement would block the delete; in SQLite (default FK=OFF), drafts would hold dangling pointers. Plus `evidence_refs` alone could satisfy draft creation, bypassing group-scoped source validation.
+
+**Fix**:
+- **Stable-key relink in `scan_group()`**: Before deleting old records, saves stable evidence keys from current drafts (entity: `document_id`, relation: `(source_document_id, target_path, target_label, relation_type)`, issue: `issue_key`). Nulls draft FKs + flush → deletes old records with intermediate flushes (FK-safe order) → rebuilds → relinks drafts to new record IDs. If evidence vanished, source pointer stays null, draft preserved.
+- **evidence_refs boundary**: `POST /groups/{gid}/ontology/drafts` now requires at least one `source_*_id`. `evidence_refs` alone rejected (400). Still accepted as supplemental metadata.
+- **No migration**: Scan-level relink correctly handles the delete path.
+
+**Tests**: 10 new (26 total draft tests): entity/relation/issue relink, vanished evidence, metadata preservation, rag_run unaffected, cross-group isolation, evidence_refs-only rejection, PRAGMA foreign_keys=ON regression.
+
+**Verification**: 67 related (26 draft + 41 ontology), 307/311 full suite (4 pre-existing E2E), ruff clean, git diff --check clean.
 
 ### Phase 11.1+11.2 — Ontology Modeling Drafts Backend Foundation (2026-06-19)
 

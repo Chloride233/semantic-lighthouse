@@ -378,3 +378,349 @@ class TestAdminAccess:
 
         r = _create_draft(client, gid, ah, name="Admin Draft", source_entity_id=eid)
         assert r.status_code == 201
+
+
+# ── P5: rescan evidence lifecycle hardening (Phase 11.2) ─────────────────
+
+
+class TestRescanEvidencePreservation:
+    def test_entity_backed_draft_survives_rescan_and_relinks(self, client):
+        """After rescan, entity-backed draft gets new entity ID for same document."""
+        _, _, h = register_and_login(client, "rp1@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "rp-entity.md", {
+            "entityType": "Concept", "tags": ["rp"], "created": "2026-01-01",
+        })
+        _scan(client, gid, h)
+        entities = client.get(f"/groups/{gid}/ontology/entities", headers=h).json()
+        old_eid = entities["entities"][0]["id"]
+
+        r = _create_draft(
+            client, gid, h, name="Entity Draft", source_entity_id=old_eid,
+            payload={"note": "should survive"},
+        )
+        assert r.status_code == 201, r.text
+        draft = r.json()
+        assert draft["source_entity_id"] == old_eid
+        assert draft["status"] == "proposed"
+
+        # Rescan
+        _scan(client, gid, h)
+
+        # Draft should still exist and be relinked to new entity
+        drafts = client.get(f"/groups/{gid}/ontology/drafts", headers=h).json()
+        assert drafts["total"] == 1
+        d2 = drafts["drafts"][0]
+        assert d2["id"] == draft["id"]
+        assert d2["status"] == "proposed"  # unchanged
+        assert d2["payload"] == {"note": "should survive"}  # unchanged
+        assert d2["name"] == "Entity Draft"
+
+        # source_entity_id should now point to a valid entity
+        assert d2["source_entity_id"] is not None
+        # Verify the new entity exists and maps to the same document
+        entities2 = client.get(f"/groups/{gid}/ontology/entities", headers=h).json()
+        new_eids = {e["id"] for e in entities2["entities"]}
+        assert d2["source_entity_id"] in new_eids
+        # Entity count unchanged
+        assert entities2["total"] == 1
+
+    def test_relation_backed_draft_survives_rescan_and_relinks(self, client):
+        """After rescan, relation-backed draft relinks to new relation ID."""
+        _, _, h = register_and_login(client, "rp2@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {
+            "entityType": "Concept", "tags": ["src"], "created": "2026-01-01",
+        }, body="[[tgt]]")
+        _upload_doc(client, gid, h, "tgt.md", {
+            "entityType": "Concept", "tags": ["tgt"], "created": "2026-01-01",
+        }, body="tgt")
+        _scan(client, gid, h)
+        relations = client.get(f"/groups/{gid}/ontology/relations", headers=h).json()
+        old_rid = relations["relations"][0]["id"]
+
+        r = _create_draft(
+            client, gid, h, draft_type="link_type", name="Relation Draft",
+            source_relation_id=old_rid,
+        )
+        assert r.status_code == 201, r.text
+        draft = r.json()
+
+        _scan(client, gid, h)
+
+        drafts = client.get(f"/groups/{gid}/ontology/drafts", headers=h).json()
+        assert drafts["total"] == 1
+        d2 = drafts["drafts"][0]
+        assert d2["id"] == draft["id"]
+        assert d2["source_relation_id"] is not None
+        # Verify the new relation exists
+        relations2 = client.get(f"/groups/{gid}/ontology/relations", headers=h).json()
+        new_rids = {rel["id"] for rel in relations2["relations"]}
+        assert d2["source_relation_id"] in new_rids
+        assert relations2["total"] >= 1
+
+    def test_issue_backed_draft_survives_rescan_and_relinks(self, client):
+        """After rescan, issue-backed draft relinks to new issue via issue_key."""
+        _, _, h = register_and_login(client, "rp3@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {
+            "entityType": "Concept", "tags": ["src"], "created": "2026-01-01",
+        }, body="[[missing-target]]")
+        _scan(client, gid, h)
+        issues = client.get(f"/groups/{gid}/ontology/issues", headers=h).json()
+        old_iid = issues["issues"][0]["id"]
+        old_ikey = issues["issues"][0]["issue_key"]
+        assert old_ikey  # must have stable key
+
+        r = _create_draft(
+            client, gid, h, draft_type="action_type", name="Issue Draft",
+            source_issue_id=old_iid,
+        )
+        assert r.status_code == 201, r.text
+        draft = r.json()
+
+        _scan(client, gid, h)
+
+        drafts = client.get(f"/groups/{gid}/ontology/drafts", headers=h).json()
+        assert drafts["total"] == 1
+        d2 = drafts["drafts"][0]
+        assert d2["id"] == draft["id"]
+        assert d2["source_issue_id"] is not None
+        # Verify the new issue exists and has same issue_key
+        issues2 = client.get(f"/groups/{gid}/ontology/issues", headers=h).json()
+        new_iids = {i["id"] for i in issues2["issues"]}
+        assert d2["source_issue_id"] in new_iids
+        # The new issue should have the same issue_key
+        new_issue = next(i for i in issues2["issues"] if i["id"] == d2["source_issue_id"])
+        assert new_issue["issue_key"] == old_ikey
+
+    def test_draft_evidence_vanished_source_null(self, client, db_session):
+        """When evidence document is changed so it no longer produces an entity,
+        the draft survives but source_entity_id becomes null."""
+        _, _, h = register_and_login(client, "rp4@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "vanishing.md", {
+            "entityType": "Concept", "tags": ["v"], "created": "2026-01-01",
+        })
+        _scan(client, gid, h)
+        entities = client.get(f"/groups/{gid}/ontology/entities", headers=h).json()
+        eid = entities["entities"][0]["id"]
+
+        r = _create_draft(
+            client, gid, h, name="Vanishing Evidence", source_entity_id=eid,
+        )
+        assert r.status_code == 201, r.text
+        draft_id = r.json()["id"]
+
+        # Change the document so it no longer produces an entity
+        from semantic_lighthouse.models import Document
+        doc = db_session.query(Document).filter(
+            Document.group_id == gid,
+            Document.status == "ready",
+        ).first()
+        doc.frontmatter = {"documentType": "Schema"}
+        db_session.commit()
+
+        _scan(client, gid, h)
+
+        drafts = client.get(f"/groups/{gid}/ontology/drafts", headers=h).json()
+        assert drafts["total"] == 1
+        d2 = drafts["drafts"][0]
+        assert d2["id"] == draft_id
+        assert d2["status"] == "proposed"  # draft preserved
+        assert d2["name"] == "Vanishing Evidence"
+        # source_entity_id becomes null because evidence vanished
+        assert d2["source_entity_id"] is None
+
+    def test_rescan_preserves_draft_metadata(self, client):
+        """Rescan does NOT change status, payload, or other draft metadata."""
+        _, _, h = register_and_login(client, "rp5@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "meta-entity.md", {
+            "entityType": "Concept", "tags": ["m"], "created": "2026-01-01",
+        })
+        _scan(client, gid, h)
+        entities = client.get(f"/groups/{gid}/ontology/entities", headers=h).json()
+        eid = entities["entities"][0]["id"]
+
+        payload = {"fields": ["name", "description"], "confidence": 0.85}
+        r = _create_draft(
+            client, gid, h, name="Metadata Test",
+            description="A draft for testing metadata preservation",
+            source_entity_id=eid, payload=payload,
+        )
+        assert r.status_code == 201, r.text
+        draft = r.json()
+        created_by = draft["created_by"]
+        created_at = draft["created_at"]
+
+        _scan(client, gid, h)
+
+        drafts = client.get(f"/groups/{gid}/ontology/drafts", headers=h).json()
+        d2 = drafts["drafts"][0]
+        assert d2["status"] == "proposed"
+        assert d2["name"] == "Metadata Test"
+        assert d2["description"] == "A draft for testing metadata preservation"
+        assert d2["payload"] == payload
+        assert d2["created_by"] == created_by
+        assert d2["created_at"] == created_at
+        assert d2["reviewed_by"] is None
+        assert d2["reviewed_at"] is None
+        assert d2["review_note"] is None
+
+    def test_rag_run_source_unaffected_by_rescan(self, client, db_session):
+        """source_rag_run_id is NOT affected by ontology rescan (RagRun not rebuilt)."""
+        uid, _, h = register_and_login(client, "rp6@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "rag-doc.md", {
+            "entityType": "Concept", "tags": ["rag"], "created": "2026-01-01",
+        }, body="# Ontology")
+        _scan(client, gid, h)
+
+        run = RagRun(
+            group_id=gid, user_id=uid["id"],
+            question="Q?", answer="A.", confidence="medium",
+            retrieval_method="keyword", model="fake",
+            citations=[], knowledge_gaps=[], next_steps=[], status="success",
+        )
+        db_session.add(run)
+        db_session.commit()
+        db_session.refresh(run)
+
+        r = _create_draft(client, gid, h, name="RAG Draft", source_rag_run_id=run.id)
+        assert r.status_code == 201, r.text
+        draft = r.json()
+        assert draft["source_rag_run_id"] == run.id
+
+        _scan(client, gid, h)
+
+        drafts = client.get(f"/groups/{gid}/ontology/drafts", headers=h).json()
+        d2 = drafts["drafts"][0]
+        assert d2["source_rag_run_id"] == run.id  # unchanged
+
+    def test_cross_group_drafts_not_relinked_to_wrong_evidence(self, client):
+        """Rescan in group A must not relink A's drafts to B's entities."""
+        _, _, ha = register_and_login(client, "rp7a@t.com")
+        _, _, hb = register_and_login(client, "rp7b@t.com")
+        ga = _create_group(client, ha)
+        gb = _create_group(client, hb)
+
+        # Group A: entity + draft
+        _upload_doc(client, ga, ha, "a-entity.md", {
+            "entityType": "Concept", "tags": ["a"], "created": "2026-01-01",
+        })
+        _scan(client, ga, ha)
+        entities_a = client.get(f"/groups/{ga}/ontology/entities", headers=ha).json()
+        eid_a = entities_a["entities"][0]["id"]
+        r = _create_draft(client, ga, ha, name="A Draft", source_entity_id=eid_a)
+        assert r.status_code == 201, r.text
+        draft_id = r.json()["id"]
+
+        # Group B: entity with same document-level stable key path pattern
+        _upload_doc(client, gb, hb, "b-entity.md", {
+            "entityType": "Concept", "tags": ["b"], "created": "2026-01-01",
+        })
+        _scan(client, gb, hb)
+
+        # Rescan group A — draft should NOT pick up B's entity
+        _scan(client, ga, ha)
+        drafts = client.get(f"/groups/{ga}/ontology/drafts", headers=ha).json()
+        d2 = drafts["drafts"][0]
+        assert d2["id"] == draft_id
+        assert d2["source_entity_id"] is not None
+        # Verify it points to A's entity, not B's
+        entities_a2 = client.get(f"/groups/{ga}/ontology/entities", headers=ha).json()
+        a_eids = {e["id"] for e in entities_a2["entities"]}
+        assert d2["source_entity_id"] in a_eids
+
+
+# ── P6: evidence_refs boundary ──────────────────────────────────────────
+
+
+class TestEvidenceRefsBoundary:
+    def test_evidence_refs_only_create_rejected(self, client):
+        """evidence_refs alone is not sufficient — must have a real source pointer."""
+        _, _, h = register_and_login(client, "er1@t.com")
+        gid = _create_group(client, h)
+
+        r = _create_draft(
+            client, gid, h, name="Refs Only",
+            evidence_refs=[{"type": "citation", "doc_id": "some-doc"}],
+        )
+        assert r.status_code == 400, r.text
+        assert "evidence_refs alone" in r.json()["detail"].lower()
+
+    def test_evidence_refs_with_source_accepted(self, client):
+        """evidence_refs IS accepted when accompanied by a real source pointer."""
+        _, _, h = register_and_login(client, "er2@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "er-entity.md", {
+            "entityType": "Concept", "tags": ["er"], "created": "2026-01-01",
+        })
+        _scan(client, gid, h)
+        entities = client.get(f"/groups/{gid}/ontology/entities", headers=h).json()
+        eid = entities["entities"][0]["id"]
+
+        r = _create_draft(
+            client, gid, h, name="With Both",
+            source_entity_id=eid,
+            evidence_refs=[{"type": "citation", "doc_id": "extra"}],
+        )
+        assert r.status_code == 201, r.text
+        assert len(r.json()["evidence_refs"]) == 1
+
+
+# ── P7: strict foreign key regression ───────────────────────────────────
+
+
+class TestStrictForeignKeyRescan:
+    def test_rescan_with_foreign_keys_enabled_succeeds(self, client, db_session):
+        """Under SQLite PRAGMA foreign_keys=ON, rescan must not fail with FK violation."""
+        import sqlalchemy as sa
+
+        # Enable FK enforcement on the connection used by the test harness.
+        # Must be on the actual connection (not just session.execute) to affect
+        # the FastAPI request handlers that share this db_session.
+        conn = db_session.connection()
+        conn.execute(sa.text("PRAGMA foreign_keys=ON"))
+        fk_on = conn.execute(sa.text("PRAGMA foreign_keys")).scalar()
+        assert fk_on == 1, f"PRAGMA foreign_keys should be ON, got {fk_on}"
+
+        _, _, h = register_and_login(client, "fk1@t.com")
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "fk-entity.md", {
+            "entityType": "Concept", "tags": ["fk"], "created": "2026-01-01",
+        }, body="[[fk-tgt]]")
+        _upload_doc(client, gid, h, "fk-tgt.md", {
+            "entityType": "Concept", "tags": ["tgt"], "created": "2026-01-01",
+        }, body="tgt")
+        _scan(client, gid, h)
+
+        entities = client.get(f"/groups/{gid}/ontology/entities", headers=h).json()
+        eid = entities["entities"][0]["id"]
+        relations = client.get(f"/groups/{gid}/ontology/relations", headers=h).json()
+        rid = relations["relations"][0]["id"]
+        issues = client.get(f"/groups/{gid}/ontology/issues", headers=h).json()
+        iid = issues["issues"][0]["id"] if issues["total"] > 0 else None
+
+        # Create drafts backed by each source type
+        _create_draft(client, gid, h, name="FK Entity Draft", source_entity_id=eid)
+        _create_draft(client, gid, h, draft_type="link_type", name="FK Relation Draft",
+                      source_relation_id=rid)
+        if iid:
+            _create_draft(client, gid, h, draft_type="action_type", name="FK Issue Draft",
+                          source_issue_id=iid)
+
+        # Rescan — must succeed without FK violation under strict enforcement
+        result = _scan(client, gid, h)
+        assert result["entity_count"] >= 1
+
+        # Verify all drafts survived
+        drafts = client.get(f"/groups/{gid}/ontology/drafts", headers=h).json()
+        assert drafts["total"] >= 2
+        # All entity-backed drafts should have valid source pointers
+        for d in drafts["drafts"]:
+            if d["name"] == "FK Entity Draft":
+                assert d["source_entity_id"] is not None
+            if d["name"] == "FK Relation Draft":
+                assert d["source_relation_id"] is not None

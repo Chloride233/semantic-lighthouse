@@ -247,7 +247,7 @@ Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning
 | # | Task | Description |
 |---|------|-------------|
 | 11.1 | Modeling draft boundary + schema | ✅ `OntologyModelingDraft` model, migration `0016`, `object_type`/`property`/`link_type`/`action_type`, status lifecycle (proposed/accepted/rejected), evidence linkage FKs (2026-06-19) |
-| 11.2 | Draft read model / API | ✅ `POST /groups/{gid}/ontology/drafts` (owner/admin), `GET /groups/{gid}/ontology/drafts` (member+) with draft_type/status/q/source_entity_id filters, group-scoped evidence validation, 16 tests (2026-06-19) |
+| 11.2 | Draft read model / API | ✅ `POST /groups/{gid}/ontology/drafts` (owner/admin), `GET /groups/{gid}/ontology/drafts` (member+) with draft_type/status/q/source_entity_id filters, group-scoped evidence validation (2026-06-19). Review hardened: rescan evidence lifecycle relink, evidence_refs boundary (2026-06-19). |
 | 11.3 | Draft generation | Deterministic rules from existing entities/relations, no LLM |
 | 11.4 | Human review workflow | proposed → accepted/rejected, reviewer audit |
 | 11.5 | UI modeling panel | Entity detail panel + draft list, read-only review UX |

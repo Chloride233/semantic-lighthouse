@@ -273,19 +273,20 @@ def create_draft(
             detail=f"Invalid draft_type: {body.draft_type}. Allowed: {sorted(DRAFT_TYPES)}",
         )
 
-    # At least one evidence pointer or evidence_refs non-empty
+    # At least one proper evidence pointer is required.
+    # evidence_refs alone is NOT sufficient — it is supplemental metadata only.
     has_evidence = (
         body.source_entity_id
         or body.source_relation_id
         or body.source_issue_id
         or body.source_rag_run_id
-        or bool(body.evidence_refs)
     )
     if not has_evidence:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="At least one evidence pointer (source_entity_id, source_relation_id, "
-            "source_issue_id, source_rag_run_id) or non-empty evidence_refs is required",
+            detail="At least one source pointer (source_entity_id, source_relation_id, "
+            "source_issue_id, source_rag_run_id) is required to create a draft. "
+            "evidence_refs alone is not sufficient.",
         )
 
     # Validate all source ids belong to this group
