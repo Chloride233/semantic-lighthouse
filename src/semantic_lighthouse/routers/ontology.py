@@ -32,9 +32,12 @@ from semantic_lighthouse.schemas import (
     OntologyEntityResponse,
     OntologyIssueListResponse,
     OntologyIssueTriageRequest,
+    OntologyModelingDraftBatchReviewRequest,
+    OntologyModelingDraftBatchReviewResponse,
     OntologyModelingDraftCreateRequest,
     OntologyModelingDraftListResponse,
     OntologyModelingDraftResponse,
+    OntologyModelingDraftReviewRequest,
     OntologyRelationListResponse,
     OntologyRelationResponse,
     OntologyScanResponse,
@@ -350,6 +353,119 @@ def generate_drafts(
 
     result = generate_modeling_drafts(db, group_id, current_user.id)
     return DraftGenerationResponse(**result)
+
+
+# ── Phase 11.4: human review workflow ─────────────────────────────────
+
+
+@router.post("/drafts/review-batch", response_model=OntologyModelingDraftBatchReviewResponse)
+def review_drafts_batch(
+    group_id: str,
+    body: OntologyModelingDraftBatchReviewRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyModelingDraftBatchReviewResponse:
+    """Atomically accept or reject up to 100 proposed modeling drafts.
+
+    Owner or admin only. All drafts must exist in this group and be in proposed status.
+    If any draft is missing, cross-group, or already reviewed, the entire batch is rejected
+    with no partial updates.
+    """
+    require_group_role(db, current_user.id, group_id, {"owner", "admin"})
+
+    # Deduplicate while preserving order
+    unique_ids = list(dict.fromkeys(body.draft_ids))
+
+    # Fetch all drafts in one query — must all exist and belong to this group
+    drafts = list(
+        db.scalars(
+            select(OntologyModelingDraft).where(
+                OntologyModelingDraft.id.in_(unique_ids),
+                OntologyModelingDraft.group_id == group_id,
+            )
+        ).all()
+    )
+
+    if len(drafts) != len(unique_ids):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="One or more drafts not found in this group",
+        )
+
+    # All must still be proposed
+    already_reviewed = [d for d in drafts if d.status != "proposed"]
+    if already_reviewed:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="One or more drafts have already been reviewed",
+        )
+
+    cleaned_note = body.review_note.strip() if body.review_note else None
+    now = utc_now()
+
+    for draft in drafts:
+        draft.status = body.status
+        draft.reviewed_by = current_user.id
+        draft.reviewed_at = now
+        draft.review_note = cleaned_note
+        draft.updated_at = now
+
+    db.commit()
+
+    return OntologyModelingDraftBatchReviewResponse(
+        reviewed_count=len(drafts),
+        status=body.status,
+        draft_ids=[d.id for d in drafts],
+        reviewed_by=current_user.id,
+        reviewed_at=now,
+    )
+
+
+@router.post("/drafts/{draft_id}/review", response_model=OntologyModelingDraftResponse)
+def review_draft(
+    group_id: str,
+    draft_id: str,
+    body: OntologyModelingDraftReviewRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyModelingDraftResponse:
+    """Accept or reject a single proposed modeling draft.
+
+    Owner or admin only. Only proposed drafts can be reviewed (one-time audit).
+    Accepted and rejected drafts are final — no reopen, no overwrite.
+    """
+    require_group_role(db, current_user.id, group_id, {"owner", "admin"})
+
+    draft = db.scalar(
+        select(OntologyModelingDraft).where(
+            OntologyModelingDraft.id == draft_id,
+            OntologyModelingDraft.group_id == group_id,
+        )
+    )
+    if draft is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Draft not found",
+        )
+
+    if draft.status != "proposed":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Draft has already been reviewed",
+        )
+
+    cleaned_note = body.review_note.strip() if body.review_note else None
+    now = utc_now()
+
+    draft.status = body.status
+    draft.reviewed_by = current_user.id
+    draft.reviewed_at = now
+    draft.review_note = cleaned_note
+    draft.updated_at = now
+
+    db.commit()
+    db.refresh(draft)
+    return _draft_response(draft)
 
 
 # ── helpers ───────────────────────────────────────────────────────────

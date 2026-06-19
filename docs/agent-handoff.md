@@ -300,7 +300,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 11.4 Human review workflow (proposed → accepted/rejected, reviewer audit). See `docs/phase11-planning.md`.
+**Next iteration**: Phase 11.4 Human review workflow → backend checkpoint → 11.6 Agent boundary review. Phase 11.5 UI deferred to Kimi. See `docs/phase11-planning.md`.
 
 ### Phase 11.1+11.2 Review Hardening — Rescan Evidence Lifecycle (2026-06-19)
 
@@ -344,7 +344,7 @@ Result:
 - **Boundaries**: No LLM, no Agent, no UI, no review/accept/reject, no external KB modification, no new migration, no stale draft cleanup, no PATCH/DELETE/review API. `determine_action_type` moved from script to service — 35 curation demo tests unaffected.
 - **Verification**: 332 passed (4 pre-existing E2E failures), ruff clean src+tests+scripts, git diff --check clean. 127 related tests (25 generation + 26 draft + 41 ontology + 35 curation demo).
 
-**Next**: Phase 11.4 — Human review workflow (proposed → accepted/rejected, reviewer audit).
+**Next**: Phase 11.4 — Human review workflow (proposed → accepted/rejected, reviewer audit). After 11.4 backend checkpoint → 11.6 Agent-facing boundary review. Phase 11.5 UI is **deferred** to Kimi unified frontend refactor; CC does no frontend work. After 11.6 → Phase 12 planning.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed
@@ -752,6 +752,8 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.
 
-Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 10 is complete (governance operations: triage, curation demo, graph UX, evidence bridge, review). Phase 11 (modeling drafts v1) is next — see `docs/phase11-planning.md`. Do not start Phase 11 by building a full modeling studio, Graph RAG, or Agent auto-write.
+Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 10 is complete. Phase 11.1–11.3 delivered (modeling draft model, read API, deterministic generation). Phase 11.4 (human review workflow) is next, then 11.6 (Agent boundary review). Phase 11.5 UI is **deferred** to Kimi unified frontend refactor — do NOT implement any frontend. Do not start Phase 11 by building a full modeling studio, Graph RAG, or Agent auto-write.
 
-Do not rely on chat history. The latest verified baseline is commit `d1c9b25 docs: record phase 10 review`; the working tree should be clean before the next iteration.
+**Frontend moratorium**: current CC iterations do zero frontend work. Do not modify static/js, static/styles.css, HTML templates, or frontend routes. Do not run verify_ui, Playwright, or browser smoke.
+
+Do not rely on chat history. The latest verified baseline is commit `159abec feat: generate ontology modeling drafts deterministically`; the working tree should be clean before the next iteration.

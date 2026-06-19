@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class RegisterRequest(BaseModel):
@@ -573,3 +573,45 @@ class DraftGenerationResponse(BaseModel):
     existing_count: int
     skipped_count: int
     counts_by_type: DraftGenerationCountsByType
+
+
+# ── Phase 11.4: human review workflow ──────────────────────────────────
+
+
+class OntologyModelingDraftReviewRequest(BaseModel):
+    """Single draft review — accept or reject a proposed draft."""
+
+    status: str = Field(pattern="^(accepted|rejected)$")
+    review_note: str | None = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _require_note_for_rejected(self) -> "OntologyModelingDraftReviewRequest":
+        if self.status == "rejected" and (
+            not self.review_note or not self.review_note.strip()
+        ):
+            raise ValueError("review_note is required when rejecting a draft")
+        return self
+
+
+class OntologyModelingDraftBatchReviewRequest(BaseModel):
+    """Batch review — atomically accept or reject up to 100 proposed drafts."""
+
+    draft_ids: list[str] = Field(min_length=1, max_length=100)
+    status: str = Field(pattern="^(accepted|rejected)$")
+    review_note: str | None = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _require_note_for_rejected(self) -> "OntologyModelingDraftBatchReviewRequest":
+        if self.status == "rejected" and (
+            not self.review_note or not self.review_note.strip()
+        ):
+            raise ValueError("review_note is required when rejecting a draft")
+        return self
+
+
+class OntologyModelingDraftBatchReviewResponse(BaseModel):
+    reviewed_count: int
+    status: str
+    draft_ids: list[str]
+    reviewed_by: str
+    reviewed_at: datetime

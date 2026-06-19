@@ -42,8 +42,8 @@ Turn the governed entity/relation/issue read model from Phase 9/10 into a human-
 | 11.2 | Draft read model / API | ✅ Delivered (2026-06-19). `POST /groups/{gid}/ontology/drafts` (owner/admin create proposed draft, validates source ids in group), `GET /groups/{gid}/ontology/drafts` (member+ read, filters: draft_type, status, source_entity_id, q). |
 | 11.3 | Draft generation from existing entities | ✅ Deterministic rules: entity_type → Object Type candidate, existing wikilinks → Link Type candidates, frontmatter fields → Property candidates. Backlog action_types (`create_missing_*`, `update_eval_gold_doc_id`) → human-action suggestions. No LLM, no Agent. |
 | 11.4 | Human review workflow | Draft status: proposed → accepted / rejected. Review metadata: reviewer, reviewed_at, review_note. Bulk accept/reject for curated batches. |
-| 11.5 | UI: entity detail modeling panel + draft list | Panel on entity detail (ontology.js): "Modeling Drafts" section showing proposed object/property/link drafts for this entity. Separate draft list view with status filter, source-entity links, review controls. Still not a full studio — focused, read-review-accept/reject workflow. |
-| 11.6 | Agent-facing boundary review | Document what Agent may propose (read existing drafts, suggest new drafts via confirmation) vs. what Agent may NOT do (auto-create, auto-accept, auto-publish). Preserve HITL, audit, and permission checks. |
+| 11.5 | UI: entity detail modeling panel + draft list | **Deferred** — panel and draft list UI deferred to Kimi unified frontend refactor. CC iterations do no frontend work (no static/js, no CSS, no HTML, no verify_ui, no Playwright). |
+| 11.6 | Agent-facing boundary review | Document what Agent may propose vs. what Agent may NOT do. Preserve HITL, audit, and permission checks. 11.4 完成后 → backend checkpoint → 11.6。 |
 
 ---
 
