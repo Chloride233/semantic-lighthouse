@@ -1,10 +1,10 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 11.4 human review workflow delivered, backend checkpoint passed)
+Last updated: 2026-06-19 (Phase 11 backend complete — 11.1–11.4+11.6 delivered, 11.5 deferred)
 
 ## Current Phase
 
-**Phases 0–10 delivered; Phase 11 in progress (11.1–11.4 delivered, 11.6 next)** — see `docs/project-roadmap.md`, `docs/phase10-planning.md`, and `docs/phase11-planning.md`. Phase 11 focuses on ontology modeling drafts v1 before Graph RAG or modeling studio.
+**Phases 0–10 delivered; Phase 11 backend complete (11.1–11.4+11.6 delivered, 11.5 deferred to Kimi). Next: Phase 12 planning** — see `docs/project-roadmap.md`, `docs/phase10-planning.md`, and `docs/phase11-planning.md`. Phase 11 focused on ontology modeling drafts v1 backend: read model, deterministic generation, human review workflow, and Agent boundary documentation.
 
 **Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
 
@@ -16,7 +16,7 @@ In this project, Ontology means business objects, properties, relationships, act
 Phase 8: RAG -> user-confirmed task -> Agent/HITL -> audit (DELIVERED)
 Phase 9: schema/frontmatter validation -> entity extraction -> wikilink relation extraction -> broken-link detection -> ontology graph/entity detail (DELIVERED)
 Phase 10: governance issue triage -> curation demo -> graph UX polish -> evidence bridge -> review (DELIVERED)
-Phase 11: modeling drafts v1 — Object Type / Property / Link Type / Action Type proposals from governed entities (PLANNING — see docs/phase11-planning.md)
+Phase 11: modeling drafts v1 — Object Type / Property / Link Type / Action Type proposals from governed entities (BACKEND DELIVERED — 11.5 UI deferred, see docs/phase11-planning.md)
 ```
 
 Phase 9 started with read-only governance and graph visibility (not a full modeling studio, Graph RAG, or Agent auto-write path). Phase 10 operationalized governance findings into a curation pipeline. Phase 11 continues the read-first approach: modeling drafts are human-reviewed proposals, not production schema, and Agent may read/propose but never auto-create/accept/publish.
@@ -766,8 +766,8 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.
 
-Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 10 is complete. Phase 11.1–11.3 delivered (modeling draft model, read API, deterministic generation). Phase 11.4 (human review workflow) is next, then 11.6 (Agent boundary review). Phase 11.5 UI is **deferred** to Kimi unified frontend refactor — do NOT implement any frontend. Do not start Phase 11 by building a full modeling studio, Graph RAG, or Agent auto-write.
+Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 10 is complete. Phase 11 backend is complete (11.1–11.4+11.6: modeling draft model, read API, deterministic generation, human review workflow, Agent boundary). Phase 11.5 UI is **deferred** to Kimi unified frontend refactor — do NOT implement any frontend. Start Phase 12 planning. Do not build a full modeling studio, Graph RAG, or Agent auto-write.
 
 **Frontend moratorium**: current CC iterations do zero frontend work. Do not modify static/js, static/styles.css, HTML templates, or frontend routes. Do not run verify_ui, Playwright, or browser smoke.
 
-Do not rely on chat history. The latest verified baseline is commit `159abec feat: generate ontology modeling drafts deterministically`; the working tree should be clean before the next iteration.
+Do not rely on chat history. The latest verified baseline is commit `dd60ba9 test: add ontology draft review workflow tests and docs`; the working tree should be clean before the next iteration. Phase 11 backend is complete (11.1–11.4+11.6). Next: Phase 12 planning.

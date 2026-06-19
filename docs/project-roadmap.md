@@ -240,7 +240,7 @@ Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning
 **Out of scope**: Graph RAG, modeling studio, Agent auto-write, external KB auto-fix, graph database migration.
 
 
-## Phase 11: Ontology Modeling Drafts v1 ← IN PROGRESS (11.1–11.4 delivered)
+## Phase 11: Ontology Modeling Drafts v1 ← BACKEND COMPLETE (11.1–11.4+11.6 delivered, 11.5 UI deferred)
 
 **Goal**: Turn the governed entity/relation/issue read model into human-reviewable Object Type, Property, Link Type, and Action Type drafts — without Graph RAG, a full modeling studio, or Agent auto-write. See `docs/phase11-planning.md`.
 
@@ -251,9 +251,11 @@ Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning
 | 11.3 | Draft generation | ✅ Deterministic rules from existing entities/relations, no LLM |
 | 11.4 | Human review workflow | ✅ proposed → accepted/rejected, reviewer audit, single + batch API, atomic semantics, status transition rules, 33 tests (2026-06-19) |
 | 11.5 | UI modeling panel | **Deferred** — entity detail panel + draft list deferred to Kimi unified frontend refactor. CC not implementing. |
-| 11.6 | Agent boundary review | Agent may read/propose, never auto-create/accept/publish |
+| 11.6 | Agent boundary review | ✅ `docs/ontology-agent-boundary.md` — current runtime boundary (3 tools, no draft tool), allowed/disallowed behavior, future gate (6 required conditions). Zero code changes (2026-06-19) |
 
 **Out of scope**: Full modeling studio, Graph RAG, graph database, Agent auto-write, external KB auto-fix, draft-to-production pipeline. Phase 11.5 UI deferred to later Kimi frontend refactor — current CC iterations do no frontend work (no static/js, no CSS, no HTML, no verify_ui, no Playwright).
+
+**Next**: Phase 12 planning.
 
 
 ## Explicitly Out of Scope (current phases only)

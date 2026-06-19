@@ -1,7 +1,7 @@
 # Phase 11 Planning — Ontology Modeling Drafts v1
 
 **Date**: 2026-06-19
-**Status**: In progress — 11.1–11.4 delivered. 11.4 human review workflow complete.
+**Status**: Phase 11 backend complete (11.1–11.4+11.6 delivered). UI (11.5) deferred to Kimi frontend refactor. Next → Phase 12 planning.
 
 ---
 
@@ -44,7 +44,7 @@ Turn the governed entity/relation/issue read model from Phase 9/10 into a human-
 | 11.4 | Human review workflow | ✅ Delivered (2026-06-19). Single + batch review endpoints. Status transitions: proposed → accepted/rejected (one-way, final, 409 on re-review). Batch atomic (all-or-nothing). Rejected requires non-empty review_note (model_validator). Review never modifies payload, evidence_refs, created_by, created_at, or source pointers. 33 tests. No Agent access. |
 
 | 11.5 | UI: entity detail modeling panel + draft list | **Deferred** — panel and draft list UI deferred to Kimi unified frontend refactor. CC iterations do no frontend work (no static/js, no CSS, no HTML, no verify_ui, no Playwright). |
-| 11.6 | Agent-facing boundary review | **Next** — Document what Agent may propose vs. what Agent may NOT do. Preserve HITL, audit, and permission checks. Backend checkpoint (11.1–11.4) passed 2026-06-19. |
+| 11.6 | Agent-facing boundary review | ✅ Delivered (2026-06-19). `docs/ontology-agent-boundary.md` defines current runtime boundary (3 tools, no ontology draft tool), allowed behavior (evidence retrieval, non-persistent suggestions), disallowed behavior (no draft create/generate/review/publish Agent tool, no auto-persist, no HITL/audit bypass), and future gate (6 required conditions). Zero code changes. |
 
 ---
 
@@ -213,6 +213,6 @@ Never modifies existing drafts' status, payload, reviewed_by, reviewed_at, revie
 - No external KB modification
 - No DELETE / PATCH / reopen endpoint
 - No new migration
-- No 11.5/11.6 work — next is inter-phase review checkpoint then 11.5 UI (Kimi frontend refactor).
+- No 11.5 UI (deferred to Kimi frontend refactor).
 
-**Next**: Review checkpoint — verify generation + review permissions, idempotency, and audit semantics before 11.5.
+**Next**: Phase 12 planning — see `docs/project-roadmap.md`.
