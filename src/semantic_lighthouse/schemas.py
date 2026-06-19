@@ -680,3 +680,27 @@ class OntologyModelPackageExportResponse(BaseModel):
     content_hash: str
     quality_status: str
     contract: dict
+
+
+# ── Phase 13.4: business contract export ────────────────────────────────
+
+
+class BusinessContractManifestMetadata(BaseModel):
+    contract_profile: str
+    schema_version: str
+    semantic_hash: str
+
+
+class BusinessContractProvenance(BaseModel):
+    source_package_id: str
+    source_package_version: int
+    source_content_hash: str
+
+
+class BusinessContractManifestResponse(BaseModel):
+    manifest: BusinessContractManifestMetadata
+    provenance: BusinessContractProvenance
+    object_types: list[dict] = Field(default_factory=list)
+    properties: list[dict] = Field(default_factory=list)
+    link_types: list[dict] = Field(default_factory=list)
+    action_types: list[dict] = Field(default_factory=list)

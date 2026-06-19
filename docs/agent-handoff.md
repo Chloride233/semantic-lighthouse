@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 12 complete. Phase 13.1–13.3 complete — profile spec + validator + compiler. Next: 13.4 read-only contract export API)
+Last updated: 2026-06-19 (Phase 12 complete. Phase 13.1–13.4 complete — profile spec + validator + compiler + export API. Next: 13.5 manufacturing pilot v1)
 
 ## Current Phase
 
@@ -309,7 +309,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 13.1–13.3 complete (profile spec + validator + compiler, 45 tests). Next step is 13.4 read-only contract export API — `GET /groups/{gid}/ontology/packages/{pid}/contract`. Phase 11.5 UI remains deferred to Kimi.
+**Next iteration**: Phase 13.1–13.4 complete (profile spec + validator + compiler + export API, 61 tests). Next step is 13.5 manufacturing pilot v1 — hand-crafted Equipment + WorkOrder model, full pipeline demo. Phase 11.5 UI remains deferred to Kimi.
 
 ### Phase 11.1+11.2 Review Hardening — Rescan Evidence Lifecycle (2026-06-19)
 

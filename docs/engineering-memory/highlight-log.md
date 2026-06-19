@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 13.4 — Contract Export API Reuses Deterministic Compiler with Server-Side Group Isolation
+
+- Date: 2026-06-19
+- Version: Phase 13.4
+- Type: decision
+- Context: After delivering the deterministic validator (13.2) and compiler (13.3), the contract export API needed to expose compiled business manifests without duplicating validation/compilation logic and without weakening group isolation.
+- What happened: `GET /groups/{gid}/ontology/packages/{pid}/contract` directly calls `compile_business_contract(pkg)` — no copy-paste of validator or compiler logic into the router. The existing `get_membership_or_404` enforces member+ access; the existing `package_id + group_id` dual-constraint query prevents cross-group access (404). `BusinessContractCompilationError` is caught and mapped to 422 with the full structured `validation_result`. No new tables, migrations, dependencies, persistence, or write paths. The endpoint is strictly Read — POST/PATCH/DELETE return 405.
+- Engineering judgment: An export endpoint should be a thin permission-gated wrapper around a deterministic service — not a reimplementation of business logic. The compiler's `BusinessContractCompilationError` is the single truth for what blocks contract exposure; catching it at the API layer and returning 422 preserves that truth without leaking internal exceptions. Dual-constraint queries (package_id + group_id) are the established project pattern for cross-group isolation — no new security mechanism needed.
+- Verification: 8 API tests covering member 200, outsider 403, cross-group 404, contract_profile_mismatch 422, invalid package 422, hash stability, no-mutate, and method restrictions. Combined 61 tests (38 validator + 7 compiler + 8 new api + 8 existing package api). Ruff clean.
+
 ## Phase 11.4 — Automation Can Only Propose; Accepted/Rejected Must Be Owner/Admin Human Decisions
 
 - Date: 2026-06-19

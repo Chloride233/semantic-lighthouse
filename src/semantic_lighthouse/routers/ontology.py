@@ -27,6 +27,7 @@ from semantic_lighthouse.models import (
     utc_now,
 )
 from semantic_lighthouse.schemas import (
+    BusinessContractManifestResponse,
     DRAFT_TYPES,
     DraftGenerationResponse,
     OntologyEntityListResponse,
@@ -599,6 +600,59 @@ def export_package(
         quality_status=pkg.quality_status,
         contract=pkg.contract_json,
     )
+
+
+# ── Phase 13.4: business contract export ─────────────────────────────────
+
+
+@router.get(
+    "/packages/{package_id}/contract",
+    response_model=BusinessContractManifestResponse,
+)
+def get_contract(
+    group_id: str,
+    package_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> BusinessContractManifestResponse:
+    """Export compiled business_v1 contract manifest. Any member can read.
+
+    Returns the compiled business manifest with semantic_hash, provenance,
+    and whitelisted business definitions. 422 if the package fails
+    business_v1 validation (including contract_profile_mismatch).
+    Read-only — never modifies packages, drafts, or database state.
+    """
+    get_membership_or_404(db, current_user.id, group_id)
+
+    pkg = db.scalar(
+        select(OntologyModelPackage).where(
+            OntologyModelPackage.id == package_id,
+            OntologyModelPackage.group_id == group_id,
+        )
+    )
+    if pkg is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Package not found",
+        )
+
+    from semantic_lighthouse.services.business_contract_compiler import (
+        BusinessContractCompilationError,
+        compile_business_contract,
+    )
+
+    try:
+        manifest = compile_business_contract(pkg)
+    except BusinessContractCompilationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": str(e),
+                "validation_result": e.validation_result,
+            },
+        )
+
+    return BusinessContractManifestResponse(**manifest)
 
 
 # ── helpers ───────────────────────────────────────────────────────────
