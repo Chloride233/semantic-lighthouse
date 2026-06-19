@@ -27,6 +27,9 @@ logs/
 .runtime/
 .tmp/
 
+# External datasets (downloaded for testing)
+data/ecommerce/
+
 # Storage volumes
 document-storage/
 upload-tmp/
