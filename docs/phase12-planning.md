@@ -1,7 +1,7 @@
 # Phase 12 Planning — Ontology Model Quality & Contract Packages v1
 
 **Date**: 2026-06-19
-**Status**: 12.1 delivered, 12.2 complete (API + real validation). Next → 12.3 model packages.
+**Status**: 12.1 delivered, 12.2 complete, 12.3a schema foundation delivered. Next → 12.3b package builder.
 
 ---
 
@@ -254,3 +254,42 @@ informational semantic flags for human review.
 
 5 new API tests: member read, outsider 403, generated WARN, malformed FAIL,
 read-only immutability. 16 total quality tests pass.
+
+---
+
+## Phase 12.3a Delivery Record (2026-06-19)
+
+### Schema
+
+`OntologyModelPackage` / `ontology_model_packages` — immutable, versioned,
+content-hashed JSON contract snapshot from accepted drafts.
+
+| Field | Type | Constraint |
+|-------|------|-----------|
+| id | UUID PK | — |
+| group_id | FK groups.id | indexed |
+| version | int | unique(group_id, version) |
+| schema_version | string(10) | default "1.0" |
+| content_hash | string(64) | indexed, unique(group_id, content_hash) |
+| contract_json | JSON | default {} |
+| source_draft_ids | JSON list | default [], audit trail only (no FK) |
+| draft_count | int | — |
+| quality_status | string(10) | PASS/WARN (FAIL blocked at creation) |
+| quality_summary | JSON | default {} |
+| created_by | FK users.id | — |
+| created_at | datetime(tz) | — |
+
+Deliberately absent: status, updated_at, reviewed_at, published_at,
+external system IDs, source draft FK association table. Package has
+no UPDATE path — immutable after creation.
+
+### Migration
+
+`0017_v17_ontology_model_packages` → down_revision `0016`. SQLite/PostgreSQL
+compatible (unique constraints defined inside create_table for SQLite).
+
+### Tests
+
+8 tests: full snapshot create, JSON round-trip, same-group version unique,
+same-group hash unique, cross-group version allowed, cross-group hash
+allowed, no mutable lifecycle fields, no FK source_draft_id column.

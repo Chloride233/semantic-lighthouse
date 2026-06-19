@@ -463,6 +463,48 @@ class OntologyModelingDraft(Base):
     review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class OntologyModelPackage(Base):
+    """Phase 12.3 — immutable snapshot of accepted modeling drafts.
+
+    Versioned, content-hashed JSON contract. Immutable after creation
+    (no UPDATE path). source_draft_ids is audit trail only, not a
+    mutable FK relationship.
+    """
+
+    __tablename__ = "ontology_model_packages"
+    __table_args__ = (
+        UniqueConstraint("group_id", "version", name="uq_onto_pkg_group_version"),
+        UniqueConstraint("group_id", "content_hash", name="uq_onto_pkg_group_hash"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    group_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("groups.id"), index=True, nullable=False
+    )
+    version: Mapped[int] = mapped_column(nullable=False)
+    schema_version: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="1.0"
+    )
+    content_hash: Mapped[str] = mapped_column(
+        String(64), index=True, nullable=False
+    )
+    contract_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    source_draft_ids: Mapped[list] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    draft_count: Mapped[int] = mapped_column(nullable=False)
+    quality_status: Mapped[str] = mapped_column(
+        String(10), nullable=False
+    )
+    quality_summary: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_by: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
 class Task(Base):
     """Lightweight user-confirmed task from RAG next_steps.
 

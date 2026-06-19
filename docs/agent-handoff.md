@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 12.2 complete — API + real validation, 0 errors, 53 warnings, WARN status. Next: 12.3 model packages)
+Last updated: 2026-06-19 (Phase 12.3a schema delivered — migration 0017, 8 tests. Next: 12.3b package builder)
 
 ## Current Phase
 
