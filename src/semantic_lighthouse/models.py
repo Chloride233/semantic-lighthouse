@@ -538,3 +538,42 @@ class Task(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
+
+
+class BusinessProject(Base):
+    """Phase 14.1 — business pilot project within a group workspace.
+
+    A group can contain multiple projects. Each project follows the
+    goal → data → model → validate → pilot progression.
+    Stage is backend-controlled; clients cannot set it arbitrarily.
+    """
+
+    __tablename__ = "business_projects"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    group_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("groups.id"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    business_goal: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    entry_mode: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # problem_first | data_first
+    industry_template: Mapped[str | None] = mapped_column(
+        String(80), nullable=True
+    )  # e.g. ecommerce / manufacturing
+    stage: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="goal"
+    )  # goal | data | model | validate | pilot
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="active"
+    )  # active | archived
+    created_by: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )

@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-19
-**Current phase**: Phase 13 **COMPLETE** — business_v1 backend contract is stable (see `docs/phase13-review.md`). Frontend Refactor F1 complete by CC: F1A Swiss app shell + global group context; F1B Ontology 5-view workspace (overview, graph, governance, modeling with batch review, contracts). Next: frontend review / F2 (execution workspace). Future: Phase 14, MCP, Object Runtime, SDK are candidates, not pre-committed. Base docs: `docs/agent-handoff.md`, `docs/phase13-planning.md`, `docs/phase13-review.md`.
+**Current phase**: Phase 14 **IN PROGRESS** — 14.1 Business Pilot Project Foundation delivered. Phase 13 COMPLETE (business_v1 backend contract stable). Frontend Refactor F1 complete by CC: F1A Swiss app shell + global group context; F1B Ontology 5-view workspace (overview, graph, governance, modeling with batch review, contracts). Future: MCP, Object Runtime, SDK remain candidates, not pre-committed. Base docs: `docs/agent-handoff.md`, `docs/phase14-planning.md`, `docs/phase13-planning.md`, `docs/phase13-review.md`.
 
 ---
 
@@ -290,6 +290,21 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 13.6 | Phase 13 review | ✅ All 12 review gates PASS. 495 non-E2E tests, ruff clean. Minor fix: `parameters: None` double-reporting. Decision: Phase 13 COMPLETE, handoff to Kimi for frontend refactor. See `docs/phase13-review.md`. (2026-06-19) |
 
 **Out of scope**: Frontend, modeling UI, business object instance tables, package activate/publish, Action execution, Functions runtime, OSDK/code generation, MCP/Agent tool registration, Graph RAG, ERP/MES/PLC integration, external KB modification, knowledge_meta→business_v1 auto-conversion, full JSON Schema/OpenAPI generation, generic manufacturing framework.
+
+
+## Phase 14: Business Pilot Project ← Data → Model → Validate → Pilot ← IN PROGRESS (14.1 delivered)
+
+**Goal**: Shift the product from parallel features toward a guided five-stage business pilot main chain. See `docs/phase14-planning.md`.
+
+| # | Task | Description |
+|---|------|-------------|
+| 14.1 | Business Pilot Project Foundation | ✅ `BusinessProject` model, migration `0018`, CRUD/archive API, permissions, stage helper. 57 tests. |
+| 14.2 | Dataset Asset | Dataset upload, basic profiling, data stage advancement — **NEXT** |
+| 14.3 | Data-to-Model Bridge | Link dataset profile to modeling draft generation |
+| 14.4 | Model Validation Gate | Quality gate enforcement before validate stage |
+| 14.5 | Pilot Execution Baseline | Pilot stage status, outcome recording |
+
+**Out of scope**: Frontend (Kimi), delete/recover, Object Runtime, SDK, MCP, old feature removal.
 
 
 ## Future Candidate: MCP Read-only Gateway v1 ← NOT STARTED

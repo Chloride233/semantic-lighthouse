@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class RegisterRequest(BaseModel):
@@ -704,3 +704,47 @@ class BusinessContractManifestResponse(BaseModel):
     properties: list[dict] = Field(default_factory=list)
     link_types: list[dict] = Field(default_factory=list)
     action_types: list[dict] = Field(default_factory=list)
+
+
+# ── Phase 14.1: Business Pilot Projects ──────────────────────────────────
+
+
+class BusinessProjectCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    business_goal: str = Field(default="", max_length=2000)
+    entry_mode: str = Field(pattern="^(problem_first|data_first)$")
+    industry_template: str | None = Field(default=None, max_length=80)
+
+    @field_validator("name")
+    @classmethod
+    def _trim_and_check_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("name must not be empty after trimming")
+        return v
+
+
+class BusinessProjectUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    business_goal: str | None = Field(default=None, max_length=2000)
+    entry_mode: str | None = Field(default=None, pattern="^(problem_first|data_first)$")
+    industry_template: str | None = Field(default=None, max_length=80)
+
+
+class BusinessProjectResponse(BaseModel):
+    id: str
+    group_id: str
+    name: str
+    business_goal: str
+    entry_mode: str
+    industry_template: str | None = None
+    stage: str
+    status: str
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class BusinessProjectListResponse(BaseModel):
+    projects: list[BusinessProjectResponse]
+    total: int

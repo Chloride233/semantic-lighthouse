@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 14.1 — Product Shifts from Parallel Features to Business Pilot Main Chain
+
+- Date: 2026-06-19
+- Version: Phase 14.1
+- Type: decision
+- Context: Phases 1–13 delivered a rich set of parallel capabilities (RAG, Agent, Ontology drafts/packages/contracts, tasks, conversations). The product risk was becoming a collection of features without a guided user path. Phase 14 introduces business pilot projects as the organizing main chain: each group workspace contains projects that follow a fixed five-stage pipeline (goal → data → model → validate → pilot).
+- What happened: Added `BusinessProject` model (migration `0018`), five REST endpoints under `/groups/{gid}/projects`, a deterministic stage progression helper, and 57 permission-isolated tests. Stage is backend-controlled — clients cannot skip, reverse, or directly set it. Old features (RAG, Agent, Ontology, tasks) are intentionally NOT removed — they remain parallel capabilities accessible from the workspace, but the product narrative now centers on the pilot project chain.
+- Engineering judgment: A product that only accumulates features eventually loses its story. Phase 14.1 does not delete anything — it adds a spine. The five-stage chain gives every feature a place: RAG informs the goal stage, data profiling informs the data stage, Ontology modeling informs the model stage, quality gates inform the validate stage, and Agent/task workflows inform the pilot stage. The old features are now supporting cast for the business pilot main chain, not the product's identity.
+- Verification: 57 tests, ruff clean, migration 0018 at head, git diff --check clean.
+
 ## Phase 13 Complete — Business_v1 Backend Contract Is Stable; Frontend Handoff Surface Defined
 
 - Date: 2026-06-19

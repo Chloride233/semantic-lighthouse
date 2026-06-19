@@ -1,10 +1,10 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 13 COMPLETE — business_v1 backend contract stable, 495 tests, 12/12 gates PASS. Frontend Refactor F1 complete: F1A Swiss app shell + F1B Ontology 5-view workspace with batch review.)
+Last updated: 2026-06-19 (Phase 14.1 delivered — Business Pilot Project Foundation. Phase 13 COMPLETE — business_v1 backend contract stable, 495 tests, 12/12 gates PASS. Frontend Refactor F1 complete: F1A Swiss app shell + F1B Ontology 5-view workspace with batch review.)
 
 ## Current Phase
 
-**Phases 0–10 delivered; Phase 11 backend complete; Phase 12 complete (12.1–12.6)** — see `docs/project-roadmap.md`, `docs/phase12-planning.md`, and `docs/phase12-review.md`. Phase 12 now provides real-KB draft quality measurement, accepted-only quality/dependency gates, immutable versioned model packages, package create/read/export API, and declarative Action permission contracts. The final real demo produced a five-draft WARN package and verified hash idempotency plus reviewer/creator audit metadata. Accepted packages are not production schema and cannot publish or execute actions.
+**Phase 14.1 delivered: Business Pilot Project Foundation** — see `docs/phase14-planning.md`. A group can now contain multiple business pilot projects following the goal → data → model → validate → pilot chain. **Phases 0–13 complete** — full Ontology pipeline from documents through entities/relations/governance/drafts/packages/business_v1 contracts is stable. Old features (RAG, Agent, Ontology drafts, tasks, conversations) remain as parallel capabilities — Phase 14 shifts the product main chain toward guided business pilot projects without removing them.
 
 **MCP planning boundary**: `docs/mcp-agent-boundary-design.md` records a future
 read-only gateway candidate after Phase 13. MCP is an Agent-facing adapter, not
@@ -769,20 +769,33 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - ✅ Evidence bridge is read-only navigation, not retrieval change
 - ✅ Curation backlog is human action guidance only
 
-**Next**: Phase 13.2 deterministic business contract validator. See `docs/phase13-business-contract-spec.md` and `docs/phase13-planning.md`.
+**Next**: Phase 14.2 Dataset Asset. See `docs/phase14-planning.md`.
+
+### Phase 14.1 — Business Pilot Project Foundation (2026-06-19)
+
+**Status**: Delivered.
+
+- **New model**: `BusinessProject` (`business_projects`) — id, group_id, name (≤160), business_goal (≤2000), entry_mode (problem_first/data_first), industry_template (≤80, nullable), stage (goal→pilot, backend-controlled, default goal), status (active/archived, default active), created_by, created_at, updated_at.
+- **Migration**: `0018_v18_business_pilot_projects.py` — down_revision `0017_v17_ontology_model_packages`. SQLite/PostgreSQL compatible.
+- **API**: `POST /groups/{gid}/projects` (owner/admin create), `GET /groups/{gid}/projects` (member+ list with status filter, limit/offset), `GET /groups/{gid}/projects/{pid}` (member+ detail), `PATCH /groups/{gid}/projects/{pid}` (owner/admin update name/business_goal/entry_mode/industry_template only), `POST /groups/{gid}/projects/{pid}/archive` (owner/admin, idempotent).
+- **Permissions**: Member read, owner/admin write/archive. Outsider 403. Cross-group project 404 (no existence leak). Archived projects still readable.
+- **Stage helper**: `services/projects.py` — `next_stage()` and `advance_stage()`. Sequential advancement only (goal→data→model→validate→pilot). Rejects skip, reverse, same, and unknown. No public advance API in 14.1.
+- **Tests**: 57 tests in `tests/test_projects.py` covering create/read/update/list/archive permissions, cross-group isolation, field validation, archive idempotency, status filter, data isolation, and stage helper (15 unit tests).
+- **Verification**: 57 passed, ruff clean, migration 0018 at head, git diff --check clean.
+- **Boundaries**: No DatasetAsset, no data upload/profiling, no model bridging, no Object Runtime, no frontend, no delete/recover. Old features (RAG, Agent, Ontology drafts, tasks, conversations) not removed — they remain parallel capabilities.
 
 ## Agent Instructions For The Next Session
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.
 
-Do not frame the project as only a RAG/Agent portfolio. The current product direction is the Ontology semantic operating layer. Phase 11 backend and Phase 12 are complete; Phase 13.1 has defined the `business_v1` contract profile and 13.2 validator is next. Phase 12 packages and Phase 13 manifests are not published or executable Ontology. Phase 11.5 UI is **deferred** to Kimi unified frontend refactor — do NOT implement frontend work in current CC iterations. Do not build a full modeling studio, Graph RAG, Agent auto-write, package publishing, or external KB writes.
+Do not frame the project as only a RAG/Agent portfolio. The current product direction is the Ontology semantic operating layer. Phase 14 is underway — 14.1 delivered the business pilot project foundation; 14.2 Dataset Asset is next. Old RAG/Agent/Ontology features remain available as parallel capabilities but the product main chain is now the business pilot five-stage pipeline.
 
 **Frontend**: moratorium lifted 2026-06-19 for Frontend Refactor F1 (Swiss app shell F1A delivered, Ontology workspace F1B pending).
 
-**MCP moratorium**: do not implement MCP runtime during Phase 13. Do not add an
+**MCP moratorium**: do not implement MCP runtime during Phase 14. Do not add an
 MCP SDK/dependency or register MCP resources/tools. The read-only gateway is a
-post-Phase-13 candidate only. Any future prompt must follow
+post-Phase-14 candidate only. Any future prompt must follow
 `docs/mcp-agent-boundary-design.md`; no write capability is allowed without a
 separate Safety Lane plan reusing backend authorization, audit, and HITL.
 
-Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 13.1 is documented in `docs/phase13-business-contract-spec.md`; next is the deterministic 13.2 validator with 5–8 parametrized tests, no API or migration. MCP runtime remains a post-Phase-13 candidate only.
+Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 14.1 is complete; Phase 14.2 Dataset Asset is next.
