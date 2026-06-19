@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 11.4 — Automation Can Only Propose; Accepted/Rejected Must Be Owner/Admin Human Decisions
+
+- Date: 2026-06-19
+- Version: Phase 11.4
+- Type: decision
+- Context: Phase 11.3 delivered deterministic draft generation. The next step was a human review workflow for explicit, auditable accepted/rejected decisions — without Agent review, auto-publishing, or backdoor state modifications.
+- What happened: Added single (`POST /drafts/{draft_id}/review`) and batch (`POST /drafts/review-batch`) review endpoints. Owner/admin only. Status transitions are one-way and final: `proposed → accepted` or `proposed → rejected`. Re-review returns 409 — first reviewer metadata never overwritten. Batch is all-or-nothing atomic: any missing/cross-group/already-reviewed draft fails the entire batch with zero partial updates. Rejected requires non-empty review_note (Pydantic model_validator). Generated and manual drafts both reviewable. Review never modifies payload, evidence_refs, created_by, created_at, or source pointers.
+- Engineering judgment: Automation proposes, humans decide, audit records preserve the decision. "accepted" does NOT mean "published to production" — it only means a human reviewer confirmed the proposal is worth keeping. Making review one-way and immutable prevents audit trail contamination. The batch atomicity guarantee prevents silent partial state corruption. The rejected-note requirement prevents lazy rejections without explanation. These are the correct enterprise governance posture decisions at this stage.
+- Verification: 33 new tests. 365/369 full suite pass (4 pre-existing Playwright E2E). Ruff clean. No new migration. No UI, no Agent, no publishing, no external KB modification.
+
 ## Phase 11.3 — Automation Generates Explainable Proposals, Not Autonomous Decisions
 
 - Date: 2026-06-19

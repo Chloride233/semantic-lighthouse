@@ -256,19 +256,19 @@ New eval tools:
 Latest local verification:
 
 ```text
-2026-06-19 (Phase 11.1+11.2 review hardened)
+2026-06-19 (Phase 11.4 human review workflow delivered)
 
 Command:
-.\.venv\Scripts\python -m pytest tests/test_ontology_modeling_drafts.py tests/test_ontology.py -p no:cacheprovider
+.\.venv\Scripts\python -m pytest tests/test_ontology_draft_review.py tests/test_ontology_modeling_drafts.py tests/test_ontology_draft_generation.py tests/test_ontology.py -p no:cacheprovider
 
 Result:
-67 passed (26 draft + 41 ontology)
+125 passed (33 review + 26 draft + 25 generation + 41 ontology)
 
 Command:
-.\.venv\Scripts\python -m pytest -p no:cacheprovider --basetemp=.tmp\pytest-phase11-rescan
+.\.venv\Scripts\python -m pytest -p no:cacheprovider --basetemp=.tmp\pytest-phase11-review
 
 Result:
-307 passed, 4 failed (pre-existing E2E: auth timing in test_console_e2e.py)
+365 passed, 4 failed (pre-existing E2E: auth timing in test_console_e2e.py)
 
 Command:
 .\.venv\Scripts\python -m ruff check src tests
@@ -344,7 +344,21 @@ Result:
 - **Boundaries**: No LLM, no Agent, no UI, no review/accept/reject, no external KB modification, no new migration, no stale draft cleanup, no PATCH/DELETE/review API. `determine_action_type` moved from script to service — 35 curation demo tests unaffected.
 - **Verification**: 332 passed (4 pre-existing E2E failures), ruff clean src+tests+scripts, git diff --check clean. 127 related tests (25 generation + 26 draft + 41 ontology + 35 curation demo).
 
-**Next**: Phase 11.4 — Human review workflow (proposed → accepted/rejected, reviewer audit). After 11.4 backend checkpoint → 11.6 Agent-facing boundary review. Phase 11.5 UI is **deferred** to Kimi unified frontend refactor; CC does no frontend work. After 11.6 → Phase 12 planning.
+### Phase 11.4 — Human Review Workflow (2026-06-19)
+
+**Status**: Delivered.
+
+- **Single review**: `POST /groups/{gid}/ontology/drafts/{draft_id}/review` — owner/admin accept or reject a proposed draft. Accepted/rejected drafts are final (one-time audit): re-review returns 409 preserving original reviewer metadata. Rejected requires non-empty review_note (validated at schema level via `@model_validator(mode="after")`).
+- **Batch review**: `POST /groups/{gid}/ontology/drafts/review-batch` — atomically accept or reject 1–100 proposed drafts. All-or-nothing: any missing/cross-group ID → 404 with no partial updates; any already-reviewed → 409. Duplicates deduplicated. All drafts receive the same reviewer, reviewed_at, and review_note.
+- **Status transitions**: Only `proposed → accepted` and `proposed → rejected` allowed. No reopen, no overwrite, no accepted↔rejected toggle.
+- **Permissions**: `require_group_role(..., {"owner", "admin"})`. Member → 403. Outsider → 403. Cross-group draft ID → 404 (no existence leak).
+- **Route ordering**: Static `/drafts/review-batch` before dynamic `/drafts/{draft_id}/review` — prevents FastAPI path conflicts.
+- **Schemas**: `OntologyModelingDraftReviewRequest`, `OntologyModelingDraftBatchReviewRequest`, `OntologyModelingDraftBatchReviewResponse` — Pydantic v2 `model_validator` for rejected-note requirement.
+- **Tests**: 33 new tests in `tests/test_ontology_draft_review.py` covering single accept/reject, permissions, invalid input, status transitions (409 audit), metadata preservation, status filters, batch atomic semantics, and mixed generated+manual draft review.
+- **Verification**: 365 passed (4 pre-existing Playwright E2E failures), 125 related tests pass, ruff clean, git diff clean. No new migration.
+- **Boundaries**: No UI, no publish, no production Ontology write, no Agent review, no external KB modification, no DELETE/reopen/PATCH, no new migration, no 11.5/11.6.
+
+**Next**: Review checkpoint — verify generation + review permissions, idempotency, and audit semantics before 11.5. Phase 11.5 UI is **deferred** to Kimi unified frontend refactor; CC does no frontend work. After 11.6 → Phase 12 planning.
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed

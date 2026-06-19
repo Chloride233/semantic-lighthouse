@@ -1,7 +1,7 @@
 # Phase 11 Planning — Ontology Modeling Drafts v1
 
 **Date**: 2026-06-19
-**Status**: In progress — 11.1+11.2 delivered + review hardened. 11.3 deterministic draft generation delivered.
+**Status**: In progress — 11.1–11.4 delivered. 11.4 human review workflow complete.
 
 ---
 
@@ -144,3 +144,74 @@ Never modifies existing drafts' status, payload, reviewed_by, reviewed_at, revie
 - Group-scoped queries; cross-group isolation verified
 - No new migration
 - No stale generated draft cleanup
+
+## Phase 11.4 Delivery Record (2026-06-19)
+
+### Human Review Workflow Design
+
+**Single Review API**: `POST /groups/{group_id}/ontology/drafts/{draft_id}/review`
+- Only `accepted` or `rejected` statuses accepted — no reopening, no overwriting.
+- `rejected` requires non-empty `review_note`; `accepted`'s note is optional.
+- `review_note` whitespace-trimmed before storage.
+
+**Batch Review API**: `POST /groups/{group_id}/ontology/drafts/review-batch`
+- 1–100 draft IDs. Duplicates deduplicated (counted once).
+- All-or-nothing atomicity: any missing/cross-group ID → 404; any already-reviewed → 409. Zero partial updates.
+- All drafts receive same reviewer, reviewed_at, and review_note.
+- Response is compact: `reviewed_count`, `status`, `draft_ids`, `reviewed_by`, `reviewed_at`.
+
+**Status Transition Rules (v1)**:
+| From | To | Allowed? |
+|------|-----|----------|
+| proposed | accepted | ✅ |
+| proposed | rejected | ✅ |
+| accepted | anything | ❌ 409 |
+| rejected | anything | ❌ 409 |
+
+- First reviewer metadata (`reviewed_by`, `reviewed_at`, `review_note`) never overwritten — 409 preserves original audit trail.
+- No `reopen`/`unreview` endpoint. Once decided, the decision is final.
+- Draft payload, evidence_refs, created_by, created_at, and source pointers are never modified by review.
+
+**Permissions**: `require_group_role(db, ..., {"owner", "admin"})` — member returns 403, outsider returns 403.
+**Cross-group isolation**: Queries always include `group_id`; cross-group draft ID returns 404 (no existence leak).
+**Route ordering**: Static `/drafts/review-batch` registered before dynamic `/drafts/{draft_id}/review` to prevent FastAPI path conflicts.
+
+### Schema Additions
+
+- `OntologyModelingDraftReviewRequest` — `status: ^(accepted|rejected)$`, `review_note: str|null max 2000`, `@model_validator(mode="after")` for rejected-note requirement.
+- `OntologyModelingDraftBatchReviewRequest` — same validation + `draft_ids: list[str] min 1 max 100`.
+- `OntologyModelingDraftBatchReviewResponse` — compact response: `reviewed_count`, `status`, `draft_ids`, `reviewed_by`, `reviewed_at`.
+
+### Test Coverage (33 new tests)
+
+| Class | Tests | Coverage |
+|-------|-------|----------|
+| TestSingleAcceptReject | 5 | owner accept, owner reject with note, rejected without note → 422, accepted without note OK, whitespace-only note → 422 |
+| TestReviewPermissions | 5 | admin review, member 403 single, member 403 batch, outsider 403, cross-group 404 |
+| TestInvalidInput | 3 | invalid status 422 (proposed + invalid), empty batch 422, >100 batch 422 |
+| TestStatusTransitions | 3 | accepted → 409, rejected → 409, admin re-review of accepted → 409 preserves original metadata |
+| TestReviewPreservesMetadata | 5 | payload, evidence_refs, created_by/created_at, source pointers unchanged, whitespace stripping |
+| TestDraftStatusFilter | 2 | GET ?status=accepted, GET ?status=rejected |
+| TestBatchReview | 7 | batch accept 2, batch reject 3 with note, duplicate dedup, missing ID → atomic 404, cross-group → atomic 404, already-reviewed → 409 no partial, all-reviewed → 409 |
+| TestReviewAnyDraft | 3 | generated draft reviewable, manual draft reviewable, batch mixed |
+
+### Verification
+
+- `pytest`: 365 passed, 4 failed (pre-existing E2E Playwright auth timing — unchanged)
+- Related tests: 125/125 (33 review + 26 draft + 25 generation + 41 ontology)
+- `ruff check src tests`: All checks passed
+- `git diff --check`: clean
+- No new migration needed — all review fields already on the model from 11.1.
+
+### Non-Goals Preserved
+
+- No UI, no modeling studio, no draft content editing
+- No publish / draft-to-production / production Ontology write
+- No Graph RAG, no graph database
+- No Agent review/write/auto-create
+- No external KB modification
+- No DELETE / PATCH / reopen endpoint
+- No new migration
+- No 11.5/11.6 work — next is inter-phase review checkpoint then 11.5 UI (Kimi frontend refactor).
+
+**Next**: Review checkpoint — verify generation + review permissions, idempotency, and audit semantics before 11.5.
