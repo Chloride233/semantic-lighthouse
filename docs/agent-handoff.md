@@ -1,10 +1,10 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 12.1 real KB demo delivered — 76 drafts, technical integrity PASS, next: 12.2 quality gates)
+Last updated: 2026-06-19 (Phase 12.2a validator core delivered — 9 error codes, 7 warning codes, PASS/WARN/FAIL. Next: 12.2b API)
 
 ## Current Phase
 
-**Phases 0–10 delivered; Phase 11 backend complete (11.1–11.4+11.6 delivered, 11.5 deferred to Kimi); Phase 12.1 delivered (76 drafts, technical integrity PASS). Next: 12.2 draft quality gates** — see `docs/project-roadmap.md`, `docs/phase11-planning.md`, and `docs/phase12-planning.md`. Phase 12.1 real KB demo verified the deterministic generation pipeline against the full ontology KB: 8 object types, 48 properties, 17 link types, 3 action types; all hard checks zero; idempotent; generation pipeline produces structurally valid candidates. Report: `docs/ontology-modeling-draft-demo-report.md`.
+**Phases 0–10 delivered; Phase 11 backend complete; Phase 12 in progress (12.1 delivered, 12.2a validator core delivered). Next: 12.2b API/real validation** — see `docs/project-roadmap.md` and `docs/phase12-planning.md`. Phase 12.2a added `services/ontology_draft_quality.py` with 9 error codes and 7 warning codes, read-only, PASS/WARN/FAIL status. 9 tests. See `docs/phase12-planning.md` §12.2a delivery record.
 
 **Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
 

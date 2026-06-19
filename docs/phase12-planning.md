@@ -1,7 +1,7 @@
 # Phase 12 Planning — Ontology Model Quality & Contract Packages v1
 
 **Date**: 2026-06-19
-**Status**: 12.1 real KB demo delivered. Technical integrity PASS. Next → 12.2 draft quality gates.
+**Status**: 12.1 delivered, 12.2a validator core delivered. Next → 12.2b API/real validation.
 
 ---
 
@@ -171,3 +171,38 @@ not failures. Quality gates should validate per-draft structure and cross-refere
 consistency before any draft is accepted for package assembly.
 
 **Report**: `docs/ontology-modeling-draft-demo-report.md`
+
+---
+
+## Phase 12.2a Delivery Record (2026-06-19)
+
+### Quality Validator Core
+
+New service: `src/semantic_lighthouse/services/ontology_draft_quality.py`
+— `validate_modeling_drafts(db, group_id) -> dict`. Read-only; never modifies
+drafts, commits, or calls external systems.
+
+**Error codes (9)**:
+- `invalid_draft_type` / `invalid_status` — type/status not in allowed sets
+- `missing_source_pointer` — no source_entity_id/relation_id/issue_id/rag_run_id
+- `source_pointer_not_in_group` — FK doesn't exist in same group
+- `invalid_evidence_refs` / `empty_evidence_refs` — evidence shape or empty
+- `missing_generation_key` — deterministic draft without generation_key in payload
+- `missing_required_payload_fields` — required payload fields per draft_type
+- `property_object_type_not_found` / `link_source_object_type_not_found` /
+  `link_target_object_type_not_found` — cross-reference consistency
+
+**Warning codes (7)**:
+- `weak_property_evidence` / `weak_link_evidence` / `weak_action_evidence`
+  — single-source evidence (observed_count/relation_count/issue_count ≤ 1)
+- `mixed_property_value_types` — observed_value_types has >1 entry
+- `untyped_wikilink_candidate` — link relation_type=wikilink
+- `governance_action_candidate` — action scope=ontology_governance
+- `knowledge_meta_model_candidate` — object_type from source_entity_id
+
+**Status**: PASS (0 errors + 0 warnings) / WARN (0 errors + ≥1 warning) / FAIL (≥1 error).
+
+**Tests**: 9 tests in `tests/test_ontology_draft_quality.py` covering valid
+draft (no errors), missing source → FAIL, deterministic field errors →
+FAIL, property cross-ref error, link cross-ref error, weak+ mixed property
+WARN, wikilink+governance semantic WARN, read-only immutability.
