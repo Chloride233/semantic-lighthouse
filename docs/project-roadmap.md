@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-19
-**Current phase**: Phase 10 Governance Operations complete (10.1–10.5 delivered). Phase 11 planning — see `docs/phase11-planning.md`. Base docs: `docs/agent-handoff.md`, `docs/phase10-planning.md`, `docs/development-workflow.md`.
+**Current phase**: Phase 11 backend complete (11.1–11.4+11.6 delivered, 11.5 UI deferred). Phase 12 planning — see `docs/phase12-planning.md`. Base docs: `docs/agent-handoff.md`, `docs/phase11-planning.md`, `docs/development-workflow.md`.
 
 ---
 
@@ -255,7 +255,25 @@ Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning
 
 **Out of scope**: Full modeling studio, Graph RAG, graph database, Agent auto-write, external KB auto-fix, draft-to-production pipeline. Phase 11.5 UI deferred to later Kimi frontend refactor — current CC iterations do no frontend work (no static/js, no CSS, no HTML, no verify_ui, no Playwright).
 
-**Next**: Phase 12 planning.
+**Next**: Phase 12.1 real KB modeling draft demo.
+
+
+## Phase 12: Ontology Model Quality & Contract Packages v1 ← PLANNING
+
+**Goal**: Turn Phase 11 accepted drafts into verified, quality-gated, immutable model contract packages — without treating accepted as production, without Graph RAG, without Agent auto-write. See `docs/phase12-planning.md`.
+
+| # | Task | Description |
+|---|------|-------------|
+| 12.1 | Real KB modeling draft demo | Run Phase 11 generation against real KB. Quality report — counts, noise, evidence coverage. No auto-accept. No migration. |
+| 12.2 | Draft quality gates | Validate generation_key, source pointers, evidence, payload, cross-ref consistency. Issues only — never auto-modify. |
+| 12.3 | Immutable model package read model | Versioned snapshot from accepted drafts with content hash. Immutable after creation. |
+| 12.4 | Package read/export API | Member read, owner/admin create. Stable JSON contract export. |
+| 12.5 | Action and permission contract | Declare required_role, confirmation, evidence for action_type drafts. Declarative only. |
+| 12.6 | Real demo and phase review | End-to-end: accepted drafts → package → JSON contract. Audit chain verification. |
+
+**First slice**: 12.1 real KB demo — no new migration, no API changes, verify generation quality before building on top.
+
+**Out of scope**: Frontend, modeling studio, Graph RAG, graph database, Agent auto-write/auto-publish, external KB modification, production schema write, Phase 11.5 UI (deferred to Kimi).
 
 
 ## Explicitly Out of Scope (current phases only)
