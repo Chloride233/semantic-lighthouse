@@ -255,16 +255,16 @@ Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning
 
 **Out of scope**: Full modeling studio, Graph RAG, graph database, Agent auto-write, external KB auto-fix, draft-to-production pipeline. Phase 11.5 UI deferred to later Kimi frontend refactor — current CC iterations do no frontend work (no static/js, no CSS, no HTML, no verify_ui, no Playwright).
 
-**Next**: Phase 12.1 real KB modeling draft demo.
+**Next**: Phase 12.2 draft quality gates.
 
 
-## Phase 12: Ontology Model Quality & Contract Packages v1 ← PLANNING
+## Phase 12: Ontology Model Quality & Contract Packages v1 ← IN PROGRESS (12.1 delivered)
 
 **Goal**: Turn Phase 11 accepted drafts into verified, quality-gated, immutable model contract packages — without treating accepted as production, without Graph RAG, without Agent auto-write. See `docs/phase12-planning.md`.
 
 | # | Task | Description |
 |---|------|-------------|
-| 12.1 | Real KB modeling draft demo | Run Phase 11 generation against real KB. Quality report — counts, noise, evidence coverage. No auto-accept. No migration. |
+| 12.1 | Real KB modeling draft demo | ✅ 76 drafts (8 OT, 48 prop, 17 link, 3 action) from real KB. Technical integrity PASS. All hard checks 0, idempotent. Report: `docs/ontology-modeling-draft-demo-report.md` (2026-06-19) |
 | 12.2 | Draft quality gates | Validate generation_key, source pointers, evidence, payload, cross-ref consistency. Issues only — never auto-modify. |
 | 12.3 | Immutable model package read model | Versioned snapshot from accepted drafts with content hash. Immutable after creation. |
 | 12.4 | Package read/export API | Member read, owner/admin create. Stable JSON contract export. |

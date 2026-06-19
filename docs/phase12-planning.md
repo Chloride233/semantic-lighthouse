@@ -1,7 +1,7 @@
 # Phase 12 Planning — Ontology Model Quality & Contract Packages v1
 
 **Date**: 2026-06-19
-**Status**: Planning — 12.1 recommended as first slice. No code yet.
+**Status**: 12.1 real KB demo delivered. Technical integrity PASS. Next → 12.2 draft quality gates.
 
 ---
 
@@ -122,3 +122,52 @@ Phase 12 slices gate on 12.1 results:
    before building packages on top of low-quality drafts.
 3. Packages remain app-internal throughout — no external publish without a
    separate future phase.
+
+---
+
+## Phase 12.1 Delivery Record (2026-06-19)
+
+### Real KB Results
+
+Ran `scripts/run_ontology_modeling_demo.py` against real KB (74 entities, 186 relations,
+97 confirmed issues) via `scripts/run_ontology_curation_demo.py` group.
+
+| Draft Type | Count |
+|------------|-------|
+| object_type | 8 |
+| property | 48 |
+| link_type | 17 |
+| action_type | 3 |
+| **Total** | **76** |
+
+**Expected vs actual**: Object types 8/9 (Concept/Vendor/Product/Methodology/Case/FAQ/Person/Proposal — Research entity_type has no entities in current KB, so 8 is correct). Properties 48 (within expected 30–60). Link types 17 (far below 96 max — heavy dedup by type pair). Action types 3 (review_link_target, update_eval_gold_doc_id, create_missing_research_doc — missing_research_doc_or_directory and create_or_rename_entity_doc both map to review_link_target via determine_action_type, so 3 distinct is correct).
+
+### Quality Checks
+
+| Check | Result |
+|-------|--------|
+| Missing generation_key | 0 |
+| Missing source pointer | 0 |
+| Empty evidence_refs | 0 |
+| Duplicate (type, name) | 0 |
+| Second generation idempotent | YES |
+
+### Noise Indicators
+
+- 19/48 properties backed by a single entity (weaker signal — entity-count=1)
+- 5/17 link types backed by a single relation (weaker signal)
+- 0/3 action types backed by a single issue
+- Proposal entity type yields 10 properties from only 1 entity — high noise risk
+
+### Decision
+
+**Technical integrity: PASS**. All hard checks are zero, generation is idempotent,
+all drafts carry evidence. The deterministic generation pipeline produces
+structurally valid candidates.
+
+**Recommendation**: Proceed to Phase 12.2 (draft quality gates). Noise indicators
+are informational — they flag candidates with weaker evidence for human scrutiny,
+not failures. Quality gates should validate per-draft structure and cross-reference
+consistency before any draft is accepted for package assembly.
+
+**Report**: `docs/ontology-modeling-draft-demo-report.md`
