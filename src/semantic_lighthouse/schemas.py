@@ -636,3 +636,47 @@ class OntologyDraftQualityResponse(BaseModel):
     error_count: int
     warning_count: int
     issues: list[OntologyDraftQualityIssueResponse] = Field(default_factory=list)
+
+
+# ── Phase 12.4: package API ───────────────────────────────────────────
+
+
+class OntologyModelPackageSummaryResponse(BaseModel):
+    id: str
+    group_id: str
+    version: int
+    schema_version: str
+    content_hash: str
+    draft_count: int
+    quality_status: str
+    created_by: str
+    created_at: datetime
+
+
+class OntologyModelPackageDetailResponse(OntologyModelPackageSummaryResponse):
+    contract_json: dict = Field(default_factory=dict)
+    source_draft_ids: list = Field(default_factory=list)
+    quality_summary: dict = Field(default_factory=dict)
+
+
+class OntologyModelPackageBuildResponse(BaseModel):
+    id: str
+    version: int
+    content_hash: str
+    draft_count: int
+    quality_status: str
+    created: bool
+
+
+class OntologyModelPackageListResponse(BaseModel):
+    packages: list[OntologyModelPackageSummaryResponse]
+    total: int
+
+
+class OntologyModelPackageExportResponse(BaseModel):
+    package_id: str
+    version: int
+    schema_version: str
+    content_hash: str
+    quality_status: str
+    contract: dict

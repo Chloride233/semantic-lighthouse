@@ -19,6 +19,7 @@ from semantic_lighthouse.dependencies import (
 from semantic_lighthouse.models import (
     OntologyEntity,
     OntologyModelingDraft,
+    OntologyModelPackage,
     OntologyRelation,
     OntologyValidationIssue,
     RagRun,
@@ -33,6 +34,11 @@ from semantic_lighthouse.schemas import (
     OntologyIssueListResponse,
     OntologyIssueTriageRequest,
     OntologyDraftQualityResponse,
+    OntologyModelPackageBuildResponse,
+    OntologyModelPackageDetailResponse,
+    OntologyModelPackageExportResponse,
+    OntologyModelPackageListResponse,
+    OntologyModelPackageSummaryResponse,
     OntologyModelingDraftBatchReviewRequest,
     OntologyModelingDraftBatchReviewResponse,
     OntologyModelingDraftCreateRequest,
@@ -493,6 +499,133 @@ def get_draft_quality(
     return OntologyDraftQualityResponse(**result)
 
 
+# ── Phase 12.4: model package API ─────────────────────────────────────
+
+
+@router.post(
+    "/packages",
+    response_model=OntologyModelPackageBuildResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_package(
+    group_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Build an immutable model package from accepted drafts. Owner/admin only.
+
+    Returns 201 with created=true on new package, 200 with created=false
+    if identical content already exists. 409 on no-accepted/quality-errors/
+    missing-dependency. Never modifies drafts.
+    """
+    require_group_role(db, current_user.id, group_id, {"owner", "admin"})
+
+    from semantic_lighthouse.services.ontology_packages import (
+        PackageBuildError,
+        build_model_package,
+    )
+
+    try:
+        pkg, created = build_model_package(db, group_id, current_user.id)
+    except PackageBuildError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message)
+
+    resp = OntologyModelPackageBuildResponse(
+        id=pkg.id, version=pkg.version, content_hash=pkg.content_hash,
+        draft_count=pkg.draft_count, quality_status=pkg.quality_status,
+        created=created,
+    )
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        content=resp.model_dump(), status_code=201 if created else 200,
+    )
+
+
+@router.get("/packages", response_model=OntologyModelPackageListResponse)
+def list_packages(
+    group_id: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyModelPackageListResponse:
+    """List packages in this group, newest version first. Any member can read."""
+    get_membership_or_404(db, current_user.id, group_id)
+
+    base = select(OntologyModelPackage).where(
+        OntologyModelPackage.group_id == group_id
+    )
+    total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    rows = db.scalars(
+        base.order_by(OntologyModelPackage.version.desc()).offset(offset).limit(limit)
+    ).all()
+
+    return OntologyModelPackageListResponse(
+        packages=[_pkg_summary(p) for p in rows],
+        total=total,
+    )
+
+
+@router.get(
+    "/packages/{package_id}",
+    response_model=OntologyModelPackageDetailResponse,
+)
+def get_package(
+    group_id: str,
+    package_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyModelPackageDetailResponse:
+    """Get full package detail including contract JSON. Any member can read."""
+    get_membership_or_404(db, current_user.id, group_id)
+
+    pkg = db.scalar(
+        select(OntologyModelPackage).where(
+            OntologyModelPackage.id == package_id,
+            OntologyModelPackage.group_id == group_id,
+        )
+    )
+    if pkg is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Package not found")
+    return _pkg_detail(pkg)
+
+
+@router.get(
+    "/packages/{package_id}/export",
+    response_model=OntologyModelPackageExportResponse,
+)
+def export_package(
+    group_id: str,
+    package_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OntologyModelPackageExportResponse:
+    """Export package contract as stable JSON. Any member can read.
+
+    This is a JSON contract export — not a production publish.
+    """
+    get_membership_or_404(db, current_user.id, group_id)
+
+    pkg = db.scalar(
+        select(OntologyModelPackage).where(
+            OntologyModelPackage.id == package_id,
+            OntologyModelPackage.group_id == group_id,
+        )
+    )
+    if pkg is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Package not found")
+    return OntologyModelPackageExportResponse(
+        package_id=pkg.id,
+        version=pkg.version,
+        schema_version=pkg.schema_version,
+        content_hash=pkg.content_hash,
+        quality_status=pkg.quality_status,
+        contract=pkg.contract_json,
+    )
+
+
 # ── helpers ───────────────────────────────────────────────────────────
 
 
@@ -588,4 +721,25 @@ def _issue_response(i: OntologyValidationIssue) -> OntologyValidationIssueRespon
         triaged_by=i.triaged_by,
         triaged_at=i.triaged_at,
         triage_note=i.triage_note,
+    )
+
+
+def _pkg_summary(p: OntologyModelPackage) -> OntologyModelPackageSummaryResponse:
+    return OntologyModelPackageSummaryResponse(
+        id=p.id, group_id=p.group_id, version=p.version,
+        schema_version=p.schema_version, content_hash=p.content_hash,
+        draft_count=p.draft_count, quality_status=p.quality_status,
+        created_by=p.created_by, created_at=p.created_at,
+    )
+
+
+def _pkg_detail(p: OntologyModelPackage) -> OntologyModelPackageDetailResponse:
+    return OntologyModelPackageDetailResponse(
+        id=p.id, group_id=p.group_id, version=p.version,
+        schema_version=p.schema_version, content_hash=p.content_hash,
+        draft_count=p.draft_count, quality_status=p.quality_status,
+        created_by=p.created_by, created_at=p.created_at,
+        contract_json=p.contract_json,
+        source_draft_ids=p.source_draft_ids,
+        quality_summary=p.quality_summary,
     )

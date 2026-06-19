@@ -1,7 +1,7 @@
 # Phase 12 Planning — Ontology Model Quality & Contract Packages v1
 
 **Date**: 2026-06-19
-**Status**: 12.1–12.3 delivered (schema + builder). Next → 12.4 package API.
+**Status**: 12.1–12.4 delivered. Next → 12.5 action/permission contract.
 
 ---
 
@@ -329,6 +329,23 @@ Previously `if ot and ...` silently allowed empty dependencies into packages.
 
 10 tests covering no-accepted error, quality error block, property dependency
 block, link dependency block, WARN package with summary, idempotency, version 2 on
-content change, cross-group isolation. 27 total package+quality tests pass.
+content change, cross-group isolation, +2 dependency gate hotfix tests.
+
+## Phase 12.4 Delivery Record (2026-06-19)
+
+### API
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/groups/{gid}/ontology/packages` | owner/admin | Create package. 201 new / 200 existing / 409. No body. |
+| GET | `/groups/{gid}/ontology/packages` | member+ | List by version desc, limit/offset. |
+| GET | `/groups/{gid}/ontology/packages/{pid}` | member+ | Full detail + contract_json. |
+| GET | `/groups/{gid}/ontology/packages/{pid}/export` | member+ | Stable JSON contract. |
+
+No PATCH/PUT/DELETE/publish. Immutable.
+
+8 API tests: owner 201, admin/member 403, no-accepted 409, idempotent 200,
+member list/detail/export, outsider 403, cross-group 404, version desc +
+no-mutate 405. 34 total package tests.
 same-group hash unique, cross-group version allowed, cross-group hash
 allowed, no mutable lifecycle fields, no FK source_draft_id column.

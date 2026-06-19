@@ -267,7 +267,7 @@ Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning
 | 12.1 | Real KB modeling draft demo | ✅ 76 drafts (8 OT, 48 prop, 17 link, 3 action) from real KB. Technical integrity PASS. All hard checks 0, idempotent. Report: `docs/ontology-modeling-draft-demo-report.md` (2026-06-19) |
 | 12.2 | Draft quality gates | ✅ Validator service + API. 9 error codes, 7 warning codes. Real validation: 0 errors, 53 warnings, WARN status. `GET /drafts/quality` (member+). 16 tests (2026-06-19) |
 | 12.3 | Immutable model package read model | ✅ Migration 0017 + builder service. Accepted-only, quality gate, dependency gate, content hash, versioned, idempotent. 27 tests (2026-06-19) |
-| 12.4 | Package read/export API | Member read, owner/admin create. Stable JSON contract export. |
+| 12.4 | Package read/export API | ✅ POST create + GET list/detail/export. Owner/admin create, member+ read. No PATCH/DELETE. 8 API tests (2026-06-19) |
 | 12.5 | Action and permission contract | Declare required_role, confirmation, evidence for action_type drafts. Declarative only. |
 | 12.6 | Real demo and phase review | End-to-end: accepted drafts → package → JSON contract. Audit chain verification. |
 
