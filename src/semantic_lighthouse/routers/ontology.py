@@ -1018,26 +1018,25 @@ def create_project_package(
                 detail="override_reason is required when allow_warnings=true",
             )
 
-    try:
-        pkg, created = build_model_package(
-            db, group_id, current_user.id, project_id=project_id,
-        )
-    except PackageBuildError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message)
-
-    # Write WARN override audit to quality_summary (immutable after creation)
-    if quality["status"] == "WARN" and created and allow_warnings:
-        pkg.quality_summary = {
-            **pkg.quality_summary,
+    # Build WARN override audit to be written in same transaction as package
+    override_audit = None
+    if quality["status"] == "WARN" and allow_warnings:
+        override_audit = {
             "warning_override": True,
             "override_reason": override_reason,
             "overridden_by": current_user.id,
             "overridden_at": utc_now().isoformat(),
         }
-        db.commit()
-        db.refresh(pkg)
 
-    # Advance stage model → validate
+    try:
+        pkg, created = build_model_package(
+            db, group_id, current_user.id, project_id=project_id,
+            quality_summary_override=override_audit,
+        )
+    except PackageBuildError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message)
+
+    # Advance stage model → validate (same transaction as package creation)
     if created and project.stage == "model":
         advance_stage("model", "validate")
         project.stage = "validate"

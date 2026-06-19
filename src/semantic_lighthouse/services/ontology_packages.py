@@ -10,6 +10,7 @@ import hashlib
 import json
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from semantic_lighthouse.models import (
@@ -33,6 +34,7 @@ class PackageBuildError(Exception):
 def build_model_package(
     db: Session, group_id: str, created_by: str,
     project_id: str | None = None,
+    quality_summary_override: dict | None = None,
 ) -> tuple[OntologyModelPackage, bool]:
     """Build an immutable model package from accepted drafts.
 
@@ -41,6 +43,11 @@ def build_model_package(
     If project_id is provided, builds a project-scoped package from
     only that project's accepted drafts. Otherwise builds a legacy
     group-wide package from group-level drafts (project_id is null).
+
+    quality_summary_override: if provided, merged into quality_summary
+    of the NEW package (e.g. WARN override audit). Must be written
+    in the same transaction as package creation. Ignored on idempotent
+    return (created=False).
 
     Raises PackageBuildError if:
     - No accepted drafts exist
@@ -328,6 +335,8 @@ def build_model_package(
         "warning_codes": warning_codes,
         "accepted_draft_count": len(accepted),
     }
+    if quality_summary_override and isinstance(quality_summary_override, dict):
+        quality_summary = {**quality_summary, **quality_summary_override}
 
     pkg = OntologyModelPackage(
         group_id=group_id,
@@ -343,6 +352,20 @@ def build_model_package(
         created_by=created_by,
     )
     db.add(pkg)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        # Another concurrent build created the same package.
+        existing = db.scalar(
+            select(OntologyModelPackage).where(
+                OntologyModelPackage.group_id == group_id,
+                OntologyModelPackage.scope_key == scope_key,
+                OntologyModelPackage.content_hash == content_hash,
+            )
+        )
+        if existing is not None:
+            return existing, False
+        raise
     db.refresh(pkg)
     return pkg, True

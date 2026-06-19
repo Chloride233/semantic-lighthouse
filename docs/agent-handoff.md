@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 14.4 delivered — Project Model Validation Gate. 14.1–14.3 delivered. Backend Review B next.)
+Last updated: 2026-06-19 (Phase 14 Backend Review B complete — 14.1–14.4 hardened. Phase 14.5 next.)
 
 ## Current Phase
 
@@ -837,8 +837,6 @@ Do not frame the project as only a RAG/Agent portfolio. The current product dire
 - Double file read (upload stream → disk, disk → profiling) — same pattern as document upload path; acceptable for 50 MiB cap.
 - No latency/cost tracking for profiling — profiling is pure Python, no LLM; negligible.
 
-**Next**: Phase 14.3 Data-to-Model Bridge.
-
 **Frontend**: moratorium lifted 2026-06-19 for Frontend Refactor F1 (Swiss app shell F1A delivered, Ontology workspace F1B pending).
 
 **MCP moratorium**: do not implement MCP runtime during Phase 14. Do not add an
@@ -847,4 +845,4 @@ post-Phase-14 candidate only. Any future prompt must follow
 `docs/mcp-agent-boundary-design.md`; no write capability is allowed without a
 separate Safety Lane plan reusing backend authorization, audit, and HITL.
 
-Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 14.1–14.3 delivered; Backend Review A complete. Phase 14.4 Model Validation Gate is next.
+Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 14.1–14.4 delivered; Backend Review B complete. Phase 14.5 Pilot Read Runtime is next.

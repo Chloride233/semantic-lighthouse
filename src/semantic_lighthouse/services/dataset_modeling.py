@@ -33,9 +33,6 @@ _TYPE_MAP: dict[str, str] = {
     "datetime": "datetime",
 }
 
-_VALID_PK_CONFIDENCE = {"high", "medium", "low"}
-
-
 def _snake_case(name: str) -> str:
     """Normalize a name to snake_case for use as an api_name."""
     s = re.sub(r"[^a-zA-Z0-9]+", "_", name)
