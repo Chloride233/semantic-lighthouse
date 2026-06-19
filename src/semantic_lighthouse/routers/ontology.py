@@ -17,6 +17,8 @@ from semantic_lighthouse.dependencies import (
     require_group_role,
 )
 from semantic_lighthouse.models import (
+    BusinessProject,
+    DatasetAsset,
     OntologyEntity,
     OntologyModelingDraft,
     OntologyModelPackage,
@@ -29,6 +31,7 @@ from semantic_lighthouse.models import (
 from semantic_lighthouse.schemas import (
     BusinessContractManifestResponse,
     DRAFT_TYPES,
+    DatasetModelingResponse,
     DraftGenerationResponse,
     OntologyEntityListResponse,
     OntologyEntityResponse,
@@ -234,6 +237,8 @@ def list_drafts(
     draft_type: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
     source_entity_id: str | None = Query(default=None),
+    project_id: str | None = Query(default=None),
+    source_dataset_id: str | None = Query(default=None),
     q: str | None = Query(default=None, description="Search name"),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
@@ -252,6 +257,10 @@ def list_drafts(
         base = base.where(OntologyModelingDraft.status == status_filter)
     if source_entity_id:
         base = base.where(OntologyModelingDraft.source_entity_id == source_entity_id)
+    if project_id:
+        base = base.where(OntologyModelingDraft.project_id == project_id)
+    if source_dataset_id:
+        base = base.where(OntologyModelingDraft.source_dataset_id == source_dataset_id)
     if q:
         base = base.where(OntologyModelingDraft.name.ilike(f"%{q}%"))
 
@@ -289,6 +298,32 @@ def create_draft(
             detail=f"Invalid draft_type: {body.draft_type}. Allowed: {sorted(DRAFT_TYPES)}",
         )
 
+    # Validate project_id and source_dataset_id when present
+    if body.source_dataset_id and not body.project_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="project_id is required when source_dataset_id is provided",
+        )
+    if body.project_id:
+        proj = db.get(BusinessProject, body.project_id)
+        if proj is None or proj.group_id != group_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="project_id not found in this group",
+            )
+    if body.source_dataset_id:
+        ds = db.get(DatasetAsset, body.source_dataset_id)
+        if ds is None or ds.group_id != group_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="source_dataset_id not found in this group",
+            )
+        if ds.project_id != body.project_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="source_dataset_id must belong to the specified project_id",
+            )
+
     # At least one proper evidence pointer is required.
     # evidence_refs alone is NOT sufficient — it is supplemental metadata only.
     has_evidence = (
@@ -296,13 +331,14 @@ def create_draft(
         or body.source_relation_id
         or body.source_issue_id
         or body.source_rag_run_id
+        or body.source_dataset_id
     )
     if not has_evidence:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="At least one source pointer (source_entity_id, source_relation_id, "
-            "source_issue_id, source_rag_run_id) is required to create a draft. "
-            "evidence_refs alone is not sufficient.",
+            "source_issue_id, source_rag_run_id, source_dataset_id) is required "
+            "to create a draft. evidence_refs alone is not sufficient.",
         )
 
     # Validate all source ids belong to this group
@@ -323,6 +359,8 @@ def create_draft(
         source_relation_id=body.source_relation_id,
         source_issue_id=body.source_issue_id,
         source_rag_run_id=body.source_rag_run_id,
+        project_id=body.project_id,
+        source_dataset_id=body.source_dataset_id,
         evidence_refs=body.evidence_refs,
         payload=body.payload,
         created_by=current_user.id,
@@ -688,6 +726,8 @@ def _draft_response(d: OntologyModelingDraft) -> OntologyModelingDraftResponse:
         source_relation_id=d.source_relation_id,
         source_issue_id=d.source_issue_id,
         source_rag_run_id=d.source_rag_run_id,
+        project_id=d.project_id,
+        source_dataset_id=d.source_dataset_id,
         evidence_refs=d.evidence_refs,
         payload=d.payload,
         created_by=d.created_by,
@@ -771,4 +811,90 @@ def _pkg_detail(p: OntologyModelPackage) -> OntologyModelPackageDetailResponse:
         contract_json=p.contract_json,
         source_draft_ids=p.source_draft_ids,
         quality_summary=p.quality_summary,
+    )
+
+
+# ── Phase 14.3: Dataset-to-Model Bridge ───────────────────────────────────
+
+project_model_router = APIRouter(
+    prefix="/groups/{group_id}/projects/{project_id}/model-drafts",
+    tags=["dataset-modeling"],
+)
+
+
+@project_model_router.post("/generate", response_model=DatasetModelingResponse)
+def generate_dataset_model_drafts(
+    group_id: str,
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DatasetModelingResponse:
+    """Generate deterministic business_v1 modeling drafts from project dataset profiles.
+
+    Owner/admin only. Idempotent — re-running produces no duplicates.
+    Never modifies existing drafts. Does NOT generate action_type drafts.
+
+    Stage: project must be at data/model/validate/pilot (not goal).
+    First successful generation advances data → model.
+    """
+    require_group_role(db, current_user.id, group_id, {"owner", "admin"})
+
+    project = db.get(BusinessProject, project_id)
+    if project is None or project.group_id != group_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
+
+    if project.status == "archived":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot generate drafts for an archived project",
+        )
+
+    if project.stage == "goal":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Project must reach data stage before model drafts can be generated. "
+            "Upload a dataset first.",
+        )
+
+    # Check for ready datasets
+    ready_count = db.scalar(
+        select(func.count()).select_from(
+            select(DatasetAsset).where(
+                DatasetAsset.project_id == project_id,
+                DatasetAsset.group_id == group_id,
+                DatasetAsset.status == "ready",
+            ).subquery()
+        )
+    ) or 0
+
+    if ready_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No ready datasets found in this project. Upload a dataset first.",
+        )
+
+    from semantic_lighthouse.services.dataset_modeling import generate_dataset_drafts
+    from semantic_lighthouse.services.projects import advance_stage
+
+    try:
+        result = generate_dataset_drafts(db, group_id, project_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
+
+    # Advance stage: data → model if we generated or already had drafts
+    if project.stage == "data" and (result["generated_count"] > 0 or result["existing_count"] > 0):
+        advance_stage("data", "model")
+        project.stage = "model"
+        db.commit()
+
+    return DatasetModelingResponse(
+        generated_count=result["generated_count"],
+        existing_count=result["existing_count"],
+        skipped_count=result["skipped_count"],
+        counts_by_type=result["counts_by_type"],
+        issues=result["issues"],
     )

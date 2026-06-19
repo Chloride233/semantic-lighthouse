@@ -113,6 +113,8 @@ def create_app() -> FastAPI:
     app.include_router(projects.router)
     app.include_router(datasets.router)
     app.include_router(ontology.router)
+    app.include_router(ontology.project_model_router)
+
 
     static_dir = Path(__file__).resolve().parents[2] / "static"
     app.mount("/static", NoCacheStaticFiles(directory=static_dir), name="static")

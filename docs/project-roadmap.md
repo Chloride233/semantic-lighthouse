@@ -292,7 +292,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 **Out of scope**: Frontend, modeling UI, business object instance tables, package activate/publish, Action execution, Functions runtime, OSDK/code generation, MCP/Agent tool registration, Graph RAG, ERP/MES/PLC integration, external KB modification, knowledge_meta→business_v1 auto-conversion, full JSON Schema/OpenAPI generation, generic manufacturing framework.
 
 
-## Phase 14: Business Pilot Project ← Data → Model → Validate → Pilot ← IN PROGRESS (14.1–14.2 delivered, Backend Review A complete)
+## Phase 14: Business Pilot Project ← Data → Model → Validate → Pilot ← IN PROGRESS (14.1–14.3 delivered, Backend Review A complete)
 
 **Goal**: Shift the product from parallel features toward a guided five-stage business pilot main chain. See `docs/phase14-planning.md`.
 
@@ -300,8 +300,8 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 |---|------|-------------|
 | 14.1 | Business Pilot Project Foundation | ✅ `BusinessProject` model, migration `0018`, CRUD/archive API, permissions, stage helper. 57 tests. |
 | 14.2 | Dataset Asset & Profiling | ✅ `DatasetAsset` model, migration `0019`, CSV/XLSX upload, metadata-first profiling, PK/FK suggestions, PII masking, stage advancement goal→data. 53 tests. |
-| 14.3 | Data-to-Model Bridge | Link dataset profile to modeling draft generation — **NEXT** |
-| 14.4 | Model Validation Gate | Quality gate enforcement before validate stage |
+| 14.3 | Data-to-Model Bridge | ✅ Migration `0020` (project_id + source_dataset_id on drafts), deterministic dataset→business_v1 draft generation (object/property/link types), evidence privacy, idempotency, stage advancement data→model, review chain reuse. 27 tests. |
+| 14.4 | Model Validation Gate | Quality gate enforcement before validate stage — **NEXT** |
 | 14.5 | Pilot Execution Baseline | Pilot stage status, outcome recording |
 | 14.4 | Model Validation Gate | Quality gate enforcement before validate stage |
 | 14.5 | Pilot Execution Baseline | Pilot stage status, outcome recording |

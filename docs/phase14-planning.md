@@ -1,6 +1,6 @@
 # Phase 14: Business Pilot Project ← Data → Model → Validate → Pilot
 
-**Status**: 14.1–14.2 delivered. Backend Review A complete. 14.3 next.
+**Status**: 14.1–14.3 delivered. Backend Review A complete. 14.4 next.
 
 Phase 14 shifts Semantic Lighthouse from parallel product features (RAG, Agent, Ontology drafts, tasks) toward a guided business pilot main chain. A group workspace contains one or more business pilot projects, each progressing through a fixed five-stage pipeline:
 
@@ -30,9 +30,23 @@ Each stage is backend-controlled. Clients cannot skip, reverse, or directly set 
 |-------|------|--------|
 | 14.1 | Business Pilot Project Foundation — model, API, permissions, stage helper | ✅ Delivered |
 | 14.2 | Dataset Asset — dataset upload, basic profiling, data stage advancement | ✅ Delivered |
-| 14.3 | Data-to-Model Bridge — link dataset profile to modeling draft generation | **Next** |
-| 14.4 | Model Validation Gate — quality gate enforcement before validate stage | Planned |
+| 14.3 | Data-to-Model Bridge — link dataset profile to modeling draft generation | ✅ Delivered |
+| 14.4 | Model Validation Gate — quality gate enforcement before validate stage | **Next** |
 | 14.5 | Pilot Execution Baseline — pilot stage status, outcome recording | Planned |
+
+---
+
+## 14.3 Delivered
+
+- **Migration**: `0020` — adds `project_id` (FK business_projects) and `source_dataset_id` (FK dataset_assets) to `ontology_modeling_drafts`. Nullable — legacy drafts compatible. SQLite/PostgreSQL via batch mode.
+- **Schema**: `OntologyModelingDraftCreateRequest` and `OntologyModelingDraftResponse` extended with `project_id`, `source_dataset_id`. `list_drafts` supports `project_id` and `source_dataset_id` filters. New `DatasetModelingResponse` with issues list.
+- **API**: `POST /groups/{gid}/projects/{pid}/model-drafts/generate` — owner/admin only. Deterministic, idempotent. Stage validation: goal→409, data→model advancement. Archived project→409. No ready datasets→400.
+- **Service**: `services/dataset_modeling.py` — pure deterministic generation. Object Types (one per dataset with valid PK, api_name via `_snake_case`, display_name via `_title_case`), Properties (one per column, type-mapped: string→string, integer→integer, number→number, boolean→boolean, date→date, datetime→datetime, required=not nullable), Link Types (from project-local FK suggestions, cardinality=many_to_one). No Action Type generation.
+- **Evidence**: Each draft carries `contract_profile=business_v1`, `generator=dataset_deterministic_v1`, `generation_key`, `project_id`, `source_dataset_id`. Evidence refs: dataset_id, content_hash, original_name, profile schema_version, column name, type, PK/FK role. Never includes sample_values, raw rows, or storage_path.
+- **Idempotency**: `generation_key` includes project_id, dataset_id, draft_type, and normalized business key. Re-running produces no duplicates. Accepted/rejected drafts never overwritten.
+- **Review chain reuse**: Existing single/batch review endpoints work on dataset-generated drafts unchanged. project_id/source_dataset_id relationships immutable during review.
+- **Tests**: 27 tests covering generation (object/property/link, PK/FK, type mapping, evidence privacy, idempotency, accepted/rejected protection), permissions (owner/admin/member/outsider/cross-group), stage advancement (goal→409, data→model, no datasets→400, archived→409), project isolation, legacy CRUD/filter/review compatibility.
+- **Verification**: 125 combined passed (26 drafts + 34 review + 38 contract + 27 modeling), zero legacy regressions. Migration upgrade/downgrade cycle verified.
 
 ---
 

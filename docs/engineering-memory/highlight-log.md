@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 14.3 — Dataset Profile Becomes Deterministic, Human-Reviewable Contract Proposals (Not Auto-Published Ontology)
+
+- Date: 2026-06-19
+- Version: Phase 14.3
+- Type: decision
+- Context: Phase 14.2 delivered metadata-first dataset profiling with PK/FK detection. The next step was bridging those profiles into the existing business_v1 Ontology Modeling Draft chain without introducing LLM-driven auto-modeling, without auto-publishing contracts, and without bypassing the Phase 11.4 human review gate.
+- What happened: Added `project_id` and `source_dataset_id` to the `OntologyModelingDraft` model (migration `0020`). Built a deterministic, pure-Python service (`dataset_modeling.py`) that converts column profiles into proposed Object Types (with best PK selection by confidence/position), Properties (type-mapped, required=not nullable), and Link Types (from project-local FK suggestions, many_to_one). Never generates Action Types — format data alone cannot infer safe business actions. Every draft carries `contract_profile=business_v1`, `generator=dataset_deterministic_v1`, and structured generation keys for idempotency. Evidence refs include dataset identity + column metadata but never sample values, raw rows, or storage paths. Stage advances `data → model` only on successful generation; accepted/rejected drafts are never overwritten.
+- Engineering judgment: The bridge from raw data profiles to modeling drafts is a correctness-critical path. Doing it deterministically with visible rules (PK selection, type mapping, FK naming conventions) is the right foundation. Future AI can enhance display names and descriptions but must not substitute for the deterministic PK/FK evidence chain. The explicit decision to NOT generate Action Types from data acknowledges that business actions require domain context that column statistics alone cannot provide. Keeping human review as the mandatory gate (via the existing Phase 11.4 single/batch accept/reject workflow) ensures that automated proposals do not drift into automated publishing.
+- Verification: 125 combined tests (26 drafts + 34 review + 38 contract + 27 modeling) passed with zero legacy regressions. Migration upgrade/downgrade cycle verified on SQLite.
+
 ## Phase 14.1 — Product Shifts from Parallel Features to Business Pilot Main Chain
 
 - Date: 2026-06-19

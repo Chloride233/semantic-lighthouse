@@ -525,6 +525,8 @@ class OntologyModelingDraftCreateRequest(BaseModel):
     source_relation_id: str | None = None
     source_issue_id: str | None = None
     source_rag_run_id: str | None = None
+    project_id: str | None = None
+    source_dataset_id: str | None = None
     evidence_refs: list = Field(
         default_factory=list,
         description="Supplemental evidence snapshot — not a substitute for a proper source_*_id.",
@@ -543,6 +545,8 @@ class OntologyModelingDraftResponse(BaseModel):
     source_relation_id: str | None = None
     source_issue_id: str | None = None
     source_rag_run_id: str | None = None
+    project_id: str | None = None
+    source_dataset_id: str | None = None
     evidence_refs: list = Field(default_factory=list)
     payload: dict = Field(default_factory=dict)
     created_by: str
@@ -615,6 +619,32 @@ class OntologyModelingDraftBatchReviewResponse(BaseModel):
     draft_ids: list[str]
     reviewed_by: str
     reviewed_at: datetime
+
+
+# ── Phase 14.3: Dataset Modeling Bridge ──────────────────────────────────
+
+
+class DatasetModelingIssue(BaseModel):
+    code: str
+    severity: str  # error | warning
+    dataset_id: str | None = None
+    column: str | None = None
+    message: str
+
+
+class DatasetModelingCountsByType(BaseModel):
+    object_type: int = 0
+    property: int = 0
+    link_type: int = 0
+    action_type: int = 0
+
+
+class DatasetModelingResponse(BaseModel):
+    generated_count: int
+    existing_count: int
+    skipped_count: int
+    counts_by_type: DatasetModelingCountsByType
+    issues: list[DatasetModelingIssue] = Field(default_factory=list)
 
 
 # ── Phase 12.2b: draft quality API ────────────────────────────────────

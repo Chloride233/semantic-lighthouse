@@ -443,6 +443,12 @@ class OntologyModelingDraft(Base):
     source_rag_run_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("rag_runs.id"), index=True, nullable=True
     )
+    project_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("business_projects.id"), index=True, nullable=True
+    )
+    source_dataset_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("dataset_assets.id"), index=True, nullable=True
+    )
     evidence_refs: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     payload: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     created_by: Mapped[str] = mapped_column(

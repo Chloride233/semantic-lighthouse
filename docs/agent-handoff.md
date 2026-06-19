@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 14 Backend Review A complete — 14.1–14.2 hardened. Phase 13 COMPLETE. Frontend Refactor F1 complete.)
+Last updated: 2026-06-19 (Phase 14.3 delivered — Data-to-Model Bridge. 14.1–14.2 hardened by Review A. Phase 13 COMPLETE. Frontend Refactor F1 complete.)
 
 ## Current Phase
 
@@ -800,11 +800,22 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Verification**: 110 total (57 projects + 53 datasets) passed, ruff clean, migration 0019 at head, git diff --check clean.
 - **Boundaries**: No LLM model suggestions, no Ontology draft/relation creation from profiles, no Object Runtime, no .xls support, no frontend, no delete/recover. Old features preserved.
 
+### Phase 14.3 — Data-to-Model Bridge (2026-06-19)
+
+**Status**: Delivered.
+
+- **Migration**: `0020` — nullable `project_id` + `source_dataset_id` FKs on `ontology_modeling_drafts`. Batch mode. Legacy compatible.
+- **API**: `POST /groups/{gid}/projects/{pid}/model-drafts/generate` — owner/admin, deterministic, idempotent. goal→409, archived→409, no ready datasets→400. data→model on success.
+- **Service**: `dataset_modeling.py` — Object Types (snake_case api_name, best PK per confidence/position), Properties (one per column, type-mapped, required=not nullable), Link Types (from FK suggestions, many_to_one). No Action Types. Generation key = `project_id:dataset_id:draft_type:business_key`. Evidence excludes sample values + storage_path.
+- **Review chain**: Existing review endpoints work on dataset drafts unchanged.
+- **Tests**: 27 tests. 125 combined (26 drafts + 34 review + 38 contract + 27 modeling) — zero regressions.
+- **Verification**: Migration upgrade/downgrade verified. 125 combined passed. Ruff clean.
+
 ## Agent Instructions For The Next Session
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.
 
-Do not frame the project as only a RAG/Agent portfolio. The current product direction is the Ontology semantic operating layer. Phase 14 is underway — 14.1–14.2 delivered; 14.3 Data-to-Model Bridge is next. Old RAG/Agent/Ontology features remain available as parallel capabilities but the product main chain is now the business pilot five-stage pipeline.
+Do not frame the project as only a RAG/Agent portfolio. The current product direction is the Ontology semantic operating layer. Phase 14 is underway — 14.1–14.3 delivered; 14.4 Model Validation Gate is next. Old RAG/Agent/Ontology features remain available as parallel capabilities but the product main chain is now the business pilot five-stage pipeline.
 
 ### Backend Review A (2026-06-19) — Complete
 
@@ -836,4 +847,4 @@ post-Phase-14 candidate only. Any future prompt must follow
 `docs/mcp-agent-boundary-design.md`; no write capability is allowed without a
 separate Safety Lane plan reusing backend authorization, audit, and HITL.
 
-Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 14.1–14.2 delivered; Backend Review A complete. Phase 14.3 Data-to-Model Bridge is next.
+Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 14.1–14.3 delivered; Backend Review A complete. Phase 14.4 Model Validation Gate is next.
