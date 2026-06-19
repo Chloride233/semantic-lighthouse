@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 12 complete — real package demo and backend review passed. Next: Phase 13 planning, not implementation)
+Last updated: 2026-06-19 (Phase 12 complete — real package demo and backend review passed. Phase 13 planning complete — 13.1–13.6 slices defined in `docs/phase13-planning.md`. Next: 13.1 business contract profile specification)
 
 ## Current Phase
 
@@ -301,7 +301,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 13 product/architecture planning only. Do not begin implementation until its boundary and acceptance criteria are aligned. Phase 11.5 UI remains deferred to Kimi.
+**Next iteration**: Phase 13 planning is complete (`docs/phase13-planning.md`). Next step is 13.1 business contract profile specification — a documentation-only slice. Do not begin implementation until 13.1 spec is written and reviewed. Phase 11.5 UI remains deferred to Kimi.
 
 ### Phase 11.1+11.2 Review Hardening — Rescan Evidence Lifecycle (2026-06-19)
 
@@ -531,7 +531,7 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Full suite**: 224 passed, ruff clean, migration 0012 at head
 - **Not in scope**: wikilink relations (9.3), governance issue list UI (9.4), ontology graph UI (9.5), Graph RAG, Agent writes to ontology, external KB modification
 
-**Phase 9 complete**. Phase 10.1–10.5 delivered (governance operations complete). Phase 11 planning — see `docs/phase11-planning.md`.
+**Phase 9 complete**. Phase 10.1–10.5 delivered (governance operations complete). Phase 11/12 delivered (modeling drafts, quality gates, immutable packages). Phase 13 planning — see `docs/phase13-planning.md`.
 
 ### Real KB Curation Demo — Phase 10.2 (2026-06-18)
 
@@ -761,7 +761,7 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - ✅ Evidence bridge is read-only navigation, not retrieval change
 - ✅ Curation backlog is human action guidance only
 
-**Next**: Phase 11 planning. See `docs/project-roadmap.md`.
+**Next**: Phase 13.1 business contract profile specification. See `docs/phase13-planning.md`.
 
 ## Agent Instructions For The Next Session
 

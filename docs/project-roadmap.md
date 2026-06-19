@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-19
-**Current phase**: Phase 12 backend complete (12.1–12.6 delivered). Phase 13 planning has not started. Phase 11.5 UI remains deferred to the later Kimi frontend refactor. Base docs: `docs/agent-handoff.md`, `docs/phase12-planning.md`, `docs/phase12-review.md`, `docs/development-workflow.md`.
+**Current phase**: Phase 12 backend complete (12.1–12.6 delivered). Phase 13 planning complete — 13.1–13.6 slices defined, no implementation started. Phase 11.5 UI remains deferred to the later Kimi frontend refactor. Base docs: `docs/agent-handoff.md`, `docs/phase13-planning.md`, `docs/phase12-review.md`, `docs/development-workflow.md`.
 
 ---
 
@@ -255,7 +255,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 
 **Out of scope**: Full modeling studio, Graph RAG, graph database, Agent auto-write, external KB auto-fix, draft-to-production pipeline. Phase 11.5 UI deferred to later Kimi frontend refactor — current CC iterations do no frontend work (no static/js, no CSS, no HTML, no verify_ui, no Playwright).
 
-**Next**: Phase 12 is complete; Phase 13 scope requires product alignment before implementation.
+**Next**: Phase 13 is PLANNED — see `docs/phase13-planning.md`. Phase 12 is complete.
 
 
 ## Phase 12: Ontology Model Quality & Contract Packages v1 ← COMPLETE (12.1–12.6 delivered)
@@ -274,6 +274,22 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 **Completion**: Phase 12 turns accepted drafts into quality-gated, immutable, exportable contract snapshots with declarative Action permission requirements. It does not publish or execute an Ontology.
 
 **Out of scope**: Frontend, modeling studio, Graph RAG, graph database, Agent auto-write/auto-publish, external KB modification, production schema write, Phase 11.5 UI (deferred to Kimi).
+
+
+## Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 ← PLANNED (13.1–13.6 defined, no implementation started)
+
+**Goal**: Advance the Phase 12 audit-type model package into a deterministically validated, application-readable business Ontology contract with stable type definitions — without publishing to production, storing object instances, executing Actions, or generating an SDK. See `docs/phase13-planning.md`.
+
+| # | Task | Description |
+|---|------|-------------|
+| 13.1 | Business contract profile specification | Define `business_v1` contract profile as a specification document. Distinguish from Phase 12 audit package and knowledge_meta profile. (PLANNED) |
+| 13.2 | Deterministic business contract validator | Validate business_v1 packages against minimum type, structure, and completeness rules. Deterministic — no LLM. Returns structured errors/warnings. (PLANNED) |
+| 13.3 | Business contract compiler | Derive stable compiled business manifest from a validated business_v1 package. Remove audit noise, sort deterministically, compute semantic_hash. (PLANNED) |
+| 13.4 | Read-only contract export API | `GET /groups/{gid}/ontology/packages/{pid}/contract` — member+ read. Returns compiled manifest or 422 with validation errors. No mutation. (PLANNED) |
+| 13.5 | Manufacturing pilot v1 | Hand-crafted Equipment + WorkOrder + CreateWorkOrder model. Full pipeline demo: drafts → review → package → validate → compile → export. No object instances, no ERP/MES/PLC, no action execution. (PLANNED) |
+| 13.6 | Phase 13 review | End-to-end boundary verification, hash stability, knowledge_meta rejection, audit/provenance chain, next-phase decision gate. (PLANNED) |
+
+**Out of scope**: Frontend, modeling UI, business object instance tables, package activate/publish, Action execution, Functions runtime, OSDK/code generation, MCP/Agent tool registration, Graph RAG, ERP/MES/PLC integration, external KB modification, knowledge_meta→business_v1 auto-conversion, full JSON Schema/OpenAPI generation, generic manufacturing framework.
 
 
 ## Explicitly Out of Scope (current phases only)
