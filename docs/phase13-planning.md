@@ -1,7 +1,7 @@
 # Phase 13 Planning — Typed Business Ontology Contract & Manufacturing Pilot v1
 
 **Date**: 2026-06-19
-**Status**: 13.1–13.4 complete (profile spec + validator + compiler + export API), 13.5–13.6 PLANNED.
+**Status**: 13.1–13.5 complete (profile spec + validator + compiler + export API + manufacturing pilot), 13.6 review PLANNED.
 
 ---
 

@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-19
-**Current phase**: Phase 12 backend complete (12.1–12.6 delivered). Phase 13 planning complete — 13.1–13.6 slices defined, no implementation started. Phase 11.5 UI remains deferred to the later Kimi frontend refactor. Base docs: `docs/agent-handoff.md`, `docs/phase13-planning.md`, `docs/phase12-review.md`, `docs/development-workflow.md`.
+**Current phase**: Phase 12 backend complete (12.1–12.6 delivered). Phase 13.1–13.5 complete (profile spec + validator + compiler + export API + manufacturing pilot). Phase 13.6 review is next. Phase 11.5 UI remains deferred to the later Kimi frontend refactor. Base docs: `docs/agent-handoff.md`, `docs/phase13-planning.md`, `docs/phase12-review.md`, `docs/development-workflow.md`.
 
 ---
 
@@ -276,7 +276,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 **Out of scope**: Frontend, modeling studio, Graph RAG, graph database, Agent auto-write/auto-publish, external KB modification, production schema write, Phase 11.5 UI (deferred to Kimi).
 
 
-## Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 ← IN PROGRESS (13.1–13.4 complete, 13.5–13.6 PLANNED)
+## Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 ← IN PROGRESS (13.1–13.5 complete, 13.6 review PLANNED)
 
 **Goal**: Advance the Phase 12 audit-type model package into a deterministically validated, application-readable business Ontology contract with stable type definitions — without publishing to production, storing object instances, executing Actions, or generating an SDK. See `docs/phase13-planning.md`.
 
@@ -286,7 +286,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 13.2 | Deterministic business contract validator | ✅ `validate_business_contract()` pure function — 22 error + 3 warning codes, 7 parametrized tests (38 total). No DB, no LLM, deterministic output order. (2026-06-19) |
 | 13.3 | Business contract compiler | ✅ `compile_business_contract()` — field whitelist, deterministic sort, semantic_hash (sha256:), provenance block. Raises `BusinessContractCompilationError` on validator FAIL. 7 tests. (2026-06-19) |
 | 13.4 | Read-only contract export API | ✅ `GET /packages/{pid}/contract` — member+ read, outsider 403, cross-group 404, 422 on validation failure. Reuses compiler directly. 8 API tests. (2026-06-19) |
-| 13.5 | Manufacturing pilot v1 | Hand-crafted Equipment + WorkOrder + CreateWorkOrder model. Full pipeline demo: drafts → review → package → validate → compile → export. No object instances, no ERP/MES/PLC, no action execution. (PLANNED) |
+| 13.5 | Manufacturing pilot v1 | ✅ Independent demo group, 11 business_v1 drafts (2 OT + 6 Prop + 2 Link + 1 Action). Full pipeline: draft create → batch review → package build → contract export → idempotent rebuild → cross-group isolation. PASS quality, semantic_hash stable. Demo script + 7 tests. (2026-06-19) |
 | 13.6 | Phase 13 review | End-to-end boundary verification, hash stability, knowledge_meta rejection, audit/provenance chain, next-phase decision gate. (PLANNED) |
 
 **Out of scope**: Frontend, modeling UI, business object instance tables, package activate/publish, Action execution, Functions runtime, OSDK/code generation, MCP/Agent tool registration, Graph RAG, ERP/MES/PLC integration, external KB modification, knowledge_meta→business_v1 auto-conversion, full JSON Schema/OpenAPI generation, generic manufacturing framework.
