@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 13 Complete — Business_v1 Backend Contract Is Stable; Frontend Handoff Surface Defined
+
+- Date: 2026-06-19
+- Version: Phase 13.6 (review closeout)
+- Type: decision
+- Context: Phase 13 delivered six slices (profile spec, deterministic validator, compiler with semantic_hash, read-only export API, manufacturing pilot, and review). The question was whether the backend contract surface is stable enough to hand to Kimi for frontend refactor.
+- What happened: Full non-E2E regression: 495 passed, 0 failed, ruff clean. All 12 review gates PASS: validator determinism, hash stability (same business = same semantic_hash, different business = different hash), knowledge_meta rejection via contract_profile_mismatch, member/outsider/cross-group isolation, provenance audit chain, no audit noise in compiled manifest, no mutation on GET, manufacturing pilot reproducibility (semantic_hash identical across databases). One minor fix applied: `parameters: None` double-reporting in validator. No new tables, migrations, dependencies, or frontend changes.
+- Engineering judgment: The correct posture at a phase boundary is to verify every gate and record what was proved vs what was deliberately not proved. Phase 13 proved the business_v1 contract pipeline is deterministic, stable, and permission-bounded. It did not prove object runtime, SDK generation, MCP integration, or Action execution — and should not claim those. The decision to hand the stable contract surface to Kimi for frontend refactor while keeping CC backend-only is the right sequencing: the typed contract model is now the data contract between backend and frontend.
+- Verification: 495 non-E2E tests (434 baseline + 61 Phase 13), ruff clean src/tests/scripts, manufacturing pilot reproducible on fresh DB with identical semantic_hash.
+
 ## Phase 13.4 — Contract Export API Reuses Deterministic Compiler with Server-Side Group Isolation
 
 - Date: 2026-06-19

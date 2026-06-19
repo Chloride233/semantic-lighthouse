@@ -451,7 +451,8 @@ def _validate_action_type(
 
     # parameters
     params = payload.get("parameters")
-    if not isinstance(params, list):
+    params_was_missing = not isinstance(params, list)
+    if params_was_missing:
         issues.append(_make_issue(
             "error", "missing_parameters", section, item_id, sort_key,
             "payload.parameters",
@@ -459,7 +460,7 @@ def _validate_action_type(
         ))
         params = []
 
-    if len(params) == 0:
+    if len(params) == 0 and not params_was_missing:
         issues.append(_make_issue(
             "warning", "empty_parameters", section, item_id, sort_key,
             "payload.parameters",

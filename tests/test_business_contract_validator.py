@@ -429,6 +429,15 @@ def test_property_link_validation(draft_type, payload, expected_codes):
                           "confirmation_requirement": "always",
                           "evidence_requirement": ["ev"]}},
      ["declared_effects_binding_hint"]),
+    # parameters: None → only missing_parameters error, no empty_parameters
+    ({"api_name": "act1", "display_name": "Act",
+      "target_object_type": "work_order",
+      "parameters": None,
+      "declared_effects": ["Do thing"],
+      "action_contract": {"required_role": "admin",
+                          "confirmation_requirement": "always",
+                          "evidence_requirement": ["ev"]}},
+     ["missing_parameters"]),
     # missing action_contract
     ({"api_name": "act1", "display_name": "Act",
       "target_object_type": "work_order",
@@ -469,6 +478,12 @@ def test_action_validation(action_payload, expected_codes):
     codes = {i["code"] for i in result["issues"]}
     for ec in expected_codes:
         assert ec in codes, f"Expected {ec} in {codes} for {action_payload}"
+
+    # Regression: parameters=None must NOT also produce empty_parameters
+    if action_payload.get("parameters") is None:
+        assert "empty_parameters" not in codes, (
+            f"parameters=None should not also warn empty_parameters: {codes}"
+        )
 
 
 # ── test 6: duplicate api_name scoping ──────────────────────────────────

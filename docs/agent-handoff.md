@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 12 complete. Phase 13.1–13.5 complete — profile spec + validator + compiler + export API + manufacturing pilot. Next: 13.6 Phase 13 review)
+Last updated: 2026-06-19 (Phase 13 COMPLETE — business_v1 backend contract stable, 495 tests, 12/12 gates PASS. Next: Kimi frontend refactor handoff, using typed contract as data model surface. CC remains backend-only — no frontend work.)
 
 ## Current Phase
 
@@ -309,7 +309,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 13.1–13.5 complete (profile spec + validator + compiler + export API + manufacturing pilot, 67 tests). Next step is 13.6 Phase 13 review — full non-E2E pytest regression, boundary verification, next-phase decision gate. Phase 11.5 UI remains deferred to Kimi.
+**Next iteration**: Phase 13 COMPLETE (all 12 review gates PASS, `docs/phase13-review.md`). Kimi frontend refactor planning is the next workstream — the backend business_v1 contract surface (profile spec, validator, compiler, export API, manufacturing pilot) is stable and typed. CC does not execute frontend work. Future backend phases (14a Object Runtime, 14b SDK, 14c Contract Refinement, MCP) remain candidates, not pre-committed.
 
 ### Phase 11.1+11.2 Review Hardening — Rescan Evidence Lifecycle (2026-06-19)
 

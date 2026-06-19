@@ -1,7 +1,7 @@
 # Phase 13 Planning — Typed Business Ontology Contract & Manufacturing Pilot v1
 
 **Date**: 2026-06-19
-**Status**: 13.1–13.5 complete (profile spec + validator + compiler + export API + manufacturing pilot), 13.6 review PLANNED.
+**Status**: **COMPLETE** — all 13.1–13.6 slices delivered. Review at `docs/phase13-review.md` — 12/12 gates PASS, 495 non-E2E tests, no blocking findings. Business_v1 backend contract is stable.
 
 ---
 
@@ -268,9 +268,11 @@ Proposal, Research         Alert, Asset
 
 ---
 
-### 13.6 Phase 13 Review
+### 13.6 Phase 13 Review ✅
 
-**Goal**: Verify all Phase 13 slices end-to-end, document findings, and decide the next phase direction.
+**Goal**: Verify all Phase 13 slices end-to-end, document findings, and decide the next phase direction. **Delivered 2026-06-19.**
+
+See `docs/phase13-review.md` for full review, gate evidence, and next-phase decision.
 
 **Review checklist**:
 - [ ] business_v1 validator is deterministic — same input always produces same errors/warnings.
