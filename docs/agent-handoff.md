@@ -1,10 +1,10 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 12.5 complete — action contract, 38 tests. Next: 12.6 real demo and phase review)
+Last updated: 2026-06-19 (Phase 12 complete — real package demo and backend review passed. Next: Phase 13 planning, not implementation)
 
 ## Current Phase
 
-**Phases 0–10 delivered; Phase 11 backend complete; Phase 12 in progress (12.1 delivered, 12.2a validator core delivered). Next: 12.2b API/real validation** — see `docs/project-roadmap.md` and `docs/phase12-planning.md`. Phase 12.2a added `services/ontology_draft_quality.py` with 9 error codes and 7 warning codes, read-only, PASS/WARN/FAIL status. 9 tests. See `docs/phase12-planning.md` §12.2a delivery record.
+**Phases 0–10 delivered; Phase 11 backend complete; Phase 12 complete (12.1–12.6)** — see `docs/project-roadmap.md`, `docs/phase12-planning.md`, and `docs/phase12-review.md`. Phase 12 now provides real-KB draft quality measurement, accepted-only quality/dependency gates, immutable versioned model packages, package create/read/export API, and declarative Action permission contracts. The final real demo produced a five-draft WARN package and verified hash idempotency plus reviewer/creator audit metadata. Accepted packages are not production schema and cannot publish or execute actions.
 
 **Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
 
@@ -17,6 +17,7 @@ Phase 8: RAG -> user-confirmed task -> Agent/HITL -> audit (DELIVERED)
 Phase 9: schema/frontmatter validation -> entity extraction -> wikilink relation extraction -> broken-link detection -> ontology graph/entity detail (DELIVERED)
 Phase 10: governance issue triage -> curation demo -> graph UX polish -> evidence bridge -> review (DELIVERED)
 Phase 11: modeling drafts v1 — Object Type / Property / Link Type / Action Type proposals from governed entities (BACKEND DELIVERED — 11.5 UI deferred, see docs/phase11-planning.md)
+Phase 12: quality gates -> accepted-only immutable contract package -> declarative Action permissions -> real demo/review (DELIVERED)
 ```
 
 Phase 9 started with read-only governance and graph visibility (not a full modeling studio, Graph RAG, or Agent auto-write path). Phase 10 operationalized governance findings into a curation pipeline. Phase 11 continues the read-first approach: modeling drafts are human-reviewed proposals, not production schema, and Agent may read/propose but never auto-create/accept/publish.
@@ -300,7 +301,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 11.6 Agent-facing boundary review. Phase 11.5 UI deferred to Kimi. See `docs/phase11-planning.md`.
+**Next iteration**: Phase 13 product/architecture planning only. Do not begin implementation until its boundary and acceptance criteria are aligned. Phase 11.5 UI remains deferred to Kimi.
 
 ### Phase 11.1+11.2 Review Hardening — Rescan Evidence Lifecycle (2026-06-19)
 
@@ -766,8 +767,8 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.
 
-Do not frame the project as only a RAG/Agent portfolio. The current product direction is Ontology semantic operating layer. Phase 10 is complete. Phase 11 backend is complete (11.1–11.4+11.6: modeling draft model, read API, deterministic generation, human review workflow, Agent boundary). Phase 11.5 UI is **deferred** to Kimi unified frontend refactor — do NOT implement any frontend. Phase 12.1 real KB demo delivered (76 drafts, technical integrity PASS). Next: Phase 12.2 draft quality gates. Do not build a full modeling studio, Graph RAG, or Agent auto-write.
+Do not frame the project as only a RAG/Agent portfolio. The current product direction is the Ontology semantic operating layer. Phase 11 backend and Phase 12 are complete. Phase 12 ends at quality-gated, immutable internal contract packages with declarative Action permission requirements; accepted packages are not published or executable Ontology. Phase 11.5 UI is **deferred** to Kimi unified frontend refactor — do NOT implement frontend work in current CC iterations. Next work is Phase 13 planning, not an assumed feature implementation. Do not build a full modeling studio, Graph RAG, Agent auto-write, package publishing, or external KB writes.
 
 **Frontend moratorium**: current CC iterations do zero frontend work. Do not modify static/js, static/styles.css, HTML templates, or frontend routes. Do not run verify_ui, Playwright, or browser smoke.
 
-Do not rely on chat history. The latest verified baseline is commit `1ba0b60 docs: plan phase 12 ontology model contracts`; the working tree should be clean before the next iteration. Phase 11 backend is complete. Phase 12.1 real KB demo delivered (76 drafts, PASS). Next: Phase 12.2 draft quality gates. See `docs/phase12-planning.md`.
+Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 12 completion is documented in `docs/phase12-planning.md` and `docs/phase12-review.md`: 69 Phase 12 tests, 33 review-workflow tests, and 434 full non-E2E tests passed; fresh migration reached `0017`. Next: align Phase 13 scope before coding.

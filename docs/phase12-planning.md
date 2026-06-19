@@ -1,7 +1,7 @@
 # Phase 12 Planning — Ontology Model Quality & Contract Packages v1
 
 **Date**: 2026-06-19
-**Status**: 12.1–12.5 delivered. Next → 12.6 real demo and phase review.
+**Status**: **COMPLETE** (12.1–12.6 delivered). Real demo + phase review passed.
 
 ---
 
@@ -380,5 +380,40 @@ manual missing → blocked, 8 parametrized invalid field values, explicit invali
 not overridden, no-action packages unaffected.
 
 38 total package tests (14 action + 10 builder + 8 schema + 6 old).
-same-group hash unique, cross-group version allowed, cross-group hash
-allowed, no mutable lifecycle fields, no FK source_draft_id column.
+
+---
+
+## Phase 12.6 Delivery Record (2026-06-19)
+
+### Real Demo
+
+`scripts/run_ontology_model_package_demo.py` — full end-to-end pipeline against
+real KB (74 entities, 186 relations, 97 issues → 76 drafts → 5 selected by
+stable generation_key whitelist):
+
+| Step | Result |
+|------|--------|
+| Accept 5 drafts (2 OT, 1 Prop, 1 Link, 1 Action) | ✅ shared review service, reviewer metadata set |
+| Quality gate on accepted subset | errors=0, warnings=4 (WARN) |
+| Build package v1 | hash=2a8a7d137..., drafts=5, quality_status=WARN |
+| Action contract (Review Link Target) | admin/always/["ontology_validation_issue"] |
+| Idempotent rebuild | created=False, same package |
+| SHA-256 verification | matches stored content_hash |
+| Audit chain | all reviewed_by/reviewed_at/review_note + created_by/created_at |
+| Unselected drafts | 71 unchanged (still proposed) |
+
+### Review
+
+`docs/phase12-review.md` — no P0/P1 findings. One P2 in the initial demo
+implementation (direct ORM review transition) was fixed by extracting a shared,
+group-scoped atomic review service used by both the API and demo. All boundary
+checks pass after the fix.
+
+Accepted package ≠ production schema. Package is immutable app-internal snapshot.
+
+### Tests
+
+Phase 12 related: 69 passed. Review workflow: 33 passed. Full non-E2E
+regression: 434 passed. Ruff clean; fresh migration reached `0017`.
+
+**Next**: Phase 13 planning.

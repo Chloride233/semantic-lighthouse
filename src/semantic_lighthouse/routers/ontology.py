@@ -51,6 +51,10 @@ from semantic_lighthouse.schemas import (
     OntologyValidationIssueResponse,
 )
 from semantic_lighthouse.services.ontology import scan_group
+from semantic_lighthouse.services.ontology_draft_reviews import (
+    DraftReviewError,
+    review_modeling_drafts,
+)
 
 router = APIRouter(prefix="/groups/{group_id}/ontology", tags=["ontology"])
 
@@ -380,51 +384,29 @@ def review_drafts_batch(
     """
     require_group_role(db, current_user.id, group_id, {"owner", "admin"})
 
-    # Deduplicate while preserving order
-    unique_ids = list(dict.fromkeys(body.draft_ids))
-
-    # Fetch all drafts in one query — must all exist and belong to this group
-    drafts = list(
-        db.scalars(
-            select(OntologyModelingDraft).where(
-                OntologyModelingDraft.id.in_(unique_ids),
-                OntologyModelingDraft.group_id == group_id,
-            )
-        ).all()
-    )
-
-    if len(drafts) != len(unique_ids):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="One or more drafts not found in this group",
+    try:
+        drafts, reviewed_at = review_modeling_drafts(
+            db=db,
+            group_id=group_id,
+            draft_ids=body.draft_ids,
+            decision=body.status,
+            reviewer_id=current_user.id,
+            review_note=body.review_note,
         )
-
-    # All must still be proposed
-    already_reviewed = [d for d in drafts if d.status != "proposed"]
-    if already_reviewed:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="One or more drafts have already been reviewed",
+    except DraftReviewError as exc:
+        error_status = (
+            status.HTTP_404_NOT_FOUND
+            if exc.code == "draft_not_found"
+            else status.HTTP_409_CONFLICT
         )
-
-    cleaned_note = body.review_note.strip() if body.review_note else None
-    now = utc_now()
-
-    for draft in drafts:
-        draft.status = body.status
-        draft.reviewed_by = current_user.id
-        draft.reviewed_at = now
-        draft.review_note = cleaned_note
-        draft.updated_at = now
-
-    db.commit()
+        raise HTTPException(status_code=error_status, detail=exc.message) from exc
 
     return OntologyModelingDraftBatchReviewResponse(
         reviewed_count=len(drafts),
         status=body.status,
         draft_ids=[d.id for d in drafts],
         reviewed_by=current_user.id,
-        reviewed_at=now,
+        reviewed_at=reviewed_at,
     )
 
 
@@ -443,34 +425,27 @@ def review_draft(
     """
     require_group_role(db, current_user.id, group_id, {"owner", "admin"})
 
-    draft = db.scalar(
-        select(OntologyModelingDraft).where(
-            OntologyModelingDraft.id == draft_id,
-            OntologyModelingDraft.group_id == group_id,
+    try:
+        drafts, _ = review_modeling_drafts(
+            db=db,
+            group_id=group_id,
+            draft_ids=[draft_id],
+            decision=body.status,
+            reviewer_id=current_user.id,
+            review_note=body.review_note,
         )
-    )
-    if draft is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Draft not found",
-        )
-
-    if draft.status != "proposed":
+    except DraftReviewError as exc:
+        if exc.code == "draft_not_found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Draft not found",
+            ) from exc
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Draft has already been reviewed",
-        )
+        ) from exc
 
-    cleaned_note = body.review_note.strip() if body.review_note else None
-    now = utc_now()
-
-    draft.status = body.status
-    draft.reviewed_by = current_user.id
-    draft.reviewed_at = now
-    draft.review_note = cleaned_note
-    draft.updated_at = now
-
-    db.commit()
+    draft = drafts[0]
     db.refresh(draft)
     return _draft_response(draft)
 

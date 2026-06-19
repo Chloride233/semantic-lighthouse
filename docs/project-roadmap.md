@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-19
-**Current phase**: Phase 11 backend complete (11.1–11.4+11.6 delivered, 11.5 UI deferred). Phase 12 planning — see `docs/phase12-planning.md`. Base docs: `docs/agent-handoff.md`, `docs/phase11-planning.md`, `docs/development-workflow.md`.
+**Current phase**: Phase 12 backend complete (12.1–12.6 delivered). Phase 13 planning has not started. Phase 11.5 UI remains deferred to the later Kimi frontend refactor. Base docs: `docs/agent-handoff.md`, `docs/phase12-planning.md`, `docs/phase12-review.md`, `docs/development-workflow.md`.
 
 ---
 
@@ -17,7 +17,7 @@
 | V3.3 | RAG run audit persistence, group-scoped replay | Stable |
 | V3.4 | Async ETL pipeline, structure-aware chunking, ingestion jobs, HNSW | Stable (hardened) |
 
-**Metrics**: 207 pytest, ruff clean, alembic `0011` at head. Production safety checks delivered (APP_ENV, JWT/cookie/database validation). verify_ui 19/22 (3 known-fragile: confirm button, task card, document metadata badges — none related to Phase 8).
+**Metrics**: 434 non-E2E pytest passed, ruff clean, alembic `0017` at head (2026-06-19). Production safety checks delivered (APP_ENV, JWT/cookie/database validation). Frontend verification was intentionally not run during the current backend-only iteration lane.
 
 ---
 
@@ -35,7 +35,7 @@ schema/frontmatter validation -> entity extraction -> wikilink relation extracti
 governance issue triage -> curation demo -> graph UX polish -> evidence bridge -> review (Phase 10)
 ```
 
-Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning.md`.
+Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivered quality-gated, immutable model contract packages. Accepted packages remain internal snapshots, not production Ontology publication.
 
 | # | Task | Acceptance |
 |---|------|------------|
@@ -255,10 +255,10 @@ Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning
 
 **Out of scope**: Full modeling studio, Graph RAG, graph database, Agent auto-write, external KB auto-fix, draft-to-production pipeline. Phase 11.5 UI deferred to later Kimi frontend refactor — current CC iterations do no frontend work (no static/js, no CSS, no HTML, no verify_ui, no Playwright).
 
-**Next**: Phase 12.3 model package read model.
+**Next**: Phase 12 is complete; Phase 13 scope requires product alignment before implementation.
 
 
-## Phase 12: Ontology Model Quality & Contract Packages v1 ← IN PROGRESS (12.1–12.5 delivered)
+## Phase 12: Ontology Model Quality & Contract Packages v1 ← COMPLETE (12.1–12.6 delivered)
 
 **Goal**: Turn Phase 11 accepted drafts into verified, quality-gated, immutable model contract packages — without treating accepted as production, without Graph RAG, without Agent auto-write. See `docs/phase12-planning.md`.
 
@@ -269,9 +269,9 @@ Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning
 | 12.3 | Immutable model package read model | ✅ Migration 0017 + builder service. Accepted-only, quality gate, dependency gate, content hash, versioned, idempotent. 27 tests (2026-06-19) |
 | 12.4 | Package read/export API | ✅ POST create + GET list/detail/export. Owner/admin create, member+ read. No PATCH/DELETE. 8 API tests (2026-06-19) |
 | 12.5 | Action and permission contract | ✅ Package builder enforces action_contract (required_role, confirmation_requirement, evidence_requirement). Deterministic defaults + manual validation. 14 tests (2026-06-19) |
-| 12.6 | Real demo and phase review | End-to-end: accepted drafts → package → JSON contract. Audit chain verification. |
+| 12.6 | Real demo and phase review | ✅ Real KB chain: 76 drafts → 5 explicitly reviewed drafts → WARN package; stable hash/idempotency and audit chain verified. 434 non-E2E tests passed (2026-06-19). |
 
-**First slice**: 12.1 real KB demo — no new migration, no API changes, verify generation quality before building on top.
+**Completion**: Phase 12 turns accepted drafts into quality-gated, immutable, exportable contract snapshots with declarative Action permission requirements. It does not publish or execute an Ontology.
 
 **Out of scope**: Frontend, modeling studio, Graph RAG, graph database, Agent auto-write/auto-publish, external KB modification, production schema write, Phase 11.5 UI (deferred to Kimi).
 
