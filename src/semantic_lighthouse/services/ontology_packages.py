@@ -90,11 +90,18 @@ def build_model_package(
     for d in accepted:
         payload = d.payload or {}
         if d.draft_type == "property":
-            ot = payload.get("object_type", "")
-            if ot and ot.strip().casefold() not in obj_type_names:
+            ot_raw = payload.get("object_type")
+            if not isinstance(ot_raw, str) or not ot_raw.strip():
                 raise PackageBuildError(
                     code="missing_dependency",
-                    message=f"Property '{d.name}' object_type '{ot}' "
+                    message=f"Property '{d.name}' missing or empty "
+                    f"payload.object_type — required for package contract",
+                )
+            ot = ot_raw.strip().casefold()
+            if ot not in obj_type_names:
+                raise PackageBuildError(
+                    code="missing_dependency",
+                    message=f"Property '{d.name}' object_type '{ot_raw.strip()}' "
                     f"not in accepted object_type drafts",
                 )
         if d.draft_type == "link_type":
@@ -102,12 +109,19 @@ def build_model_package(
                 ("source_object_type", "source"),
                 ("target_object_type", "target"),
             ]:
-                ot = payload.get(field, "")
-                if ot and ot.strip().casefold() not in obj_type_names:
+                ot_raw = payload.get(field)
+                if not isinstance(ot_raw, str) or not ot_raw.strip():
                     raise PackageBuildError(
                         code="missing_dependency",
-                        message=f"Link '{d.name}' {label}_object_type '{ot}' "
-                        f"not in accepted object_type drafts",
+                        message=f"Link '{d.name}' missing or empty "
+                        f"payload.{field} — required for package contract",
+                    )
+                ot = ot_raw.strip().casefold()
+                if ot not in obj_type_names:
+                    raise PackageBuildError(
+                        code="missing_dependency",
+                        message=f"Link '{d.name}' {label}_object_type "
+                        f"'{ot_raw.strip()}' not in accepted object_type drafts",
                     )
 
     # ── Stable contract snapshot ──────────────────────────────────────

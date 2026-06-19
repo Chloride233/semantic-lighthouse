@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 12.3 complete — schema + builder, 27 tests. Next: 12.4 package API)
+Last updated: 2026-06-19 (Phase 12.3 complete — schema + builder + dependency gate hotfix, 29 tests. Next: 12.4 package API)
 
 ## Current Phase
 

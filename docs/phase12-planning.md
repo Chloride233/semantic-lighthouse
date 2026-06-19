@@ -322,7 +322,12 @@ Raises `PackageBuildError(code, message)`.
 **quality_summary**: status, error_count (0), warning_count, warning_codes distribution,
 accepted_draft_count.
 
-**Tests**: 8 tests covering no-accepted error, quality error block, property dependency
+**Tests**: **Hotfix (2026-06-19)**: Dependency gate now rejects accepted property/link
+drafts with missing, null, empty, or whitespace-only payload object_type fields.
+Previously `if ot and ...` silently allowed empty dependencies into packages.
++2 tests: manual property payload={} → blocked, link whitespace target → blocked.
+
+10 tests covering no-accepted error, quality error block, property dependency
 block, link dependency block, WARN package with summary, idempotency, version 2 on
 content change, cross-group isolation. 27 total package+quality tests pass.
 same-group hash unique, cross-group version allowed, cross-group hash

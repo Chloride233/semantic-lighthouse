@@ -8,6 +8,7 @@ from semantic_lighthouse.models import (
     Group,
     OntologyEntity,
     OntologyModelingDraft,
+    OntologyRelation,
     User,
 )
 from semantic_lighthouse.services.ontology_packages import (
@@ -94,6 +95,59 @@ class TestBuildErrors:
         db_session.commit()
         # quality gate fires first (e4 is not a real relation), still blocked
         with pytest.raises(PackageBuildError):
+            build_model_package(db_session, gid, uid)
+
+
+class TestDependencyMissing:
+    def test_property_missing_object_type_field_blocks(self, db_session: Session):
+        """Accepted manual property with payload={} and valid source → blocked
+        because payload.object_type is missing entirely."""
+        gid, uid = "bh1", "uh1"
+        db_session.add(Group(id=gid, name="H1", created_by=uid))
+        db_session.add(User(id=uid, email="h1@t.com", password_hash="x",
+                            display_name="H1"))
+        _seed_entity(db_session, gid, uid, "eh1", "Concept")
+        db_session.flush()
+        db_session.add(_make(gid, uid, draft_type="property",
+                             name="ManualProp", status="accepted",
+                             source_entity_id="eh1",
+                             payload={}))
+        db_session.commit()
+        with pytest.raises(PackageBuildError, match="missing or empty"):
+            build_model_package(db_session, gid, uid)
+
+    def test_link_missing_object_type_fields_blocks(self, db_session: Session):
+        """Accepted link with valid source, payload missing target_object_type
+        → blocked with missing_dependency, not quality error."""
+        gid, uid = "bh2", "uh2"
+        db_session.add(Group(id=gid, name="H2", created_by=uid))
+        db_session.add(User(id=uid, email="h2@t.com", password_hash="x",
+                            display_name="H2"))
+        _seed_entity(db_session, gid, uid, "eh2", "Src")
+        # Need accepted object_type "Src" so source dep check passes
+        db_session.add(_make(gid, uid, draft_type="object_type",
+                             name="Src", status="accepted",
+                             source_entity_id="eh2",
+                             payload={"generator": DT, "generation_key": "ot:src",
+                                      "source_entity_type": "Concept",
+                                      "entity_count": 1}))
+        # Seed valid relation so quality gate passes
+        db_session.add(OntologyRelation(
+            id="rh2", group_id=gid, source_entity_id="eh2",
+            source_document_id="d-eh2",
+            target_path="tgt", relation_type="wikilink", status="resolved",
+            evidence_document_id="d-eh2",
+        ))
+        db_session.flush()
+
+        db_session.add(_make(gid, uid, draft_type="link_type",
+                             name="MissingTgt", status="accepted",
+                             source_relation_id="rh2",
+                             payload={"source_object_type": "Src",
+                                      "target_object_type": "  "}))
+        db_session.commit()
+        # source "Src" exists but target is whitespace → missing or empty
+        with pytest.raises(PackageBuildError, match="missing or empty"):
             build_model_package(db_session, gid, uid)
 
 
