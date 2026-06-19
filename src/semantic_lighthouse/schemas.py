@@ -556,3 +556,20 @@ class OntologyModelingDraftResponse(BaseModel):
 class OntologyModelingDraftListResponse(BaseModel):
     drafts: list[OntologyModelingDraftResponse]
     total: int
+
+
+# ── Phase 11.3: draft generation ─────────────────────────────────────
+
+
+class DraftGenerationCountsByType(BaseModel):
+    object_type: int = 0
+    property: int = 0
+    link_type: int = 0
+    action_type: int = 0
+
+
+class DraftGenerationResponse(BaseModel):
+    generated_count: int
+    existing_count: int
+    skipped_count: int
+    counts_by_type: DraftGenerationCountsByType

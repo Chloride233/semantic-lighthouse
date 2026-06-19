@@ -33,6 +33,7 @@ from semantic_lighthouse.models import (
 )
 from semantic_lighthouse.services.document_ingestion import ingest_markdown, should_import_markdown
 from semantic_lighthouse.services.ontology import scan_group
+from semantic_lighthouse.services.ontology_drafts import determine_action_type
 from sqlalchemy import select
 
 DEFAULT_KB = Path("F:/ontology-kb/knowledge-graph")
@@ -57,21 +58,6 @@ def classify_unresolved_wikilink(target_path: str) -> str:
     first_dir = target_path.split("/")[0] if "/" in target_path else ""
     if first_dir in KB_ENTITY_DIRS:
         return "missing_or_renamed_entity_doc"
-    return "review_link_target"
-
-
-def determine_action_type(code: str, triage_note: str) -> str:
-    """Determine backlog action_type from issue code and triage note."""
-    if code == "stale_eval_gold_doc_id":
-        return "update_eval_gold_doc_id"
-    if code in ("duplicate_title", "duplicate_alias"):
-        return "resolve_identity_conflict"
-    if code == "unresolved_wikilink":
-        if triage_note == "missing_research_doc_or_directory":
-            return "create_missing_research_doc"
-        if triage_note == "missing_or_renamed_entity_doc":
-            return "create_or_rename_entity_doc"
-        return "review_link_target"
     return "review_link_target"
 
 

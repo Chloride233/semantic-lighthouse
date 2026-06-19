@@ -1,6 +1,6 @@
 # Semantic Lighthouse — Project Roadmap
 
-**Last updated**: 2026-06-18
+**Last updated**: 2026-06-19
 **Current phase**: Phase 10 Governance Operations complete (10.1–10.5 delivered). Phase 11 planning — see `docs/phase11-planning.md`. Base docs: `docs/agent-handoff.md`, `docs/phase10-planning.md`, `docs/development-workflow.md`.
 
 ---
@@ -248,7 +248,7 @@ Phase 11 is planning: Ontology Modeling Drafts v1 — see `docs/phase11-planning
 |---|------|-------------|
 | 11.1 | Modeling draft boundary + schema | ✅ `OntologyModelingDraft` model, migration `0016`, `object_type`/`property`/`link_type`/`action_type`, status lifecycle (proposed/accepted/rejected), evidence linkage FKs (2026-06-19) |
 | 11.2 | Draft read model / API | ✅ `POST /groups/{gid}/ontology/drafts` (owner/admin), `GET /groups/{gid}/ontology/drafts` (member+) with draft_type/status/q/source_entity_id filters, group-scoped evidence validation (2026-06-19). Review hardened: rescan evidence lifecycle relink, evidence_refs boundary (2026-06-19). |
-| 11.3 | Draft generation | Deterministic rules from existing entities/relations, no LLM |
+| 11.3 | Draft generation | ✅ Deterministic rules from existing entities/relations, no LLM |
 | 11.4 | Human review workflow | proposed → accepted/rejected, reviewer audit |
 | 11.5 | UI modeling panel | Entity detail panel + draft list, read-only review UX |
 | 11.6 | Agent boundary review | Agent may read/propose, never auto-create/accept/publish |

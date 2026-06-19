@@ -1,10 +1,10 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 11.1+11.2 review hardened)
+Last updated: 2026-06-19 (Phase 11.3 deterministic draft generation delivered)
 
 ## Current Phase
 
-**Phases 0–10 delivered; Phase 11 in progress (11.1+11.2 delivered)** — see `docs/project-roadmap.md`, `docs/phase10-planning.md`, and `docs/phase11-planning.md`. Phase 11 focuses on ontology modeling drafts v1 before Graph RAG or modeling studio.
+**Phases 0–10 delivered; Phase 11 in progress (11.1+11.2+11.3 delivered)** — see `docs/project-roadmap.md`, `docs/phase10-planning.md`, and `docs/phase11-planning.md`. Phase 11 focuses on ontology modeling drafts v1 before Graph RAG or modeling studio.
 
 **Product north star updated 2026-06-18**: Semantic Lighthouse is an ontology-oriented semantic operating layer workspace for enterprise AI transformation. It helps enterprises turn fragmented knowledge, documents, systems, and workflows into a permission-aware, auditable, actionable Ontology semantic layer that can be safely used by applications and Agent workflows.
 
@@ -300,7 +300,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 11.3 Deterministic draft generation from existing entities. See `docs/phase11-planning.md`.
+**Next iteration**: Phase 11.4 Human review workflow (proposed → accepted/rejected, reviewer audit). See `docs/phase11-planning.md`.
 
 ### Phase 11.1+11.2 Review Hardening — Rescan Evidence Lifecycle (2026-06-19)
 
@@ -327,6 +327,24 @@ Result:
 - **Boundaries**: No PATCH/DELETE/review endpoints, no Agent access, no draft generation, no UI, no Graph RAG, no external KB write. Status always starts as `proposed` — accepted/rejected are Phase 11.4.
 - **Tests**: 16 new tests in `tests/test_ontology_modeling_drafts.py` (create/read permissions, group isolation, cross-group source rejection, evidence linkage ×4, draft_type/status/q filters, invalid draft_type 422, no-evidence rejection, admin create).
 - **Verification**: 297 passed (4 pre-existing E2E failures), ruff clean, migration 0016 at head, git diff --check clean.
+
+### Phase 11.3 — Deterministic Draft Generation (2026-06-19)
+
+**Status**: Delivered.
+
+- **Service**: `src/semantic_lighthouse/services/ontology_drafts.py` — `generate_modeling_drafts(db, group_id, created_by)` generates Object Type / Property / Link Type / Action Type drafts from group-scoped entities, relations, frontmatter, and confirmed governance issues. No LLM, no Agent, no filesystem, no external KB. Also houses `determine_action_type()` (moved from curation demo script).
+- **API**: `POST /groups/{gid}/ontology/drafts/generate` — owner/admin only. Returns `DraftGenerationResponse` with `generated_count`, `existing_count`, `skipped_count`, `counts_by_type`. Member → 403. No entities → 400 with guidance to run ontology scan.
+- **Generation rules**:
+  - Object Type: one per distinct entity_type. Name = entity_type. Source = first entity sorted by (source_path, id). Generation key: `object_type:<type>`.
+  - Property: one per (entity_type, frontmatter_field) excluding entityType/documentType. Name = `<EntityType>.<field>`. Generation key: `property:<type>:<field>`.
+  - Link Type: one per (source_type, relation_type, target_type) for resolved relations with target_entity_id. Name = `<Src> -> <Tgt> (<rel>)`. Generation key: `link_type:<src>:<rel>:<tgt>`.
+  - Action Type: one per action_type for confirmed issues (triage_status=confirmed). Uses `determine_action_type()` for issue→action mapping. Generation key: `action_type:<type>`.
+- **Idempotency**: Two-layer dedup — (1) generation_key in payload, (2) (draft_type, normalized name). Never modifies existing drafts' status, payload, or review metadata.
+- **Tests**: 25 new tests in `tests/test_ontology_draft_generation.py` covering permissions (owner/admin/member/outsider/no-entities), all 4 draft types, idempotency, manual draft protection, evidence scoping, generation key presence, and response schema.
+- **Boundaries**: No LLM, no Agent, no UI, no review/accept/reject, no external KB modification, no new migration, no stale draft cleanup, no PATCH/DELETE/review API. `determine_action_type` moved from script to service — 35 curation demo tests unaffected.
+- **Verification**: 332 passed (4 pre-existing E2E failures), ruff clean src+tests+scripts, git diff --check clean. 127 related tests (25 generation + 26 draft + 41 ontology + 35 curation demo).
+
+**Next**: Phase 11.4 — Human review workflow (proposed → accepted/rejected, reviewer audit).
 
 **Agent Architecture Research (2026-06-15)**:
 - `docs/research/public-agent-architecture-research.md` — 8 public projects analyzed

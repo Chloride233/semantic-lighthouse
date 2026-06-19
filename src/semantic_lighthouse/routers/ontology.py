@@ -27,6 +27,7 @@ from semantic_lighthouse.models import (
 )
 from semantic_lighthouse.schemas import (
     DRAFT_TYPES,
+    DraftGenerationResponse,
     OntologyEntityListResponse,
     OntologyEntityResponse,
     OntologyIssueListResponse,
@@ -315,6 +316,40 @@ def create_draft(
     db.commit()
     db.refresh(draft)
     return _draft_response(draft)
+
+
+# ── Phase 11.3: deterministic draft generation ───────────────────────
+
+
+@router.post("/drafts/generate", response_model=DraftGenerationResponse)
+def generate_drafts(
+    group_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DraftGenerationResponse:
+    """Generate modeling drafts deterministically from existing ontology data.
+
+    Owner or admin only. Idempotent — re-running with same data produces no duplicates.
+    Never modifies existing drafts (status, payload, review metadata).
+    """
+    require_group_role(db, current_user.id, group_id, {"owner", "admin"})
+
+    entity_count = db.scalar(
+        select(func.count()).select_from(
+            select(OntologyEntity).where(OntologyEntity.group_id == group_id).subquery()
+        )
+    ) or 0
+
+    if entity_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No ontology entities found in this group. Run ontology scan first.",
+        )
+
+    from semantic_lighthouse.services.ontology_drafts import generate_modeling_drafts
+
+    result = generate_modeling_drafts(db, group_id, current_user.id)
+    return DraftGenerationResponse(**result)
 
 
 # ── helpers ───────────────────────────────────────────────────────────

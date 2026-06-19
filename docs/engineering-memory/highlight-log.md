@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Phase 11.3 — Automation Generates Explainable Proposals, Not Autonomous Decisions
+
+- Date: 2026-06-19
+- Version: Phase 11.3
+- Type: decision
+- Context: Phase 11.1+11.2 established the modeling draft read model. The next step was generating Object Type / Property / Link Type / Action Type drafts from governed entities — without LLM hallucination, Agent auto-write, or manual curation of every proposal.
+- What happened: Built `generate_modeling_drafts()` — a deterministic service that reads group-scoped entities, relations, frontmatter, and confirmed governance issues, then produces idempotent modeling drafts with stable generation keys. Entity types become Object Type candidates. Frontmatter fields become Property candidates. Resolved wikilink relations become Link Type candidates. Confirmed governance issues become Action Type candidates (using the same `determine_action_type` mapping from Phase 10 curation, now moved to a proper service module). Two-layer dedup (generation_key + type/name) prevents duplicates. Manual drafts are never overwritten. No LLM, no Agent, no filesystem, no external KB.
+- Engineering judgment: The right role for automation in enterprise ontology governance is generating explainable, auditable, human-reviewable proposals — not accepting, executing, or publishing. Each generated draft carries a clear description stating it is NOT a production artifact. The generation is fully deterministic: same inputs produce same outputs, every time. The human remains the only path from "proposed" to "accepted" (Phase 11.4). This is the correct posture: automation reduces mechanical curation work while preserving human governance authority.
+- Verification: 25 new tests (permissions + all draft types + idempotency + manual protection + evidence scoping). 332/336 full suite pass (4 pre-existing E2E). Ruff clean. Git diff clean. 127 related ontology tests pass. `determine_action_type` move verified — 35 curation demo tests unaffected.
+
 ## Phase 11.1+11.2 — Modeling Drafts Start as App-Internal, Group-Scoped Proposals, Not a Full Modeler
 
 - Date: 2026-06-19
