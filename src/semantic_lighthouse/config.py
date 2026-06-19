@@ -40,6 +40,9 @@ class Settings(BaseModel):
     ingestion_max_attempts: int = 3
     agent_max_steps: int = 5
     app_env: str = "development"
+    dataset_storage_path: str = "./dataset-storage"
+    dataset_max_scan_rows: int = 10_000
+    dataset_max_distinct_values: int = 1_000
 
     def validate_runtime_safety(self) -> None:
         """Raise ValueError if production settings are unsafe."""
@@ -164,4 +167,7 @@ def get_settings() -> Settings:
         ),
         agent_max_steps=int(os.getenv("AGENT_MAX_STEPS", str(Settings.model_fields["agent_max_steps"].default))),
         app_env=_str_from_env("APP_ENV", Settings.model_fields["app_env"].default),
+        dataset_storage_path=_str_from_env("DATASET_STORAGE_PATH", Settings.model_fields["dataset_storage_path"].default),
+        dataset_max_scan_rows=int(os.getenv("DATASET_MAX_SCAN_ROWS", str(Settings.model_fields["dataset_max_scan_rows"].default))),
+        dataset_max_distinct_values=int(os.getenv("DATASET_MAX_DISTINCT_VALUES", str(Settings.model_fields["dataset_max_distinct_values"].default))),
     )

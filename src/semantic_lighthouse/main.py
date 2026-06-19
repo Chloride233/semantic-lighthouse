@@ -11,7 +11,7 @@ from sqlalchemy import select, text
 from semantic_lighthouse.config import get_settings
 from semantic_lighthouse.database import SessionLocal
 from semantic_lighthouse.models import Document, IngestionJob, utc_now
-from semantic_lighthouse.routers import agent, auth, conversations, documents, groups, ontology, projects, rag, tasks
+from semantic_lighthouse.routers import agent, auth, conversations, datasets, documents, groups, ontology, projects, rag, tasks
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -111,6 +111,7 @@ def create_app() -> FastAPI:
     app.include_router(agent.router)
     app.include_router(tasks.router)
     app.include_router(projects.router)
+    app.include_router(datasets.router)
     app.include_router(ontology.router)
 
     static_dir = Path(__file__).resolve().parents[2] / "static"

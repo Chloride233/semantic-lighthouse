@@ -35,6 +35,7 @@ data/manufacturing/
 document-storage/
 upload-tmp/
 knowledge-graph/
+dataset-storage/
 
 # Build artifacts
 *.tar.gz

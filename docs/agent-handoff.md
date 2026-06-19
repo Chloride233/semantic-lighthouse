@@ -784,11 +784,29 @@ The goal is to reduce process overhead on low-risk changes and reserve deep veri
 - **Verification**: 57 passed, ruff clean, migration 0018 at head, git diff --check clean.
 - **Boundaries**: No DatasetAsset, no data upload/profiling, no model bridging, no Object Runtime, no frontend, no delete/recover. Old features (RAG, Agent, Ontology drafts, tasks, conversations) not removed — they remain parallel capabilities.
 
+### Phase 14.2 — Project Dataset Assets & Profiling (2026-06-19)
+
+**Status**: Delivered.
+
+- **New model**: `DatasetAsset` (`dataset_assets`) — id, group_id, project_id, original_name, storage_path, file_format (csv/xlsx), file_size, content_hash, status (ready/failed/archived), row_count, column_count, profile_json, created_by, timestamps. Unique constraint on (project_id, content_hash) for dedup.
+- **Migration**: `0019_v19_dataset_assets.py` — down_revision `0018_v18_business_pilot_projects`. SQLite/PostgreSQL compatible.
+- **API**: `POST /groups/{gid}/projects/{pid}/datasets` (owner/admin multipart upload), `GET` list with status filter/limit/offset, `GET /{dataset_id}` detail, `POST /{dataset_id}/archive` (idempotent). Member read, owner/admin upload/archive. Outsider 403, cross-group/project 404. Archived projects reject upload (409). Deduplication by content hash returns `deduplicated: true` with existing asset.
+- **Profiling service**: `services/dataset_profiling.py` — CSV (stdlib csv, UTF-8/UTF-8-SIG, quoted fields) + XLSX (openpyxl read_only/data_only, first visible sheet). Column type inference (integer/number/boolean/date/datetime/string), null/distinct stats, PK candidate detection, within-project FK suggestion. Row scan cap 10k, distinct cap 1k, file size cap 50 MiB (reuses `max_document_upload_bytes`).
+- **Privacy**: Sample values opt-in via `include_sample_values: bool` form field (default false). Capped at 3 per column. PII masked: email (te***@domain), phone (138****5678), ID card (110***********34).
+- **Storage**: Files stored in `dataset-storage/{group_id}/{project_id}/{dataset_id}/{safe_name}`. Paths sanitized, traversal prevented. Temp-file → hash → profile → atomic rename. Failed profiles clean up temp file, no DB record. `dataset-storage/` added to `.gitignore`.
+- **Stage advancement**: First ready DatasetAsset in a project at stage=goal → `advance_stage("goal", "data")` via existing helper. Duplicate/second upload does not re-advance.
+- **Dependencies**: Added `openpyxl>=3.1.0` to `requirements.txt`. New config keys: `dataset_storage_path`, `dataset_max_scan_rows` (10k), `dataset_max_distinct_values` (1k).
+- **Tests**: 53 tests in `tests/test_dataset_assets.py` covering unit (PII masking, type inference, CSV/XLSX profiling, PK/FK detection, content hash) and integration (upload CRUD, permissions, dedup, cross-project isolation, stage advancement, archive idempotency, XLSX upload, status filter, profile structure validation, error cleanup).
+- **Verification**: 110 total (57 projects + 53 datasets) passed, ruff clean, migration 0019 at head, git diff --check clean.
+- **Boundaries**: No LLM model suggestions, no Ontology draft/relation creation from profiles, no Object Runtime, no .xls support, no frontend, no delete/recover. Old features preserved.
+
 ## Agent Instructions For The Next Session
 
 Start by reading `AGENTS.md`, `PRODUCT.md`, `docs/product-alignment-prd.md`, `CLAUDE.md`, this handoff, and the latest engineering memory files. Then run review and tests according to `docs/development-workflow.md` before changing code.
 
-Do not frame the project as only a RAG/Agent portfolio. The current product direction is the Ontology semantic operating layer. Phase 14 is underway — 14.1 delivered the business pilot project foundation; 14.2 Dataset Asset is next. Old RAG/Agent/Ontology features remain available as parallel capabilities but the product main chain is now the business pilot five-stage pipeline.
+Do not frame the project as only a RAG/Agent portfolio. The current product direction is the Ontology semantic operating layer. Phase 14 is underway — 14.1–14.2 delivered; 14.3 Data-to-Model Bridge is next. Old RAG/Agent/Ontology features remain available as parallel capabilities but the product main chain is now the business pilot five-stage pipeline.
+
+**Next**: Backend Review A (NOT 14.3). Review 14.1–14.2 models, APIs, permissions, storage boundaries, and test coverage before proceeding to the data-to-model bridge.
 
 **Frontend**: moratorium lifted 2026-06-19 for Frontend Refactor F1 (Swiss app shell F1A delivered, Ontology workspace F1B pending).
 

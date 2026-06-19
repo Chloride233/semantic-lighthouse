@@ -540,6 +540,49 @@ class Task(Base):
     )
 
 
+class DatasetAsset(Base):
+    """Phase 14.2 — uploaded dataset within a business pilot project.
+
+    Metadata-first: profile_json stores column statistics, not raw rows.
+    Binary data lives on disk under dataset-storage/, never in the DB.
+    """
+
+    __tablename__ = "dataset_assets"
+    __table_args__ = (
+        UniqueConstraint("project_id", "content_hash", name="uq_dataset_assets_project_hash"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    group_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("groups.id"), index=True, nullable=False
+    )
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("business_projects.id"), index=True, nullable=False
+    )
+    original_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    storage_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    file_format: Mapped[str] = mapped_column(
+        String(10), nullable=False
+    )  # csv | xlsx
+    file_size: Mapped[int] = mapped_column(nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="ready"
+    )  # ready | failed | archived
+    row_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    column_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    profile_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_by: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
 class BusinessProject(Base):
     """Phase 14.1 — business pilot project within a group workspace.
 
