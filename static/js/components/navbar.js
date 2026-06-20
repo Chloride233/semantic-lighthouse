@@ -3,14 +3,18 @@ import { navigate } from '../router.js';
 import { api } from '../api.js';
 import { esc } from '../util/esc.js';
 
-const NAV_SECTIONS = [
+const PRIMARY = [
+  { label: 'Pilot', path: '/groups/{gid}/projects', needsGroup: true },
+  { label: 'Ontology', path: '/groups/{gid}/ontology', needsGroup: true },
+  { label: '工作区', path: '/groups', needsGroup: false },
+];
+
+const TOOLS = [
   { label: '问答', path: '/ask', needsGroup: false },
   { label: '知识库', path: '/groups/{gid}/documents', needsGroup: true },
   { label: '对话', path: '/groups/{gid}/conversations', needsGroup: true },
   { label: '任务', path: '/groups/{gid}/tasks', needsGroup: true },
   { label: 'Agent', path: '/groups/{gid}/agent', needsGroup: true },
-  { label: 'Ontology', path: '/groups/{gid}/ontology', needsGroup: true },
-  { label: '工作区', path: '/groups', needsGroup: false },
 ];
 
 export function initNavbar(containerId) {
@@ -25,28 +29,40 @@ export function initNavbar(containerId) {
 
     const hash = location.hash.replace('#', '') || '/';
     const isActive = (path) => {
-      if (path === '/ask') return hash === '/ask' || hash === '/';
       if (path === '/groups') return hash === '/groups' || hash.startsWith('/groups?');
-      return hash.startsWith(path.replace('{gid}', gid || '___'));
+      if (!gid) return false;
+      return hash.startsWith(path.replace('{gid}', gid));
     };
 
     const groupOptions = groups
       .map((g) => `<option value="${g.group_id}" ${g.group_id === gid ? 'selected' : ''}>${esc(g.group_name)}</option>`)
       .join('');
 
-    const navLinks = NAV_SECTIONS.map((section) => {
+    const makeLink = (section) => {
       if (!signedIn) return '';
       if (section.needsGroup && !gid) return '';
-      const href = section.needsGroup ? `#${section.path.replace('{gid}', gid)}` : `#${section.path}`;
+      const href = section.needsGroup
+        ? `#${section.path.replace('{gid}', gid)}`
+        : `#${section.path}`;
       const active = isActive(section.path) ? ' active' : '';
       return `<a href="${href}" class="${active}">${esc(section.label)}</a>`;
-    }).join('');
+    };
+
+    const primaryLinks = PRIMARY.map(makeLink).filter(Boolean).join('');
+    const toolsLinks = TOOLS.map(makeLink).filter(Boolean).join('');
 
     el.innerHTML = `
       <div class="navLeft">
-        <a class="navBrand" href="#/ask">语义灯塔</a>
+        <a class="navBrand" href="${gid ? '#/groups/' + gid + '/projects' : '#/groups'}">语义灯塔</a>
         <nav class="navLinks" aria-label="主导航">
-          ${navLinks}
+          ${primaryLinks}
+          ${toolsLinks ? `
+          <div class="navMore">
+            <button class="navMoreBtn" id="navMoreBtn" aria-expanded="false" aria-haspopup="true">更多工具 ▾</button>
+            <div class="navMoreMenu" id="navMoreMenu" role="menu" hidden>
+              ${toolsLinks.replace(/<a /g, '<a role="menuitem" ')}
+            </div>
+          </div>` : ''}
         </nav>
       </div>
       <div class="navRight">
@@ -67,6 +83,27 @@ export function initNavbar(containerId) {
       </div>
     `;
 
+    // More-tools dropdown toggle
+    const btn = document.getElementById('navMoreBtn');
+    const menu = document.getElementById('navMoreMenu');
+    if (btn && menu) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = menu.hidden;
+        menu.hidden = !open;
+        btn.setAttribute('aria-expanded', String(open));
+      });
+      document.addEventListener('click', () => {
+        menu.hidden = true;
+        btn.setAttribute('aria-expanded', 'false');
+      });
+      menu.addEventListener('click', (e) => e.stopPropagation());
+      // Keyboard: Escape closes
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+      });
+    }
+
     if (signedIn) {
       document.getElementById('navLogoutBtn')?.addEventListener('click', async () => {
         try { await api('/auth/logout', { method: 'POST' }); } catch (_) {}
@@ -78,7 +115,7 @@ export function initNavbar(containerId) {
         const grp = groups.find((g) => g.group_id === newGid);
         if (!grp) return;
         setState({ currentGroupId: newGid, currentRole: grp.role || '' });
-        navigate('/ask');
+        navigate(`/groups/${newGid}/projects`);
       });
     }
   }

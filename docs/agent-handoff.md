@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (Phase 14 COMPLETE — 14.5 + Review C + Review C.1 hardened. Migration 0023 at head. 749 non-E2E passed.)
+Last updated: 2026-06-20 (Frontend F2A delivered — Pilot workspace active. Phase 14 backend COMPLETE. Migration 0023 at head.)
 
 ## Current Phase
 
@@ -889,4 +889,19 @@ Verification: 79 runtime tests, 239 Phase 14 combined, 734 full non-E2E (0 failu
 
 **Next**: Phase 14 COMPLETE. Future candidates only: MCP read-only gateway (post-Phase 14, requires dedicated Safety Lane plan), Evidence + Object dual-plane query, Domain Pack/Knowledge Artifact. NOT started.
 
-Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 14 COMPLETE (14.1–14.5 delivered + Review C hardened).
+### Frontend F2A — Guided Pilot Entry + Data Stage (2026-06-20)
+
+**Status**: Delivered. Navigation restructured to Pilot-first. Project list + detail pages with goal/data stages.
+
+**What was built**:
+- Navbar restructured: Pilot (default), Ontology, 工作区, 更多工具 (dropdown with 问答/知识库/对话/任务/Agent).
+- Pilot project list (`/groups/:gid/projects`): project cards with stage rail, create dialog, empty state.
+- Pilot project detail (`/groups/:gid/projects/:pid`): five-stage progress rail, goal stage info + upload CTA, data stage dataset list/profile/upload.
+- API improvements: FormData auto-detection, unified human-readable error messages.
+- Design: Minimalism & Swiss Style via ui-ux-pro-max skill. Monochrome + gold accent.
+- First-use paths: login → Pilot list, new workspace → Pilot empty state, group switch → Pilot list.
+- Old routes preserved, all accessible via 更多工具 or direct URLs.
+
+**Next**: Frontend F2B — Model → Validate → Pilot full operation loop.
+
+Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Frontend F2A delivered. F2B next.

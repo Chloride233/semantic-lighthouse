@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-20
-**Current phase**: Phase 14 **COMPLETE** — 14.1–14.5 all delivered, Backend Review C hardened. Full non-E2E: 734 passed.
+**Current phase**: Frontend F2A delivered — Guided Business Pilot Entry + Data Stage. Phase 14 backend COMPLETE.
 
 ---
 
@@ -304,7 +304,21 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 14.4 | Model Validation Gate | ✅ Migration `0021` (scope_key + project_id on packages), project-scoped quality/package/contract API, WARN override audit, FAIL blocks absolutely, stage model→validate, legacy isolation. 23 tests. |
 | 14.5 | Pilot Read Runtime + Unified Query Contract | ✅ Migration `0022` (OntologyDatasetBinding) + `0023` (OntologyRuntimeAudit), deterministic binding generation from accepted contract + dataset profiles, unified read-only query with typed filter conversion/streaming CSV/filter-before-offset-limit/compiled contract as truth, pilot activation with full smoke query, audit fail-closed, path safety, permissions, provenance sanitization. 94 runtime tests. No DSL, no MCP, no Graph RAG. |
 
-**Next**: Phase 14 CLOSED. Future candidates only — NOT started: MCP read-only gateway (post-Phase 14, requires dedicated Safety Lane plan), Evidence + Object dual-plane query, Domain Pack/Knowledge Artifact.
+**Next**: Frontend F2B (Model → Validate → Pilot full operation loop). F2C (responsive/accessibility polish) follows.
+
+---
+
+## Frontend F2: Guided Business Pilot Workspace ← F2A DELIVERED
+
+| # | Task | Status |
+|---|------|--------|
+| F2A | Pilot entry, project creation, goal + data stage, nav restructure | ✅ Delivered |
+| F2B | Model → Validate → Pilot full operation loop | Next |
+| F2C | Responsive/accessibility polish, old entry consolidation | Future |
+
+See `docs/frontend-f2-planning.md`.
+
+**F2A delivered**: Navigation restructured to Pilot/Ontology/工作区/更多工具. Pilot is default landing page. Project list + detail (goal/data stages). Dataset upload with multipart. Metadata-only profile display. API error handling (FormData support, human-readable errors). Minimalism & Swiss Style.
 
 **Out of scope**: Frontend (Kimi), delete/recover, Object Runtime, SDK, MCP, Graph RAG, old feature removal, Pilot outcome/KPI dashboard, relation joins, Action execution, data write-back, custom query language.
 

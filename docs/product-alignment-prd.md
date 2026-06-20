@@ -1,6 +1,6 @@
 # Semantic Lighthouse Product Alignment PRD
 
-Last updated: 2026-06-18
+Last updated: 2026-06-20
 
 ## 1. Product Positioning
 

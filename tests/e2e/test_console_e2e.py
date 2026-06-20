@@ -33,7 +33,8 @@ def _onboard(page: Page, name: str = "E2E Workspace") -> str:
     expect(page.locator("#onboardName")).to_be_visible(timeout=10000)
     page.fill("#onboardName", name)
     page.click("#onboardCreateBtn")
-    expect(page.locator("#docFileInput")).to_be_visible(timeout=10000)
+    # After F2A: onboarding redirects to Pilot empty state
+    expect(page.locator("#createFirstBtn")).to_be_visible(timeout=10000)
     current_hash = page.evaluate("() => location.hash")
     return current_hash.split("/")[2]
 
@@ -54,15 +55,18 @@ def test_auth_onboarding_and_navigation(page: Page, base_url: str) -> None:
     expect(page.locator(".onboardTitle")).to_contain_text("创建你的第一个工作区", timeout=10000)
 
     _onboard(page, "E2E 工作区")
-    expect(page.locator(".panelHeader h2").filter(has_text="导入知识")).to_be_visible()
-    expect(page.locator("#docFileInput")).to_be_visible()
-    expect(page.locator("#uploadDocBtn").filter(has_text="上传选中文件")).to_be_visible()
+    # After F2A: Pilot empty state is the landing page
+    expect(page.locator("#createFirstBtn")).to_be_visible(timeout=10000)
 
-    for label in ("问答", "知识库", "对话", "工作区"):
+    # Primary nav: Pilot, Ontology, 工作区
+    for label in ("Pilot", "Ontology", "工作区"):
         expect(page.locator(f".navLinks a:has-text('{label}')")).to_be_visible()
 
-    assert page.locator(".navLinks a:has-text('RAG')").count() == 0
-    assert page.locator(".navLinks a:has-text('Jobs')").count() == 0
+    # Old entries in "更多工具" dropdown
+    page.click("#navMoreBtn")
+    page.wait_for_timeout(300)
+    assert page.locator("a[href='#/ask']").count() > 0
+    assert page.locator("a[href*='documents']").count() > 0
 
 
 def test_ask_home_empty_kb_and_relogin(page: Page, base_url: str) -> None:
@@ -73,7 +77,10 @@ def test_ask_home_empty_kb_and_relogin(page: Page, base_url: str) -> None:
     _login(page)
     _onboard(page, "问答工作区")
 
-    page.click(".navLinks a:has-text('问答')")
+    # Ask is now in more-tools dropdown
+    page.click("#navMoreBtn")
+    page.wait_for_timeout(200)
+    page.click("a[href='#/ask']")
     expect(page.locator(".askPage")).to_be_visible(timeout=5000)
     expect(page.locator(".emptyState")).to_be_visible()
     expect(page.locator(".emptyTitle")).to_contain_text("知识库还没有文档")
@@ -82,7 +89,8 @@ def test_ask_home_empty_kb_and_relogin(page: Page, base_url: str) -> None:
     expect(page.locator("#loginEmail")).to_be_visible(timeout=5000)
     _login(page, email)
 
-    expect(page.locator(".askPage")).to_be_visible(timeout=10000)
+    # Re-login lands on Pilot (F2A default)
+    expect(page.locator("#createFirstBtn")).to_be_visible(timeout=10000)
     assert page.locator("#onboardName").count() == 0
 
 
@@ -108,11 +116,20 @@ Ontology connects business objects, data, and AI workflows for enterprise contex
         encoding="utf-8",
     )
 
+    # Navigate to documents via more-tools
+    page.click("#navMoreBtn")
+    page.wait_for_timeout(200)
+    page.click("a[href*='documents']")
+    page.wait_for_timeout(500)
+
     page.set_input_files("#docFileInput", str(md_file))
     page.click("#uploadDocBtn")
     expect(page.locator("body")).to_contain_text(md_file.name, timeout=10000)
 
-    page.click(".navLinks a:has-text('问答')")
+    # Navigate to ask via more-tools
+    page.click("#navMoreBtn")
+    page.wait_for_timeout(200)
+    page.click("a[href='#/ask']")
     expect(page.locator("#askQuestion")).to_be_visible(timeout=5000)
 
     page.fill("#askQuestion", "企业为什么需要 Ontology?")

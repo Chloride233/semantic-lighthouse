@@ -26,7 +26,7 @@ export async function render(container) {
               <tr>
                 <td><strong>${esc(g.group_name)}</strong></td>
                 <td>${statusBadge(g.role)}</td>
-                <td><a href="#/groups/${g.group_id}/documents" class="btnLink">打开</a></td>
+                <td><a href="#/groups/${g.group_id}/projects" class="btnLink">打开</a></td>
               </tr>
             `).join('')}
           </tbody>

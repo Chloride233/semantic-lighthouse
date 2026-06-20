@@ -1439,3 +1439,180 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   F2A — Pilot workspace
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Nav: More tools dropdown ─────────────────────────────────── */
+.navMore { position: relative; }
+.navMoreBtn {
+  background: none; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 4px 10px; font-size: var(--text-sm); font-family: inherit; color: var(--text);
+  cursor: pointer; transition: background var(--duration-fast);
+}
+.navMoreBtn:hover { background: var(--surface); }
+.navMoreMenu {
+  position: absolute; top: 100%; left: 0; margin-top: 4px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md); min-width: 140px; z-index: 50;
+  display: flex; flex-direction: column; padding: 4px 0;
+}
+.navMoreMenu a {
+  display: block; padding: 6px 12px; font-size: var(--text-sm); color: var(--text);
+  text-decoration: none; transition: background var(--duration-fast);
+}
+.navMoreMenu a:hover { background: var(--surface); }
+
+/* ── Stage rail ───────────────────────────────────────────────── */
+.stageRailSm { display: flex; gap: 6px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
+.stageRailSm .stageDot {
+  font-size: var(--text-xs); color: var(--subtle); padding: 2px 6px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+}
+.stageRailSm .stageDot.done { color: var(--ok); border-color: var(--ok); background: var(--ok-light); }
+.stageRailSm .stageDot.current { color: var(--brand); border-color: var(--brand); font-weight: 600; }
+
+.stageRailLg {
+  display: flex; align-items: center; gap: 0; padding: 16px 0;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.stageStep {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  font-size: var(--text-sm); color: var(--subtle);
+}
+.stageStep .stageDot {
+  width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line);
+  background: var(--panel); flex-shrink: 0;
+}
+.stageStep.done .stageDot { background: var(--brand); border-color: var(--brand); }
+.stageStep.current .stageDot { background: var(--panel); border-color: var(--brand); border-width: 3px; }
+.stageStep.current .stageLabel { color: var(--text); font-weight: 600; }
+.stageConnector {
+  flex: 0 0 28px; height: 2px; background: var(--line); margin: 0 2px;
+}
+.stageStep.done + .stageConnector { background: var(--brand); }
+.stageStep.current + .stageConnector { background: var(--line); }
+
+@media (max-width: 500px) {
+  .stageRailLg { flex-direction: column; align-items: flex-start; gap: 0; }
+  .stageConnector { width: 2px; height: 16px; margin: 2px 0 2px 5px; flex: 0 0 auto; }
+  .stageStep { gap: 8px; }
+}
+
+/* ── Project cards ─────────────────────────────────────────────── */
+.projectCard {
+  display: block; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md);
+  text-decoration: none; color: var(--text); background: var(--panel);
+  transition: box-shadow var(--duration-fast); cursor: pointer;
+}
+.projectCard:hover { box-shadow: var(--shadow-sm); }
+.projectCardHead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.projectName { font-weight: 600; font-size: var(--text-base); }
+.projectGoal { font-size: var(--text-sm); color: var(--muted); margin: 4px 0; line-height: 1.5; }
+.projectMeta { display: flex; gap: 12px; font-size: var(--text-xs); color: var(--muted); margin-top: 8px; }
+.projectGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.projectListHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.projectListHead .count { font-size: var(--text-sm); color: var(--muted); }
+.archivedSection { margin-top: 24px; }
+.archivedSection summary { font-size: var(--text-sm); color: var(--muted); cursor: pointer; margin-bottom: 8px; }
+
+@media (max-width: 500px) {
+  .projectGrid { grid-template-columns: 1fr; }
+}
+
+/* ── Project detail layout ─────────────────────────────────────── */
+.projectDetail { max-width: 960px; margin: 0 auto; }
+.projectHeader { margin-bottom: 8px; }
+.projectTitle { font-size: var(--text-2xl); font-weight: 700; margin: 8px 0 4px; }
+.projectSubtitle { display: flex; gap: 6px; flex-wrap: wrap; }
+.projectBody { display: grid; grid-template-columns: 1fr 240px; gap: 24px; margin-top: 16px; }
+.projectMain { min-width: 0; }
+.projectAside { display: flex; flex-direction: column; gap: 16px; }
+
+@media (max-width: 700px) {
+  .projectBody { grid-template-columns: 1fr; }
+}
+
+/* ── Context card ──────────────────────────────────────────────── */
+.contextCard { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); }
+.contextTitle { font-size: var(--text-sm); font-weight: 600; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.contextDL { margin: 0; font-size: var(--text-sm); }
+.contextDL dt { color: var(--subtle); margin-top: 6px; }
+.contextDL dd { margin: 0 0 4px; color: var(--text); }
+
+/* ── Stage panel ───────────────────────────────────────────────── */
+.stagePanel { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); margin-bottom: 20px; }
+.stagePanelHead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.stagePanelHead h2 { margin: 0; font-size: var(--text-lg); font-weight: 600; }
+.stageCTAs { margin-top: 12px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.stageHint { font-size: var(--text-sm); color: var(--muted); margin: 0; }
+
+/* ── Dataset section ───────────────────────────────────────────── */
+.datasetSection { margin-top: 8px; }
+.datasetSection h3 { font-size: var(--text-base); font-weight: 600; margin: 0 0 10px; }
+.datasetList { display: flex; flex-direction: column; gap: 8px; }
+.datasetItem { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px; background: var(--panel); }
+.datasetItemHead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--text-sm); }
+.datasetName { font-weight: 600; }
+.datasetItemMeta { display: flex; align-items: center; gap: 12px; margin-top: 4px; font-size: var(--text-xs); color: var(--muted); }
+.datasetProfile { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-size: var(--text-sm); }
+.profileTable { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.profileTable th, .profileTable td { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--line); }
+.profileTable th { font-weight: 600; color: var(--muted); font-size: var(--text-xs); }
+.pkTag { font-size: var(--text-xs); color: var(--accent); font-weight: 600; }
+.typeTag { font-size: var(--text-xs); padding: 1px 5px; border-radius: 3px; background: var(--surface); }
+.typeTag.num { color: var(--info); }
+.typeTag.bool { color: var(--accent); }
+.typeTag.dt { color: var(--ok); }
+.profileFKs { margin-top: 10px; font-size: var(--text-sm); }
+.profileFKs h4 { margin: 0 0 4px; font-size: var(--text-sm); }
+.profileFKs ul { margin: 0; padding-left: 18px; }
+.profileFKs li { margin-bottom: 2px; }
+
+/* ── Dialog overlay ────────────────────────────────────────────── */
+.dialogOverlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 60; padding: 16px;
+}
+.dialog {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg); max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto;
+}
+.dialogTitle { font-size: var(--text-lg); font-weight: 600; margin: 0; padding: 16px 20px 0; }
+.dialogBody { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+.dialogActions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid var(--line); }
+
+/* ── Segmented control ─────────────────────────────────────────── */
+.segmented { border: none; padding: 0; margin: 0; }
+.segmented legend { font-weight: 500; font-size: var(--text-sm); margin-bottom: 6px; }
+.segOption { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px solid var(--line); font-size: var(--text-sm); cursor: pointer; }
+.segOption:first-of-type { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.segOption:last-of-type { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.segOption:has(input:checked) { background: var(--brand); color: #fff; border-color: var(--brand); }
+.segOption input { position: absolute; opacity: 0; }
+
+/* ── Field / upload ────────────────────────────────────────────── */
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field span { font-size: var(--text-sm); font-weight: 500; }
+.field input, .field textarea {
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  font-size: var(--text-sm); font-family: inherit; background: var(--panel);
+}
+.field textarea { resize: vertical; }
+.fieldCheck { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); cursor: pointer; }
+.uploadProgress { margin-top: 8px; }
+.progressBar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.progressFill { height: 100%; background: var(--brand); width: 0; animation: progressPulse 1.5s ease-in-out infinite; }
+@keyframes progressPulse {
+  0% { width: 10%; } 50% { width: 70%; } 100% { width: 10%; }
+}
+
+/* ── Link button ───────────────────────────────────────────────── */
+.linkBtn { background: none; border: none; color: var(--info); font-size: var(--text-xs); cursor: pointer; padding: 0; font-family: inherit; }
+.linkBtn:hover { text-decoration: underline; }
+
+/* ── Back link ─────────────────────────────────────────────────── */
+.backLink { font-size: var(--text-sm); color: var(--muted); text-decoration: none; }
+.backLink:hover { color: var(--text); }

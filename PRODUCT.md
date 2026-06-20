@@ -54,7 +54,9 @@ The experience should feel like a professional semantic operating layer workspac
 - Phase 9 delivered: Ontology Core v1 — schema/frontmatter validation, entity extraction, wikilink relation extraction, governance issue list, ontology graph, and entity detail UI. Real KB demo: 74 docs → 74 entities, 186 relations, 97 issues.
 - Phase 10 delivered: Governance Operations — issue triage, real KB curation demo (97 issues → 39 backlog entries), graph UX polish, evidence-to-ontology bridge, end-to-end review.
 - Phase 11/12 delivered: Ontology Modeling Drafts v1 + Model Quality & Contract Packages v1 — see `docs/phase11-planning.md` and `docs/phase12-planning.md`.
-- Phase 13 planning: Typed Business Ontology Contract & Manufacturing Pilot v1 — see `docs/phase13-planning.md`.
+- Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 — delivered.
+- Phase 14: Business Pilot Project main chain (goal→data→model→validate→pilot) — delivered (backend complete, Frontend F2A active).
+- Frontend F2: Guided Business Pilot workspace — F2A delivered.
 
 ## Product Non-Goals For Now
 

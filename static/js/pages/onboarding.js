@@ -44,9 +44,9 @@ export async function render(container) {
         currentRole: created?.role || 'owner',
       });
       showToast('工作区已创建。', 'success');
-      navigate(`/groups/${state.currentGroupId}/documents`);
+      navigate(`/groups/${state.currentGroupId}/projects`);
     } catch (err) {
-      errEl.textContent = err.detail || '创建工作区失败';
+      errEl.textContent = err.humanMessage || err.detail || '创建工作区失败';
       errEl.style.display = 'block';
     }
   });

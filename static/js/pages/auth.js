@@ -8,7 +8,7 @@ export async function render(container) {
     <div class="authPage">
       <div class="authBrandIcon">灯</div>
       <h1 class="authTitle">语义灯塔</h1>
-      <p class="authTagline">企业 AI 知识顾问原型</p>
+      <p class="authTagline">Ontology 语义操作系统</p>
 
       <div id="authSuccess" class="authSuccess">账号已创建，可以登录。</div>
 
@@ -101,7 +101,7 @@ export async function render(container) {
       showToast('账号已创建，可以登录。', 'success');
       switchTab('signin');
     } catch (err) {
-      errEl.textContent = err.detail || '注册失败';
+      errEl.textContent = err.humanMessage || err.detail || '注册失败';
       errEl.style.display = 'block';
     }
   });
@@ -128,7 +128,7 @@ export async function render(container) {
           currentUser: me,
         });
         restoreGroupContext(groups);
-        navigate('/ask');
+        navigate(`/groups/${state.currentGroupId}/projects`);
       } else {
         setState({
           accessToken: data.access_token,
@@ -140,7 +140,7 @@ export async function render(container) {
         navigate('/onboarding');
       }
     } catch (err) {
-      errEl.textContent = err.detail || '登录失败';
+      errEl.textContent = err.humanMessage || err.detail || '登录失败';
       errEl.style.display = 'block';
     }
   });

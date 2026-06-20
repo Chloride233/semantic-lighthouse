@@ -1,4 +1,4 @@
-import { route, initRouter } from './router.js';
+import { route, initRouter, navigate } from './router.js';
 import { initNavbar } from './components/navbar.js';
 import { state, setState, restoreGroupContext } from './state.js';
 import { api } from './api.js';
@@ -14,11 +14,15 @@ import { render as conversationsPage } from './pages/conversations.js';
 import { render as tasksPage } from './pages/tasks.js';
 import { render as agentPage } from './pages/agent.js';
 import { render as ontologyPage } from './pages/ontology.js';
+import { render as projectsPage } from './pages/projects.js';
+import { render as projectPage } from './pages/project.js';
 
 route('/login', authPage);
 route('/onboarding', onboardingPage);
 route('/ask', askPage);
 route('/groups', groupsPage);
+route('/groups/:gid/projects', projectsPage);
+route('/groups/:gid/projects/:pid', projectPage);
 route('/groups/:gid/documents', documentsPage);
 route('/groups/:gid/jobs', jobsPage);
 route('/groups/:gid/rag', ragPage);
@@ -43,5 +47,17 @@ async function bootstrap() {
     setState({ currentUser: me, groups });
   } catch (_) {
     // 401 will redirect to login via router
+  }
+
+  // Default landing: authenticated with group → Pilot; without group → 工作区
+  const hash = location.hash.replace('#', '') || '';
+  if (!hash || hash === '/') {
+    if (state.currentGroupId) {
+      navigate(`/groups/${state.currentGroupId}/projects`);
+    } else if ((state.groups || []).length > 0) {
+      navigate(`/groups/${state.groups[0].group_id}/projects`);
+    } else {
+      navigate('/groups');
+    }
   }
 }
