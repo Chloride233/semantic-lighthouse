@@ -1,5 +1,14 @@
 # Highlight Log
 
+## S2.4C — Project-Bounded RAG Must Be Scoped Run, Not Auto-Linked Evidence
+
+- Date: 2026-06-20
+- Version: S2.4C design
+- Type: decision
+- What happened: Approved the design for `POST /groups/{gid}/projects/{pid}/rag/answer`. The project endpoint will add nullable `RagRun.project_id`, constrain retrieval to active project evidence Documents, and keep the existing group-scoped `/rag/answer` unchanged.
+- Engineering judgment: A project-scoped RAG run proves where an answer was generated; a `ProjectEvidenceLink` proves a human intentionally attached that answer as durable project evidence. Those are different claims. S2.4C therefore must not auto-create evidence links, even though the endpoint is project-scoped.
+- Verification: Design-only change; no code or tests run beyond documentation alignment checks.
+
 ## S2.4B — Project Summary Endpoint Reuses Provenance Contracts
 
 - Date: 2026-06-20

@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (S2.4B delivered and reviewed, migration 0025)
+Last updated: 2026-06-20 (S2.4C design approved, migration 0025)
 
 ## State Source
 
@@ -66,7 +66,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 ## Next Decision Gate
 
-**Approve S2.4C project-bounded RAG endpoint design**: S2.4B delivered `GET /groups/{gid}/projects/{pid}/summary` as a read-only aggregation endpoint for future Pilot overview panels. Next design question: whether and how to add `POST /groups/{gid}/projects/{pid}/rag/answer` so Pilot Ask retrieves only active project evidence while existing group-scoped Ask remains compatible.
+**Implement S2.4C project-bounded RAG endpoint**: design is approved in section 12.8 of `docs/product-rationalization-review.md`. Add nullable indexed `RagRun.project_id`, implement `POST /groups/{gid}/projects/{pid}/rag/answer`, retrieve only active project evidence Documents, preserve existing group-scoped `/rag/answer`, and do not automatically create `ProjectEvidenceLink` rows.
 
 ## Key API Surfaces
 
@@ -75,6 +75,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 - `POST /groups/{gid}/documents/import-local`, `/upload`, `/uploads/init|chunks|complete`
 - `GET /groups/{gid}/documents/search`, `/semantic-search`
 - `POST /groups/{gid}/rag/answer`, `GET /rag/runs`, `GET /rag/runs/{run_id}`
+- Planned S2.4C: `POST /groups/{gid}/projects/{pid}/rag/answer`
 - `POST /groups/{gid}/conversations`, `GET /conversations`, `POST /conversations/{id}/messages`
 - `POST /groups/{gid}/tasks`, `GET /tasks`
 - `POST /groups/{gid}/agent/runs`, `GET /agent/runs`, `POST /agent/runs/{id}/execute|respond`

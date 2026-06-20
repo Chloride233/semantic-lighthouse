@@ -830,3 +830,111 @@ This endpoint requires **zero new models, zero new migrations, zero new business
 | S2.4D | Pilot-embedded task creation (reuses existing `POST /tasks` with `project_id`) |
 | S2.4E | Pilot-embedded conversation starter (reuses existing `POST /conversations` with `project_id`) |
 | S2.4F | Navigation evaluation — hide pages only after replacement parity is proven by tests |
+
+### 12.8 S2.4C Project-Bounded RAG Endpoint Design
+
+**Status**: Design approved. Implementation not started.
+
+**Decision**: Add a project-scoped RAG answer endpoint:
+
+`POST /groups/{group_id}/projects/{project_id}/rag/answer`
+
+This endpoint should use the existing `RagAnswerRequest` / `RagAnswerResponse` contract, but it must derive retrieval scope from the route project, not from the client body. It searches only ready Documents connected to the project through active `ProjectEvidenceLink` rows with `evidence_type="document"`. If the project has no active linked Documents, retrieval returns no evidence and must not fall back to group-wide RAG.
+
+#### Data Model
+
+Add nullable, indexed `project_id` to `RagRun` via a new migration.
+
+Rules:
+- Existing `POST /groups/{gid}/rag/answer` remains group-scoped and persists `project_id = NULL`.
+- New project endpoint persists `RagRun.project_id = project_id`.
+- Existing RAG run detail remains readable by group members; optional future list filters may use `project_id`.
+- Do not infer or backfill project context for historical RAG runs.
+
+#### Retrieval And Persistence
+
+Implementation should refactor the current RAG router so group-scoped and project-scoped answer paths share the same deterministic answer pipeline:
+
+1. Validate membership in `group_id`.
+2. For the project endpoint, validate `BusinessProject.id == project_id` and `BusinessProject.group_id == group_id`; cross-group project returns 404.
+3. Reject new project-scoped answers if the project is archived (409). Historical project RAG runs remain readable.
+4. Derive `allowed_document_ids = project_document_ids(db, group_id, project_id)`.
+5. Pass `allowed_document_ids` into keyword, semantic, hybrid, and auto retrieval paths.
+6. Persist the run with `project_id`.
+7. Return the same response shape as group RAG.
+
+No client-supplied `project_id` is accepted in the request body.
+
+#### Evidence Link Boundary
+
+Do **not** automatically create a `ProjectEvidenceLink` for the new `RagRun`.
+
+Reason: ProjectEvidenceLink represents explicit human association of evidence to a Pilot project. A project-scoped RAG answer is generated inside project context, but whether that answer should become durable project evidence is still a user decision. Future UI may offer "Save this answer as project evidence", which should call the existing evidence-link API deliberately.
+
+Consequences:
+- Project-scoped `RagRun.project_id` proves where the answer was generated.
+- `ProjectEvidenceLink` still proves which RAG answers were intentionally attached as evidence.
+- Existing task rule for `source_type=rag_run` remains unchanged unless a later slice explicitly updates it.
+
+#### Compatibility
+
+Existing group-scoped Ask must remain unchanged:
+- No project requirement.
+- Same endpoint and response.
+- Same group-wide retrieval.
+- Existing tests continue to pass.
+
+The new endpoint is an additive project-scoped path only.
+
+#### API Contract
+
+Request:
+
+```json
+{
+  "question": "Which supplier risks matter for this pilot?",
+  "retrieval_method": "hybrid",
+  "limit": 5
+}
+```
+
+Response: same as `RagAnswerResponse`, with `run_id` persisted to a `RagRun` whose `project_id` equals the route project.
+
+Errors:
+- Non-member: 403.
+- Project not in route group: 404.
+- Archived project: 409.
+- Empty project evidence: 200 with `status="no_evidence"` persisted and low-confidence no-evidence response.
+- Embedding or chat provider failure: preserve existing 502 behavior and failed-run audit semantics, with `project_id` persisted where possible.
+
+#### Out Of Scope For S2.4C
+
+- No frontend changes.
+- No navigation/page hiding.
+- No automatic evidence linking.
+- No task source rule change.
+- No Graph RAG.
+- No MCP runtime.
+- No Agent tool changes.
+- No external KB writes.
+
+#### Test Plan
+
+Focused implementation tests should cover:
+
+1. Member can call project RAG and response persists `RagRun.project_id`.
+2. Existing group RAG persists `project_id = NULL`.
+3. Non-member cannot call project RAG (403).
+4. Route-group member querying cross-group project receives 404.
+5. Archived project rejects new project RAG (409).
+6. Linked project document is retrievable.
+7. Unlinked same-group document is not retrievable.
+8. Different project linked document is not retrievable.
+9. Empty active project evidence returns no-evidence response, never group fallback.
+10. Removed evidence link is ignored.
+11. Keyword and semantic/hybrid/auto paths all receive the same allowed document constraint.
+12. Project RAG does not auto-create `ProjectEvidenceLink`.
+13. Existing `GET /rag/runs/{run_id}` remains group-scoped and readable.
+14. Optional `GET /rag/runs?project_id=` filter, if implemented, validates route-group project ownership and does not leak cross-group runs.
+
+Suggested implementation lane: **Safety Lane**. Reason: this touches RAG retrieval scope, persistence, group/project isolation, and a migration.
