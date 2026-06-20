@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (S2.3B delivered and safety-reviewed, migration 0025)
+Last updated: 2026-06-20 (S2.3 delivered, S2.4A contract review complete, migration 0025)
 
 ## State Source
 
@@ -64,7 +64,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 ## Next Decision Gate
 
-**Close S2.3 and choose the next S2 slice**: S2.3A persistence/validation and S2.3B project-bounded retrieval/tool enforcement are delivered and reviewed. Next work should either record a final S2.3 closeout commit or start a separately scoped S2 surface consolidation/backend slice. No frontend work unless explicitly requested.
+**Approve S2.4B project summary endpoint**: S2.4A contract review confirmed Documents/Conversations/Tasks/AgentRuns have project-scoped backend contracts; RAG Answer still searches full group and must keep its standalone page. S2.4B recommended slice: `GET /groups/{gid}/projects/{pid}/summary` — a read-only aggregation requiring zero new models or migrations. No pages hidden until replacement parity is proven.
 
 ## Key API Surfaces
 

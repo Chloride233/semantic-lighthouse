@@ -1,5 +1,13 @@
 # Highlight Log
 
+## S2.4A — Pilot Surface Consolidation: Backend Contract Before Navigation Change
+
+- Date: 2026-06-20
+- Version: S2.4A
+- Type: decision
+- What happened: Systematic review of five capabilities against five readiness criteria. Evidence, Conversations, and AgentRuns meet all criteria. Tasks meet four (retrieval N/A). RAG Answer meets zero — no project-bounded retrieval exists. Decision: no pages hidden; standalone pages must remain accessible until backend replacement parity is proven by tests.
+- Engineering judgment: Navigation consolidation must follow backend readiness. The contract review provides an objective checklist: project scope, retrieval isolation, write freeze, audit trail, identity boundary.
+
 ## S2.3 — Project Context Must Constrain Execution, Not Merely Label It
 
 - Date: 2026-06-20

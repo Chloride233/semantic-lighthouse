@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S2.3B project-bounded retrieval and tools delivered and safety-reviewed"
-description = "Project-scoped Conversations and Agent document tools now use only active ProjectEvidenceLink Documents. Empty evidence returns no evidence, unscoped behavior is preserved, and project-scoped archive_document is denied."
+current = "S2.4A pilot surface contract review complete"
+description = "Assessed Documents/Evidence, Conversations, Tasks, AgentRuns, and RAG Answer against five readiness criteria. Three capabilities (Evidence, Conversations, AgentRuns) are retrieval-isolated. RAG Answer still searches full group. No pages hidden. S2.4B minimal backend slice recommended: GET project summary endpoint."
 
 [next_decision_gate]
-name = "close S2.3 and choose next S2 surface consolidation slice"
-description = "S2.3A and S2.3B are implemented and reviewed. Next work should either record S2.3 final closeout or begin a separate scoped S2 slice; no frontend work unless explicitly requested."
+name = "approve S2.4B project summary endpoint"
+description = "Implement GET /groups/{gid}/projects/{pid}/summary — a read-only aggregation endpoint requiring zero new models, migrations, or business logic. Gives Pilot frontend a single data source without embedding any standalone capability."
 
 [mcp]
 runtime_status = "not started"

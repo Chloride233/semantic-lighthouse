@@ -1,7 +1,7 @@
 # Product Rationalization and Surface Consolidation Review
 
 Date: 2026-06-20
-Status: S2.3B delivered and safety-reviewed. S2.3 final closeout / next S2 slice selection pending.
+Status: S2.3 delivered and safety-reviewed. S2.4A pilot surface contract review complete. S2.4B minimal backend slice pending design.
 
 ## 1. FDE Role and Main Chain
 
@@ -678,3 +678,149 @@ Unknown, cross-group, or cross-user source references return 404 to avoid existe
 - Codex review fixed three boundary defects before acceptance: semantic Conversation retrieval now receives `allowed_document_ids`; scoped Agent V1 archive requests fail immediately instead of entering confirmation; scoped Agent V2 and legacy scoped HITL archive paths fail the run instead of mutating shared Documents.
 - Verification: 16 focused S2.3B tests pass. 100 related retrieval/conversation/Agent/project-context tests pass. Changed-file ruff is clean. A one-shot non-E2E full regression timed out after about 10 minutes with no failure output, so regression was rerun in grouped suites covering all 832 collected non-E2E tests; grouped runs passed.
 - Residual boundary: no UI changes. S2.3 only makes project context an execution boundary for backend retrieval/tools.
+
+---
+
+## 12. S2.4 Pilot Surface Consolidation
+
+Status: S2.4A contract review complete. No code changes.
+
+### 12.1 Decision
+
+Do not collapse standalone capability pages into Pilot tabs today. Each capability must independently prove it has a complete backend contract before a Pilot surface replacement is designed. Premature navigation hiding breaks existing workflows without providing a working replacement.
+
+The contract review below assesses five capabilities against explicit readiness criteria. Capabilities that meet the contract are candidates for S2.4B (minimal backend slice for Pilot summaries/links). Capabilities that do not meet the contract must retain their standalone pages until backend parity is proven.
+
+### 12.2 Readiness Criteria
+
+A capability is ready for Pilot surface exposure when:
+
+1. **Project scope**: the record has a validated, immutable `project_id` that the server enforces as belonging to the route group.
+2. **Retrieval isolation**: project-scoped retrieval uses only active `ProjectEvidenceLink` Documents and never falls back to group scope.
+3. **Write freeze**: archived projects reject new creation and mutation for scoped records.
+4. **Audit trail**: every state transition produces an audit record or is explicitly documented as write-only.
+5. **Identity boundary**: the capability does not leak cross-project or cross-group data through list, detail, or tool execution paths.
+
+### 12.3 Capability Assessment
+
+#### Documents / Knowledge Base → Pilot Evidence
+
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| Project scope | ✅ | `ProjectEvidenceLink` bridges `Document` → `BusinessProject`. Links are validated server-side for group membership, evidence readiness, and project status. |
+| Retrieval isolation | ✅ | S2.3B: `project_document_ids()` derives allowed IDs from active links. Keyword, semantic, and hybrid search all respect the constraint. Empty evidence returns no results. |
+| Write freeze | ✅ | Archived projects reject new evidence links. Existing links survive archival but provenance marks evidence as unavailable. |
+| Audit trail | ✅ | `OntologyRuntimeAudit` records `evidence_link` / `evidence_unlink` / `evidence_relink` operations. |
+| Identity boundary | ✅ | Link queries include both `group_id` and `project_id`. Cross-group returns 404. |
+
+**Pilot surface candidate**: A "Project Evidence" summary panel in the Pilot Goal stage showing linked documents with provenance (title, status, source_label). No embedded full Documents page needed.
+
+#### Conversations → Pilot Ask
+
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| Project scope | ✅ | `Conversation.project_id` added in migration 0025. Server validates project belongs to route group. Immutable after creation. |
+| Retrieval isolation | ✅ | S2.3B: `send_message` derives `allowed_document_ids` from `conv.project_id`. Initial retrieval, semantic/hybrid/auto, and tool-loop `search_knowledge_base` all respect the constraint. |
+| Write freeze | ✅ | Archived projects block message sending (409). Historical messages remain readable. |
+| Audit trail | ⚠️ Partial | Conversation messages are persisted but no project-scoped audit row is written per message or tool execution. Existing `created_at`/`user_id` fields are the audit surface. |
+| Identity boundary | ✅ | Conversations are user-private. List endpoint filters by `project_id`. Cross-user access returns 403. |
+
+**Pilot surface candidate**: A read-only conversation summary in the Pilot Goal/Model stage showing recent scoped conversations. Creating a new scoped conversation could be a Pilot action, but the full chat UI should remain the standalone page until project-scoped conversation listing is proven.
+
+**Missing for replacement parity**: No Pilot-embedded chat UI exists. The standalone Conversations page must remain accessible until a project-scoped replacement is built and tested.
+
+#### Tasks → Pilot Actions
+
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| Project scope | ✅ | `Task.project_id` added in migration 0025. Server validates project belongs to route group. Immutable after creation. |
+| Retrieval isolation | N/A | Tasks do not perform retrieval. |
+| Write freeze | ✅ | Archived projects block task creation (409) and mutation (409). Historical tasks remain readable. |
+| Audit trail | ⚠️ Partial | Task status changes are recorded via `updated_at` and `created_by` fields. No dedicated project-scoped audit row. |
+| Identity boundary | ✅ | Task list filters by `project_id`. Cross-group source references return 404. Project-scoped tasks validate source consistency (conversation/agent_run ownership, RAG run evidence link). |
+
+**Pilot surface candidate**: A "Project Tasks" summary panel listing scoped tasks with status badges. Creating a task scoped to the current Pilot project could be exposed as a secondary action.
+
+**Missing for replacement parity**: No project-scoped task creation UI exists. The standalone Tasks page must remain until this is built. Source validation for project-scoped `rag_run` tasks requires an active `ProjectEvidenceLink`, which is a deliberate gate, not a gap.
+
+#### Agent Runs → Pilot Advanced
+
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| Project scope | ✅ | `AgentRun.project_id` added in migration 0025. Server validates project and conversation consistency. Can inherit `project_id` from scoped conversation. |
+| Retrieval isolation | ✅ | S2.3B: `execute_tool` derives `allowed_docs` from `run.project_id`. `search_knowledge_base` and `list_documents` respect the constraint. Scoped `archive_document` is rejected. `_tool_schemas_for_llm` excludes `archive_document` for scoped runs. |
+| Write freeze | ✅ | Archived projects block execute (409) and respond (409). Historical runs remain readable and their steps remain visible. |
+| Audit trail | ✅ | `AgentStep` records every tool execution with `action_detail` and `observation`. `OntologyRuntimeAudit` records project-scoped operations. |
+| Identity boundary | ✅ | Runs are user-private. List endpoint filters by `project_id`. Cross-user access returns 403. Conversation ownership and group membership are validated on creation. |
+
+**Pilot surface candidate**: A "Project Agent Runs" summary panel showing recent scoped runs with status, phase, and step count. Starting a new scoped run could be a Pilot action.
+
+**Missing for replacement parity**: No project-scoped run creation UI exists. Agent tool execution requires user confirmation (HITL) which currently only works through the standalone Agent console. The standalone page must remain until a Pilot-embedded HITL flow is built.
+
+#### RAG Answer (Ask) → Pilot Goal
+
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| Project scope | ⚠️ Indirect | `RagRun` has no `project_id`. A RAG run can be linked to a project via `ProjectEvidenceLink` after creation. A project-scoped task with `source_type=rag_run` requires an active evidence link. But RAG retrieval itself is not project-bounded — the Ask page always searches the full group. |
+| Retrieval isolation | ❌ | The standalone Ask page (`/ask`) does not accept a `project_id` and always retrieves from the full group. `RagRun` records are group-scoped. Project-bounded retrieval only exists inside project-scoped Conversations and Agent runs. |
+| Write freeze | N/A | `RagRun` has no `project_id` to freeze. |
+| Audit trail | ✅ | `RagRun` records question, answer, confidence, citations, and retrieval method. |
+| Identity boundary | ✅ | `RagRun` is group-scoped. |
+
+**Pilot surface candidate**: None today. The Ask page must remain a standalone tool until RAG retrieval can be project-bounded. Linking a RAG run to a project via evidence link is a post-hoc operation — it does not make the retrieval itself project-scoped.
+
+**What would make this ready**: A `project_id` on `RagRun` (or a project-scoped RAG endpoint) that constrains retrieval to active project evidence. This is S2.3B-level work but was not in S2.3 scope.
+
+### 12.4 Consolidation State Summary
+
+| Capability | Project-scoped | Retrieval-isolated | Write-frozen | Pilot candidate |
+|------------|---------------|-------------------|-------------|-----------------|
+| Documents / Evidence | ✅ | ✅ | ✅ | Evidence summary panel |
+| Conversations | ✅ | ✅ | ✅ | Scoped conversation list + create |
+| Tasks | ✅ | N/A | ✅ | Scoped task list + create |
+| Agent Runs | ✅ | ✅ | ✅ | Scoped run list + create |
+| RAG Answer (Ask) | ❌ | ❌ | N/A | None — keep standalone |
+
+### 12.5 Pages That Must Retain Direct Access
+
+| Page | Reason |
+|------|--------|
+| Ask (`/ask`) | No project-bounded RAG retrieval exists. Full group search is the only retrieval path. Evidence linking is post-hoc. |
+| Conversations (`/groups/{gid}/conversations`) | No Pilot-embedded chat UI exists. The standalone page is the only way to read and send messages. Project-scoped listing via API filter exists but has no UI. |
+| Tasks (`/groups/{gid}/tasks`) | No Pilot-embedded task board exists. Project-scoped listing and creation via API exist but have no UI. |
+| Agent (`/groups/{gid}/agent`) | No Pilot-embedded HITL flow exists. Agent tool confirmation requires the standalone console. Project-scoped execution works via API but has no UI. |
+| Knowledge Base (`/groups/{gid}/documents`) | Document management (upload, archive, import) is a group-level operation that should not be scoped to a single project. The Pilot evidence panel should show linked summaries, not replace document management. |
+| Ontology (`/groups/{gid}/ontology`) | Ontology is group-level semantic governance, not project-scoped. The Model stage already links to it. |
+
+**No page is hidden or removed in this review.** The contract assessment is purely a backend readiness checkpoint.
+
+### 12.6 S2.4B Minimal Backend Slice (Recommended)
+
+The smallest code change that advances Pilot surface consolidation without breaking existing workflows:
+
+**`GET /groups/{gid}/projects/{pid}/summary`** — a single new endpoint returning:
+
+- `project`: name, business_goal, stage, status
+- `evidence_count`: number of active `ProjectEvidenceLink` rows
+- `recent_evidence`: up to 5 linked documents with provenance
+- `conversation_count`: number of scoped conversations
+- `task_count`: number of scoped tasks (by status)
+- `agent_run_count`: number of scoped Agent runs
+
+This endpoint requires **zero new models, zero new migrations, zero new business logic**. It is a read-only aggregation of existing data. It gives the Pilot frontend a single data source for a "Project Overview" panel without embedding any standalone capability.
+
+**Explicitly out of S2.4B scope**:
+- No embedded chat, task board, or Agent console
+- No navigation changes
+- No page hiding
+- No new write endpoints
+- No project-bounded RAG endpoint
+
+### 12.7 S2.4C+ Candidates (Not Scheduled)
+
+| Slice | Scope |
+|-------|-------|
+| S2.4C | Project-bounded RAG endpoint (`POST /groups/{gid}/projects/{pid}/rag/answer`) |
+| S2.4D | Pilot-embedded task creation (reuses existing `POST /tasks` with `project_id`) |
+| S2.4E | Pilot-embedded conversation starter (reuses existing `POST /conversations` with `project_id`) |
+| S2.4F | Navigation evaluation — hide pages only after replacement parity is proven by tests |
