@@ -101,9 +101,15 @@ export async function render(container, params) {
   }
 
   function renderStageContent(main, stage, project, dsList) {
+    const reloadProject = () => {
+      container.innerHTML = ''; renderFull();
+    };
     switch (stage) {
       case 'goal': return renderGoalStage(main, dsList);
       case 'data': return renderDataStage(main, dsList);
+      case 'model': return import('./project-model.js').then(m => m.renderModelStage(container, gid, pid, project, reloadProject, isOwnerAdmin));
+      case 'validate': return import('./project-validate.js').then(m => m.renderValidateStage(container, gid, pid, project, reloadProject, isOwnerAdmin));
+      case 'pilot': return import('./project-pilot.js').then(m => m.renderPilotStage(container, gid, pid, project, reloadProject, isOwnerAdmin));
       default: return renderFutureStage(main, stage);
     }
   }
@@ -146,7 +152,8 @@ export async function render(container, params) {
         ${isOwnerAdmin ? `
           <div class="stageCTAs">
             <button class="primary" id="uploadMoreBtn">上传更多数据</button>
-            <p class="stageHint">下一步：生成模型草案 — 数据准备就绪后即可开始建模</p>
+            <button class="primary" id="genFromDataBtn">生成模型草案</button>
+            <p class="stageHint">数据准备就绪后即可开始建模</p>
           </div>
         ` : ''}
       </div>
@@ -154,6 +161,16 @@ export async function render(container, params) {
     `;
     if (isOwnerAdmin) {
       document.getElementById('uploadMoreBtn')?.addEventListener('click', () => openUploadDialog());
+      document.getElementById('genFromDataBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('genFromDataBtn');
+        btn.disabled = true; btn.textContent = '生成中...';
+        try {
+          const result = await api(`/groups/${gid}/projects/${pid}/model-drafts/generate`, { method: 'POST' });
+          showToast(`已生成 ${result.generated_count} 条草案`, 'success');
+          await renderFull();
+        } catch (err) { showToast(err.humanMessage || err.message, 'error'); }
+        finally { btn.disabled = false; btn.textContent = '生成模型草案'; }
+      });
     }
   }
 

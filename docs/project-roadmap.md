@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-20
-**Current phase**: Frontend F2A delivered — Guided Business Pilot Entry + Data Stage. Phase 14 backend COMPLETE.
+**Current phase**: Frontend F2B delivered — Guided Pilot workflow complete (goal→data→model→validate→pilot). Phase 14 backend COMPLETE.
 
 ---
 
@@ -313,8 +313,8 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | # | Task | Status |
 |---|------|--------|
 | F2A | Pilot entry, project creation, goal + data stage, nav restructure | ✅ Delivered |
-| F2B | Model → Validate → Pilot full operation loop | Next |
-| F2C | Responsive/accessibility polish, old entry consolidation | Future |
+| F2B | Model → Validate → Pilot full operation loop (drafts/review/quality/package/bindings/activate/query) | ✅ Delivered |
+| F2C | Responsive/accessibility polish, old entry consolidation | Next |
 
 See `docs/frontend-f2-planning.md`.
 

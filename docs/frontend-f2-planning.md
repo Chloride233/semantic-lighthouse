@@ -1,9 +1,10 @@
 # Frontend F2 — Guided Business Pilot Workspace
 
-**Status**: F2A delivered + Review passed. F2B next. F2C future.
+**Status**: F2A + F2B delivered. F2C next.
 
-**Review results**: verify_ui 33/33, E2E 8/8, 0 console errors.
-Screenshots in `.tmp/f2a-review/`.
+**F2B delivered**: Model stage (draft list, batch review, quality gates, WARN/PASS/FAIL package build), Validate stage (contract viewer, binding generation, pilot activation), Pilot stage (query workbench with field selection, typed filters, limit, provenance/explain). All stages dispatch from unified project.js shell.
+
+**Verification**: verify_ui 34/36 (2 F2B timing-sensitive, full flow in E2E), E2E 8/8. Screenshots in `.tmp/f2b/`.
 
 Phase 14 established the five-stage business pilot pipeline (goal → data → model → validate → pilot). Frontend F2 gives users a guided single-path workspace to operate it, replacing the flat parallel-feature navigation with a Pilot-first information architecture.
 

@@ -1616,3 +1616,42 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
 /* ── Back link ─────────────────────────────────────────────────── */
 .backLink { font-size: var(--text-sm); color: var(--muted); text-decoration: none; }
 .backLink:hover { color: var(--text); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   F2B — Model / Validate / Pilot stages
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Draft list ─────────────────────────────────────────────────── */
+.draftSummary { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.draftList { display: flex; flex-direction: column; gap: 6px; }
+.draftRow { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px; background: var(--panel); }
+.draftRow.draftAccepted { border-left: 3px solid var(--ok); }
+.draftRow.draftRejected { border-left: 3px solid var(--danger); opacity: 0.7; }
+.draftRowHead { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); flex-wrap: wrap; }
+.draftRowBody { display: flex; gap: 10px; font-size: var(--text-xs); color: var(--muted); margin-top: 4px; flex-wrap: wrap; }
+.draftDesc { font-size: var(--text-xs); color: var(--subtle); margin-top: 4px; }
+.reviewActions { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+
+/* ── Issue list ─────────────────────────────────────────────────── */
+.issueList { list-style: none; padding: 0; margin: 8px 0 0; font-size: var(--text-sm); }
+.issueList li { padding: 4px 0; border-bottom: 1px solid var(--line); display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+
+/* ── Contract ───────────────────────────────────────────────────── */
+.contractMeta { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; font-size: var(--text-xs); }
+.contractMeta code { font-size: var(--text-xs); background: var(--surface); padding: 1px 4px; border-radius: 3px; }
+.contractSummary { font-size: var(--text-sm); }
+.contractSummary details { margin-top: 8px; }
+.contractSummary h4 { font-size: var(--text-sm); margin: 10px 0 4px; }
+.contractSummary table { margin-bottom: 8px; }
+
+/* ── Query form ─────────────────────────────────────────────────── */
+.queryForm { display: flex; flex-direction: column; gap: 12px; }
+.queryRow { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
+.queryFields { font-size: var(--text-sm); }
+.fieldChecks { display: flex; flex-wrap: wrap; gap: 6px; }
+.queryFilter { font-size: var(--text-sm); }
+.queryActions { display: flex; gap: 8px; margin-top: 8px; }
+.queryResultMeta { display: flex; align-items: center; gap: 12px; font-size: var(--text-sm); margin: 12px 0 8px; }
+.queryTableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.explainBox { font-size: var(--text-xs); background: var(--surface); padding: 10px; border-radius: var(--radius-sm); margin-top: 8px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px 16px; }
+.explainBox strong { font-weight: 600; }
