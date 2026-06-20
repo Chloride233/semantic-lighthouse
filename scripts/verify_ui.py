@@ -81,8 +81,8 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
     current_hash = page.evaluate("() => location.hash")
     gid = current_hash.split("/")[2] if "/groups/" in current_hash else ""
 
-    # 5. Ask page
-    page.click("a[href='#/ask']")
+    # 5. Ask page (direct hash navigation, in "更多工具" dropdown)
+    page.evaluate("() => { location.hash = '#/ask'; }")
     page.wait_for_timeout(600)
     results.append((
         "Ask page renders as Chinese home",
@@ -90,8 +90,8 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         and page.locator("text=知识问答").count() > 0,
     ))
 
-    # 6. Conversations
-    page.click("a[href*='conversations']")
+    # 6. Conversations (direct hash navigation, in "更多工具" dropdown)
+    page.evaluate("gid => { location.hash = '#/groups/' + gid + '/conversations'; }", gid)
     page.wait_for_timeout(500)
     try:
         page.wait_for_selector("#convTitle", timeout=3000)

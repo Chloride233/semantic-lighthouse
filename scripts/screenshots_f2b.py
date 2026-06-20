@@ -35,8 +35,13 @@ def _setup_env(db_path: str) -> dict[str, str]:
 
 
 def _prepare_page(page):
-    """Close 'more tools' menu if open, scroll to top."""
-    page.evaluate("() => { const m = document.getElementById('navMoreMenu'); if (m) m.hidden = true; const b = document.getElementById('navMoreBtn'); if (b) b.setAttribute('aria-expanded', 'false'); window.scrollTo(0, 0); }")
+    """Close 'more tools' menu if open, remove visible toasts, scroll to top."""
+    page.evaluate("() => { document.querySelectorAll('.toast').forEach(t => t.remove()); const m = document.getElementById('navMoreMenu'); if (m) m.hidden = true; const b = document.getElementById('navMoreBtn'); if (b) b.setAttribute('aria-expanded', 'false'); window.scrollTo(0, 0); }")
+    # Wait for any lingering toast animation / DOM removal to settle
+    try:
+        page.wait_for_selector('.toast', state='detached', timeout=2000)
+    except Exception:
+        pass
 
 
 def _snap(page, out_dir, name):

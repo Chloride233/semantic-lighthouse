@@ -304,7 +304,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 14.4 | Model Validation Gate | ✅ Migration `0021` (scope_key + project_id on packages), project-scoped quality/package/contract API, WARN override audit, FAIL blocks absolutely, stage model→validate, legacy isolation. 23 tests. |
 | 14.5 | Pilot Read Runtime + Unified Query Contract | ✅ Migration `0022` (OntologyDatasetBinding) + `0023` (OntologyRuntimeAudit), deterministic binding generation from accepted contract + dataset profiles, unified read-only query with typed filter conversion/streaming CSV/filter-before-offset-limit/compiled contract as truth, pilot activation with full smoke query, audit fail-closed, path safety, permissions, provenance sanitization. 94 runtime tests. No DSL, no MCP, no Graph RAG. |
 
-**Next**: Frontend F2C (responsive/accessibility polish, old entry consolidation).
+**Next**: Product closeout/review — verify full chain, refresh demo scripts, confirm all docs aligned.
 
 ---
 

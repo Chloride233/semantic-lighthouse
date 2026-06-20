@@ -19,14 +19,13 @@ const TOOLS = [
 
 let _docListenersSetup = false;
 
-function _closeMenu() {
+function _closeMenu(restoreFocus) {
   const btn = document.getElementById('navMoreBtn');
   const menu = document.getElementById('navMoreMenu');
-  if (menu) menu.hidden = true;
-  if (btn) {
-    btn.setAttribute('aria-expanded', 'false');
-    btn.focus();
-  }
+  if (!menu || menu.hidden) return;
+  menu.hidden = true;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+  if (restoreFocus && btn) btn.focus();
 }
 
 function _openMenu() {
@@ -62,14 +61,14 @@ function _setupDocListeners() {
       return;
     }
     if (!menu.contains(e.target)) {
-      _closeMenu();
+      _closeMenu(false);
     }
   });
   document.addEventListener('keydown', (e) => {
     const btn = document.getElementById('navMoreBtn');
     const menu = document.getElementById('navMoreMenu');
     if (!btn || !menu) return;
-    if (e.key === 'Escape') { _closeMenu(); return; }
+    if (e.key === 'Escape') { _closeMenu(true); return; }
     if (document.activeElement === btn || btn.contains(document.activeElement)) {
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
         e.preventDefault();

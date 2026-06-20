@@ -309,7 +309,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 14 COMPLETE (backend + frontend F2B). F2C next — responsive/accessibility polish. Future candidates only: MCP read-only gateway (post-Phase 14, requires dedicated Safety Lane plan), Evidence + Object dual-plane query, Domain Pack/Knowledge Artifact. NOT started.
+**Next iteration**: Phase 14 COMPLETE (backend + frontend F2). Frontend F2 Complete — Guided Pilot workspace delivered. Next: product closeout/review — verify full chain end-to-end, refresh demo scripts, confirm all docs aligned. Future candidates only: MCP read-only gateway (post-Phase 14, requires dedicated Safety Lane plan), Evidence + Object dual-plane query, Domain Pack/Knowledge Artifact. NOT started.
 
 ### Phase 11.1+11.2 Review Hardening — Rescan Evidence Lifecycle (2026-06-19)
 
@@ -910,4 +910,4 @@ Verification: 79 runtime tests, 239 Phase 14 combined, 734 full non-E2E (0 failu
 
 **F2C known boundaries**: No backend, migration, or API changes. No MCP, Action execution, or data write-back. No new dependencies. Old pages preserved in "更多工具" dropdown, all functional. Screenshot stage targeting fixed — mobile pipeline runs independently, stage elements verified before capture.
 
-Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Frontend F2B delivered + acceptance-verified. F2C next.
+Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Frontend F2 Complete. Next: product closeout/review.

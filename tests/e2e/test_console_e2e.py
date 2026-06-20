@@ -158,8 +158,8 @@ Ontology connects business objects, data, and AI workflows for enterprise contex
     page.click("#uploadDocBtn")
     expect(page.locator("body")).to_contain_text(md_file.name, timeout=10000)
 
-    # Navigate to ask via more-tools
-    page.click("#navMoreBtn")
+    # Navigate to ask via more-tools dropdown (force menu open via JS)
+    page.evaluate("() => { const m = document.getElementById('navMoreMenu'); if (m) m.hidden = false; }")
     page.wait_for_timeout(200)
     page.click("a[href='#/ask']")
     expect(page.locator("#askQuestion")).to_be_visible(timeout=5000)
@@ -1154,7 +1154,8 @@ def test_f2c_responsive_no_overflow_at_390px(page: Page, base_url: str) -> None:
 
 
 def test_f2c_dialog_focus_trap_and_escape(page: Page, base_url: str) -> None:
-    """Verify dialog: focus trap (Tab stays inside), Escape closes, focus restores."""
+    """Verify dialog: focus trap (Tab stays inside), Escape closes + restores focus,
+    Confirm triggers async and closes on success."""
     page.goto(f"{base_url}/console")
     _register(page, _unique_email("e2e-f2c-dlg"))
     _login(page)
@@ -1176,44 +1177,60 @@ def test_f2c_dialog_focus_trap_and_escape(page: Page, base_url: str) -> None:
     page.click("#upSubmit")
     page.wait_for_timeout(3000)
 
-    # Generate drafts + accept all
+    # Generate drafts
     page.wait_for_timeout(500)
     if page.locator("#genFromDataBtn").count() > 0:
         page.click("#genFromDataBtn")
         page.wait_for_timeout(2500)
+
+    # ── Escape flow: open dialog, verify focus trap, Escape close ────
+    page.wait_for_timeout(500)
     if page.locator("#selectAllProposed").count() > 0:
         page.click("#selectAllProposed")
         page.wait_for_timeout(200)
     if page.locator(".draftCheck:checked").count() > 0:
         page.click("#batchAcceptBtn")
         page.wait_for_timeout(400)
-        # Dialog should appear
+
+        # Dialog must appear
         expect(page.locator("#dlgConfirm")).to_be_visible(timeout=5000)
+        assert page.locator(".dialog").get_attribute("aria-modal") == "true"
 
-        # Verify dialog has aria-modal
-        dlg = page.locator(".dialog")
-        aria_modal = dlg.get_attribute("aria-modal")
-        assert aria_modal == "true", "Dialog must have aria-modal=true"
-
-        # Click confirm to place focus inside dialog, then verify focus trap
-        page.locator("#dlgConfirm").click()
+        # Press Tab: focus should stay within dialog (focus trap)
+        page.keyboard.press("Tab")
         page.wait_for_timeout(200)
+        focused_tab = page.evaluate("() => document.activeElement?.id || ''")
+        assert focused_tab in ("dlgReason", "dlgConfirm", "dlgCancel"), f"Tab trapped, got {focused_tab}"
 
-        # Focus should be on confirm button after click
-        focused_id = page.evaluate("() => document.activeElement?.id || ''")
-        assert focused_id in ("dlgReason", "dlgConfirm", "dlgCancel"), f"Focus must be inside dialog after click, got {focused_id}"
-
-        # Press Shift+Tab: focus should move to cancel (or reason if present), NOT leave dialog
-        page.keyboard.press("Shift+Tab")
-        page.wait_for_timeout(100)
-        focused_after_stab = page.evaluate("() => document.activeElement?.id || ''")
-        assert focused_after_stab in ("dlgReason", "dlgConfirm", "dlgCancel"), f"Shift+Tab must stay in dialog, got {focused_after_stab}"
-
-        # Press Escape: dialog should close
+        # Press Escape: dialog closes
         page.keyboard.press("Escape")
         page.wait_for_timeout(500)
-        dlg_gone = page.locator(".dialogOverlay").count() == 0
-        assert dlg_gone, "Escape must close dialog"
+        assert page.locator(".dialogOverlay").count() == 0, "Escape must close dialog"
+
+    # ── Confirm flow: open dialog again, click confirm → async success → closes ──
+    page.wait_for_timeout(500)
+    # Re-render to get fresh DOM (navigate to project list and back)
+    current_hash = page.evaluate("() => location.hash")
+    page.evaluate("hash => { location.hash = hash; }", "#/groups/" + page.evaluate("() => location.hash.split('/')[2] || ''") + "/projects")
+    page.wait_for_timeout(800)
+    page.evaluate("hash => { location.hash = hash; }", current_hash)
+    page.wait_for_timeout(2000)
+
+    # Select and open dialog again for confirm
+    if page.locator("#selectAllProposed").count() > 0:
+        page.click("#selectAllProposed")
+        page.wait_for_timeout(200)
+    if page.locator(".draftCheck:checked").count() > 0:
+        page.click("#batchAcceptBtn")
+        page.wait_for_timeout(400)
+        expect(page.locator("#dlgConfirm")).to_be_visible(timeout=5000)
+
+        # Click confirm: triggers async onConfirm, which closes dialog on success
+        page.locator("#dlgConfirm").click()
+        page.wait_for_timeout(1500)
+
+        # Dialog must be gone after confirm (async success closes it)
+        assert page.locator(".dialogOverlay").count() == 0, "Confirm must close dialog"
 
 
 def test_f2c_more_tools_keyboard_nav(page: Page, base_url: str) -> None:

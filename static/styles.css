@@ -1492,6 +1492,7 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
   text-decoration: none; transition: background var(--duration-fast);
 }
 .navMoreMenu a:hover { background: var(--surface); }
+.navMoreMenu[hidden] { display: none; }
 
 /* ── Stage rail ───────────────────────────────────────────────── */
 .stageRailSm { display: flex; gap: 6px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
