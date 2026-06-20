@@ -373,7 +373,7 @@ Status: Design complete. Implementation deferred to Safety Lane approval.
 
 **Unique constraint**: `(project_id, evidence_type, evidence_id)` — prevents duplicate links for the same evidence to the same project.
 
-**No cascade deletes**. Removing a link sets `status='removed'` + audit fields. Deleting a Document or RAGRun does not cascade — the link row remains with `status='removed'` for audit.
+**No cascade deletes**. An explicit user unlink sets `status='removed'` + audit fields. Deleting a Document or RAGRun does not mutate the link row: it remains `active`, while GET derives `evidence_status='gone'` and `unavailable=true`.
 
 ### 10.2 Polymorphic evidence_id Validation
 
