@@ -906,6 +906,8 @@ Verification: 79 runtime tests, 239 Phase 14 combined, 734 full non-E2E (0 failu
 
 **Next**: Frontend F2C — Responsive/accessibility polish, old entry consolidation.
 
-**F2B acceptance**: verify_ui 47/47, backend 749 passed, E2E meets requirements (real member via invite, WARN/FAIL workflow, project isolation). Screenshots at `.tmp/f2b/` (6 files, 0 console errors).
+**F2B acceptance**: verify_ui 47/47, backend 749 passed, E2E 13/13 (real member via invite, WARN/FAIL workflow, project isolation). Screenshots at `.tmp/f2b/` (6 files, 0 console errors).
+
+**Known: F2C first fix** — mobile Model/Validate screenshots captured Pilot stage content due to screenshot script navigating after full pipeline completion. Menu dropdown also left expanded in some captures. Functionality unaffected; fix screenshot stage targeting + menu state in F2C first task.
 
 Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Frontend F2B delivered + acceptance-verified. F2C next.
