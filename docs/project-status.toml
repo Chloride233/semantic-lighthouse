@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S1 low-risk cleanup complete"
-description = "3 files deleted (MessageResponse, v1 scripts, ecommerce script), 9 docs archived. Zero product behavior changes. See docs/product-rationalization-review.md. S2 product-surface consolidation design pending approval."
+current = "S1 safety correction complete"
+description = "1 dead code removal (MessageResponse) + 9 doc archives confirmed safe. 3 utility scripts (start/stop-v1-api.ps1, download_ecommerce_datasets.py) restored after safety review — PID/background lifecycle not equivalent to start_local_app; ecommerce data awaits S2 FDE scenario-pack decision. See docs/product-rationalization-review.md. S2 product-surface consolidation design pending approval."
 
 [next_decision_gate]
 name = "approve S2 product-surface consolidation design"
-description = "S2 scope: evaluate navigation reduction, capability integration (Tasks/RAG/Conversations/Agent into Pilot surface), page hiding, Ontology nav placement. Design only — no implementation until approved."
+description = "S2 scope: evaluate navigation reduction, capability integration (Tasks/RAG/Conversations/Agent into Pilot surface), page hiding, Ontology nav placement. Includes FDE scenario-pack decision for ecommerce datasets. Design only — no implementation until approved."
 
 [mcp]
 runtime_status = "not started"

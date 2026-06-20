@@ -1,7 +1,7 @@
 # Product Rationalization Review — S0 Audit
 
 Date: 2026-06-20
-Status: S1 complete. Low-risk cleanup executed. S2 scope pending approval.
+Status: S1 safety correction complete. 1 dead code removal + 9 doc archives confirmed safe. 3 utility scripts restored after safety review. S2 scope pending approval.
 
 ## 1. FDE Role and Main Chain
 
@@ -51,7 +51,7 @@ The Pilot five stages are the product's primary user path but do NOT represent t
 | K9 | All pytest tests | Tests | `tests/` (749 tests) | Verification — regression protection |
 | K10 | verify_ui + screenshots | Scripts | `verify_ui.py`, `screenshots_f2b.py` | UI verification |
 | K11 | Demo scripts | Scripts | 5 ontology/manufacturing demo scripts | Portfolio evidence — reproducible phase demos |
-| K12 | Deployment scripts | Scripts | `start-api.sh`, `bootstrap-ubuntu.sh`, `smoke-cloud.sh`, `start_local_app.ps1` | Operations |
+| K12 | Deployment scripts | Scripts | `scripts/docker/start-api.sh`, `bootstrap-ubuntu.sh`, `smoke-cloud.sh`, `start_local_app.ps1`, `start_local_preview.ps1`, `start/stop-v1-api.ps1` | Operations |
 | K13 | Eval harness | Scripts | `evaluate.py`, `run_eval.py`, `check_eval_thresholds.py`, `run_rag_quality_eval.py` | Retrieval quality measurement |
 | K14 | Product definition docs | Docs | `PRODUCT.md`, `product-alignment-prd.md`, `agent-handoff.md`, `project-roadmap.md`, `interview-demo-questions.md` | Product narrative |
 | K15 | Engineering memory | Docs | `highlight-log.md`, `pitfall-log.md`, `learning-index.md` | Ongoing learning |
@@ -81,8 +81,8 @@ The Pilot five stages are the product's primary user path but do NOT represent t
 | # | Item | Type | Evidence | Risk |
 |---|------|------|----------|------|
 | R1 | `MessageResponse` schema | Dead code | `schemas.py` line 78. Zero imports in any router or service. Grep: `rg "MessageResponse" src/` returns only the definition, no callers. | **None**. Pure dead code. |
-| R2 | `scripts/dev/start-v1-api.ps1` + `stop-v1-api.ps1` | Stale scripts | Named "v1" but start current app. Superseded by `scripts/start_local_app.ps1`. PID-file pattern is vestigial — no other script uses `.runtime/` PID files. | **None**. `start_local_app.ps1` provides the same functionality. |
-| R3 | `scripts/download_ecommerce_datasets.py` | Niche script | Downloads Olist/Retail Rocket/UCI/Instacart datasets via KaggleHub. Not referenced by any test, demo, or pipeline script. Requires `kagglehub` pip package (not in requirements.txt). | **None**. Manufacturing dataset generator (`generate_manufacturing_dataset.py`) covers Pilot demo data needs. |
+| R2 | `scripts/dev/start-v1-api.ps1` + `stop-v1-api.ps1` | **HOLD** — restored after safety review. | Provides PID management, background process lifecycle, and log redirection. Not equivalent to `start_local_app.ps1` (foreground, no PID). Retained as unattended/headless start option. |
+| R3 | `scripts/download_ecommerce_datasets.py` | **HOLD** — restored after safety review. | Downloads benchmark ecommerce datasets (Olist, Retail Rocket, UCI, Instacart). Awaiting S2 FDE scenario-pack decision on whether non-manufacturing business-object test data is needed. |
 | R4 | `docs/mvp-plan.md` | Superseded doc | 2-week MVP plan from project inception. Entirely superseded by Phase 1-14 delivery. | **Archived.** S1 moved to `docs/archive/mvp-plan.md`. |
 | R5 | `docs/web-search-design.md` | Design-only doc | Feature classified as "Discovery" since 2026-06-17. Never implemented. | **Archived.** S1 moved to `docs/archive/web-search-design.md`. |
 | R6 | `docs/agent-capability-v2-design.md` | Superseded design | 18-section V2 design document. V2.1/V2.2/V2.3 all delivered. | **Archived.** S1 moved to `docs/archive/agent-capability-v2-design.md`. |
@@ -103,8 +103,8 @@ Each REMOVE item verified with `rg`/import/route/test scans:
 | Item | Grep Evidence | Import Evidence | Route Evidence | Test Evidence |
 |------|--------------|----------------|---------------|---------------|
 | R1 MessageResponse | `rg "MessageResponse" src/` → 1 hit: definition only | 0 imports | 0 route references | 0 test references |
-| R2 start/stop-v1-api | Not referenced by any other script | N/A (PowerShell) | N/A | N/A |
-| R3 download_ecommerce | `rg "download_ecommerce"` → 0 references outside the file | N/A | N/A | 0 test imports |
+| R2 start/stop-v1-api | HOLD — PID + background lifecycle, not equivalent to start_local_app | N/A (PowerShell) | N/A | N/A |
+| R3 download_ecommerce | HOLD — awaiting S2 FDE scenario-pack decision | N/A | N/A | 0 test imports |
 | R4 mvp-plan.md | `rg "mvp-plan" docs/` → 0 cross-references | N/A | N/A | N/A |
 | R5 web-search-design | `rg "web-search-design"` → 1 reference in CLAUDE.md (historical mention) | N/A | N/A | N/A |
 | R6-R10 Agent docs | Each doc self-contained with no cross-references from active entry docs | N/A | N/A | N/A |
@@ -120,20 +120,20 @@ Each REMOVE item verified with `rg`/import/route/test scans:
 
 S1 only performs low-risk cleanup that has zero impact on product behavior. All navigation, consolidation, and hiding decisions are deferred to S2.
 
-### S1 Actions — Complete ✅
+### S1 Final Results
 
 | Priority | Item | Action | Status |
 |----------|------|--------|--------|
-| **S1-1** | R1: `MessageResponse` schema | Delete from schemas.py | ✅ Done |
-| **S1-2** | R2: `start/stop-v1-api.ps1` | Delete both scripts | ✅ Done |
-| **S1-3** | R3: `download_ecommerce_datasets.py` | Delete | ✅ Done |
+| **S1-1** | R1: `MessageResponse` schema | Delete from schemas.py | ✅ Done — safe |
+| **S1-2** | R2: `start/stop-v1-api.ps1` | **Restored** after safety review | ⚠️ Reversed — provides PID/background lifecycle, not equivalent to start_local_app |
+| **S1-3** | R3: `download_ecommerce_datasets.py` | **Restored** after safety review | ⚠️ Reversed — awaiting S2 FDE scenario-pack decision |
 | **S1-4** | R4: `docs/mvp-plan.md` | Archive | ✅ Done |
 | **S1-5** | R5: `docs/web-search-design.md` | Archive | ✅ Done |
 | **S1-6** | R6-R10: Agent superseded docs (5 files) | Archive | ✅ Done |
 | **S1-7** | R12: `public-agent-architecture-research.md` | Archive | ✅ Done |
 | **S1-8** | R13: `docs/ecc-stage-prompts.md` | Archive | ✅ Done |
 
-**Summary**: 3 deletions + 9 archival moves. Zero product behavior changes. Zero navigation changes.
+**Final S1 outcome**: 1 dead code removal + 9 doc archives confirmed safe. 3 utility scripts restored after safety review. Zero navigation or product behavior changes.
 
 ### Deferred from S1
 
@@ -193,10 +193,9 @@ S1 makes no navigation changes. The current layout is preserved:
 | Category | Before | After (S1) | Delta |
 |----------|--------|------------|-------|
 | Dead code (schema) | 1 orphan | 0 orphan | -1 |
-| Stale scripts | 2 | 0 | -2 |
-| Niche scripts | 1 | 0 | -1 |
 | Superseded docs archived | 1 in archive | 10 in archive | 9 moved to archive |
-| **Total files affected** | — | — | **12 files** (3 deleted, 9 archived) |
+| Tools restored after review | — | 3 scripts retained | +3 (safety correction) |
+| **Total net effect** | — | — | **1 removal + 9 archives + 3 restorations** |
 | **Navigation changes** | — | — | **0** (deferred to S2) |
 | **Frontend LOC change** | — | — | **0** (no navbar.js changes in S1) |
 
@@ -216,7 +215,7 @@ S1 makes no navigation changes. The current layout is preserved:
 | **All frontend pages** | 17 JS files | All are reachable via routes or dynamic imports — no orphan pages |
 | **All E2E tests** | `tests/e2e/` (18 tests) | Browser verification |
 | **Active demo scripts** | 5 ontology/manufacturing demo scripts | Portfolio evidence, reproducible |
-| **Active ops scripts** | `start-api.sh`, `bootstrap-ubuntu.sh`, `smoke-cloud.sh`, `start_local_app.ps1`, `start_local_preview.ps1` | Deployment and development |
+| **Active ops scripts** | `scripts/docker/start-api.sh`, `bootstrap-ubuntu.sh`, `smoke-cloud.sh`, `start_local_app.ps1`, `start_local_preview.ps1`, `start/stop-v1-api.ps1` | Deployment and development |
 | **Active eval scripts** | `evaluate.py`, `run_eval.py`, `check_eval_thresholds.py`, `run_rag_quality_eval.py` | Retrieval quality measurement |
 | **Active quality scripts** | `verify_ui.py`, `screenshots_f2b.py`, `check_doc_alignment.py`, `scan_encoding.py` | Verification |
 | **Active product docs** | `PRODUCT.md`, `product-alignment-prd.md`, `agent-handoff.md`, `project-roadmap.md`, `project-status.toml`, `development-workflow.md`, `quality-gate.md`, `interview-demo-questions.md` | Product narrative |
