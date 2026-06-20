@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from semantic_lighthouse.models import AgentRun, AgentStep, AgentMemory, utc_now
@@ -45,6 +46,20 @@ AGENT_TOOLS: list[ToolDef] = [
 ]
 
 
+def _project_doc_ids(db: Session, group_id: str, project_id: str) -> set[str] | None:
+    """Derive allowed Document IDs from active ProjectEvidenceLinks."""
+    from semantic_lighthouse.models import ProjectEvidenceLink
+    rows = db.execute(
+        select(ProjectEvidenceLink.evidence_id).where(
+            ProjectEvidenceLink.group_id == group_id,
+            ProjectEvidenceLink.project_id == project_id,
+            ProjectEvidenceLink.evidence_type == "document",
+            ProjectEvidenceLink.status == "active",
+        )
+    ).all()
+    return {row[0] for row in rows}
+
+
 def _tool_by_name(name: str) -> ToolDef | None:
     for t in AGENT_TOOLS:
         if t.name == name:
@@ -64,6 +79,7 @@ def execute_tool(
     group_id: str,
     user_role: str,
     user_id: str | None = None,
+    project_id: str | None = None,
 ) -> str:
     tool = _tool_by_name(name)
     if tool is None:
@@ -71,11 +87,13 @@ def execute_tool(
     if not _validate_role(tool, user_role):
         return f"Error: '{name}' requires '{tool.required_role}' role."
 
+    allowed_docs = _project_doc_ids(db, group_id, project_id) if project_id else None
+
     if name == "search_knowledge_base":
         query = arguments.get("query", "")
         if not query.strip():
             return "Error: query is required."
-        results = _keyword_search(db, group_id, query, limit=5)
+        results = _keyword_search(db, group_id, query, limit=5, allowed_document_ids=allowed_docs)
         if not results:
             return "No matching documents found."
         lines = []
@@ -87,9 +105,14 @@ def execute_tool(
         from semantic_lighthouse.models import Document
         from sqlalchemy import select
 
+        conditions = [Document.group_id == group_id, Document.status.in_(["ready", "uploaded", "processing"])]
+        if allowed_docs is not None:
+            if not allowed_docs:
+                return "No documents linked to this project."
+            conditions.append(Document.id.in_(allowed_docs))
         docs = db.scalars(
             select(Document)
-            .where(Document.group_id == group_id, Document.status.in_(["ready", "uploaded", "processing"]))
+            .where(*conditions)
             .order_by(Document.created_at.desc())
             .limit(20)
         ).all()
@@ -98,6 +121,8 @@ def execute_tool(
         return "\n".join(f"- [{d.status}] {d.title} ({d.file_name})" for d in docs)
 
     if name == "archive_document":
+        if project_id is not None:
+            return "Error: archive_document is not available inside a project-scoped Agent run."
         title = arguments.get("title", "")
         if not title.strip():
             return "Error: title is required."
@@ -163,7 +188,7 @@ def agent_loop(
     Risky tools pause the loop (awaiting_confirmation). Caller resumes via
     subsequent execute calls.
     """
-    tool_schemas = _tool_schemas_for_llm()
+    tool_schemas = _tool_schemas_for_llm(project_id=run.project_id)
     consecutive_errors = 0
     last_step = None
 
@@ -221,7 +246,9 @@ def agent_loop(
                 last_step = step
                 continue
 
-            if tool.is_risky:
+            if tool.is_risky and not (
+                run.project_id is not None and tool_name == "archive_document"
+            ):
                 run.status = "awaiting_confirmation"
                 run.current_phase = "execute"
                 run.updated_at = utc_now()
@@ -243,7 +270,7 @@ def agent_loop(
                 db.refresh(step)
                 return step
 
-            result = execute_tool(tool_name, tool_args, db, group_id, user_role, run.user_id)
+            result = execute_tool(tool_name, tool_args, db, group_id, user_role, run.user_id, project_id=run.project_id)
             step = add_step(
                 db, run, phase="execute", step_index=step_idx,
                 thought=decision.thought, action_type="tool_call",
@@ -258,6 +285,10 @@ def agent_loop(
             db.commit()
 
             if result.startswith("Error:"):
+                if run.project_id is not None and tool_name == "archive_document":
+                    fail_run(db, run, result)
+                    db.refresh(step)
+                    return step
                 consecutive_errors += 1
                 if consecutive_errors >= 2:
                     fail_run(db, run, f"Agent failed: {consecutive_errors} consecutive tool errors.")
@@ -342,9 +373,11 @@ def _decision_detail(decision: AgentDecision, raw: str) -> dict:
     return base
 
 
-def _tool_schemas_for_llm() -> list[dict]:
+def _tool_schemas_for_llm(project_id: str | None = None) -> list[dict]:
     schemas = []
     for t in AGENT_TOOLS:
+        if project_id is not None and t.name == "archive_document":
+            continue  # scoped runs cannot archive documents
         props: dict = {}
         required: list[str] = []
         if t.name == "search_knowledge_base":

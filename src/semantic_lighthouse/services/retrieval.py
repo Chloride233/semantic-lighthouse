@@ -29,6 +29,26 @@ class ScoredChunk:
     retrieval_method: str
 
 
+def project_document_ids(db: Session, group_id: str, project_id: str | None) -> set[str] | None:
+    """Derive allowed Document IDs from active ProjectEvidenceLinks.
+
+    Returns None for unscoped (full group access). Returns empty set when
+    project has no linked documents (must not fall back to group scope).
+    """
+    if project_id is None:
+        return None
+    from semantic_lighthouse.models import ProjectEvidenceLink
+    rows = db.execute(
+        select(ProjectEvidenceLink.evidence_id).where(
+            ProjectEvidenceLink.group_id == group_id,
+            ProjectEvidenceLink.project_id == project_id,
+            ProjectEvidenceLink.evidence_type == "document",
+            ProjectEvidenceLink.status == "active",
+        )
+    ).all()
+    return {row[0] for row in rows}
+
+
 # ── public API ─────────────────────────────────────────────────────────────
 
 
@@ -39,15 +59,18 @@ def hybrid_search(
     limit: int,
     keyword_weight: float,
     settings: Settings,
+    allowed_document_ids: set[str] | None = None,
 ) -> list[ScoredChunk]:
     """Fuse keyword and semantic results with linear score combination.
 
     Each method's raw scores are min-max normalized within its result
     set so both contribute on a 0–1 scale.  Duplicate chunks (appearing
     in both sets) keep the higher fused score.
+
+    allowed_document_ids: None = all group docs. Empty set = no results.
     """
-    kw_chunks = _keyword_search(db, group_id, query, limit * 2)
-    sem_chunks = _semantic_search(db, group_id, query, limit * 2, settings)
+    kw_chunks = _keyword_search(db, group_id, query, limit * 2, allowed_document_ids=allowed_document_ids)
+    sem_chunks = _semantic_search(db, group_id, query, limit * 2, settings, allowed_document_ids=allowed_document_ids)
 
     seen: dict[str, ScoredChunk] = {}
     _merge_scored(seen, kw_chunks, keyword_weight)
@@ -60,7 +83,9 @@ def hybrid_search(
 # ── keyword ────────────────────────────────────────────────────────────────
 
 
-def _keyword_search(db: Session, group_id: str, query: str, limit: int) -> list[ScoredChunk]:
+def _keyword_search(db: Session, group_id: str, query: str, limit: int, *, allowed_document_ids: set[str] | None = None) -> list[ScoredChunk]:
+    if allowed_document_ids is not None and not allowed_document_ids:
+        return []  # empty evidence set → no results, never fall back
     terms = _keyword_terms(query)
     if not terms:
         return []
@@ -75,15 +100,18 @@ def _keyword_search(db: Session, group_id: str, query: str, limit: int) -> list[
         for term in terms
     ]
     relevance = _keyword_relevance_expr(terms)
+    where_clauses = [
+        DocumentChunk.group_id == group_id,
+        Document.group_id == group_id,
+        Document.status == "ready",
+        or_(*search_conditions),
+    ]
+    if allowed_document_ids is not None:
+        where_clauses.append(DocumentChunk.document_id.in_(allowed_document_ids))
     rows = db.execute(
         select(DocumentChunk, Document, relevance.label("relevance"))
         .join(Document, Document.id == DocumentChunk.document_id)
-        .where(
-            DocumentChunk.group_id == group_id,
-            Document.group_id == group_id,
-            Document.status == "ready",
-            or_(*search_conditions),
-        )
+        .where(*where_clauses)
         .order_by(relevance.desc(), Document.created_at.desc(), DocumentChunk.chunk_index.asc())
         .limit(limit)
     ).all()
@@ -143,38 +171,43 @@ def _keyword_terms(query: str) -> list[str]:
 
 
 def _semantic_search(
-    db: Session, group_id: str, query: str, limit: int, settings: Settings
+    db: Session, group_id: str, query: str, limit: int, settings: Settings, *, allowed_document_ids: set[str] | None = None,
 ) -> list[ScoredChunk]:
+    if allowed_document_ids is not None and not allowed_document_ids:
+        return []
     client = create_embedding_client(settings)
     try:
         query_vector = client.embed_texts([query]).vectors[0]
     except EmbeddingError:
         logger.warning("Embedding failed for query; semantic contribution skipped")
         return []
-    return _semantic_search_with_vector(db, group_id, query_vector, limit)
+    return _semantic_search_with_vector(db, group_id, query_vector, limit, allowed_document_ids=allowed_document_ids)
 
 
 def _semantic_search_with_vector(
-    db: Session, group_id: str, query_vector: list[float], limit: int
+    db: Session, group_id: str, query_vector: list[float], limit: int, *, allowed_document_ids: set[str] | None = None,
 ) -> list[ScoredChunk]:
     """Run semantic search with a pre-computed query vector (caller handles errors)."""
     if db.bind is not None and db.bind.dialect.name == "postgresql":
-        return _semantic_postgres(db, group_id, query_vector, limit)
-    return _semantic_python(db, group_id, query_vector, limit)
+        return _semantic_postgres(db, group_id, query_vector, limit, allowed_document_ids=allowed_document_ids)
+    return _semantic_python(db, group_id, query_vector, limit, allowed_document_ids=allowed_document_ids)
 
 
 def _semantic_python(
-    db: Session, group_id: str, query_vector: list[float], limit: int
+    db: Session, group_id: str, query_vector: list[float], limit: int, *, allowed_document_ids: set[str] | None = None,
 ) -> list[ScoredChunk]:
+    where_clauses = [
+        DocumentChunk.group_id == group_id,
+        Document.group_id == group_id,
+        Document.status == "ready",
+        DocumentChunk.embedding.is_not(None),
+    ]
+    if allowed_document_ids is not None:
+        where_clauses.append(DocumentChunk.document_id.in_(allowed_document_ids))
     rows = db.execute(
         select(DocumentChunk, Document)
         .join(Document, Document.id == DocumentChunk.document_id)
-        .where(
-            DocumentChunk.group_id == group_id,
-            Document.group_id == group_id,
-            Document.status == "ready",
-            DocumentChunk.embedding.is_not(None),
-        )
+        .where(*where_clauses)
     ).all()
 
     scored = []
@@ -191,7 +224,7 @@ def _semantic_python(
 
 
 def _semantic_postgres(
-    db: Session, group_id: str, query_vector: list[float], limit: int
+    db: Session, group_id: str, query_vector: list[float], limit: int, *, allowed_document_ids: set[str] | None = None,
 ) -> list[ScoredChunk]:
     from pgvector.sqlalchemy import Vector
     from sqlalchemy import bindparam
@@ -204,15 +237,18 @@ def _semantic_postgres(
         Float,
     ).label("distance")
 
+    where_clauses = [
+        DocumentChunk.group_id == group_id,
+        Document.group_id == group_id,
+    ]
+    if allowed_document_ids is not None:
+        where_clauses.append(DocumentChunk.document_id.in_(allowed_document_ids))
+    where_clauses.append(Document.status == "ready")
+    where_clauses.append(DocumentChunk.embedding.is_not(None))
     rows = db.execute(
         select(DocumentChunk, Document, distance_expr)
         .join(Document, Document.id == DocumentChunk.document_id)
-        .where(
-            DocumentChunk.group_id == group_id,
-            Document.group_id == group_id,
-            Document.status == "ready",
-            DocumentChunk.embedding.is_not(None),
-        )
+        .where(*where_clauses)
         .order_by(distance_expr.asc())
         .limit(limit)
         .params(query_vector=vector_literal)

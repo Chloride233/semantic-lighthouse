@@ -28,7 +28,7 @@ from semantic_lighthouse.services.chat import (
     sanitize_references,
 )
 from semantic_lighthouse.services.embeddings import EmbeddingError, create_embedding_client
-from semantic_lighthouse.services.retrieval import ScoredChunk, hybrid_search, _semantic_search_with_vector
+from semantic_lighthouse.services.retrieval import ScoredChunk, hybrid_search, project_document_ids, _semantic_search_with_vector
 
 router = APIRouter(prefix="/groups/{group_id}/conversations", tags=["conversations"])
 
@@ -60,11 +60,13 @@ def _execute_tool(
     db: Session,
     group_id: str,
     settings: Settings,
+    *,
+    allowed_document_ids: set[str] | None = None,
 ) -> str:
     """Execute a tool server-side and return a text result for the LLM.
 
     Only tools in AVAILABLE_TOOLS are allowed.  All searches inherit the
-    caller's group_id permission boundary.
+    caller's group_id permission boundary and project scope.
     """
     allowed = {t["name"] for t in AVAILABLE_TOOLS}
     if name not in allowed:
@@ -74,7 +76,7 @@ def _execute_tool(
         query = arguments.get("query", "")
         if not query.strip():
             return "Error: search_knowledge_base requires a non-empty 'query' parameter."
-        results = _keyword_search(db, group_id, query, limit=5)
+        results = _keyword_search(db, group_id, query, limit=5, allowed_document_ids=allowed_document_ids)
         if not results:
             return "No matching documents found for the given query."
         lines: list[str] = []
@@ -108,6 +110,7 @@ def _resolve_tool_answer(
     group_id: str,
     conversation_id: str,
     settings: Settings,
+    allowed_document_ids: set[str] | None = None,
 ) -> _ResolvedAnswer:
     """Call LLM, execute tool if requested, return resolved answer fields."""
     response = client.generate_response(
@@ -116,7 +119,7 @@ def _resolve_tool_answer(
 
     if response.is_tool_call:
         tool = response.tool_call
-        tool_result = _execute_tool(tool.name, tool.arguments, db, group_id, settings)
+        tool_result = _execute_tool(tool.name, tool.arguments, db, group_id, settings, allowed_document_ids=allowed_document_ids)
         db.add(
             ConversationMessage(
                 conversation_id=conversation_id,
@@ -332,10 +335,11 @@ def send_message(
     )
     db.add(user_msg)
 
-    # ── retrieve ──────────────────────────────────────────────────────
+    # ── retrieve (project-scoped if conversation has project_id) ──────
     limit = request.limit or settings.rag_top_k
     retrieval_method = request.retrieval_method
-    retrieved = _retrieve(db, group_id, request.question, retrieval_method, limit, settings)
+    allowed_doc_ids = project_document_ids(db, group_id, conv.project_id)
+    retrieved = _retrieve(db, group_id, request.question, retrieval_method, limit, settings, allowed_document_ids=allowed_doc_ids)
 
     citations = _build_citations(retrieved, request.question, settings.rag_max_context_chars, retrieval_method)
 
@@ -362,6 +366,7 @@ def send_message(
         resolved = _resolve_tool_answer(
             client, request.question, citations, history,
             db=db, group_id=group_id, conversation_id=conversation_id, settings=settings,
+            allowed_document_ids=allowed_doc_ids,
         )
     except ChatError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
@@ -394,27 +399,30 @@ def _retrieve(
     retrieval_method: str,
     limit: int,
     settings: Settings,
+    allowed_document_ids: set[str] | None = None,
 ) -> list[ScoredChunk]:
     if retrieval_method == "keyword":
-        return _keyword_search(db, group_id, question, limit)
+        return _keyword_search(db, group_id, question, limit, allowed_document_ids=allowed_document_ids)
     if retrieval_method == "semantic":
         try:
-            return _semantic_search(db, group_id, question, limit, settings)
+            return _semantic_search(db, group_id, question, limit, settings, allowed_document_ids=allowed_document_ids)
         except EmbeddingError as exc:
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     if retrieval_method == "hybrid":
-        return hybrid_search(db, group_id, question, limit, keyword_weight=0.3, settings=settings)
+        return hybrid_search(db, group_id, question, limit, keyword_weight=0.3, settings=settings, allowed_document_ids=allowed_document_ids)
     # auto: semantic first, fall back to keyword
     try:
-        semantic_results = _semantic_search(db, group_id, question, limit, settings)
+        semantic_results = _semantic_search(db, group_id, question, limit, settings, allowed_document_ids=allowed_document_ids)
     except EmbeddingError:
         semantic_results = []
     if semantic_results:
         return semantic_results
-    return _keyword_search(db, group_id, question, limit)
+    return _keyword_search(db, group_id, question, limit, allowed_document_ids=allowed_document_ids)
 
 
-def _keyword_search(db: Session, group_id: str, query: str, limit: int) -> list[ScoredChunk]:
+def _keyword_search(db: Session, group_id: str, query: str, limit: int, *, allowed_document_ids: set[str] | None = None) -> list[ScoredChunk]:
+    if allowed_document_ids is not None and not allowed_document_ids:
+        return []
     terms = _keyword_terms(query)
     if not terms:
         return []
@@ -426,15 +434,18 @@ def _keyword_search(db: Session, group_id: str, query: str, limit: int) -> list[
         )
         for term in terms
     ]
+    where_clauses = [
+        DocumentChunk.group_id == group_id,
+        Document.group_id == group_id,
+        Document.status == "ready",
+        or_(*search_conditions),
+    ]
+    if allowed_document_ids is not None:
+        where_clauses.append(DocumentChunk.document_id.in_(allowed_document_ids))
     rows = db.execute(
         select(DocumentChunk, Document)
         .join(Document, Document.id == DocumentChunk.document_id)
-        .where(
-            DocumentChunk.group_id == group_id,
-            Document.group_id == group_id,
-            Document.status == "ready",
-            or_(*search_conditions),
-        )
+        .where(*where_clauses)
         .order_by(Document.created_at.desc(), DocumentChunk.chunk_index.asc())
         .limit(limit)
     ).all()
@@ -450,11 +461,18 @@ def _semantic_search(
     query: str,
     limit: int,
     settings: Settings,
+    *,
+    allowed_document_ids: set[str] | None = None,
 ) -> list[ScoredChunk]:
+    if allowed_document_ids is not None and not allowed_document_ids:
+        return []
     validate_pgvector_dimension(db, settings)
     client = create_embedding_client(settings)
     query_vector = client.embed_texts([query]).vectors[0]
-    return _semantic_search_with_vector(db, group_id, query_vector, limit)
+    return _semantic_search_with_vector(
+        db, group_id, query_vector, limit,
+        allowed_document_ids=allowed_document_ids,
+    )
 
 
 def _build_citations(

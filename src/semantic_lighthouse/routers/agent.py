@@ -280,7 +280,7 @@ def _execute_single_tool(
     """V1 deterministic single-tool execution — preserved for eval regression."""
     tool_args: dict = {"query": run.goal} if tool == "search_knowledge_base" else {"title": run.goal} if tool == "archive_document" else {}
 
-    if is_risky_tool(tool):
+    if is_risky_tool(tool) and not (run.project_id is not None and tool == "archive_document"):
         run.status = "awaiting_confirmation"
         run.current_phase = "execute"
         run.updated_at = utc_now()
@@ -315,7 +315,7 @@ def _execute_single_tool(
     )
     db.commit()
 
-    result = execute_tool(tool, tool_args, db, group_id, user_role, run.user_id)
+    result = execute_tool(tool, tool_args, db, group_id, user_role, run.user_id, project_id=run.project_id)
     step.observation = result
     step.finished_at = utc_now()
 
@@ -404,7 +404,7 @@ def respond_to_agent(
                 status="completed",
             )
             # Execute the confirmed tool in a separate tool_call step
-            result = execute_tool(tool_name, tool_args, db, group_id, membership.role, current_user.id)
+            result = execute_tool(tool_name, tool_args, db, group_id, membership.role, current_user.id, project_id=run.project_id)
             step_index2 = len(run.steps) if run.steps else 0
             add_step(
                 db, run, phase="execute", step_index=step_index2,
@@ -415,9 +415,12 @@ def respond_to_agent(
                 status="completed" if not result.startswith("Error:") else "failed",
                 error_message=result if result.startswith("Error:") else None,
             )
-            run.status = "executing"
-            run.current_phase = "execute"
-            run.updated_at = utc_now()
+            if result.startswith("Error:"):
+                fail_run(db, run, result)
+            else:
+                run.status = "executing"
+                run.current_phase = "execute"
+                run.updated_at = utc_now()
             db.commit()
             db.refresh(run)
         else:
