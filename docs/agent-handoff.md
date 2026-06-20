@@ -43,6 +43,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 - No caching layer — repeated queries re-read files.
 - `test_conversations.py` blocked by Windows temp dir PermissionError (19 tests, pre-existing).
 - `test_upload_then_ask_with_answer_card` uses forced menu-open via JS evaluation (timing workaround).
+- AgentRun creation currently accepts `conversation_id` without validating conversation group or ownership. S2.3A must close this integrity gap before project context is persisted.
 
 ## Verification Summary
 
@@ -56,7 +57,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 ## Next Decision Gate
 
-**S2.3 project work context design**: evaluate optional `project_id` context for conversations, tasks, and Agent runs while preserving existing group-scoped compatibility. Design first; no implementation or UI work until approved. See `docs/project-status.toml`.
+**Approve S2.3A Safety Lane implementation**: add optional immutable project context and server-side consistency checks without changing existing routes or unscoped behavior. S2.3B will separately enforce project-bounded retrieval and Agent tools. See section 11 of `docs/product-rationalization-review.md`.
 
 ## Key API Surfaces
 

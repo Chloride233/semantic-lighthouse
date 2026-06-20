@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S2.2 project evidence contract complete"
-description = "Migration 0024 (project_evidence_links), 3 API endpoints, 38 targeted tests, full regression 786 passed. Group+project dual isolation. Audit via OntologyRuntimeAudit. See docs/product-rationalization-review.md section 10."
+current = "S2.3 project work context design complete"
+description = "Optional immutable project context is designed for conversations, tasks, and Agent runs. Project-scoped retrieval must use active ProjectEvidenceLink documents and never fall back to the whole group. See docs/product-rationalization-review.md section 11."
 
 [next_decision_gate]
-name = "S2.2 backend safety review complete / plan S2.3"
-description = "S2.3 scope: evaluate optional project_id for conversations, tasks, and Agent runs. Design only — no implementation until approved."
+name = "approve S2.3A Safety Lane implementation"
+description = "Implement migration 0025 plus project context persistence, validation, filters, archived-project write freeze, Agent conversation inheritance, and scoped Task source checks. No UI; project-bounded retrieval follows separately in S2.3B."
 
 [mcp]
 runtime_status = "not started"

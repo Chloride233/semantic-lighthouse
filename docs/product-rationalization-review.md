@@ -1,7 +1,7 @@
 # Product Rationalization and Surface Consolidation Review
 
 Date: 2026-06-20
-Status: S2.1 contextual guidance delivered. S2.2 project evidence contract delivered.
+Status: S2.3 project work context design complete. Implementation pending approval.
 
 ## 1. FDE Role and Main Chain
 
@@ -596,3 +596,71 @@ Residual boundaries (not in S2.2):
 - No UI — evidence links are API-only. Goal stage links remain navigation-only.
 - No Agent auto-link — Agent tool registry has zero evidence write tools.
 - No conversation/task/AgentRun project scope (deferred to S2.3).
+
+---
+
+## 11. S2.3 Project Work Context
+
+Status: Design complete. Implementation requires two Safety Lane slices and a final backend review.
+
+### 11.1 Decision
+
+Add nullable, indexed `project_id` foreign keys to `Conversation`, `Task`, and `AgentRun` in migration `0025`. The field is optional and immutable after creation. Existing rows remain unscoped (`NULL`), existing group-scoped API behavior remains valid, and no data is backfilled by inference.
+
+This is a real execution boundary, not a display label. When a Conversation or AgentRun is project-scoped, every knowledge lookup must be limited to ready Documents connected to that project by an active `ProjectEvidenceLink`. An empty project evidence set returns no evidence; it must never fall back to all group documents.
+
+### 11.2 API And Compatibility Contract
+
+- Keep the existing group-scoped routes. Do not add duplicate nested project routes.
+- Add optional `project_id` to create requests and responses for conversations, tasks, and Agent runs.
+- Add optional exact `project_id` filters to their list endpoints. Omitting the filter preserves current all-scope behavior.
+- Validate project membership server-side with `BusinessProject.group_id == route group_id`. Cross-group or unknown projects return 404.
+- Reject creation in an archived project with 409. Existing scoped records remain readable, but message sending, Agent execute/respond, and task mutation return 409 after project archival.
+- Do not permit project reassignment. There is no PATCH operation for `project_id`.
+- Conversations and Agent runs remain private to their creating user. Tasks remain shared within the group under their existing permission rules.
+
+### 11.3 Conversation And Agent Consistency
+
+- Creating an AgentRun with `conversation_id` must validate that the conversation belongs to the route group and current user. This closes the current unchecked-FK integrity gap.
+- When `conversation_id` is supplied, the run inherits the conversation's `project_id` server-side. If a non-null `project_id` is also supplied, it must match; a scoped project cannot be combined with an unscoped conversation.
+- Project-scoped Conversation retrieval (keyword, semantic, hybrid, auto, and tool-loop searches) receives an allowed Document ID set derived from active project evidence links.
+- Project-scoped Agent `search_knowledge_base` and `list_documents` use the same allowed set.
+- `archive_document` is unavailable inside a project-scoped Agent run. Archiving a group document is a group-global side effect that can affect other projects; it must be performed from an unscoped run with the existing role and HITL checks.
+- The model/client never supplies an authoritative project or document scope to a tool. The server derives it from the persisted AgentRun and ProjectEvidenceLink rows.
+
+### 11.4 Task Source Rules
+
+Unscoped task creation preserves the existing source contract for backward compatibility. A project-scoped task applies stricter source validation:
+
+| source_type | Required project consistency |
+|-------------|------------------------------|
+| `manual` | Allowed with no external source lookup. |
+| `conversation` | Source exists in the same group, is owned by the caller, and has the same `project_id`. |
+| `agent_run` | Source exists in the same group, is owned by the caller, and has the same `project_id`. |
+| `rag_run` | Source belongs to the group and has an active `ProjectEvidenceLink` to the project. |
+
+Unknown, cross-group, or cross-user source references return 404 to avoid existence leakage. A caller-owned source with a conflicting project context returns 409 only after ownership and group checks pass.
+
+### 11.5 Lifecycle And Non-Goals
+
+- Project archive never cascades, deletes, or rewrites conversations, tasks, Agent runs, messages, steps, or evidence links.
+- No project-specific RBAC is introduced; group membership remains the authorization boundary.
+- No frontend work, navigation changes, automatic association, historical backfill, Agent-created links, MCP runtime, Graph RAG, or Ontology writes.
+- No new audit table is required. Creator/user fields, immutable `project_id`, Task source traceability, Agent steps, and existing HITL records remain the audit surface.
+
+### 11.6 Delivery Slices
+
+**S2.3A — Context persistence and validation (CC implementation)**
+
+- Migration `0025`, model/schema fields, response serialization, list filters, archived-project write freeze, Agent conversation validation/inheritance, and project-scoped Task source validation.
+- Related tests must cover nullable compatibility, cross-group 404, archived 409, immutable context, user privacy, source consistency, and no inferred backfill.
+
+**S2.3B — Project-bounded retrieval and tools (CC implementation)**
+
+- Add an optional server-derived allowed Document ID constraint to keyword, semantic, hybrid, Conversation tool-loop, and Agent document tools.
+- Tests must prove project A cannot retrieve/list project B or unlinked documents, empty evidence never falls back group-wide, unscoped behavior is unchanged, and project-scoped archive is denied.
+
+**S2.3C — Safety review and closeout (Codex)**
+
+- Review migration reversibility, every query constraint, archived lifecycle, source validation, tool propagation, and regression compatibility.
+- Run focused suites first; run non-E2E full regression once at the final boundary only.
