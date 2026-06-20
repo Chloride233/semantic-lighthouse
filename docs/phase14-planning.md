@@ -85,8 +85,8 @@ Each stage is backend-controlled. Clients cannot skip, reverse, or directly set 
 - **Audit**: Query audit records user/group/project/object_type, field names, filter field names, row_count, and timestamp. Never records filter values, returned data, storage_path, PII, or secrets. Existing audit model extended minimally — no generic event framework.
 - **Path safety**: File storage_path resolved and verified within `dataset_storage_path/{gid}/{pid}/`. Traversal attempts rejected.
 - **No MCP, no DSL/SQL, no Graph RAG**: Query uses only JSON equality filters. No expression strings, no AST, no query optimizer, no custom language. MCP runtime, SDK, and write capability remain NOT implemented — see `docs/mcp-agent-boundary-design.md`.
-- **Tests**: 56 tests in `tests/test_project_runtime.py` covering binding generation (deterministic, idempotent, PK/property mapping, issues), permissions (member/owner/admin/outsider, cross-group, cross-project), query execution (field whitelist, equality filter, limit/offset, max limits), CSV and XLSX queries, contract type conversion (success and failure), explain_only, provenance sanitization, activation (validate→pilot, failure blocking, idempotency), stale package binding, path traversal rejection, and legacy backward compatibility.
-- **Verification**: 216 combined tests passed (56 runtime + 57 projects + 53 datasets + 27 modeling + 23 validation). Ruff clean. Migration 0022 at Alembic head. Git diff --check clean.
+- **Tests**: 94 tests in `tests/test_project_runtime.py` covering binding generation, permissions, query (field whitelist, typed equality filter, filter-field-not-in-selected regression, limit/offset, max limits), CSV/XLSX, contract type conversion, explain/provenance, activation, stale package, path safety, audit (success/failure/field correctness/privacy), service-level filter value converter unit tests, audit fail-closed, and legacy backward compatibility.
+- **Verification**: 254 combined Phase 14 tests. 749 full non-E2E passed. Ruff clean. Migration 0023 at Alembic head. Git diff --check clean.
 - **Next**: Phase 14 closeout complete. Future candidates only — NOT started.
 
 ---

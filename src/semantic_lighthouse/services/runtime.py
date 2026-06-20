@@ -13,11 +13,13 @@ No SQL, no DSL, no AST, no LLM, no MCP, no Graph RAG, no writes.
 from __future__ import annotations
 
 import csv
-import re
+from datetime import date as dt_date
+from datetime import datetime as dt_datetime
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from semantic_lighthouse.config import get_settings
@@ -82,9 +84,6 @@ def _record_audit(
 #  contract value_type → deterministic Python converter
 # ═══════════════════════════════════════════════════════════════════════════
 
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}")
-
 
 def _convert_value(
     raw: str | None, value_type: str, field_name: str,
@@ -124,30 +123,106 @@ def _convert_value(
             f"Field '{field_name}': value is not a valid boolean"
         )
     if value_type == "date":
-        if not _DATE_RE.match(stripped):
+        try:
+            d = dt_date.fromisoformat(stripped)
+        except (ValueError, TypeError):
             raise ValueError(
-                f"Field '{field_name}': value is not a valid ISO date (YYYY-MM-DD)"
+                f"Field '{field_name}': value is not a valid date (YYYY-MM-DD)"
             )
-        return stripped
+        return d.isoformat()
     if value_type == "datetime":
-        if not _DATETIME_RE.match(stripped):
+        try:
+            d = dt_datetime.fromisoformat(stripped)
+        except (ValueError, TypeError):
             raise ValueError(
                 f"Field '{field_name}': value is not a valid ISO datetime"
             )
-        return stripped
+        return d.isoformat()
     return stripped
 
 
 def _convert_filter_value(
-    raw: str, value_type: str, field_name: str,
+    raw: str | int | float | bool | None,
+    value_type: str,
+    field_name: str,
 ) -> Any:
-    """Convert a filter value for comparison. Rejects arrays/objects."""
-    converted = _convert_value(raw, value_type, field_name)
-    if isinstance(converted, (list, dict)):
+    """Convert a JSON scalar filter value for deterministic comparison.
+
+    Accepts string, integer, number, boolean, null from the JSON body.
+    Integer type rejects bool subtypes. Arrays and objects rejected by Pydantic.
+    """
+    # Reject arrays / objects (defense in depth)
+    if isinstance(raw, (list, dict)):
         raise ValueError(
             f"Field '{field_name}': filter value must be a scalar"
         )
-    return converted
+
+    # None matches empty cells
+    if raw is None:
+        return None
+
+    # Already a Python scalar — validate against contract type
+    if value_type == "integer":
+        if isinstance(raw, bool):
+            raise ValueError(
+                f"Field '{field_name}': boolean not accepted for integer filter"
+            )
+        if isinstance(raw, str):
+            return _convert_value(raw, "integer", field_name)
+        if isinstance(raw, (int, float)):
+            if isinstance(raw, float) and raw != int(raw):
+                raise ValueError(
+                    f"Field '{field_name}': float with fractional part "
+                    f"not accepted for integer filter"
+                )
+            return int(raw)
+        raise ValueError(
+            f"Field '{field_name}': cannot convert filter value to integer"
+        )
+
+    if value_type == "number":
+        if isinstance(raw, bool):
+            raise ValueError(
+                f"Field '{field_name}': boolean not accepted for number filter"
+            )
+        if isinstance(raw, str):
+            return _convert_value(raw, "number", field_name)
+        if isinstance(raw, (int, float)):
+            return float(raw)
+        raise ValueError(
+            f"Field '{field_name}': cannot convert filter value to number"
+        )
+
+    if value_type == "boolean":
+        if isinstance(raw, bool):
+            return raw
+        if isinstance(raw, str):
+            return _convert_value(raw, "boolean", field_name)
+        raise ValueError(
+            f"Field '{field_name}': filter value must be boolean or string"
+        )
+
+    if value_type == "date":
+        if isinstance(raw, str):
+            return _convert_value(raw, "date", field_name)
+        raise ValueError(
+            f"Field '{field_name}': date filter must be a string (YYYY-MM-DD)"
+        )
+
+    if value_type == "datetime":
+        if isinstance(raw, str):
+            return _convert_value(raw, "datetime", field_name)
+        raise ValueError(
+            f"Field '{field_name}': datetime filter must be an ISO string"
+        )
+
+    # string — convert anything to string for comparison
+    if value_type == "string":
+        if raw is None:
+            return None
+        return str(raw)
+
+    raise ValueError(f"Unknown value_type: {value_type}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -697,12 +772,23 @@ def generate_bindings(
         db.add(binding)
         created += 1
 
-    # ── Commit with IntegrityError handling ─────────────────────────────
+    # ── Determine outcome from issues accumulated during iteration ────────
+    has_errors = any(i.get("severity") == "error" for i in issues)
+
+    # ── Commit or rollback with proper audit ordering ────────────────────
     try:
-        if created:
+        if created and not has_errors:
             db.flush()
-    except Exception:
+    except IntegrityError:
+        # Concurrent duplicate — rollback, then record failure audit
         db.rollback()
+        _record_audit(
+            db, created_by, group_id, project_id, "generate_bindings",
+            outcome="failure",
+            error_code="concurrent_generation_conflict",
+            error_summary="Concurrent binding generation conflict",
+        )
+        db.commit()
         return {
             "created_count": 0, "existing_count": existing,
             "issues": [{
@@ -715,34 +801,31 @@ def generate_bindings(
             }],
         }
 
-    outcome = "success" if not issues or all(
-        i.get("severity") != "error" for i in issues
-    ) else "failure"
-
-    _record_audit(
-        db, created_by, group_id, project_id, "generate_bindings",
-        object_type=None,
-        outcome=outcome,
-        row_count=created,
-        error_code=(issues[0]["code"] if issues and outcome == "failure" else None),
-        error_summary=(
-            f"{len(issues)} issue(s)" if issues and outcome == "failure"
-            else None
-        ),
-    )
-
-    if outcome == "failure":
+    if has_errors:
+        # Business failure: rollback binding additions, then record failure audit
         db.rollback()
+        _record_audit(
+            db, created_by, group_id, project_id, "generate_bindings",
+            outcome="failure",
+            row_count=0,
+            error_code=issues[0]["code"] if issues else None,
+            error_summary=(
+                f"{len(issues)} issue(s)" if issues else None
+            ),
+        )
+        db.commit()
         return {
             "created_count": 0, "existing_count": existing,
             "issues": issues,
         }
 
-    if created:
-        db.commit()
-    else:
-        # Still commit the audit record even if nothing created
-        db.commit()
+    # Success: bindings + audit in same transaction
+    _record_audit(
+        db, created_by, group_id, project_id, "generate_bindings",
+        outcome="success",
+        row_count=created,
+    )
+    db.commit()
 
     return {
         "created_count": created,
@@ -767,7 +850,7 @@ def execute_query(
     object_type: str,
     user_id: str,
     fields: list[str] | None = None,
-    filters: dict[str, str] | None = None,
+    filters: dict[str, str | int | float | bool | None] | None = None,
     limit: int = _DEFAULT_LIMIT,
     offset: int = 0,
     explain_only: bool = False,
@@ -858,15 +941,15 @@ def execute_query(
     filter_field_names: list[str] = []
     converted_filters: dict[str, Any] = {}
     if filters:
-        for fname, fval_str in filters.items():
+        for fname, fval in filters.items():
             if fname not in valid_fields:
                 return _fail("invalid_filter",
                               f"Filter field '{fname}' is not a bound property")
-            # Type-convert filter value
+            # Type-convert filter value (handles str/int/float/bool/None)
             vt = ctx["prop_map"].get(fname, {}).get("value_type", "string")
             try:
                 converted_filters[fname] = _convert_filter_value(
-                    fval_str, vt, fname,
+                    fval, vt, fname,
                 )
             except ValueError:
                 return _fail("type_conversion",
@@ -925,6 +1008,11 @@ def execute_query(
     col_index: dict[str, int] = {name: i for i, name in enumerate(header)}
 
     # ── Map, type-convert, filter ───────────────────────────────────────────
+    # Compute internal conversion set: selected_fields ∪ filter_field_names.
+    # This ensures filter field values are available for comparison even when
+    # the caller did not request them in the output.
+    internal_fields = set(selected_fields) | set(filter_field_names)
+
     matched: list[dict] = []
     type_errors: list[dict] = []
     scan_row_index = 0
@@ -933,7 +1021,7 @@ def execute_query(
         mapped: dict[str, Any] = {}
         row_ok = True
 
-        for prop_api_name in selected_fields:
+        for prop_api_name in internal_fields:
             col_name = binding.property_mappings.get(prop_api_name)
             if col_name is None or col_name not in col_index:
                 mapped[prop_api_name] = None
@@ -970,7 +1058,9 @@ def execute_query(
                 scan_row_index += 1
                 continue
 
-        matched.append(mapped)
+        # Only return requested fields (strip filter-only fields)
+        result_row = {k: v for k, v in mapped.items() if k in selected_fields}
+        matched.append(result_row)
         scan_row_index += 1
 
     # ── Apply offset then limit ─────────────────────────────────────────────
@@ -1240,12 +1330,17 @@ def activate_pilot(
     advance_stage("validate", "pilot")
     project.stage = "pilot"
 
-    # Audit in same transaction as state change
-    _record_audit(
-        db, user_id, group_id, project_id, "activate",
-        outcome="success", row_count=len(dataset_ots),
-    )
-    db.commit()
+    # Audit in same transaction as state change.
+    # If audit write or commit fails, roll back stage change.
+    try:
+        _record_audit(
+            db, user_id, group_id, project_id, "activate",
+            outcome="success", row_count=len(dataset_ots),
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
     return {
         "activated": True,

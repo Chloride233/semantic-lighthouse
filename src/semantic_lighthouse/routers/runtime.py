@@ -225,12 +225,10 @@ def query_runtime(
             detail="Project is archived",
         )
 
-    # Convert JSON filter values to strings for the service layer
-    str_filters: dict[str, str] | None = None
+    # Pass filter values as native JSON scalars — service handles type conversion
+    native_filters: dict[str, str | int | float | bool | None] | None = None
     if body.filters:
-        str_filters = {}
-        for k, v in body.filters.items():
-            str_filters[k] = str(v) if v is not None else ""
+        native_filters = dict(body.filters)
 
     try:
         result = execute_query(
@@ -240,7 +238,7 @@ def query_runtime(
             object_type=body.object_type,
             user_id=current_user.id,
             fields=body.fields,
-            filters=str_filters,
+            filters=native_filters,
             limit=body.limit,
             offset=body.offset,
             explain_only=body.explain_only,

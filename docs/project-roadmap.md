@@ -302,9 +302,9 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 14.2 | Dataset Asset & Profiling | ✅ `DatasetAsset` model, migration `0019`, CSV/XLSX upload, metadata-first profiling, PK/FK suggestions, PII masking, stage advancement goal→data. 53 tests. |
 | 14.3 | Data-to-Model Bridge | ✅ Migration `0020` (project_id + source_dataset_id on drafts), deterministic dataset→business_v1 draft generation (object/property/link types), evidence privacy, idempotency, stage advancement data→model, review chain reuse. 27 tests. |
 | 14.4 | Model Validation Gate | ✅ Migration `0021` (scope_key + project_id on packages), project-scoped quality/package/contract API, WARN override audit, FAIL blocks absolutely, stage model→validate, legacy isolation. 23 tests. |
-| 14.5 | Pilot Read Runtime + Unified Query Contract | ✅ Migration `0022` (OntologyDatasetBinding), deterministic binding generation from accepted contract + dataset profiles, unified read-only query with equality filters/limit/offset/type conversion/explain, pilot activation with smoke gate, path safety, permissions, provenance sanitization. 56 tests. No DSL, no MCP, no Graph RAG. |
+| 14.5 | Pilot Read Runtime + Unified Query Contract | ✅ Migration `0022` (OntologyDatasetBinding) + `0023` (OntologyRuntimeAudit), deterministic binding generation from accepted contract + dataset profiles, unified read-only query with typed filter conversion/streaming CSV/filter-before-offset-limit/compiled contract as truth, pilot activation with full smoke query, audit fail-closed, path safety, permissions, provenance sanitization. 94 runtime tests. No DSL, no MCP, no Graph RAG. |
 
-**Next**: Backend Review C / Phase 14 closeout. MCP remains post-Phase 14 candidate. Future candidates: Evidence + Object dual-plane query, Domain Pack/Knowledge Artifact — NOT started.
+**Next**: Phase 14 CLOSED. Future candidates only — NOT started: MCP read-only gateway (post-Phase 14, requires dedicated Safety Lane plan), Evidence + Object dual-plane query, Domain Pack/Knowledge Artifact.
 
 **Out of scope**: Frontend (Kimi), delete/recover, Object Runtime, SDK, MCP, Graph RAG, old feature removal, Pilot outcome/KPI dashboard, relation joins, Action execution, data write-back, custom query language.
 

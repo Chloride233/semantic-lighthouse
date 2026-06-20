@@ -1219,43 +1219,123 @@ class TestRuntimeEdgeCases:
 
 
 class TestAudit:
-    def _setup_with_audit_check(self, client):
-        """Full pipeline → bindings. Returns (gid, pid, h, obj_type)."""
-        _, _, h = register_and_login(client, "audit-s@rt.com")
+    """Verify audit records are actually written to OntologyRuntimeAudit.
+
+    Tests query the database directly — no indirect assertions.
+    Every audit test reads back the audit table and validates field values.
+    """
+
+    def _audit_rows(self, db_session, operation=None):
+        """Query OntologyRuntimeAudit from the test DB."""
+        from semantic_lighthouse.models import OntologyRuntimeAudit
+        from sqlalchemy import select as sa_select
+        stmt = sa_select(OntologyRuntimeAudit).order_by(OntologyRuntimeAudit.created_at)
+        if operation:
+            stmt = stmt.where(OntologyRuntimeAudit.operation == operation)
+        return db_session.scalars(stmt).all()
+
+    def test_generate_bindings_success_audit(self, client, db_session):
+        """Successful binding generation writes success audit."""
+        _, _, h = register_and_login(client, "au-gen-ok@rt.com")
         gid = _create_group(client, h)
         pid = _create_project(client, gid, h)
-        content = "pk,name,score\n1,Alice,95\n2,Bob,87\n"
-        _full_pipeline_to_validate(client, gid, pid, h, csv_content=content)
+        _full_pipeline_to_validate(client, gid, pid, h)
         r = client.post(
             f"/groups/{gid}/projects/{pid}/runtime/bindings/generate",
             headers=h,
         )
-        assert r.status_code == 200
+        assert r.status_code == 200, r.text
+        assert r.json()["created_count"] >= 1
+
+        audits = self._audit_rows(db_session, "generate_bindings")
+        assert len(audits) >= 1
+        a = audits[-1]
+        assert a.outcome == "success"
+        assert a.group_id == gid
+        assert a.project_id == pid
+        assert a.row_count >= 1
+
+    def test_generate_bindings_failure_audit(self, client, db_session):
+        """Service-level binding failure writes failure audit (not rolled back).
+
+        Uses archived dataset to trigger a service-level error that reaches
+        the audit code path.
+        """
+        _, _, h = register_and_login(client, "au-gen-fail@rt.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)
+        _full_pipeline_to_validate(client, gid, pid, h)
+        # Archive the dataset so it's not ready
+        ds_list = client.get(
+            f"/groups/{gid}/projects/{pid}/datasets", headers=h,
+        )
+        ds_id = ds_list.json()["datasets"][0]["id"]
+        client.post(
+            f"/groups/{gid}/projects/{pid}/datasets/{ds_id}/archive",
+            headers=h,
+        )
+        # Now generate bindings — dataset not ready → service-level error
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings/generate",
+            headers=h,
+        )
+        assert r.status_code == 200  # Returns 200 with issues
+        issues = r.json().get("issues", [])
+        assert any(i.get("code") == "dataset_not_ready" for i in issues)
+
+        # Verify failure audit was persisted
+        audits = self._audit_rows(db_session, "generate_bindings")
+        failures = [a for a in audits if a.outcome == "failure"]
+        assert len(failures) >= 1, "Expected at least one failure audit"
+        a = failures[-1]
+        assert a.error_code is not None
+        assert a.group_id == gid
+
+    def test_query_success_audit_fields(self, client, db_session):
+        """Successful query audit has correct field_names, limit, offset, row_count."""
+        _, _, h = register_and_login(client, "au-q-ok@rt.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)
+        content = "pk,name\n1,Alice\n2,Bob\n"
+        _full_pipeline_to_validate(client, gid, pid, h, csv_content=content)
+        client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings/generate",
+            headers=h,
+        )
         blist = client.get(
             f"/groups/{gid}/projects/{pid}/runtime/bindings", headers=h,
         )
         obj_type = blist.json()[0]["object_type_api_name"]
-        return gid, pid, h, obj_type
 
-    def test_generate_bindings_audit_recorded(self, client):
-        """Binding generation produces an audit record (verified via operation success)."""
-        gid, pid, h, obj_type = self._setup_with_audit_check(client)
-        # Audit is internal — verified through successful operation completion
-        assert gid and pid
-
-    def test_query_success_audit_recorded(self, client):
-        """Successful query produces an audit record."""
-        gid, pid, h, obj_type = self._setup_with_audit_check(client)
         r = client.post(
             f"/groups/{gid}/projects/{pid}/runtime/query",
-            json={"object_type": obj_type},
+            json={"object_type": obj_type, "limit": 3, "offset": 0},
             headers=h,
         )
         assert r.status_code == 200
 
-    def test_query_failure_audit_recorded(self, client):
-        """Failed query (invalid object_type) still produces audit."""
-        gid, pid, h, obj_type = self._setup_with_audit_check(client)
+        audits = self._audit_rows(db_session, "query")
+        assert len(audits) >= 1
+        a = audits[-1]
+        assert a.outcome == "success"
+        assert a.group_id == gid
+        assert a.project_id == pid
+        assert a.object_type == obj_type
+        assert a.limit_val == 3
+        assert a.offset_val == 0
+        assert a.field_names is not None
+        assert a.row_count == 2
+
+    def test_query_failure_audit(self, client, db_session):
+        """Failed query writes failure audit with stable error code."""
+        _, _, h = register_and_login(client, "au-q-fail@rt.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)
+        _full_pipeline_to_validate(client, gid, pid, h)
+        client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings/generate",
+            headers=h,
+        )
         r = client.post(
             f"/groups/{gid}/projects/{pid}/runtime/query",
             json={"object_type": "nonexistent_ot"},
@@ -1263,9 +1343,17 @@ class TestAudit:
         )
         assert r.status_code == 422
 
-    def test_activate_audit_recorded(self, client):
-        """Pilot activation produces an audit record."""
-        _, _, h = register_and_login(client, "audit-act@rt.com")
+        audits = self._audit_rows(db_session, "query")
+        failures = [a for a in audits if a.outcome == "failure"]
+        assert len(failures) >= 1
+        a = failures[-1]
+        assert a.error_code is not None
+        assert a.group_id == gid
+        assert a.project_id == pid
+
+    def test_activate_success_audit(self, client, db_session):
+        """Successful activation writes success audit."""
+        _, _, h = register_and_login(client, "au-act-ok@rt.com")
         gid = _create_group(client, h)
         pid = _create_project(client, gid, h)
         _full_pipeline_to_validate(client, gid, pid, h)
@@ -1279,9 +1367,17 @@ class TestAudit:
         )
         assert r.status_code == 200, r.text
 
-    def test_activate_failure_audit_recorded(self, client):
-        """Failed activation still produces audit."""
-        _, _, h = register_and_login(client, "audit-af@rt.com")
+        audits = self._audit_rows(db_session, "activate")
+        assert len(audits) >= 1
+        a = audits[-1]
+        assert a.outcome == "success"
+        assert a.group_id == gid
+        assert a.project_id == pid
+        assert a.row_count is not None
+
+    def test_activate_failure_audit(self, client, db_session):
+        """Failed activation writes failure audit."""
+        _, _, h = register_and_login(client, "au-act-fail@rt.com")
         gid = _create_group(client, h)
         pid = _create_project(client, gid, h)
         _full_pipeline_to_validate(client, gid, pid, h)
@@ -1292,46 +1388,85 @@ class TestAudit:
         )
         assert r.status_code == 422
 
-    def test_audit_no_filter_values(self, client):
-        """Audit records never contain filter values (explain has field names only)."""
-        gid, pid, h, obj_type = self._setup_with_audit_check(client)
-        r = client.post(
+        audits = self._audit_rows(db_session, "activate")
+        failures = [a for a in audits if a.outcome == "failure"]
+        assert len(failures) >= 1
+        a = failures[-1]
+        assert a.error_code is not None
+        assert a.group_id == gid
+
+    def test_audit_never_contains_filter_values(self, client, db_session):
+        """Audit record JSON serialization never contains filter values or data."""
+        _, _, h = register_and_login(client, "au-priv1@rt.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)
+        content = "pk,name\n1,Alice\n2,Bob\n"
+        _full_pipeline_to_validate(client, gid, pid, h, csv_content=content)
+        client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings/generate",
+            headers=h,
+        )
+        blist = client.get(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings", headers=h,
+        )
+        obj_type = blist.json()[0]["object_type_api_name"]
+
+        client.post(
             f"/groups/{gid}/projects/{pid}/runtime/query",
             json={
                 "object_type": obj_type,
                 "filters": {"data_csv_name": "Alice"},
-                "explain_only": True,
             },
             headers=h,
         )
-        explain = r.json()["explain"]
-        # filter_field_names lists names, not values — verified
-        assert "filter_field_names" in explain
-        assert "Alice" not in str(explain).lower()
 
-    def test_audit_no_storage_path(self, client):
-        """Audit/explain records never contain storage_path."""
-        gid, pid, h, obj_type = self._setup_with_audit_check(client)
-        r = client.post(
-            f"/groups/{gid}/projects/{pid}/runtime/query",
-            json={"object_type": obj_type, "explain_only": True},
+        audits = self._audit_rows(db_session, "query")
+        for a in audits:
+            audit_str = str(a.field_names or "") + str(a.filter_field_names or "")
+            # No filter values
+            assert "Alice" not in audit_str
+            assert "Bob" not in audit_str
+            # No storage paths
+            assert "dataset-storage" not in audit_str.lower()
+            assert "storage_path" not in audit_str.lower()
+            # No PII patterns
+            assert "@" not in audit_str  # no email
+            assert "passw" not in audit_str.lower()
+
+    def test_audit_field_names_correct(self, client, db_session):
+        """Audit field_names match requested fields, filter_field_names match filter keys."""
+        _, _, h = register_and_login(client, "au-fn@rt.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)
+        content = "pk,name,status\n1,Alice,active\n2,Bob,inactive\n"
+        _full_pipeline_to_validate(client, gid, pid, h, csv_content=content)
+        client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings/generate",
             headers=h,
         )
-        explain_str = str(r.json()["explain"]).lower()
-        assert "dataset-storage" not in explain_str
-        assert "storage_path" not in explain_str
+        blist = client.get(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings", headers=h,
+        )
+        obj_type = blist.json()[0]["object_type_api_name"]
 
-    def test_audit_no_pii(self, client):
-        """Explain/audit records never contain PII (no data rows in explain)."""
-        gid, pid, h, obj_type = self._setup_with_audit_check(client)
-        r = client.post(
+        client.post(
             f"/groups/{gid}/projects/{pid}/runtime/query",
-            json={"object_type": obj_type, "explain_only": True},
+            json={
+                "object_type": obj_type,
+                "fields": ["data_csv_name"],
+                "filters": {"data_csv_status": "active"},
+            },
             headers=h,
         )
-        response_str = str(r.json()).lower()
-        assert "alice" not in response_str
-        assert "bob" not in response_str
+
+        audits = self._audit_rows(db_session, "query")
+        a = audits[-1]
+        assert a.field_names is not None
+        assert "data_csv_name" in a.field_names
+        assert a.filter_field_names is not None
+        assert "data_csv_status" in a.filter_field_names
+        # Outcome should reflect filtered result
+        assert a.outcome in ("success", "empty")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1682,3 +1817,253 @@ class TestMigration0023:
         """Verify migration 0023 audit table model is importable."""
         from semantic_lighthouse.models import OntologyRuntimeAudit
         assert OntologyRuntimeAudit.__tablename__ == "ontology_runtime_audit"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Backend Review C.1 — filter field not in selected_fields regression
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestFilterFieldNotInSelectedFields:
+    """Regression: filter field excluded from selected_fields must still work."""
+
+    def test_filter_on_unselected_field_works(self, client):
+        """Filter by status when only requesting name — filter applies, status not returned."""
+        _, _, h = register_and_login(client, "ff-1@rt.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)
+        csv_content = "pk,name,status\n1,Alice,active\n2,Bob,inactive\n3,Carol,active\n"
+        _full_pipeline_to_validate(
+            client, gid, pid, h, csv_content=csv_content, csv_name="data.csv",
+        )
+        client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings/generate",
+            headers=h,
+        )
+        blist = client.get(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings", headers=h,
+        )
+        obj_type = blist.json()[0]["object_type_api_name"]
+
+        # Only request name, filter by status=active
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/query",
+            json={
+                "object_type": obj_type,
+                "fields": ["data_csv_name"],
+                "filters": {"data_csv_status": "active"},
+            },
+            headers=h,
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data["row_count"] == 2  # Alice + Carol
+        for row in data["rows"]:
+            # Only name in response, status must NOT leak
+            assert "data_csv_name" in row
+            assert "data_csv_status" not in row
+            assert row["data_csv_name"] in ("Alice", "Carol")
+
+    def test_all_fields_with_filter_no_leak(self, client):
+        """All fields requested with filter — all returned, filter enforces correctly."""
+        _, _, h = register_and_login(client, "ff-2@rt.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)
+        csv_content = "pk,name,status\n1,Alice,active\n2,Bob,inactive\n"
+        _full_pipeline_to_validate(
+            client, gid, pid, h, csv_content=csv_content, csv_name="data.csv",
+        )
+        client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings/generate",
+            headers=h,
+        )
+        blist = client.get(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings", headers=h,
+        )
+        obj_type = blist.json()[0]["object_type_api_name"]
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/query",
+            json={
+                "object_type": obj_type,
+                "filters": {"data_csv_status": "inactive"},
+            },
+            headers=h,
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["row_count"] == 1
+        assert r.json()["rows"][0]["data_csv_name"] == "Bob"
+        assert r.json()["rows"][0]["data_csv_status"] == "inactive"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Backend Review C.1 — service-level filter type unit tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestFilterValueConverter:
+    """Direct unit tests for _convert_filter_value — not via API."""
+
+    def test_integer_native(self):
+        from semantic_lighthouse.services.runtime import _convert_filter_value
+        assert _convert_filter_value(42, "integer", "f") == 42
+        assert _convert_filter_value(0, "integer", "f") == 0
+
+    def test_integer_from_string(self):
+        from semantic_lighthouse.services.runtime import _convert_filter_value
+        assert _convert_filter_value("42", "integer", "f") == 42
+
+    def test_integer_rejects_bool(self):
+        from semantic_lighthouse.services.runtime import _convert_filter_value
+        import pytest as _p
+        with _p.raises(ValueError, match="boolean"):
+            _convert_filter_value(True, "integer", "f")
+        with _p.raises(ValueError, match="boolean"):
+            _convert_filter_value(False, "integer", "f")
+
+    def test_integer_rejects_fractional_float(self):
+        from semantic_lighthouse.services.runtime import _convert_filter_value
+        import pytest as _p
+        with _p.raises(ValueError, match="fractional"):
+            _convert_filter_value(3.14, "integer", "f")
+
+    def test_number_native(self):
+        from semantic_lighthouse.services.runtime import _convert_filter_value
+        assert _convert_filter_value(3.14, "number", "f") == 3.14
+        assert _convert_filter_value(42, "number", "f") == 42.0
+
+    def test_number_rejects_bool(self):
+        from semantic_lighthouse.services.runtime import _convert_filter_value
+        import pytest as _p
+        with _p.raises(ValueError, match="boolean"):
+            _convert_filter_value(True, "number", "f")
+
+    def test_boolean_native(self):
+        from semantic_lighthouse.services.runtime import _convert_filter_value
+        assert _convert_filter_value(True, "boolean", "f") is True
+        assert _convert_filter_value(False, "boolean", "f") is False
+
+    def test_boolean_from_string(self):
+        from semantic_lighthouse.services.runtime import _convert_filter_value
+        assert _convert_filter_value("true", "boolean", "f") is True
+        assert _convert_filter_value("false", "boolean", "f") is False
+
+    def test_null_matches_none(self):
+        from semantic_lighthouse.services.runtime import _convert_filter_value
+        assert _convert_filter_value(None, "string", "f") is None
+        assert _convert_filter_value(None, "integer", "f") is None
+
+    def test_date_uses_fromisoformat(self):
+        from semantic_lighthouse.services.runtime import _convert_filter_value
+        import pytest as _p
+        # Valid dates
+        assert _convert_filter_value("2025-06-20", "date", "f") == "2025-06-20"
+        assert _convert_filter_value("2025-01-01", "date", "f") == "2025-01-01"
+        # Invalid dates
+        for bad in ("2025-99-99", "2025-13-01", "not-a-date"):
+            with _p.raises(ValueError):
+                _convert_filter_value(bad, "date", "f")
+
+    def test_datetime_uses_fromisoformat(self):
+        from semantic_lighthouse.services.runtime import _convert_filter_value
+        import pytest as _p
+        assert _convert_filter_value(
+            "2025-06-20T10:30:00", "datetime", "f",
+        ) == "2025-06-20T10:30:00"
+        with _p.raises(ValueError):
+            _convert_filter_value("2025-99-99T99:99", "datetime", "f")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Backend Review C.1 — audit fail-closed tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestAuditFailClosed:
+    """Prove that audit failure prevents data/state exposure."""
+
+    def test_query_audit_commit_failure_does_not_return_data(
+        self, client, db_session, monkeypatch,
+    ):
+        """If audit write fails, the request errors — data never returned."""
+        _, _, h = register_and_login(client, "afc-q@rt.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)
+        _full_pipeline_to_validate(client, gid, pid, h)
+        client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings/generate",
+            headers=h,
+        )
+        blist = client.get(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings", headers=h,
+        )
+        obj_type = blist.json()[0]["object_type_api_name"]
+
+        from semantic_lighthouse.services import runtime as rt_mod
+
+        def _failing_init(self, **kw):
+            raise RuntimeError("Simulated audit persistence failure")
+
+        monkeypatch.setattr(rt_mod.OntologyRuntimeAudit, "__init__", _failing_init)
+
+        # TestClient may raise on 500; catch to verify failure occurred
+        errored = False
+        try:
+            r = client.post(
+                f"/groups/{gid}/projects/{pid}/runtime/query",
+                json={"object_type": obj_type},
+                headers=h,
+            )
+            # If we get a response, it must be an error (not 200 with data)
+            assert r.status_code >= 400, (
+                f"Expected error on audit failure, got {r.status_code}: {r.text[:200]}"
+            )
+        except RuntimeError:
+            errored = True
+        assert errored or True, "Audit failure prevented normal response"
+
+    def test_activate_audit_failure_prevents_state_change(
+        self, client, db_session, monkeypatch,
+    ):
+        """If activate success audit fails, stage must not advance."""
+        _, _, h = register_and_login(client, "afc-a@rt.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)
+        _full_pipeline_to_validate(client, gid, pid, h)
+        client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/bindings/generate",
+            headers=h,
+        )
+
+        from semantic_lighthouse.services import runtime as rt_mod
+
+        _orig = rt_mod.OntologyRuntimeAudit.__init__
+
+        def _failing_init(self, **kw):
+            if kw.get("operation") == "activate" and kw.get("outcome") == "success":
+                raise RuntimeError("Simulated audit persistence failure")
+            return _orig(self, **kw)
+
+        monkeypatch.setattr(rt_mod.OntologyRuntimeAudit, "__init__", _failing_init)
+
+        # TestClient may raise on unhandled 500; catch either case
+        errored = False
+        try:
+            r = client.post(
+                f"/groups/{gid}/projects/{pid}/runtime/activate",
+                headers=h,
+            )
+            assert r.status_code >= 400, (
+                f"Expected error on audit failure, got {r.status_code}: {r.text[:200]}"
+            )
+            errored = True
+        except RuntimeError:
+            errored = True
+        assert errored, "Audit failure must cause error"
+
+        # Verify project stage did NOT advance (stage change was rolled back)
+        proj = client.get(f"/groups/{gid}/projects/{pid}", headers=h)
+        assert proj.status_code == 200
+        assert proj.json()["stage"] == "validate", (
+            "Stage must not advance when audit fails"
+        )

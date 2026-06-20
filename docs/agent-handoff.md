@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (Phase 14 COMPLETE — 14.5 delivered + Backend Review C hardened. Migration 0023 at head. 734 non-E2E passed.)
+Last updated: 2026-06-20 (Phase 14 COMPLETE — 14.5 + Review C + Review C.1 hardened. Migration 0023 at head. 749 non-E2E passed.)
 
 ## Current Phase
 

@@ -15,7 +15,8 @@
   3. Review checklists must include "for each claimed feature in docs, find the implementation."
   4. Do not accept "passing tests" as proof of a feature that tests didn't explicitly cover.
 - Fix or control: Added `OntologyRuntimeAudit` model, migration `0023`, `_record_audit()` calls in `generate_bindings`/`execute_query`/`activate_pilot` (same transaction as state changes), and 8 audit tests. All metadata-only — never filter values, raw data, storage_path, PII, or secrets.
-- Verification: 79 runtime tests (23 new), 239 Phase 14 combined, 734 full non-E2E. Migration upgrade/downgrade/re-upgrade cycle verified.
+- Verification: Review C.1 proved the C-era audit tests were fake — TestAudit had 8 methods, none queried `OntologyRuntimeAudit`. All used indirect "API 200 means audit exists" assertions. Fixed in C.1: 8 real audit tests query the DB table and assert field values. Additional 15 tests cover filter-field-not-in-selected regression, service-level filter type conversion (integer/bool/number/null/date/datetime), and audit fail-closed (monkeypatch + stage rollback). Final: 94 runtime tests, 254 Phase 14 combined, 749 full non-E2E.
+- Lesson: Test names and comments ("Audit records never contain filter values") are NOT evidence. If the test body doesn't read the audit table, it doesn't prove the claim. Every capability claim in a test name must be traceable to a database assertion, not an API status code proxy.
 
 ## Draft FKs Cannot Depend Directly On Scan-Rebuilt Read-Model IDs
 
