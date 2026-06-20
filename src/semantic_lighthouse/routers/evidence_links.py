@@ -4,7 +4,7 @@ Explicit user-created links between a Pilot project and group-scoped evidence
 (Document or RagRun). Owner/admin write; member read. Group+project dual isolation.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func, select, and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -35,12 +35,28 @@ router = APIRouter(
     tags=["evidence-links"],
 )
 
+ALLOWED_STATUS_FILTERS = {"active", "removed", "all"}
+
 
 def _get_project_or_404(db: Session, project_id: str, group_id: str) -> BusinessProject:
     project = db.get(BusinessProject, project_id)
     if project is None or project.group_id != group_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     return project
+
+
+def _safe_source_label(doc: Document) -> str | None:
+    """Return a safe display label, never an absolute path or complex object."""
+    fm = doc.frontmatter
+    if isinstance(fm, dict):
+        raw = fm.get("source")
+        if isinstance(raw, str) and raw.strip():
+            stripped = raw.strip()
+            # Reject absolute paths and anything suspicious
+            if stripped.startswith("/") or stripped.startswith("\\") or len(stripped) > 200:
+                return doc.title
+            return stripped
+    return doc.title
 
 
 def _build_provenance(db: Session, evidence_type: str, evidence_id: str) -> EvidenceProvenance | None:
@@ -55,8 +71,7 @@ def _build_provenance(db: Session, evidence_type: str, evidence_id: str) -> Evid
         prov.evidence_title = doc.title
         prov.evidence_status = doc.status
         prov.file_name = doc.file_name
-        fm = doc.frontmatter
-        prov.source_label = fm.get("source") or doc.title if isinstance(fm, dict) else doc.title
+        prov.source_label = _safe_source_label(doc)
         if doc.created_at:
             prov.evidence_created_at = doc.created_at.isoformat()
     elif evidence_type == "rag_run":
@@ -75,10 +90,11 @@ def _build_provenance(db: Session, evidence_type: str, evidence_id: str) -> Evid
     return prov
 
 
-def _validate_evidence(
+def _validate_evidence_status(
     db: Session, evidence_type: str, evidence_id: str, group_id: str,
 ) -> None:
-    """Validate evidence exists, belongs to group, and has linkable status."""
+    """Validate evidence exists, belongs to group, and has linkable status.
+    Only called for new links or relinks — NOT for active duplicates."""
     if evidence_type not in EVIDENCE_TYPES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid evidence_type"
@@ -148,31 +164,30 @@ def _link_response(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-@router.post("", response_model=EvidenceLinkResponse, status_code=201)
+@router.post("", response_model=EvidenceLinkResponse)
 def create_evidence_link(
     group_id: str,
     project_id: str,
     body: EvidenceLinkCreateRequest,
+    response: Response,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Create a project evidence link. Owner/admin only."""
+    """Create a project evidence link. Owner/admin only.
+    Returns 201 for new links, 200 for active duplicates and relinks."""
     require_group_role(db, user.id, group_id, {"owner", "admin"})
-    project = _get_project_or_404(db, project_id, group_id)
+    _get_project_or_404(db, project_id, group_id)
 
     if body.role not in EVIDENCE_ROLES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid role"
         )
-    if project.status == "archived":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Cannot link evidence to an archived project",
-        )
 
-    _validate_evidence(db, body.evidence_type, body.evidence_id, group_id)
     note = body.note.strip() if body.note else None
+    if note == "":
+        note = None
 
+    # ── Step 1: Check existing link FIRST (before status validation) ──
     existing = db.execute(
         select(ProjectEvidenceLink).where(
             ProjectEvidenceLink.project_id == project_id,
@@ -181,13 +196,15 @@ def create_evidence_link(
         )
     ).scalar_one_or_none()
 
-    # Active duplicate — idempotent, no audit
+    # Active duplicate — idempotent, no status checks, no audit, 200
     if existing is not None and existing.status == "active":
+        response.status_code = 200
         prov = _build_provenance(db, existing.evidence_type, existing.evidence_id)
         return _link_response(existing, prov)
 
-    # Removed link — reactivate
+    # Removed link — reactivate, 200
     if existing is not None and existing.status == "removed":
+        _validate_evidence_status(db, body.evidence_type, body.evidence_id, group_id)
         existing.status = "active"
         existing.role = body.role
         existing.note = note
@@ -197,10 +214,21 @@ def create_evidence_link(
         _write_audit(db, user, group_id, project_id, "evidence_relink", body.evidence_type)
         db.commit()
         db.refresh(existing)
+        response.status_code = 200
         prov = _build_provenance(db, existing.evidence_type, existing.evidence_id)
         return _link_response(existing, prov)
 
-    # New link
+    # ── Step 2: Only new links need project/evidence status checks ──
+    project = db.get(BusinessProject, project_id)
+    if project is not None and project.status == "archived":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot link evidence to an archived project",
+        )
+
+    _validate_evidence_status(db, body.evidence_type, body.evidence_id, group_id)
+
+    # ── Step 3: Create new link, 201 ──
     try:
         link = ProjectEvidenceLink(
             id=new_id(),
@@ -218,6 +246,7 @@ def create_evidence_link(
         _write_audit(db, user, group_id, project_id, "evidence_link", body.evidence_type)
         db.commit()
         db.refresh(link)
+        response.status_code = 201
         prov = _build_provenance(db, link.evidence_type, link.evidence_id)
         return _link_response(link, prov)
     except IntegrityError:
@@ -231,6 +260,7 @@ def create_evidence_link(
         ).scalar_one_or_none()
         if existing_race is not None:
             if existing_race.status == "active":
+                response.status_code = 200
                 prov = _build_provenance(db, existing_race.evidence_type, existing_race.evidence_id)
                 return _link_response(existing_race, prov)
             if existing_race.status == "removed":
@@ -243,6 +273,7 @@ def create_evidence_link(
                 _write_audit(db, user, group_id, project_id, "evidence_relink", body.evidence_type)
                 db.commit()
                 db.refresh(existing_race)
+                response.status_code = 200
                 prov = _build_provenance(db, existing_race.evidence_type, existing_race.evidence_id)
                 return _link_response(existing_race, prov)
         raise
@@ -263,13 +294,38 @@ def list_evidence_links(
     get_membership_or_404(db, user.id, group_id)
     _get_project_or_404(db, project_id, group_id)
 
-    conditions = [ProjectEvidenceLink.project_id == project_id]
+    if status_filter not in ALLOWED_STATUS_FILTERS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="status_filter must be active, removed, or all",
+        )
+    if evidence_type is not None and evidence_type not in EVIDENCE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"evidence_type must be one of: {', '.join(sorted(EVIDENCE_TYPES))}",
+        )
+    if limit < 1 or limit > 100:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="limit must be between 1 and 100",
+        )
+    if offset < 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="offset must be >= 0",
+        )
+
+    # group_id + project_id dual filtering
+    conditions = [
+        ProjectEvidenceLink.group_id == group_id,
+        ProjectEvidenceLink.project_id == project_id,
+    ]
     if status_filter == "active":
         conditions.append(ProjectEvidenceLink.status == "active")
     elif status_filter == "removed":
         conditions.append(ProjectEvidenceLink.status == "removed")
 
-    if evidence_type and evidence_type in EVIDENCE_TYPES:
+    if evidence_type:
         conditions.append(ProjectEvidenceLink.evidence_type == evidence_type)
 
     total = db.scalar(
@@ -316,6 +372,7 @@ def remove_evidence_link(
     link.status = "removed"
     link.removed_by = user.id
     link.removed_at = utc_now()
+    link.updated_at = utc_now()
     _write_audit(db, user, group_id, project_id, "evidence_unlink", link.evidence_type)
     db.commit()
     db.refresh(link)
