@@ -16,6 +16,7 @@ from semantic_lighthouse.models import (
     Group,
     GroupMembership,
     OntologyRuntimeAudit,
+    ProjectEvidenceLink,
     RagRun,
     User,
     new_id,
@@ -739,3 +740,150 @@ def test_blank_note_normalized_to_null(client, db_session):
     )
     assert resp.status_code == 201
     assert resp.json()["note"] is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Safety review tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def test_active_duplicate_survives_archived_project(client, db_session):
+    """Active duplicate returns 200 even after project is archived."""
+    gid, pid, owner_id, member_id = _setup_group_and_project(db_session)
+    doc_id = new_id()
+    _add_document(db_session, gid, doc_id)
+    db_session.commit()
+    headers = _auth_headers(client, f"own-{gid[:8]}@t.com")
+
+    resp = client.post(
+        f"/groups/{gid}/projects/{pid}/evidence-links",
+        json={"evidence_type": "document", "evidence_id": doc_id, "role": "context"},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    link_id = resp.json()["id"]
+
+    # Archive the project
+    db_session.execute(
+        BusinessProject.__table__.update().where(BusinessProject.id == pid).values(status="archived")
+    )
+    db_session.commit()
+    db_session.expire_all()
+
+    # Active duplicate must still return 200
+    resp2 = client.post(
+        f"/groups/{gid}/projects/{pid}/evidence-links",
+        json={"evidence_type": "document", "evidence_id": doc_id, "role": "context"},
+        headers=headers,
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["id"] == link_id
+
+
+def test_removed_relink_blocked_by_archived_project(client, db_session):
+    """Removed relink returns 409 when project is archived, status stays removed."""
+    gid, pid, owner_id, member_id = _setup_group_and_project(db_session)
+    doc_id = new_id()
+    _add_document(db_session, gid, doc_id)
+    db_session.commit()
+    headers = _auth_headers(client, f"own-{gid[:8]}@t.com")
+
+    resp = client.post(
+        f"/groups/{gid}/projects/{pid}/evidence-links",
+        json={"evidence_type": "document", "evidence_id": doc_id, "role": "context"},
+        headers=headers,
+    )
+    link_id = resp.json()["id"]
+    db_session.expire_all()
+    client.delete(f"/groups/{gid}/projects/{pid}/evidence-links/{link_id}", headers=headers)
+
+    # Archive project
+    db_session.execute(
+        BusinessProject.__table__.update().where(BusinessProject.id == pid).values(status="archived")
+    )
+    db_session.commit()
+    db_session.expire_all()
+
+    # Relink must fail
+    resp2 = client.post(
+        f"/groups/{gid}/projects/{pid}/evidence-links",
+        json={"evidence_type": "document", "evidence_id": doc_id, "role": "requirement"},
+        headers=headers,
+    )
+    assert resp2.status_code == 409
+
+    # Status must remain removed
+    db_session.expire_all()
+    link = db_session.get(ProjectEvidenceLink, link_id)
+    assert link.status == "removed"
+
+
+def test_source_label_rejects_windows_paths(client, db_session):
+    """source_label rejects Windows drive paths and UNC paths."""
+    gid, pid, owner_id, member_id = _setup_group_and_project(db_session)
+    headers = _auth_headers(client, f"own-{gid[:8]}@t.com")
+
+    for bad_source, title in [
+        ("C:\\Users\\test\\doc.md", "Win Drive"),
+        ("\\\\server\\share\\doc.md", "UNC Path"),
+        ("subdir/file.md", "Rel Path"),
+        ("folder\\nested\\doc.md", "Backslash Path"),
+    ]:
+        doc_id = new_id()
+        db_session.add(Document(
+            id=doc_id, group_id=gid, title=title, file_name="x.md",
+            source_path="kb/x.md", content_hash=f"h-{doc_id[:8]}",
+            frontmatter={"source": bad_source}, raw_content="# X",
+            status="ready", created_by="user-1",
+        ))
+        db_session.commit()
+        db_session.expire_all()
+
+        resp = client.post(
+            f"/groups/{gid}/projects/{pid}/evidence-links",
+            json={"evidence_type": "document", "evidence_id": doc_id, "role": "context"},
+            headers=headers,
+        )
+        prov = resp.json().get("provenance") or {}
+        assert prov.get("source_label") == title, f"Expected {title} for {bad_source}, got {prov.get('source_label')}"
+        assert "\\" not in (prov.get("source_label") or "")
+        assert "/" not in (prov.get("source_label") or "")
+
+
+def test_agent_registry_has_no_evidence_write_tools():
+    """Agent tool registry must not include evidence link/unlink/relink write operations."""
+    from semantic_lighthouse.services.agent_orchestrator import _tool_schemas_for_llm
+
+    schemas = _tool_schemas_for_llm()
+    tool_names = {s.get("function", {}).get("name", "") for s in schemas}
+    for forbidden in ("evidence_link", "evidence_unlink", "evidence_relink",
+                       "create_evidence_link", "remove_evidence_link",
+                       "link_evidence", "unlink_evidence"):
+        assert forbidden not in tool_names, f"Agent must not have evidence write tool: {forbidden}"
+
+
+def test_link_and_audit_share_transaction(client, db_session):
+    """Link and audit are in the same db.commit() — atomic pass or fail."""
+    gid, pid, owner_id, member_id = _setup_group_and_project(db_session)
+    doc_id = new_id()
+    _add_document(db_session, gid, doc_id)
+    db_session.commit()
+    headers = _auth_headers(client, f"own-{gid[:8]}@t.com")
+
+    resp = client.post(
+        f"/groups/{gid}/projects/{pid}/evidence-links",
+        json={"evidence_type": "document", "evidence_id": doc_id, "role": "context"},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+
+    # Verify both link and audit row exist
+    db_session.expire_all()
+    links = db_session.query(ProjectEvidenceLink).filter(
+        ProjectEvidenceLink.project_id == pid
+    ).all()
+    assert len(links) == 1
+
+    audits = db_session.query(OntologyRuntimeAudit).filter(
+        OntologyRuntimeAudit.project_id == pid, OntologyRuntimeAudit.operation == "evidence_link"
+    ).all()
+    assert len(audits) == 1, "Audit row must exist alongside the link"
