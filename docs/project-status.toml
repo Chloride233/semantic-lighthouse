@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "product closeout"
-description = "Establish canonical status source, eliminate doc drift, compress handoff, add doc alignment check, finalize demo narrative."
+current = "product rationalization review"
+description = "S0 audit complete — all capabilities classified as KEEP / CONSOLIDATE / HIDE / REMOVE. See docs/product-rationalization-review.md. S1 slimming scope pending approval."
 
 [next_decision_gate]
-name = "feature rationalization and FDE scenario-pack planning"
-description = "Decide which existing features stay in the demo narrative as supporting paths, which get consolidated, and how the guided Pilot five-stage chain (Phase 14) is presented as the primary demo flow."
+name = "approve S1 slimming scope"
+description = "Review and approve the S1 deletion list from docs/product-rationalization-review.md. Upon approval: remove dead code (R1-R12), reduce navigation entries, hide Agent/Conversations/问答 from '更多工具' dropdown."
 
 [mcp]
 runtime_status = "not started"
