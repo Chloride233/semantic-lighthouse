@@ -1,12 +1,12 @@
 # Interview Demo Questions
 
-Use these questions to demonstrate Semantic Lighthouse as an ontology-oriented semantic operating layer workspace for enterprise AI transformation. The current Phase 8 loop is: RAG → user-confirmed task → Agent/HITL → audit trail. Phase 9 will begin the ontology governance and graph layer.
+Use these questions to demonstrate Semantic Lighthouse as an ontology-oriented semantic operating layer workspace for enterprise AI transformation. The primary demo flow is the Phase 14 Guided Pilot five-stage chain: 目标 → 数据 → 模型审核 → 质量验证 → 激活查询. Supporting paths (RAG, Agent, Ontology governance) remain accessible via "更多工具".
 
 ---
 
 ## 北极星开场 (North Star Opener)
 
-> 语义灯塔不是一个通用聊天机器人，也不是一个普通的 RAG 原型。它的目标是帮助企业把碎片化知识、文档、系统和流程，逐步建成权限感知、可审计、可操作、可被 Agent 安全调用的 Ontology 语义操作层。当前 Phase 8 完成的是可信证据→用户确认任务→受控 Agent→审计的全链路演示闭环。
+> 语义灯塔不是一个通用聊天机器人，也不是一个普通的 RAG 原型。它的目标是帮助企业把碎片化知识、文档、系统和流程，逐步建成权限感知、可审计、可操作、可被 Agent 安全调用的 Ontology 语义操作层。当前主演示链路是 Phase 14 引导式 Pilot 五阶段：目标定义→数据上传→模型草案审核→质量验证→激活查询。
 
 Engineering points to hit:
 

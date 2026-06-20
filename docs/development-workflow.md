@@ -109,6 +109,16 @@ The lane determines verification depth, documentation burden, and planning overh
 
 ---
 
+## Documentation Discipline
+
+The project uses `docs/project-status.toml` as the single source of truth for current state.
+
+- **General iterations**: do NOT update all entry documents. State changes go only in `project-status.toml`.
+- **Roadmap**: append delivery records only at phase boundaries. Do not self-declare "Current phase" in the header — reference `project-status.toml` instead.
+- **Handoff**: maintain a single current handoff at `docs/agent-handoff.md`. Old delivery logs live in `docs/archive/`. Never mix stale `Next` directives from old phases into the current handoff.
+- **Doc/phase closeout**: run `scripts/check_doc_alignment.py` to catch stale expressions and missing status references.
+- **No Git hooks, Claude hooks, dependencies, or CI tasks** are added for doc alignment — it runs manually at doc boundaries.
+
 ## Over-Execution Prohibitions
 
 These rules apply regardless of lane:

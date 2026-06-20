@@ -23,15 +23,16 @@ Every feature must be explainable by the project owner in business terms, techni
 Before changing code, read these files in order:
 
 1. `AGENTS.md`
-2. `PRODUCT.md`
-3. `docs/product-alignment-prd.md`
-4. `README.md`
-5. `docs/agent-handoff.md`
-6. `docs/project-roadmap.md`
-7. `docs/engineering-memory/README.md`
-8. `docs/engineering-memory/learning-index.md`
-9. The most recent retrospective, pitfall log, and highlight log entries
-10. `docs/cloud-smoke-playbook.md` when deployment or cloud verification is involved
+2. `docs/project-status.toml` — canonical project state (single source of truth)
+3. `PRODUCT.md`
+4. `docs/product-alignment-prd.md`
+5. `README.md`
+6. `docs/agent-handoff.md`
+7. `docs/project-roadmap.md`
+8. `docs/engineering-memory/README.md`
+9. `docs/engineering-memory/learning-index.md`
+10. The most recent retrospective, pitfall log, and highlight log entries
+11. `docs/cloud-smoke-playbook.md` when deployment or cloud verification is involved
 
 ## Working Rules
 
@@ -45,8 +46,8 @@ Before changing code, read these files in order:
 - Do not use Agent behavior to replace deterministic backend logic such as permission checks, status filters, hash checks, or CRUD.
 - Any write-like Agent/action behavior must have role authorization, group_id isolation, and user confirmation.
 - Do not let future work drift into generic RAG or generic Agent framing. If the work affects product direction, tie it back to the Ontology semantic operating layer.
-- MCP is a future Agent-facing adapter candidate, not current runtime and not the Ontology itself. Do not add an MCP server/client, SDK, dependency, resource, or tool until a dedicated phase is approved after Phase 13 review. See `docs/mcp-agent-boundary-design.md`.
-- Frontend F2 is active under Standard Lane. Frontend changes require `verify_ui` and targeted Playwright/E2E. Backend-only iterations skip UI/E2E. Phase 11.5 modeling UI was completed in F1B Ontology workspace. Full backend regression uses `--ignore=tests/e2e`.
+- MCP is a future Agent-facing adapter candidate, not current runtime and not the Ontology itself. Do not add an MCP server/client, SDK, dependency, resource, or tool. See `docs/mcp-agent-boundary-design.md` and `docs/project-status.toml` for current MCP status.
+- Frontend F2 is complete. See `docs/project-status.toml` for current project state. Full backend regression uses `--ignore=tests/e2e`.
 - Update project memory after Safety Lane iterations; for Standard Lane, only when a meaningful decision was made.
 - **Every meaningful change must be committed to Git** (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`).
 - Before committing on Standard/Safety Lane: verify related `pytest` and `ruff check` pass. Fast Lane: `git diff --check` + minimal format check only.

@@ -1,0 +1,38 @@
+# Semantic Lighthouse — Canonical Project Status
+# This is the single source of truth for current product state.
+# All entry documents MUST reference this file instead of maintaining
+# their own "current phase" / "next phase" declarations.
+# Schema version controls forward compatibility of check_doc_alignment.py.
+
+[schema]
+version = 1
+
+[product]
+phase = "Phase 14"
+status = "complete"
+summary = "Business Pilot Project — five-stage main chain (goal → data → model → validate → pilot). Backend complete (Phases 14.1–14.5). Frontend F2 complete (F2A + F2B + F2C)."
+
+[frontend]
+status = "F2 complete"
+summary = "Guided Pilot workspace delivered. F2A: Pilot entry + nav restructure. F2B: Model → Validate → Pilot full operation loop. F2C: Responsive, accessibility, visual polish."
+latest_verified_ui = "47/47"
+latest_verified_e2e = "18/18"
+screenshots_path = ".tmp/f2c/"
+
+[focus]
+current = "product closeout"
+description = "Establish canonical status source, eliminate doc drift, compress handoff, add doc alignment check, finalize demo narrative."
+
+[next_decision_gate]
+name = "feature rationalization and FDE scenario-pack planning"
+description = "Decide which existing features stay in the demo narrative as supporting paths, which get consolidated, and how the guided Pilot five-stage chain (Phase 14) is presented as the primary demo flow."
+
+[mcp]
+runtime_status = "not started"
+summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
+
+[verification]
+latest_commit = "99741b0"
+backend_pytest = 749
+ruff = "clean"
+migration_head = "0023"

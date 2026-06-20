@@ -20,14 +20,15 @@ auth and group isolation -> document ingestion -> retrieval evidence -> citation
 
 Before changing code, read:
 
-1. `PRODUCT.md`
-2. `docs/product-alignment-prd.md`
-3. `CLAUDE.md`
-4. `README.md`
-5. `docs/agent-handoff.md`
-6. `docs/project-roadmap.md`
-7. `docs/engineering-memory/README.md`
-8. Latest entries in `docs/engineering-memory/highlight-log.md` and `pitfall-log.md`
+1. `docs/project-status.toml` — canonical project state (single source of truth)
+2. `PRODUCT.md`
+3. `docs/product-alignment-prd.md`
+4. `CLAUDE.md`
+5. `README.md`
+6. `docs/agent-handoff.md`
+7. `docs/project-roadmap.md`
+8. `docs/engineering-memory/README.md`
+9. Latest entries in `docs/engineering-memory/highlight-log.md` and `pitfall-log.md`
 
 ## Working Rules
 
@@ -39,8 +40,8 @@ Before changing code, read:
 - Do not use Agent behavior to replace deterministic backend logic.
 - Agent or task write behavior must be permission-checked, group-scoped, auditable, and user-confirmed.
 - Do not let new work drift back into "generic RAG app" or "generic Agent platform" framing. If a feature touches product direction, explain how it supports the Ontology semantic operating layer.
-- Treat MCP as a future Agent-facing adapter only. During Phase 13, do not add MCP runtime, SDK dependencies, resources, or tools. Future MCP work must reuse server-side identity, group authorization, audit, bounded provenance, and backend HITL; never trust model/client-supplied `group_id` as authority.
-- Frontend F2 is active. Frontend changes must run `verify_ui` and targeted Playwright/E2E. Backend-only iterations skip UI/E2E; frontend iterations do not require full backend pytest unless backend is also changed. Phase 11.5 modeling UI was covered by F1B Ontology workspace.
+- Treat MCP as a future Agent-facing adapter only. Do not add MCP runtime, SDK dependencies, resources, or tools. Future MCP work must reuse server-side identity, group authorization, audit, bounded provenance, and backend HITL; never trust model/client-supplied `group_id` as authority. See `docs/project-status.toml` for current MCP status.
+- Frontend F2 is complete. Current project state is in `docs/project-status.toml`.
 - Every meaningful change must update project memory and be committed to Git.
 - Do not commit secrets, tokens, cookies, database files, runtime storage, `.venv/`, or `.claude/`.
 

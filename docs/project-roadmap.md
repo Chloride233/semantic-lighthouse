@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-20
-**Current phase**: Frontend F2 Complete — Guided Pilot workspace delivered. Phase 14 backend COMPLETE. Next: product closeout/review.
+**Current phase**: See `docs/project-status.toml` — canonical project state.
 
 ---
 

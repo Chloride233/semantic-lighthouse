@@ -10,7 +10,7 @@
 注册登录 -> 进入群组 -> 上传/导入知识 -> 提问 -> 查看引用/可信度/知识缺口 -> 确认下一步任务 -> Agent/HITL 审计 -> Ontology 治理与图谱 -> 语义操作层
 ```
 
-Agent 不是默认目标，而是受控协调层：只有多步骤、多工具、需要审计或用户确认的流程才使用 Agent。Phase 8–14 已全部交付：Phase 8（体验整合）、Phase 9（Ontology Core v1 治理与图谱）、Phase 10（治理运营与演示打磨）、Phase 11（Ontology Modeling Drafts v1）、Phase 12（Model Quality & Contract Packages v1）、Phase 13（Typed Business Ontology Contract & Manufacturing Pilot v1）、Phase 14（Business Pilot Project 五阶段主链：goal→data→model→validate→pilot）。前端 F2 全部交付（F2A Pilot入口+数据阶段、F2B 模型→验证→Pilot闭环、F2C 响应式+可访问性+视觉收口）。见 `docs/phase14-planning.md`。
+Agent 不是默认目标，而是受控协调层：只有多步骤、多工具、需要审计或用户确认的流程才使用 Agent。Phase 8–14 已全部交付。当前项目状态见 `docs/project-status.toml`。
 
 ## V1 Scope
 
@@ -129,6 +129,6 @@ alembic upgrade head
 - Knowledge source and Ontology seed corpus: `F:\ontology-kb`
 - The current prototype intentionally does not implement MinIO/OSS, Elasticsearch, Kubernetes, full SaaS administration, or unrestricted autonomous Agent actions.
 - Chunked upload, hybrid retrieval, answer audit, conversations, and controlled Agent workflow now exist as prototype capabilities; verify current status in `docs/agent-handoff.md`.
-- Do not treat future work as generic RAG expansion. Phases 9–12 delivered group-scoped governance: entities, relations, validation issues, triage, curation demo, graph console, RAG evidence bridge, modeling drafts, quality gates, and immutable model packages. Phase 13 planning: typed business ontology contracts.
+- Do not treat future work as generic RAG expansion. Phases 9–12 delivered group-scoped governance: entities, relations, validation issues, triage, curation demo, graph console, RAG evidence bridge, modeling drafts, quality gates, and immutable model packages. Phase 13–14 delivered. See `docs/project-status.toml` for current phase.
 - Do not immediately build a full modeling studio, Graph RAG, or Agent auto-write path for Ontology objects. Those come after the read-only governance and graph layer is reliable.
 - Engineering lessons are tracked in `docs/engineering-memory/`.
