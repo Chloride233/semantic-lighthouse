@@ -104,11 +104,11 @@ def check_stale_expressions(filepath):
         return [f"{filepath}: cannot read — {e}"]
 
     for i, line in enumerate(lines, 1):
+        line_lower = line.lower()
         for pattern, description in STALE_PATTERNS:
-            if pattern in line:
-                # Skip if inside code blocks or comments that document history
-                stripped = line.strip()
-                if stripped.startswith("<!--") or stripped.startswith("#"):  # TOML comments OK
+            if pattern.lower() in line_lower:
+                # Skip HTML comments only
+                if line.strip().startswith("<!--"):
                     continue
                 errors.append(f"{filepath}:{i}: {description} (found '{pattern}')")
                 break  # one violation per line
@@ -190,18 +190,6 @@ def main():
 
     # 5. Handoff must be single current handoff
     all_errors.extend(check_handoff_is_single_current())
-
-    # 6. Verify no stale docs in archive scanned (sanity check)
-    if ARCHIVE_DIR.exists():
-        for f in ARCHIVE_DIR.iterdir():
-            if f.suffix == ".md":
-                for pattern, _ in STALE_PATTERNS:
-                    try:
-                        if pattern in f.read_text(encoding="utf-8"):
-                            # Archive docs CAN contain stale expressions — that's their purpose
-                            pass
-                    except Exception:
-                        pass
 
     # Report
     if all_errors:
