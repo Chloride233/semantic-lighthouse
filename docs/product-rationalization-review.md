@@ -362,11 +362,12 @@ Status: Design complete. Implementation deferred to Safety Lane approval.
 | `project_id` | String(36) | FK business_projects.id, indexed, NOT NULL | Project scope |
 | `evidence_type` | String(20) | NOT NULL | `document` or `rag_run` (extensible) |
 | `evidence_id` | String(36) | NOT NULL | ID of the Document or RAGRun |
-| `role` | String(80) | NULLABLE | FDE-added label, e.g. "business context," "technical reference" |
-| `note` | Text | NULLABLE | Optional FDE annotation |
+| `role` | String(20) | NOT NULL | Controlled: `context`, `requirement`, `decision`, `validation` |
+| `note` | String(500) | NULLABLE, trimmed | Optional FDE annotation |
 | `status` | String(20) | NOT NULL, default="active" | `active` or `removed` |
 | `created_by` | String(36) | FK users.id, NOT NULL | Who created the link |
 | `created_at` | DateTime(tz=True) | NOT NULL, default=utc_now | Creation timestamp |
+| `updated_at` | DateTime(tz=True) | NOT NULL, default=utc_now | Last state change (create, relink) |
 | `removed_by` | String(36) | NULLABLE | Who removed the link |
 | `removed_at` | DateTime(tz=True) | NULLABLE | Removal timestamp |
 
@@ -379,11 +380,12 @@ Status: Design complete. Implementation deferred to Safety Lane approval.
 Since `evidence_id` references different tables depending on `evidence_type`, DB-level foreign keys are not used. Instead:
 
 **On CREATE**:
-1. Validate `evidence_type` is in allowed set (`document`, `rag_run`).
-2. Query the evidence table by `evidence_id`.
-3. Assert the evidence row exists AND `evidence.group_id == project.group_id` (both from the URL route).
-4. If the evidence row does not exist or belongs to a different group, return 404 (no existence leak).
-5. Additional lifecycle checks (see 10.4).
+1. Validate `evidence_type` is in allowed set (`document`, `rag_run`). Invalid type → 422.
+2. Validate `role` is in controlled vocabulary (`context`, `requirement`, `decision`, `validation`). Invalid role → 422.
+3. Query the evidence table by `evidence_id`.
+4. Assert the evidence row exists AND `evidence.group_id == project.group_id` (both from the URL route). Not found or cross-group → 404.
+5. Document: only `status=ready` is linkable. RAGRun: only `status=success` is linkable. Archived/failed/no_evidence evidence → 409.
+6. Check existing link: active duplicate → 200 (idempotent, no audit). Removed link → reactivate same row with `evidence_relink` audit → 200.
 
 This pattern is consistent with `OntologyModelingDraft.evidence_refs` validation (which checks `source_entity_id`/`source_relation_id`/`source_issue_id` by querying the respective tables within the same group).
 
@@ -397,9 +399,10 @@ This pattern is consistent with `OntologyModelingDraft.evidence_refs` validation
 
 **Hard rules**:
 - `group_id` in the request body is always ignored — it comes from the URL path.
-- Cross-group access returns 404 (no 403 that leaks existence).
-- Cross-project access returns 404.
-- Evidence that has been archived (Document.status=archived) or failed (RAGRun.status=error) is still linkable but the response includes a `stale` or `unavailable` flag.
+- User not a member of the route group: 403 (from `get_membership_or_404`).
+- User IS a member, but project/evidence/link belongs to a different group or project: 404 (no existence leak to authorized group members).
+- New links only accept `Document.status=ready` and `RagRun.status=success`. Archived/failed/no_evidence evidence returns 409.
+- Existing links survive evidence archival — provenance shows `evidence_status: "archived"` or `"error"`.
 - Agent runs cannot call the evidence link API. No tool registration for evidence operations.
 - Goal stage knowledge base/ask links remain navigation-only — they do not auto-create evidence links.
 
@@ -407,13 +410,14 @@ This pattern is consistent with `OntologyModelingDraft.evidence_refs` validation
 
 | Scenario | Behavior |
 |----------|----------|
-| Document archived | Existing links remain `active`. List response includes `evidence_status: "archived"` in the provenance summary. New links to archived documents are accepted but marked with the same flag. |
-| RAG run failed (status=error) | Existing links remain `active`. List response includes `evidence_status: "error"`. New links to failed runs are accepted but flagged. |
+| Document archived (status=archived) | Existing links remain `active`. List provenance shows `evidence_status: "archived"`. New links to archived documents → 409. |
+| RAG run failed (status=error or no_evidence) | Existing links remain `active`. List provenance shows `evidence_status: "error"`. New links to failed/no_evidence runs → 409. |
 | Project archived | Existing links remain — project archive does not cascade. List endpoint still works. Creating new links to archived projects returns 409. |
-| Duplicate link | Second POST with same `(project_id, evidence_type, evidence_id)` returns 409 with the existing link ID. Idempotent — no new row created. |
-| Remove link | `status` → `removed`, `removed_by` and `removed_at` set. The original evidence (Document, RAGRun) is never deleted. The link row is never physically deleted. |
+| Active duplicate link | Second POST with same `(project_id, evidence_type, evidence_id)` and existing link `status=active` returns 200 with the existing record. No new audit row. |
+| Removed link re-POST | Existing link with `status=removed` is reactivated: `status` → `active`, `removed_by`/`removed_at` cleared, `updated_at` set. Audit: `evidence_relink`. Returns 200. |
+| Remove link | `status` → `removed`, `removed_by` and `removed_at` set. Original evidence never deleted. Link row never physically deleted. Audit: `evidence_unlink`. |
 | List removed links | Default list returns only `active`. Query parameter `?status=removed` or `?status=all` includes removed links. |
-| Audit | Every state transition (create, remove) creates an `OntologyRuntimeAudit` record with `operation="evidence_link"` or `operation="evidence_unlink"`. `field_names` carries `[evidence_type, evidence_id, project_id]`. `filter_field_names` is unused. |
+| Audit | Every state transition creates an `OntologyRuntimeAudit` record. `operation`: `evidence_link` / `evidence_unlink` / `evidence_relink`. `object_type` stores `document` or `rag_run`. `field_names` stores only field name strings: `["evidence_type", "role", "note", "status"]` — never field values, IDs, paths, or secrets. `project_id` is a dedicated column. `error_summary` never contains evidence_id, note text, file paths, raw_content, or prompts. |
 
 ### 10.5 Provenance Summary
 
@@ -432,15 +436,16 @@ The list response for each link includes:
   "provenance": {
     "evidence_title": "Enterprise Ontology Design",
     "evidence_status": "ready",
-    "evidence_source_path": "knowledge-graph/concepts/ontology.md",
     "evidence_created_at": "..."
   }
 }
 ```
 
-For RAGRun evidence, `provenance` includes `question` (truncated 120 chars), `confidence`, `retrieval_method`, and `citation_count` — but never the full answer text, citations content, or prompt.
+For Document evidence, `provenance` returns only: `title`, `status`, `file_name`, `source_label` (frontmatter `source` or `title`), `created_at`. Never: absolute paths, `source_path`, `storage_path`, `raw_content`.
 
-**Never exposed**: `raw_content`, `storage_path`, `answer`, `citations[].snippet`, `prompt`, `error_message`, `secret`, `token`.
+For RAGRun evidence, `provenance` returns only: `question` (truncated 120 chars), `confidence`, `retrieval_method`, `citation_count`. Never: `answer`, `citations[].snippet`, `prompt`, `error_message`.
+
+**Never exposed in any response**: `raw_content`, `storage_path`, `source_path`, `original_storage_path`, `answer`, `citations[].snippet`, `prompt`, `error_message`, `secret`, `token`.
 
 ### 10.6 API Draft
 
@@ -461,11 +466,12 @@ Validation:
 2. `_get_project_or_404(db, project_id, group_id)` — 404 if project not in group.
 3. If project.status == "archived" → 409.
 4. Validate `evidence_type` ∈ {document, rag_run} → 422.
-5. Query evidence by evidence_id. If not found or `evidence.group_id != group_id` → 404.
-6. Check unique constraint. If duplicate → 409 with `{"detail": "Evidence already linked", "existing_link_id": "..."}`.
-7. Create link, create `OntologyRuntimeAudit(operation="evidence_link")`, return 201.
+5. Validate `role` ∈ {context, requirement, decision, validation} → 422.
+6. Query evidence by evidence_id. If not found or `evidence.group_id != group_id` → 404.
+7. Validate evidence status: Document → must be `ready`. RAGRun → must be `success`. Otherwise → 409.
+8. Check existing link: active → 200 (idempotent). Removed → reactivate with `evidence_relink` audit → 200. Neither → create new with `evidence_link` audit → 201.
 
-Response (201):
+Response (201 or 200):
 ```json
 {
   "id": "...",
@@ -508,32 +514,36 @@ Errors: 404 if link not found or `link.project_id != project_id` or `link.group_
 - The evidence panel does not embed the full Documents page or RAG console — it shows summaries with links to the standalone pages.
 - No standalone page is hidden until the project-scoped panel reaches replacement parity.
 
-### 10.8 Test Plan
+### 10.8 Test Plan (26 tests)
 
 | # | Test | Lane |
 |---|------|------|
-| 1 | Owner creates evidence link (document) — 201 | Safety |
-| 2 | Owner creates evidence link (rag_run) — 201 | Safety |
+| 1 | Owner creates evidence link (ready document) — 201 | Safety |
+| 2 | Owner creates evidence link (success rag_run) — 201 | Safety |
 | 3 | Admin creates evidence link — 201 | Safety |
 | 4 | Member cannot create — 403 | Safety |
-| 5 | Outsider cannot create — 403 (not 404) | Safety |
-| 6 | Cross-group project returns 404 | Safety |
+| 5 | Non-member cannot create — 403 | Safety |
+| 6 | Cross-group project returns 404 (user is member of route group) | Safety |
 | 7 | Cross-group evidence returns 404 (no existence leak) | Safety |
 | 8 | Invalid evidence_type returns 422 | Safety |
-| 9 | Duplicate link returns 409 with existing ID | Safety |
-| 10 | Archived document — link accepted, provenance shows archived | Safety |
-| 11 | Failed RAG run — link accepted, provenance shows error | Safety |
-| 12 | Archived project rejects new links — 409 | Safety |
-| 13 | Member can list links for their group's project | Safety |
-| 14 | Outsider cannot list links — 403 | Safety |
-| 15 | Cross-project link listing returns 404 | Safety |
-| 16 | Owner removes link — status=removed, audit recorded | Safety |
-| 17 | Member cannot remove link — 403 | Safety |
-| 18 | Double remove is idempotent — 200 | Safety |
-| 19 | List with status=removed returns removed links | Safety |
-| 20 | Provenance excludes raw_content, storage_path, answer, prompt | Safety |
-| 21 | Agent tool registry does not include evidence link operations | Safety |
-| 22 | Evidence link audit record written on create and remove | Safety |
+| 9 | Invalid role returns 422 | Safety |
+| 10 | Active duplicate POST returns 200 with existing record (no audit) | Safety |
+| 11 | Removed link re-POST reactivates row, clears removed_*, records evidence_relink | Safety |
+| 12 | Archived document new link returns 409 | Safety |
+| 13 | Failed/no_evidence RAG run new link returns 409 | Safety |
+| 14 | Archived project rejects new links — 409 | Safety |
+| 15 | Member can list links for their group's project | Safety |
+| 16 | Non-member cannot list links — 403 | Safety |
+| 17 | Cross-project link listing returns 404 | Safety |
+| 18 | Owner removes link — status=removed, removed_* set, evidence_unlink audit | Safety |
+| 19 | Member cannot remove link — 403 | Safety |
+| 20 | Double remove is idempotent — 200 | Safety |
+| 21 | List with status=removed returns removed links | Safety |
+| 22 | Provenance for document excludes source_path, storage_path, raw_content | Safety |
+| 23 | Provenance for RAG run excludes answer, snippet, prompt, error_message | Safety |
+| 24 | Audit field_names contains only field name strings, no values or IDs | Safety |
+| 25 | Agent tool registry does not include evidence link operations | Safety |
+| 26 | Audit row written on evidence_link, evidence_unlink, and evidence_relink | Safety |
 
 ### 10.9 Rejected Design Alternatives
 
