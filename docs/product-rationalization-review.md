@@ -1,7 +1,7 @@
 # Product Rationalization and Surface Consolidation Review
 
 Date: 2026-06-20
-Status: S2.3 delivered and safety-reviewed. S2.4A pilot surface contract review complete. S2.4B minimal backend slice pending design.
+Status: S2.4B project summary endpoint delivered and reviewed. S2.4C project-bounded RAG endpoint design pending.
 
 ## 1. FDE Role and Main Chain
 
@@ -683,7 +683,7 @@ Unknown, cross-group, or cross-user source references return 404 to avoid existe
 
 ## 12. S2.4 Pilot Surface Consolidation
 
-Status: S2.4A contract review complete. No code changes.
+Status: S2.4B project summary endpoint delivered and reviewed.
 
 ### 12.1 Decision
 
@@ -794,7 +794,7 @@ A capability is ready for Pilot surface exposure when:
 
 **No page is hidden or removed in this review.** The contract assessment is purely a backend readiness checkpoint.
 
-### 12.6 S2.4B Minimal Backend Slice (Recommended)
+### 12.6 S2.4B Minimal Backend Slice (Delivered)
 
 The smallest code change that advances Pilot surface consolidation without breaking existing workflows:
 
@@ -809,6 +809,12 @@ The smallest code change that advances Pilot surface consolidation without break
 
 This endpoint requires **zero new models, zero new migrations, zero new business logic**. It is a read-only aggregation of existing data. It gives the Pilot frontend a single data source for a "Project Overview" panel without embedding any standalone capability.
 
+**Delivery note**:
+- Commit `c021d8d` added `GET /groups/{gid}/projects/{pid}/summary`.
+- Codex review tightened the endpoint to reuse the existing evidence-link provenance builder, so document and RAGRun evidence summaries preserve the same data-minimization contract as the evidence-link API.
+- Response includes project metadata, active evidence count, up to 5 recent active links with safe provenance, scoped Conversation count, scoped Task counts by status, and scoped AgentRun count.
+- Verification: `tests/test_projects.py` passed 65 tests; focused ruff passed for `projects.py` and `test_projects.py`.
+
 **Explicitly out of S2.4B scope**:
 - No embedded chat, task board, or Agent console
 - No navigation changes
@@ -820,7 +826,7 @@ This endpoint requires **zero new models, zero new migrations, zero new business
 
 | Slice | Scope |
 |-------|-------|
-| S2.4C | Project-bounded RAG endpoint (`POST /groups/{gid}/projects/{pid}/rag/answer`) |
+| S2.4C | Project-bounded RAG endpoint design (`POST /groups/{gid}/projects/{pid}/rag/answer`) |
 | S2.4D | Pilot-embedded task creation (reuses existing `POST /tasks` with `project_id`) |
 | S2.4E | Pilot-embedded conversation starter (reuses existing `POST /conversations` with `project_id`) |
 | S2.4F | Navigation evaluation — hide pages only after replacement parity is proven by tests |

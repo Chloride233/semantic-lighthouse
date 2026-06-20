@@ -18,8 +18,15 @@ from semantic_lighthouse.dependencies import (
     require_group_role,
 )
 from semantic_lighthouse.models import (
-    AgentRun, BusinessProject, Conversation, ProjectEvidenceLink, Task, User, utc_now,
+    AgentRun,
+    BusinessProject,
+    Conversation,
+    ProjectEvidenceLink,
+    Task,
+    User,
+    utc_now,
 )
+from semantic_lighthouse.routers.evidence_links import _build_provenance
 from semantic_lighthouse.schemas import (
     BusinessProjectCreateRequest,
     BusinessProjectListResponse,
@@ -184,19 +191,18 @@ def archive_project(
 # ── S2.4B Project Summary ──────────────────────────────────────────────────
 
 
-def _safe_evidence_provenance(link: ProjectEvidenceLink, db: Session) -> dict:
-    """Minimal provenance for a ProjectEvidenceLink. Never exposes paths or content."""
-    prov: dict = {"evidence_type": link.evidence_type, "role": link.role, "status": link.status}
-    if link.evidence_type == "document":
-        from semantic_lighthouse.models import Document
-        doc = db.get(Document, link.evidence_id)
-        if doc is not None:
-            prov["title"] = doc.title
-            prov["file_name"] = doc.file_name
-            prov["evidence_status"] = doc.status
-        else:
-            prov["unavailable"] = True
-    return prov
+def _summary_evidence(link: ProjectEvidenceLink, db: Session) -> dict:
+    """Return link metadata plus the same safe provenance used by evidence links."""
+    provenance = _build_provenance(db, link.evidence_type, link.evidence_id)
+    return {
+        "id": link.id,
+        "evidence_type": link.evidence_type,
+        "evidence_id": link.evidence_id,
+        "role": link.role,
+        "status": link.status,
+        "created_at": link.created_at.isoformat() if link.created_at else "",
+        "provenance": provenance.model_dump(exclude_none=True) if provenance else {},
+    }
 
 
 @router.get("/{project_id}/summary", response_model=ProjectSummaryResponse)
@@ -259,12 +265,14 @@ def get_project_summary(
 
     return ProjectSummaryResponse(
         project={
-            "id": project.id, "name": project.name,
+            "id": project.id,
+            "name": project.name,
             "business_goal": project.business_goal,
-            "stage": project.stage, "status": project.status,
+            "stage": project.stage,
+            "status": project.status,
         },
         evidence_count=evidence_count,
-        recent_evidence=[_safe_evidence_provenance(link, db) for link in evidence_links],
+        recent_evidence=[_summary_evidence(link, db) for link in evidence_links],
         conversation_count=conversation_count,
         task_count=TaskCountsByStatus(**task_counts),
         agent_run_count=agent_run_count,

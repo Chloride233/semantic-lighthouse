@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (S2.3 delivered, S2.4A contract review complete, migration 0025)
+Last updated: 2026-06-20 (S2.4B delivered and reviewed, migration 0025)
 
 ## State Source
 
@@ -11,7 +11,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 | Item | Value |
 |------|-------|
-| Commit | `ea216bc` |
+| Commit | `ab99b9d` |
 | Backend pytest | 786 passed |
 | ruff | clean |
 | Migration | `0025` at head |
@@ -23,6 +23,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 | S2.3B focused tests | 16 pass |
 | S2.3B related regression | 100 pass |
 | S2.3B grouped non-E2E regression | passed across all 832 collected non-E2E tests |
+| S2.4B focused tests | 65 pass |
 
 ## Architecture Boundaries
 
@@ -58,13 +59,14 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 | S2.3B focused | 16 passed | Project-bound retrieval, tool scope, empty evidence, archive denial |
 | S2.3B related | 100 passed | Retrieval, Conversations, Agent, project work context |
 | S2.3B grouped non-E2E | Passed | One-shot full command timed out after about 10 minutes; grouped suites covered all 832 collected non-E2E tests and passed |
+| S2.4B focused | 65 passed | Project summary endpoint, permissions, active evidence, safe provenance, scoped counts |
 | verify_ui | 47/47 | Real owner full chain F2A+F2B, all assertions pass |
 | E2E (Playwright) | 18/18 | F2A, F2B (owner/member/WARN/FAIL/isolation), F2C (responsive/a11y) |
 | Screenshots | 6 files | `.tmp/f2c/`, 32–97 KB, stage-verified, 0 console errors |
 
 ## Next Decision Gate
 
-**Approve S2.4B project summary endpoint**: S2.4A contract review confirmed Documents/Conversations/Tasks/AgentRuns have project-scoped backend contracts; RAG Answer still searches full group and must keep its standalone page. S2.4B recommended slice: `GET /groups/{gid}/projects/{pid}/summary` — a read-only aggregation requiring zero new models or migrations. No pages hidden until replacement parity is proven.
+**Approve S2.4C project-bounded RAG endpoint design**: S2.4B delivered `GET /groups/{gid}/projects/{pid}/summary` as a read-only aggregation endpoint for future Pilot overview panels. Next design question: whether and how to add `POST /groups/{gid}/projects/{pid}/rag/answer` so Pilot Ask retrieves only active project evidence while existing group-scoped Ask remains compatible.
 
 ## Key API Surfaces
 
@@ -80,6 +82,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 - `POST /groups/{gid}/ontology/drafts`, `GET /drafts`, `POST /drafts/generate|review|review-batch`
 - `POST /groups/{gid}/ontology/packages`, `GET /packages`, `GET /packages/{pid}/contract`
 - `POST /groups/{gid}/projects`, `GET /projects`, `GET /projects/{pid}`
+- `GET /groups/{gid}/projects/{pid}/summary`
 - `POST|GET /groups/{gid}/projects/{pid}/evidence-links`, `DELETE /groups/{gid}/projects/{pid}/evidence-links/{link_id}`
 - `POST /projects/{pid}/datasets`, `GET /datasets`
 - `POST /projects/{pid}/model-drafts/generate`, `GET /model-drafts/quality`

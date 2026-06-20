@@ -1,5 +1,14 @@
 # Highlight Log
 
+## S2.4B — Project Summary Endpoint Reuses Provenance Contracts
+
+- Date: 2026-06-20
+- Version: S2.4B
+- Type: implementation
+- What happened: Added `GET /groups/{gid}/projects/{pid}/summary` as a read-only Pilot overview aggregation endpoint. It returns project metadata, active evidence count, up to five recent active evidence links with safe provenance, scoped conversation count, task counts by status, and scoped Agent run count. No new tables, migrations, frontend changes, write paths, or navigation hiding.
+- Engineering judgment: Aggregation endpoints must reuse existing safety contracts instead of inventing parallel summaries. The review changed project summary evidence output to call the evidence-link provenance builder, preserving the same exclusion rules for paths, raw content, generated answers, prompts, citation snippets, errors, secrets, and tokens.
+- Verification: 65 focused project tests passed; changed-file ruff passed.
+
 ## S2.4A — Pilot Surface Consolidation: Backend Contract Before Navigation Change
 
 - Date: 2026-06-20

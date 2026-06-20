@@ -7,8 +7,18 @@ Stage: backend-controlled, no client modification.
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from conftest import register_and_login
+from semantic_lighthouse.models import (
+    AgentRun,
+    Conversation,
+    Document,
+    ProjectEvidenceLink,
+    RagRun,
+    Task,
+    new_id,
+)
 from semantic_lighthouse.services.projects import advance_stage, next_stage
 
 
@@ -66,6 +76,63 @@ def _create_project(
     r = client.post(f"/groups/{gid}/projects", json=body, headers=h)
     assert r.status_code == 201, r.text
     return r.json()
+
+
+def _add_document(db: Session, gid: str, user_id: str, suffix: str) -> str:
+    doc_id = new_id()
+    db.add(Document(
+        id=doc_id,
+        group_id=gid,
+        title=f"Doc {suffix}",
+        file_name=f"doc-{suffix}.md",
+        source_path=f"/tmp/unsafe/doc-{suffix}.md",
+        content_hash=f"hash-{suffix}",
+        file_hash=f"file-hash-{suffix}",
+        raw_content="secret raw content",
+        status="ready",
+        created_by=user_id,
+        frontmatter={"source": f"C:\\unsafe\\doc-{suffix}.md"},
+    ))
+    return doc_id
+
+
+def _add_rag_run(db: Session, gid: str, user_id: str) -> str:
+    run_id = new_id()
+    db.add(RagRun(
+        id=run_id,
+        group_id=gid,
+        user_id=user_id,
+        question="What should the project do?",
+        answer="Sensitive generated answer",
+        confidence="high",
+        retrieval_method="hybrid",
+        model="fake",
+        citations=[{"snippet": "sensitive citation snippet"}],
+        status="success",
+    ))
+    return run_id
+
+
+def _evidence_link(
+    gid: str,
+    pid: str,
+    evidence_id: str,
+    user_id: str,
+    *,
+    evidence_type: str = "document",
+    role: str = "context",
+    status: str = "active",
+) -> ProjectEvidenceLink:
+    return ProjectEvidenceLink(
+        id=new_id(),
+        group_id=gid,
+        project_id=pid,
+        evidence_type=evidence_type,
+        evidence_id=evidence_id,
+        role=role,
+        status=status,
+        created_by=user_id,
+    )
 
 
 # ── create ───────────────────────────────────────────────────────────────
@@ -666,24 +733,135 @@ class TestProjectSummary:
         assert r.status_code == 200
         assert r.json()["project"]["status"] == "archived"
 
-    def test_evidence_count_only_active_links(self, client):
+    def test_evidence_count_only_active_links(self, client, db_session: Session):
         _, _, oh = register_and_login(client, "sum-ev@t.com")
         gid = _create_group(client, oh, "EvGrp")
         pid = _create_project(client, gid, oh)["id"]
+        other_pid = _create_project(client, gid, oh, name="OtherEvProj")["id"]
+        owner_id = client.get("/auth/me", headers=oh).json()["id"]
+
+        doc_active = _add_document(db_session, gid, owner_id, "active")
+        doc_removed = _add_document(db_session, gid, owner_id, "removed")
+        doc_other_project = _add_document(db_session, gid, owner_id, "other")
+        db_session.add_all([
+            _evidence_link(gid, pid, doc_active, owner_id, status="active"),
+            _evidence_link(gid, pid, doc_removed, owner_id, status="removed"),
+            _evidence_link(gid, other_pid, doc_other_project, owner_id, status="active"),
+        ])
+        db_session.commit()
+
         r = client.get(f"/groups/{gid}/projects/{pid}/summary", headers=oh)
         assert r.status_code == 200
-        assert r.json()["evidence_count"] == 0
+        assert r.json()["evidence_count"] == 1
 
-    def test_summary_excludes_sensitive_fields(self, client):
+    def test_recent_evidence_max_5_and_safe_provenance(self, client, db_session: Session):
         _, _, oh = register_and_login(client, "sum-safe@t.com")
         gid = _create_group(client, oh, "SafeGrp")
         pid = _create_project(client, gid, oh)["id"]
+        owner_id = client.get("/auth/me", headers=oh).json()["id"]
+
+        for i in range(6):
+            doc_id = _add_document(db_session, gid, owner_id, f"doc-{i}")
+            db_session.add(_evidence_link(gid, pid, doc_id, owner_id, role="context"))
+        rag_id = _add_rag_run(db_session, gid, owner_id)
+        db_session.add(_evidence_link(gid, pid, rag_id, owner_id, evidence_type="rag_run"))
+        db_session.commit()
+
         r = client.get(f"/groups/{gid}/projects/{pid}/summary", headers=oh)
         assert r.status_code == 200
         data = r.json()
+        assert data["evidence_count"] == 7
+        assert len(data["recent_evidence"]) == 5
+        assert {item["status"] for item in data["recent_evidence"]} == {"active"}
+        rag_items = [
+            item for item in data["recent_evidence"] if item["evidence_type"] == "rag_run"
+        ]
+        assert len(rag_items) == 1
+        assert rag_items[0]["provenance"]["question"] == "What should the project do?"
+
         body = str(data)
         assert "raw_content" not in body
         assert "source_path" not in body
         assert "storage_path" not in body
         assert "answer" not in body
         assert "prompt" not in body
+        assert "secret" not in body
+
+    def test_summary_counts_scoped_conversations_tasks_and_agent_runs(
+        self, client, db_session: Session
+    ):
+        _, _, oh = register_and_login(client, "sum-count@t.com")
+        gid = _create_group(client, oh, "CountGrp")
+        pid = _create_project(client, gid, oh)["id"]
+        other_pid = _create_project(client, gid, oh, name="OtherCountProj")["id"]
+        owner_id = client.get("/auth/me", headers=oh).json()["id"]
+
+        db_session.add_all([
+            Conversation(id=new_id(), group_id=gid, user_id=owner_id, project_id=pid, title="A"),
+            Conversation(id=new_id(), group_id=gid, user_id=owner_id, project_id=pid, title="B"),
+            Conversation(
+                id=new_id(), group_id=gid, user_id=owner_id, project_id=other_pid, title="Other"
+            ),
+            Task(
+                id=new_id(),
+                group_id=gid,
+                project_id=pid,
+                title="Pending",
+                description="",
+                status="pending",
+                source_type="manual",
+                source_id=new_id(),
+                created_by=owner_id,
+            ),
+            Task(
+                id=new_id(),
+                group_id=gid,
+                project_id=pid,
+                title="Done",
+                description="",
+                status="done",
+                source_type="manual",
+                source_id=new_id(),
+                created_by=owner_id,
+            ),
+            Task(
+                id=new_id(),
+                group_id=gid,
+                project_id=other_pid,
+                title="Other",
+                description="",
+                status="done",
+                source_type="manual",
+                source_id=new_id(),
+                created_by=owner_id,
+            ),
+            AgentRun(
+                id=new_id(),
+                group_id=gid,
+                user_id=owner_id,
+                project_id=pid,
+                goal="Scoped",
+                status="completed",
+            ),
+            AgentRun(
+                id=new_id(),
+                group_id=gid,
+                user_id=owner_id,
+                project_id=other_pid,
+                goal="Other",
+                status="completed",
+            ),
+        ])
+        db_session.commit()
+
+        r = client.get(f"/groups/{gid}/projects/{pid}/summary", headers=oh)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["conversation_count"] == 2
+        assert data["task_count"] == {
+            "pending": 1,
+            "in_progress": 0,
+            "done": 1,
+            "cancelled": 0,
+        }
+        assert data["agent_run_count"] == 1
