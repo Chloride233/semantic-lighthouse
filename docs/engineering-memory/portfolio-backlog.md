@@ -23,6 +23,66 @@
 
 **Acceptance**: A stranger can clone, follow README, run demo, understand architecture from ADRs.
 
+---
+
+## Evidence-grounded Ontology Compiler — Main Portfolio Narrative (Phase 14.5+)
+
+**Positioning**: Semantic Lighthouse is an **Evidence-grounded Ontology Compiler** — it compiles enterprise documents and data into an evidence-backed, human-reviewable, permission-isolated, queryable semantic runtime that Agents can safely use.
+
+**Full chain** (all delivered as of Phase 14.5):
+
+```text
+Documents/Data → Dataset Profiling → Modeling Drafts → Human Review (accept/reject)
+→ Quality-Gated Package (content hash, versioned) → Business Contract (semantic_hash)
+→ DatasetBinding (explicit property→column mapping) → Unified Query Runtime
+→ (future) Agent/MCP Adapter (reuses query service, no direct storage access)
+```
+
+**Key differentiators for resume** (all implemented and tested):
+1. **Model/storage decoupling**: Contract defines WHAT, Binding defines WHERE, Query Service is the only HOW.
+2. **Deterministic evidence chain**: Every property maps to a specific dataset column with provenance traceable to the profile that generated it.
+3. **Unified read boundary**: REST, Agent tools, future MCP all go through the same permission-isolated query service.
+4. **Activation gate**: Nothing goes to pilot without passing binding validation + smoke query.
+5. **Zero-DSL query**: JSON equality filters only — no SQL, no custom language, no AST.
+6. **Provenance over power**: Every query result includes full package/dataset/binding provenance without leaking data.
+
+**Architecture diagram to prepare** (for portfolio):
+```
+┌──────────┐    ┌──────────┐    ┌───────────┐    ┌──────────┐
+│ Dataset  │───▶│ Modeling │───▶│  Human    │───▶│  Quality │
+│ Upload + │    │  Drafts  │    │  Review   │    │  Gate +  │
+│ Profile  │    │(generate)│    │(accept/   │    │ Package  │
+│          │    │          │    │ reject)   │    │  Build   │
+└──────────┘    └──────────┘    └───────────┘    └────┬─────┘
+                                                      │
+                                                      ▼
+┌──────────┐    ┌──────────┐    ┌───────────┐    ┌──────────┐
+│ Agent /  │◀───│  Unified │◀───│Dataset    │◀───│ Business │
+│MCP (fut) │    │  Query   │    │Binding    │    │ Contract │
+│          │    │ Runtime  │    │(generate) │    │ (export) │
+└──────────┘    └──────────┘    └───────────┘    └──────────┘
+```
+
+**Do NOT put in resume**: MCP runtime, Graph RAG, temporal/time-travel engine, custom query language (SPL/DSL), automatic schema discovery, multi-tenant SaaS, Kubernetes. These are either NOT implemented or explicitly rejected as design decisions.
+
+**Resume-ready capability list** (all tested and verified):
+- JWT auth + BCrypt + refresh token rotation + group RBAC
+- Document ingestion (MD/TXT/PDF/DOCX) + chunked upload + resumable sessions
+- Keyword + semantic (pgvector) hybrid retrieval with group_id isolation
+- Citation-grounded RAG with confidence, knowledge gaps, next steps, audit
+- Controlled Agent orchestration (FSM, tool registry, HITL, audit)
+- Ontology governance (entities, relations, wikilink extraction, validation issues)
+- Triage + curation backlog (deterministic rules, not LLM)
+- Modeling drafts v1 (Object/Property/Link/Action types, human review)
+- Quality-gated immutable contract packages (content hash, versioned, semantic_hash)
+- Business pilot five-stage pipeline (goal→data→model→validate→pilot)
+- Dataset upload + metadata-first profiling (CSV/XLSX, PK/FK detection, PII masking)
+- Dataset→Ontology draft bridge (deterministic generation, evidence privacy)
+- Project-scoped package + contract API (WARN override, cross-project isolation)
+- **Ontology Dataset Binding (explicit property→column mapping)**
+- **Unified read-only query runtime (equality filters, type conversion, provenance)**
+- **Pilot activation gate (binding validation + smoke query)**
+
 ## Future ECC Prompt
 
 ```text

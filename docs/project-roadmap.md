@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
-**Last updated**: 2026-06-19
-**Current phase**: Phase 14 **IN PROGRESS** — 14.1 Business Pilot Project Foundation delivered. Phase 13 COMPLETE (business_v1 backend contract stable). Frontend Refactor F1 complete by CC: F1A Swiss app shell + global group context; F1B Ontology 5-view workspace (overview, graph, governance, modeling with batch review, contracts). Future: MCP, Object Runtime, SDK remain candidates, not pre-committed. Base docs: `docs/agent-handoff.md`, `docs/phase14-planning.md`, `docs/phase13-planning.md`, `docs/phase13-review.md`.
+**Last updated**: 2026-06-20
+**Current phase**: Phase 14 **COMPLETE** — 14.1–14.5 all delivered. Backend Review C next.
 
 ---
 
@@ -292,9 +292,9 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 **Out of scope**: Frontend, modeling UI, business object instance tables, package activate/publish, Action execution, Functions runtime, OSDK/code generation, MCP/Agent tool registration, Graph RAG, ERP/MES/PLC integration, external KB modification, knowledge_meta→business_v1 auto-conversion, full JSON Schema/OpenAPI generation, generic manufacturing framework.
 
 
-## Phase 14: Business Pilot Project ← Data → Model → Validate → Pilot ← IN PROGRESS (14.1–14.3 delivered, Backend Review A complete)
+## Phase 14: Business Pilot Project ← Data → Model → Validate → Pilot ← **COMPLETE** (14.1–14.5 all delivered)
 
-**Goal**: Shift the product from parallel features toward a guided five-stage business pilot main chain. See `docs/phase14-planning.md`.
+**Goal**: Shift the product from parallel features toward a guided five-stage business pilot main chain, ending with a deterministic, permission-isolated, explainable read runtime that proves the Ontology contract can read real business objects. See `docs/phase14-planning.md`.
 
 | # | Task | Description |
 |---|------|-------------|
@@ -302,11 +302,11 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 14.2 | Dataset Asset & Profiling | ✅ `DatasetAsset` model, migration `0019`, CSV/XLSX upload, metadata-first profiling, PK/FK suggestions, PII masking, stage advancement goal→data. 53 tests. |
 | 14.3 | Data-to-Model Bridge | ✅ Migration `0020` (project_id + source_dataset_id on drafts), deterministic dataset→business_v1 draft generation (object/property/link types), evidence privacy, idempotency, stage advancement data→model, review chain reuse. 27 tests. |
 | 14.4 | Model Validation Gate | ✅ Migration `0021` (scope_key + project_id on packages), project-scoped quality/package/contract API, WARN override audit, FAIL blocks absolutely, stage model→validate, legacy isolation. 23 tests. |
-| 14.5 | Pilot Execution Baseline | Pilot stage status, outcome recording — **NEXT** |
-| 14.4 | Model Validation Gate | Quality gate enforcement before validate stage |
-| 14.5 | Pilot Execution Baseline | Pilot stage status, outcome recording |
+| 14.5 | Pilot Read Runtime + Unified Query Contract | ✅ Migration `0022` (OntologyDatasetBinding), deterministic binding generation from accepted contract + dataset profiles, unified read-only query with equality filters/limit/offset/type conversion/explain, pilot activation with smoke gate, path safety, permissions, provenance sanitization. 56 tests. No DSL, no MCP, no Graph RAG. |
 
-**Out of scope**: Frontend (Kimi), delete/recover, Object Runtime, SDK, MCP, old feature removal.
+**Next**: Backend Review C / Phase 14 closeout. MCP remains post-Phase 14 candidate. Future candidates: Evidence + Object dual-plane query, Domain Pack/Knowledge Artifact — NOT started.
+
+**Out of scope**: Frontend (Kimi), delete/recover, Object Runtime, SDK, MCP, Graph RAG, old feature removal, Pilot outcome/KPI dashboard, relation joins, Action execution, data write-back, custom query language.
 
 
 ## Future Candidate: MCP Read-only Gateway v1 ← NOT STARTED

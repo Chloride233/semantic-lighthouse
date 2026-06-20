@@ -1,5 +1,18 @@
 # Highlight Log
 
+## Phase 14.5 — UModel 研读核验：借鉴模型/存储解耦、拒绝 SPL/MCP Runtime、定位 Evidence-grounded Ontology Compiler
+
+- Date: 2026-06-20
+- Version: Phase 14.5
+- Type: decision
+- Context: 在实现 Pilot Read Runtime 之前，系统研读了 UModel 的公开文章和设计理念，核验哪些理念值得借鉴、哪些能力被文章夸大、Semantic Lighthouse 的差异化创新应该在哪里。
+- What happened: 经过对比核验，确认六项值得借鉴的架构决策：(1) 模型定义与运行时分离 — Object Type/Property 定义在 contract package 中，数据绑定和查询是独立 runtime；(2) Dataset 作为语义描述，物理数据由独立绑定负责 — DatasetAsset 存储 profile 元数据，OntologyDatasetBinding 显式连接 contract → file；(3) Entity/Object 字段与数据列之间使用显式映射 — property_mappings 记录 property api_name → column name；(4) Query Service 作为 REST、UI、Agent、未来 MCP 共用的唯一读取边界 — `/runtime/query` 是所有读取路径的唯一入口；(5) Agent/MCP 复用服务层，不直接访问底层存储 — 已在 Agent 工具注册和 MCP 边界设计中体现；(6) MCP 写能力默认关闭 — `docs/mcp-agent-boundary-design.md` 已明确此边界。
+- 同时确认七项不照搬的决定：(1) 不实现自定义 SPL/DSL — 我们的 query 只接受 JSON equality filters；(2) 不实现通用 AST 或查询优化器 — 直接顺序读取 CSV/XLSX 行；(3) 不采用仅生成外部执行计划的 plan-only 架构 — 我们直接读写文件；(4) 不实现通用自动 Schema Discovery — 我们的 profiling 是 metadata-first，不扫描全库；(5) 不实现时间旅行或通用 temporal engine；(6) 不实现 MCP runtime、Graph RAG 或 Ontology 写入；(7) 不把文章中未经官方仓库证明的能力写成 UModel 当前已实现事实。
+- Semantic Lighthouse 的创新定位明确为：「Evidence-grounded Ontology Compiler：把企业文档和数据编译成有证据、可审核、可查询、可供 Agent 安全使用的语义运行时。」这个定位准确区分了三层能力：(a) 当前已交付 — contract compilation + binding + query + provenance + activation；(b) 产品方向 — Agent/MCP adapter 复用 query service，不作独立 runtime；(c) 不写入简历 — 未实现的 MCP、Graph RAG、时间旅行、SPL。
+- Engineering judgment: 追赶参考项目不是目标。UModel 的公开文章对模型/存储解耦和统一查询边界有很好的阐述，但文章将许多规划中的能力写成了当前状态。Semantic Lighthouse 的差异化在于：(1) 每个 contract property 都有明确的证据链（哪个数据集、哪个列、哪个 profile），不是自动推断；(2) 查询结果带有完整的 provenance block（package id/content_hash、dataset id/content_hash），随时可审计；(3) 类型转换是确定性的且报错不静默伪造；(4) 整个链路从 document/data → draft → human review → package → binding → query → provenance 每一步都有显式记录和权限门禁。这些特性在 UModel 文章中未出现。
+- Verification: Phase 14.5 全部 56 测试通过，216 个 Phase 14 测试零回归。本次核验结论已同步到路线、工程记忆和求职叙事。没有为了追赶参考项目引入 SPL、MCP runtime 或通用数据平台。
+- Interview version: 我研究了 UModel 的设计理念，采纳了模型/存储解耦和统一查询 Service 边界的思路，但明确拒绝引入自定义查询语言、通用优化器和 MCP runtime。Semantic Lighthouse 的查询是确定性的、有证据可审计的、权限隔离的 — 不是为了"更强大"，而是为了"更可信"。
+
 ## Phase 14.3 — Dataset Profile Becomes Deterministic, Human-Reviewable Contract Proposals (Not Auto-Published Ontology)
 
 - Date: 2026-06-19

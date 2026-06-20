@@ -1,6 +1,6 @@
 # Phase 14: Business Pilot Project ← Data → Model → Validate → Pilot
 
-**Status**: 14.1–14.4 delivered. Backend Review B next. 14.5 pending.
+**Status**: 14.1–14.5 DELIVERED. Backend Review C / Phase 14 closeout next.
 
 Phase 14 shifts Semantic Lighthouse from parallel product features (RAG, Agent, Ontology drafts, tasks) toward a guided business pilot main chain. A group workspace contains one or more business pilot projects, each progressing through a fixed five-stage pipeline:
 
@@ -20,7 +20,7 @@ Each stage is backend-controlled. Clients cannot skip, reverse, or directly set 
 | **data** | Dataset loaded, profiled, and schema understood | Dataset assets provisioned + basic profiling |
 | **model** | Ontology model (object types, properties, relations, actions) drafted from data | Data profile + Phase 12 package available |
 | **validate** | Model validated against data; quality gates checked | Model package built + quality PASS/WARN |
-| **pilot** | Pilot execution with measurable business outcome | Validation gate passed |
+| **pilot** | Pilot read runtime active; bound Object Types queryable through unified contract | Activation gate: bindings valid, smoke query passed |
 
 ---
 
@@ -32,7 +32,7 @@ Each stage is backend-controlled. Clients cannot skip, reverse, or directly set 
 | 14.2 | Dataset Asset — dataset upload, basic profiling, data stage advancement | ✅ Delivered |
 | 14.3 | Data-to-Model Bridge — link dataset profile to modeling draft generation | ✅ Delivered |
 | 14.4 | Model Validation Gate — quality gate enforcement before validate stage | ✅ Delivered |
-| 14.5 | Pilot Execution Baseline — pilot stage status, outcome recording | **Next** |
+| 14.5 | Pilot Read Runtime + Unified Query Contract — DatasetBinding, deterministic query, pilot activation | ✅ Delivered |
 
 ---
 
@@ -73,6 +73,24 @@ Each stage is backend-controlled. Clients cannot skip, reverse, or directly set 
 
 ---
 
+## 14.5 Delivered — Pilot Read Runtime + Unified Query Contract
+
+- **Model**: `OntologyDatasetBinding` (`ontology_dataset_bindings`, migration `0022`). Fields: id, group_id, project_id, package_id, dataset_id, object_type_api_name, primary_key_column, property_mappings (JSON), status (active/stale), created_by, created_at, updated_at. Unique: (package_id, object_type_api_name).
+- **Binding generation**: `POST /groups/{gid}/projects/{pid}/runtime/bindings/generate` — owner/admin only. Stage must be validate or pilot. Uses latest project-scoped package (scope_key = "project:{pid}"). Deterministically maps accepted business_v1 Object Type drafts (with source_dataset_id) to DatasetAssets. Property mappings come from accepted Property drafts: property api_name → dataset column name. PK from Object Type draft's primary_key field, resolved through the matching Property draft's column evidence. Idempotent — re-running produces no duplicates. Returns structured issues on unresolvable mappings, never guesses or calls LLM. Action Types never bound. Link Types not joined.
+- **Binding read**: `GET /groups/{gid}/projects/{pid}/runtime/bindings` — member+ read. Returns active bindings for the latest project package. Project existence validated, cross-group returns 404.
+- **Unified query**: `POST /groups/{gid}/projects/{pid}/runtime/query` — member+ read. Restricted JSON request: object_type, optional fields (whitelist of bound property api_names), optional filters (equality only, no expressions), limit (default 20, max 100), offset (default 0, max 10000), explain_only (default false). Uses latest project package and corresponding active bindings. Only ready/non-archived datasets. Reads CSV/XLSX via controlled parsing (reuses UTF-8/UTF-8-SIG csv + openpyxl read_only/data_only patterns). File path resolved and validated to stay within dataset_storage_path/group/project. Contract value_type conversion: string→str, integer→int, number→float, boolean→True/False, date/datetime→str. Conversion errors produce explicit type_errors, never silently forge data. Results never include storage_path, sample profile, internal stack traces, or unselected columns.
+- **Explain/provenance**: Explain includes package id/version/semantic_hash, binding id, dataset id/content_hash, selected fields, filter field names, limit/offset. Never includes filter values, raw rows, file paths, or secrets. explain_only=true skips data read entirely.
+- **Pilot activation**: `POST /groups/{gid}/projects/{pid}/runtime/activate` — owner/admin only. Project must be validate or pilot stage. All dataset-grounded Object Types must have complete valid bindings. Datasets must be ready with ≥1 row. Smoke query (one row) executed for each binding. On full success, advances validate → pilot via existing stage helper. Idempotent — calling on pilot returns `already_pilot: true`. Any binding/dataset/data/type issue blocks advance. Ordinary query never advances stage.
+- **Permissions**: member can read bindings and query. owner/admin can generate bindings and activate. outsider returns 403. cross-group/cross-project objects return 404 (no existence leak).
+- **Audit**: Query audit records user/group/project/object_type, field names, filter field names, row_count, and timestamp. Never records filter values, returned data, storage_path, PII, or secrets. Existing audit model extended minimally — no generic event framework.
+- **Path safety**: File storage_path resolved and verified within `dataset_storage_path/{gid}/{pid}/`. Traversal attempts rejected.
+- **No MCP, no DSL/SQL, no Graph RAG**: Query uses only JSON equality filters. No expression strings, no AST, no query optimizer, no custom language. MCP runtime, SDK, and write capability remain NOT implemented — see `docs/mcp-agent-boundary-design.md`.
+- **Tests**: 56 tests in `tests/test_project_runtime.py` covering binding generation (deterministic, idempotent, PK/property mapping, issues), permissions (member/owner/admin/outsider, cross-group, cross-project), query execution (field whitelist, equality filter, limit/offset, max limits), CSV and XLSX queries, contract type conversion (success and failure), explain_only, provenance sanitization, activation (validate→pilot, failure blocking, idempotency), stale package binding, path traversal rejection, and legacy backward compatibility.
+- **Verification**: 216 combined tests passed (56 runtime + 57 projects + 53 datasets + 27 modeling + 23 validation). Ruff clean. Migration 0022 at Alembic head. Git diff --check clean.
+- **Next**: Backend Review C / Phase 14 closeout. MCP remains post-Phase 14 candidate only.
+
+---
+
 ## Deliberate Boundaries
 
 - No delete or recover — projects are archived, not destroyed.
@@ -80,3 +98,5 @@ Each stage is backend-controlled. Clients cannot skip, reverse, or directly set 
 - Industry template is a hint, not a validated enum — no cross-project template enforcement.
 - Old features (RAG, Agent, Ontology drafts, tasks) remain as parallel capabilities. Phase 14 does not remove them.
 - Frontend deferred to Kimi; CC backend-only.
+- No Pilot outcome/KPI dashboard. No relation joins in query. No Action execution. No data write-back.
+- No MCP server/client/SDK. No Graph RAG. No custom query language. No new dependencies added.

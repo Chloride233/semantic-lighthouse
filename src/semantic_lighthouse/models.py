@@ -601,6 +601,54 @@ class DatasetAsset(Base):
     )
 
 
+class OntologyDatasetBinding(Base):
+    """Phase 14.5 — explicit binding between a business_v1 Object Type and a DatasetAsset.
+
+    Each package + object_type_api_name can have only one active binding.
+    property_mappings maps property api_name → dataset column name.
+    Never stores sample_values, raw rows, or storage_path.
+    """
+
+    __tablename__ = "ontology_dataset_bindings"
+    __table_args__ = (
+        UniqueConstraint(
+            "package_id", "object_type_api_name",
+            name="uq_dataset_binding_package_object_type",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    group_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("groups.id"), index=True, nullable=False
+    )
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("business_projects.id"), index=True, nullable=False
+    )
+    package_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("ontology_model_packages.id"), index=True, nullable=False
+    )
+    dataset_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("dataset_assets.id"), index=True, nullable=False
+    )
+    object_type_api_name: Mapped[str] = mapped_column(
+        String(240), nullable=False
+    )
+    primary_key_column: Mapped[str] = mapped_column(String(240), nullable=False)
+    property_mappings: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="active"
+    )  # active | stale
+    created_by: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
 class BusinessProject(Base):
     """Phase 14.1 — business pilot project within a group workspace.
 

@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-19 (Phase 14 Backend Review B complete — 14.1–14.4 hardened. Phase 14.5 next.)
+Last updated: 2026-06-20 (Phase 14.5 Pilot Read Runtime delivered — Phase 14 COMPLETE. Backend Review C next.)
 
 ## Current Phase
 
@@ -845,4 +845,36 @@ post-Phase-14 candidate only. Any future prompt must follow
 `docs/mcp-agent-boundary-design.md`; no write capability is allowed without a
 separate Safety Lane plan reusing backend authorization, audit, and HITL.
 
-Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 14.1–14.4 delivered; Backend Review B complete. Phase 14.5 Pilot Read Runtime is next.
+### Phase 14.5 — Pilot Read Runtime + Unified Query Contract (2026-06-20)
+
+**Status**: Delivered. Phase 14 complete. All 14.1–14.5 delivered.
+
+**What was built**:
+
+- **New model**: `OntologyDatasetBinding` (`ontology_dataset_bindings`, migration `0022`). Fields: id, group_id, project_id, package_id, dataset_id, object_type_api_name, primary_key_column, property_mappings (JSON), status (active/stale), created_by, created_at, updated_at. Unique constraint on (package_id, object_type_api_name). Never stores sample_values, raw rows, or storage_path.
+
+- **Binding generation**: `POST /runtime/bindings/generate` (owner/admin). Deterministically maps accepted business_v1 Object Type drafts (with source_dataset_id) to DatasetAssets. Property mappings from accepted Property drafts: property api_name → column name. PK column resolved through Object Type draft's primary_key property reference → matching Property draft's column evidence. Idempotent. Returns structured issues on unresolvable cases — never guesses, never calls LLM. Action Types never bound. Link Types not joined.
+
+- **Binding read**: `GET /runtime/bindings` (member+). Returns active bindings for latest project package. Validates project existence (404 for non-existent/cross-group).
+
+- **Unified query**: `POST /runtime/query` (member+). Restricted JSON request — no SQL, no DSL, no expressions. object_type, optional fields (bound property whitelist), optional equality filters, limit (default 20, max 100), offset (default 0, max 10000), explain_only. Uses latest project package + bindings. Only ready/non-archived datasets. CSV/XLSX via controlled parsing. File path resolved and validated within dataset_storage_path/group/project. Contract value_type conversion with explicit errors. Never returns storage_path, sample profile, internal stack traces, or unselected columns.
+
+- **Explain/provenance**: Includes package id/version/semantic_hash, binding id, dataset id/content_hash, selected fields, filter field names, limit/offset. NEVER includes filter values, raw rows, file paths, or secrets.
+
+- **Pilot activation**: `POST /runtime/activate` (owner/admin). Validates all dataset-grounded Object Types have bindings, datasets ready with ≥1 row, smoke query per binding. On full success, advances validate → pilot via existing stage helper. Idempotent. Ordinary query never advances stage.
+
+- **Permissions**: member reads bindings/query; owner/admin generates/activates; outsider 403; cross-group/cross-project 404.
+
+- **Path safety**: Resolved path validated within `dataset_storage_path/{gid}/{pid}/`. Traversal rejected.
+
+- **Tests**: 56 tests in `tests/test_project_runtime.py`. All phases combined: 216 tests pass (56 + 57 projects + 53 datasets + 27 modeling + 23 validation). Zero regressions across Phase 14.
+
+- **Verification**: Ruff clean, git diff --check clean, migration 0022 at Alembic head.
+
+- **Hard boundaries enforced**: No MCP server/client/SDK, no custom query language, no SQL/DSL/AST, no Graph RAG, no relation joins, no Action execution, no data write-back, no new dependencies, no frontend changes, no full pytest run (only Phase 14 + related tests).
+
+**Residual risks**: Bound dataset files can be moved/deleted on disk → query returns 422 (not silent). Concurrent binding generation for same package may produce IntegrityError — handled by unique constraint. No caching layer — repeated queries re-read files.
+
+**Next**: Backend Review C / Phase 14 closeout. MCP remains post-Phase 14 candidate — see `docs/mcp-agent-boundary-design.md`.
+
+Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 14 COMPLETE (14.1–14.5 all delivered). Backend Review C next.
