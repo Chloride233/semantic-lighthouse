@@ -2,9 +2,11 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from conftest import register_and_login
 from semantic_lighthouse.config import Settings, get_settings
+from semantic_lighthouse.models import ProjectEvidenceLink, RagRun
 
 
 def _settings(path: Path, chat_provider: str = "fake", embedding_provider: str = "fake") -> Settings:
@@ -34,6 +36,55 @@ def _create_group(client: TestClient, headers: dict[str, str], name: str = "Team
     response = client.post("/groups", json={"name": name}, headers=headers)
     assert response.status_code == 201
     return response.json()["id"]
+
+
+def _create_project(client: TestClient, group_id: str, headers: dict[str, str], name: str = "Pilot") -> str:
+    response = client.post(
+        f"/groups/{group_id}/projects",
+        json={
+            "name": name,
+            "entry_mode": "problem_first",
+            "business_goal": "Project-bounded RAG",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201, response.text
+    return response.json()["id"]
+
+
+def _archive_project(client: TestClient, group_id: str, project_id: str, headers: dict[str, str]) -> None:
+    response = client.post(f"/groups/{group_id}/projects/{project_id}/archive", headers=headers)
+    assert response.status_code == 200, response.text
+
+
+def _link_document(
+    client: TestClient,
+    group_id: str,
+    project_id: str,
+    document_id: str,
+    headers: dict[str, str],
+) -> str:
+    response = client.post(
+        f"/groups/{group_id}/projects/{project_id}/evidence-links",
+        json={"evidence_type": "document", "evidence_id": document_id, "role": "context"},
+        headers=headers,
+    )
+    assert response.status_code in {200, 201}, response.text
+    return response.json()["id"]
+
+
+def _remove_evidence_link(
+    client: TestClient,
+    group_id: str,
+    project_id: str,
+    link_id: str,
+    headers: dict[str, str],
+) -> None:
+    response = client.delete(
+        f"/groups/{group_id}/projects/{project_id}/evidence-links/{link_id}",
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
 
 
 def _join_group(client: TestClient, group_id: str, owner_headers: dict[str, str], member_headers: dict[str, str]) -> None:
@@ -185,6 +236,266 @@ def test_rag_answer_is_filtered_by_group_id(client, tmp_path):
     citations = response.json()["citations"]
     assert len(citations) == 1
     assert citations[0]["source_path"] == "upload:a.md"
+
+
+def test_project_rag_persists_project_id_and_uses_linked_document(client, tmp_path, db_session: Session):
+    _, _, owner_headers = register_and_login(client, "project-rag-owner@example.com")
+    _, _, member_headers = register_and_login(client, "project-rag-member@example.com")
+    group_id = _create_group(client, owner_headers)
+    _join_group(client, group_id, owner_headers, member_headers)
+    project_id = _create_project(client, group_id, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+    linked_doc = _upload(
+        client,
+        group_id,
+        owner_headers,
+        "linked.md",
+        "# Linked\n\nlinked-visible-risk appears in project evidence.",
+    )
+    _link_document(client, group_id, project_id, linked_doc, owner_headers)
+
+    response = client.post(
+        f"/groups/{group_id}/projects/{project_id}/rag/answer",
+        json={"question": "linked-visible-risk", "retrieval_method": "keyword"},
+        headers=member_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["citations"][0]["document_id"] == linked_doc
+    run = db_session.get(RagRun, payload["run_id"])
+    assert run is not None
+    assert run.project_id == project_id
+
+    detail = client.get(f"/groups/{group_id}/rag/runs/{payload['run_id']}", headers=member_headers)
+    assert detail.status_code == 200
+    assert detail.json()["project_id"] == project_id
+
+
+def test_group_rag_persists_null_project_id(client, tmp_path, db_session: Session):
+    _, _, owner_headers = register_and_login(client, "group-rag-owner@example.com")
+    group_id = _create_group(client, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+    _upload(client, group_id, owner_headers, "group.md", "# Group\n\ngroup-wide answer")
+
+    response = client.post(
+        f"/groups/{group_id}/rag/answer",
+        json={"question": "group-wide", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+
+    assert response.status_code == 200
+    run = db_session.get(RagRun, response.json()["run_id"])
+    assert run is not None
+    assert run.project_id is None
+
+
+def test_non_member_cannot_call_project_rag(client, tmp_path):
+    _, _, owner_headers = register_and_login(client, "project-rag-auth-owner@example.com")
+    _, _, outsider_headers = register_and_login(client, "project-rag-outsider@example.com")
+    group_id = _create_group(client, owner_headers)
+    project_id = _create_project(client, group_id, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+
+    response = client.post(
+        f"/groups/{group_id}/projects/{project_id}/rag/answer",
+        json={"question": "anything"},
+        headers=outsider_headers,
+    )
+
+    assert response.status_code == 403
+
+
+def test_project_rag_cross_group_project_returns_404(client, tmp_path):
+    _, _, owner_a = register_and_login(client, "project-rag-cg-a@example.com")
+    _, _, owner_b = register_and_login(client, "project-rag-cg-b@example.com")
+    group_a = _create_group(client, owner_a, "A")
+    group_b = _create_group(client, owner_b, "B")
+    project_a = _create_project(client, group_a, owner_a)
+    _override_settings(client, _settings(tmp_path))
+
+    response = client.post(
+        f"/groups/{group_b}/projects/{project_a}/rag/answer",
+        json={"question": "anything"},
+        headers=owner_b,
+    )
+
+    assert response.status_code == 404
+
+
+def test_archived_project_rejects_project_rag(client, tmp_path):
+    _, _, owner_headers = register_and_login(client, "project-rag-arch@example.com")
+    group_id = _create_group(client, owner_headers)
+    project_id = _create_project(client, group_id, owner_headers)
+    _archive_project(client, group_id, project_id, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+
+    response = client.post(
+        f"/groups/{group_id}/projects/{project_id}/rag/answer",
+        json={"question": "anything"},
+        headers=owner_headers,
+    )
+
+    assert response.status_code == 409
+
+
+def test_project_rag_never_falls_back_to_unlinked_group_documents(client, tmp_path, db_session: Session):
+    _, _, owner_headers = register_and_login(client, "project-rag-nofallback@example.com")
+    group_id = _create_group(client, owner_headers)
+    project_id = _create_project(client, group_id, owner_headers)
+    _override_settings(client, _settings(tmp_path, chat_provider="deepseek"))
+    _upload(
+        client,
+        group_id,
+        owner_headers,
+        "unlinked.md",
+        "# Unlinked\n\nunlinked-only-risk exists in group but not project evidence.",
+    )
+
+    response = client.post(
+        f"/groups/{group_id}/projects/{project_id}/rag/answer",
+        json={"question": "unlinked-only-risk", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["citations"] == []
+    assert payload["model"] == "local-evidence-gate"
+    run = db_session.get(RagRun, payload["run_id"])
+    assert run is not None
+    assert run.project_id == project_id
+    assert run.status == "no_evidence"
+
+
+def test_project_rag_excludes_unlinked_and_other_project_documents(client, tmp_path):
+    _, _, owner_headers = register_and_login(client, "project-rag-isolation@example.com")
+    group_id = _create_group(client, owner_headers)
+    project_a = _create_project(client, group_id, owner_headers, "A")
+    project_b = _create_project(client, group_id, owner_headers, "B")
+    _override_settings(client, _settings(tmp_path))
+    linked_a = _upload(client, group_id, owner_headers, "a.md", "# A\n\nshared-risk project-a")
+    linked_b = _upload(client, group_id, owner_headers, "b.md", "# B\n\nshared-risk project-b")
+    _upload(client, group_id, owner_headers, "unlinked.md", "# U\n\nshared-risk unlinked")
+    _link_document(client, group_id, project_a, linked_a, owner_headers)
+    _link_document(client, group_id, project_b, linked_b, owner_headers)
+
+    response = client.post(
+        f"/groups/{group_id}/projects/{project_a}/rag/answer",
+        json={"question": "shared-risk", "retrieval_method": "keyword", "limit": 10},
+        headers=owner_headers,
+    )
+
+    assert response.status_code == 200
+    citations = response.json()["citations"]
+    assert [c["document_id"] for c in citations] == [linked_a]
+
+
+def test_project_rag_ignores_removed_evidence_link(client, tmp_path):
+    _, _, owner_headers = register_and_login(client, "project-rag-removed@example.com")
+    group_id = _create_group(client, owner_headers)
+    project_id = _create_project(client, group_id, owner_headers)
+    _override_settings(client, _settings(tmp_path, chat_provider="deepseek"))
+    doc_id = _upload(client, group_id, owner_headers, "removed.md", "# Removed\n\nremoved-risk")
+    link_id = _link_document(client, group_id, project_id, doc_id, owner_headers)
+    _remove_evidence_link(client, group_id, project_id, link_id, owner_headers)
+
+    response = client.post(
+        f"/groups/{group_id}/projects/{project_id}/rag/answer",
+        json={"question": "removed-risk", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["citations"] == []
+
+
+def test_project_rag_hybrid_and_auto_respect_project_scope(client, tmp_path):
+    _, _, owner_headers = register_and_login(client, "project-rag-hybrid@example.com")
+    group_id = _create_group(client, owner_headers)
+    project_id = _create_project(client, group_id, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+    linked_doc = _upload(client, group_id, owner_headers, "linked-hybrid.md", "# L\n\nscope-token linked")
+    _upload(client, group_id, owner_headers, "unlinked-hybrid.md", "# U\n\nscope-token unlinked")
+    _link_document(client, group_id, project_id, linked_doc, owner_headers)
+
+    hybrid = client.post(
+        f"/groups/{group_id}/projects/{project_id}/rag/answer",
+        json={"question": "scope-token", "retrieval_method": "hybrid", "limit": 10},
+        headers=owner_headers,
+    )
+    auto = client.post(
+        f"/groups/{group_id}/projects/{project_id}/rag/answer",
+        json={"question": "scope-token", "retrieval_method": "auto", "limit": 10},
+        headers=owner_headers,
+    )
+
+    assert hybrid.status_code == 200
+    assert auto.status_code == 200
+    assert {c["document_id"] for c in hybrid.json()["citations"]} == {linked_doc}
+    assert {c["document_id"] for c in auto.json()["citations"]} == {linked_doc}
+
+
+def test_semantic_retrieval_receives_allowed_document_ids(monkeypatch):
+    from semantic_lighthouse.routers import rag
+
+    captured: dict[str, set[str] | None] = {}
+    monkeypatch.setattr(rag, "validate_pgvector_dimension", lambda db, settings: None)
+    monkeypatch.setattr(
+        rag,
+        "create_embedding_client",
+        lambda settings: SimpleNamespace(
+            embed_texts=lambda texts: SimpleNamespace(vectors=[[0.1, 0.2]])
+        ),
+    )
+
+    def fake_semantic_search_with_vector(
+        db, group_id, query_vector, limit, *, allowed_document_ids=None
+    ):
+        captured["allowed_document_ids"] = allowed_document_ids
+        return []
+
+    monkeypatch.setattr(
+        "semantic_lighthouse.services.retrieval._semantic_search_with_vector",
+        fake_semantic_search_with_vector,
+    )
+
+    rag._semantic_search(
+        SimpleNamespace(),
+        "group-a",
+        "supplier risk",
+        10,
+        Settings(),
+        allowed_document_ids={"doc-a"},
+    )
+
+    assert captured["allowed_document_ids"] == {"doc-a"}
+
+
+def test_project_rag_does_not_auto_create_evidence_link(client, tmp_path, db_session: Session):
+    _, _, owner_headers = register_and_login(client, "project-rag-link@example.com")
+    group_id = _create_group(client, owner_headers)
+    project_id = _create_project(client, group_id, owner_headers)
+    _override_settings(client, _settings(tmp_path))
+    doc_id = _upload(client, group_id, owner_headers, "linked.md", "# Linked\n\nsave-link-risk")
+    _link_document(client, group_id, project_id, doc_id, owner_headers)
+
+    response = client.post(
+        f"/groups/{group_id}/projects/{project_id}/rag/answer",
+        json={"question": "save-link-risk", "retrieval_method": "keyword"},
+        headers=owner_headers,
+    )
+
+    assert response.status_code == 200
+    run_id = response.json()["run_id"]
+    links = db_session.query(ProjectEvidenceLink).filter(
+        ProjectEvidenceLink.group_id == group_id,
+        ProjectEvidenceLink.project_id == project_id,
+    ).all()
+    assert len(links) == 1
+    assert links[0].evidence_type == "document"
+    assert links[0].evidence_id == doc_id
+    assert links[0].evidence_id != run_id
 
 
 def test_missing_deepseek_api_key_returns_clear_error(client, tmp_path):

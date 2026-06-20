@@ -107,6 +107,7 @@ def create_app() -> FastAPI:
     app.include_router(groups.router)
     app.include_router(documents.router)
     app.include_router(rag.router)
+    app.include_router(rag.project_router)
     app.include_router(conversations.router)
     app.include_router(agent.router)
     app.include_router(tasks.router)

@@ -1,13 +1,13 @@
 # Highlight Log
 
-## S2.4C — Project-Bounded RAG Must Be Scoped Run, Not Auto-Linked Evidence
+## S2.4C — Project-Bounded RAG Is Scoped Run, Not Auto-Linked Evidence
 
 - Date: 2026-06-20
-- Version: S2.4C design
-- Type: decision
-- What happened: Approved the design for `POST /groups/{gid}/projects/{pid}/rag/answer`. The project endpoint will add nullable `RagRun.project_id`, constrain retrieval to active project evidence Documents, and keep the existing group-scoped `/rag/answer` unchanged.
-- Engineering judgment: A project-scoped RAG run proves where an answer was generated; a `ProjectEvidenceLink` proves a human intentionally attached that answer as durable project evidence. Those are different claims. S2.4C therefore must not auto-create evidence links, even though the endpoint is project-scoped.
-- Verification: Design-only change; no code or tests run beyond documentation alignment checks.
+- Version: S2.4C
+- Type: implementation
+- What happened: Implemented `POST /groups/{gid}/projects/{pid}/rag/answer` with migration `0026` adding nullable `RagRun.project_id`. Project RAG validates the route project, rejects archived projects, derives allowed Documents from active project evidence links, and passes that constraint through keyword, semantic, hybrid, and auto retrieval. Existing group-scoped `/rag/answer` persists `project_id = NULL`.
+- Engineering judgment: A project-scoped RAG run proves where an answer was generated; a `ProjectEvidenceLink` proves a human intentionally attached that answer as durable project evidence. Those are different claims. S2.4C therefore does not auto-create evidence links, even though the endpoint is project-scoped.
+- Verification: 48 focused RAG tests passed; 139 related RAG/retrieval/project-evidence/project-context tests passed; migration 0026 upgrade/downgrade/re-upgrade passed on SQLite; grouped non-E2E regression covered all 851 collected tests with 848 passed and 3 skipped; full ruff passed.
 
 ## S2.4B — Project Summary Endpoint Reuses Provenance Contracts
 

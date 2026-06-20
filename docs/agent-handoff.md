@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (S2.4C design approved, migration 0025)
+Last updated: 2026-06-20 (S2.4C delivered, migration 0026)
 
 ## State Source
 
@@ -12,9 +12,9 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 | Item | Value |
 |------|-------|
 | Commit | `c298e4e` |
-| Backend pytest | 786 passed |
+| Backend pytest | 848 passed, 3 skipped |
 | ruff | clean |
-| Migration | `0025` at head |
+| Migration | `0026` at head |
 | verify_ui | 47/47 |
 | E2E | 18/18 |
 | Screenshots | `.tmp/f2c/` 6 files |
@@ -24,6 +24,9 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 | S2.3B related regression | 100 pass |
 | S2.3B grouped non-E2E regression | passed across all 832 collected non-E2E tests |
 | S2.4B focused tests | 65 pass |
+| S2.4C focused tests | 48 pass |
+| S2.4C related regression | 139 pass |
+| S2.4C grouped non-E2E regression | 848 pass, 3 skipped |
 
 ## Architecture Boundaries
 
@@ -53,20 +56,23 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 | Suite | Count | Notes |
 |-------|-------|-------|
-| Backend (non-E2E baseline) | 786 passed, 3 skipped | Last one-shot baseline before S2.3 |
+| Backend (non-E2E grouped) | 848 passed, 3 skipped | All 851 collected non-E2E tests covered by grouped runs after single-command timeout |
 | Project evidence | 38 passed | permissions, dual isolation, lifecycle, provenance, audit atomicity |
 | S2.3A related | 95 passed | Conversations, Tasks, Agent, project context; migration 0025 roundtrip |
 | S2.3B focused | 16 passed | Project-bound retrieval, tool scope, empty evidence, archive denial |
 | S2.3B related | 100 passed | Retrieval, Conversations, Agent, project work context |
 | S2.3B grouped non-E2E | Passed | One-shot full command timed out after about 10 minutes; grouped suites covered all 832 collected non-E2E tests and passed |
 | S2.4B focused | 65 passed | Project summary endpoint, permissions, active evidence, safe provenance, scoped counts |
+| S2.4C focused | 48 passed | Project-bounded RAG, RagRun.project_id, no fallback, no auto evidence link |
+| S2.4C related | 139 passed | RAG, retrieval, project evidence, project context, bounded retrieval |
+| S2.4C grouped non-E2E | 848 passed, 3 skipped | One-shot full command timed out after about 10 minutes; grouped suites covered all 851 collected non-E2E tests |
 | verify_ui | 47/47 | Real owner full chain F2A+F2B, all assertions pass |
 | E2E (Playwright) | 18/18 | F2A, F2B (owner/member/WARN/FAIL/isolation), F2C (responsive/a11y) |
 | Screenshots | 6 files | `.tmp/f2c/`, 32–97 KB, stage-verified, 0 console errors |
 
 ## Next Decision Gate
 
-**Implement S2.4C project-bounded RAG endpoint**: design is approved in section 12.8 of `docs/product-rationalization-review.md`. Add nullable indexed `RagRun.project_id`, implement `POST /groups/{gid}/projects/{pid}/rag/answer`, retrieve only active project evidence Documents, preserve existing group-scoped `/rag/answer`, and do not automatically create `ProjectEvidenceLink` rows.
+**Choose S2.4D or S2.4 closeout**: S2.4C is delivered. The next slice can be project-scoped task creation / conversation starter design, or a closeout pass before any frontend/navigation work. Do not hide standalone pages until replacement parity is proven by tests.
 
 ## Key API Surfaces
 
@@ -75,7 +81,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 - `POST /groups/{gid}/documents/import-local`, `/upload`, `/uploads/init|chunks|complete`
 - `GET /groups/{gid}/documents/search`, `/semantic-search`
 - `POST /groups/{gid}/rag/answer`, `GET /rag/runs`, `GET /rag/runs/{run_id}`
-- Planned S2.4C: `POST /groups/{gid}/projects/{pid}/rag/answer`
+- `POST /groups/{gid}/projects/{pid}/rag/answer`
 - `POST /groups/{gid}/conversations`, `GET /conversations`, `POST /conversations/{id}/messages`
 - `POST /groups/{gid}/tasks`, `GET /tasks`
 - `POST /groups/{gid}/agent/runs`, `GET /agent/runs`, `POST /agent/runs/{id}/execute|respond`

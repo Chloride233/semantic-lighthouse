@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S2.4C project-bounded RAG endpoint design approved"
-description = "Design approved for POST /groups/{gid}/projects/{pid}/rag/answer. It will add nullable RagRun.project_id, retrieve only active project evidence Documents, preserve existing group-scoped Ask, and avoid automatic ProjectEvidenceLink creation."
+current = "S2.4C project-bounded RAG endpoint delivered"
+description = "POST /groups/{gid}/projects/{pid}/rag/answer is implemented. Migration 0026 adds nullable RagRun.project_id. Project RAG retrieves only active project evidence Documents, preserves existing group-scoped Ask, and does not automatically create ProjectEvidenceLink rows."
 
 [next_decision_gate]
-name = "implement S2.4C project-bounded RAG endpoint"
-description = "Safety Lane implementation: add nullable indexed RagRun.project_id migration, project-scoped RAG endpoint, allowed_document_ids retrieval propagation, tests for isolation/no fallback/no auto evidence link, and preserve existing group-scoped /rag/answer compatibility."
+name = "choose S2.4D or S2.4 closeout"
+description = "Either design the next Pilot surface backend slice (project-scoped task creation/conversation starter) or close S2.4 backend consolidation before any frontend/navigation work. No page hiding until replacement parity is proven."
 
 [mcp]
 runtime_status = "not started"
@@ -33,6 +33,6 @@ summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/cl
 
 [verification]
 latest_commit = "82be7d4"
-backend_pytest = 786
+backend_pytest = 848
 ruff = "clean"
-migration_head = "0025"
+migration_head = "0026"

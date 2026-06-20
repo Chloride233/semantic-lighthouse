@@ -233,6 +233,7 @@ class RagRunSummary(BaseModel):
     id: str
     group_id: str
     user_id: str
+    project_id: str | None = None
     question: str
     confidence: str
     retrieval_method: str
@@ -247,6 +248,7 @@ class RagRunDetail(BaseModel):
     id: str
     group_id: str
     user_id: str
+    project_id: str | None = None
     question: str
     answer: str
     confidence: str

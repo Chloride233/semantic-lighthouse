@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from semantic_lighthouse.config import Settings, get_settings
 from semantic_lighthouse.database import get_db
 from semantic_lighthouse.dependencies import get_current_user, get_membership_or_404
-from semantic_lighthouse.models import Document, DocumentChunk, RagRun, User
+from semantic_lighthouse.models import BusinessProject, Document, DocumentChunk, RagRun, User
 from semantic_lighthouse.schemas import (
     RagAnswerRequest,
     RagAnswerResponse,
@@ -19,10 +19,12 @@ from semantic_lighthouse.schemas import (
 )
 from semantic_lighthouse.services.chat import ChatError, adjusted_confidence, compute_evidence_quality, create_chat_client, sanitize_references
 from semantic_lighthouse.services.embeddings import EmbeddingError, create_embedding_client
+from semantic_lighthouse.services.retrieval import project_document_ids
 
 from ._shared import snippet, validate_pgvector_dimension
 
 router = APIRouter(prefix="/groups/{group_id}/rag", tags=["rag"])
+project_router = APIRouter(prefix="/groups/{group_id}/projects/{project_id}/rag", tags=["rag"])
 
 
 @dataclass(frozen=True)
@@ -44,18 +46,84 @@ def answer_question(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> RagAnswerResponse:
-    t0 = time.monotonic()
     get_membership_or_404(db, current_user.id, group_id)
+    return _answer_question_in_scope(
+        db,
+        settings,
+        group_id,
+        current_user.id,
+        request,
+        project_id=None,
+        allowed_document_ids=None,
+    )
+
+
+@project_router.post("/answer", response_model=RagAnswerResponse)
+def answer_project_question(
+    group_id: str,
+    project_id: str,
+    request: RagAnswerRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> RagAnswerResponse:
+    get_membership_or_404(db, current_user.id, group_id)
+    project = db.get(BusinessProject, project_id)
+    if project is None or project.group_id != group_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if project.status == "archived":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Archived projects cannot create project-scoped RAG answers",
+        )
+
+    allowed_document_ids = project_document_ids(db, group_id, project_id)
+    return _answer_question_in_scope(
+        db,
+        settings,
+        group_id,
+        current_user.id,
+        request,
+        project_id=project_id,
+        allowed_document_ids=allowed_document_ids,
+    )
+
+
+def _answer_question_in_scope(
+    db: Session,
+    settings: Settings,
+    group_id: str,
+    user_id: str,
+    request: RagAnswerRequest,
+    *,
+    project_id: str | None,
+    allowed_document_ids: set[str] | None,
+) -> RagAnswerResponse:
+    t0 = time.monotonic()
     limit = request.limit or settings.rag_top_k
-    retrieved, retrieval_method = _retrieve(db, group_id, request.question, request.retrieval_method, limit, settings)
+    retrieved, retrieval_method = _retrieve(
+        db,
+        group_id,
+        request.question,
+        request.retrieval_method,
+        limit,
+        settings,
+        allowed_document_ids=allowed_document_ids,
+    )
     citations = _citations(retrieved, request.question, settings.rag_max_context_chars)
 
     if not citations:
         response = _no_evidence_response(request.question, retrieval_method)
         duration_ms = int((time.monotonic() - t0) * 1000)
         return _persist_rag_run(
-            db, group_id, current_user.id, response,
-            status="no_evidence", duration_ms=duration_ms, retrieved_count=len(retrieved),
+            db,
+            group_id,
+            user_id,
+            response,
+            project_id=project_id,
+            status="no_evidence",
+            duration_ms=duration_ms,
+            retrieved_count=len(retrieved),
         )
 
     client = create_chat_client(settings)
@@ -65,8 +133,16 @@ def answer_question(
         duration_ms = int((time.monotonic() - t0) * 1000)
         try:
             _persist_failed_run(
-                db, group_id, current_user.id, request.question,
-                citations, retrieval_method, str(exc), duration_ms, len(retrieved),
+                db,
+                group_id,
+                user_id,
+                request.question,
+                citations,
+                retrieval_method,
+                str(exc),
+                duration_ms,
+                len(retrieved),
+                project_id=project_id,
             )
         except Exception:
             # Audit persistence failure must not mask the original ChatError.
@@ -92,8 +168,14 @@ def answer_question(
     )
     duration_ms = int((time.monotonic() - t0) * 1000)
     return _persist_rag_run(
-        db, group_id, current_user.id, response,
-        status="success", duration_ms=duration_ms, retrieved_count=len(retrieved),
+        db,
+        group_id,
+        user_id,
+        response,
+        project_id=project_id,
+        status="success",
+        duration_ms=duration_ms,
+        retrieved_count=len(retrieved),
     )
 
 
@@ -153,6 +235,7 @@ def _persist_rag_run(
     user_id: str,
     response: RagAnswerResponse,
     *,
+    project_id: str | None = None,
     status: str = "success",
     duration_ms: int | None = None,
     retrieved_count: int | None = None,
@@ -160,6 +243,7 @@ def _persist_rag_run(
     run = RagRun(
         group_id=group_id,
         user_id=user_id,
+        project_id=project_id,
         question=response.question,
         answer=response.answer,
         confidence=response.confidence,
@@ -188,10 +272,13 @@ def _persist_failed_run(
     error_message: str,
     duration_ms: int,
     retrieved_count: int,
+    *,
+    project_id: str | None = None,
 ) -> None:
     run = RagRun(
         group_id=group_id,
         user_id=user_id,
+        project_id=project_id,
         question=question,
         answer="RAG 回答生成失败，详见 error_message。",
         confidence="low",
@@ -214,6 +301,7 @@ def _rag_run_summary(run: RagRun) -> RagRunSummary:
         id=run.id,
         group_id=run.group_id,
         user_id=run.user_id,
+        project_id=run.project_id,
         question=run.question,
         confidence=run.confidence,
         retrieval_method=run.retrieval_method,
@@ -233,6 +321,7 @@ def _rag_run_detail(run: RagRun) -> RagRunDetail:
         id=run.id,
         group_id=run.group_id,
         user_id=run.user_id,
+        project_id=run.project_id,
         question=run.question,
         answer=run.answer,
         confidence=run.confidence,
@@ -258,18 +347,37 @@ def _retrieve(
     retrieval_method: str,
     limit: int,
     settings: Settings,
+    *,
+    allowed_document_ids: set[str] | None = None,
 ) -> tuple[list[RetrievedChunk], str]:
     if retrieval_method == "keyword":
-        return _keyword_search(db, group_id, question, limit), "keyword"
+        return _keyword_search(
+            db, group_id, question, limit, allowed_document_ids=allowed_document_ids
+        ), "keyword"
     if retrieval_method == "semantic":
         try:
-            return _semantic_search(db, group_id, question, limit, settings), "semantic"
+            return _semantic_search(
+                db,
+                group_id,
+                question,
+                limit,
+                settings,
+                allowed_document_ids=allowed_document_ids,
+            ), "semantic"
         except EmbeddingError as exc:
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     if retrieval_method == "hybrid":
         from semantic_lighthouse.services.retrieval import hybrid_search as hs
 
-        results = hs(db, group_id, question, limit, keyword_weight=0.3, settings=settings)
+        results = hs(
+            db,
+            group_id,
+            question,
+            limit,
+            keyword_weight=0.3,
+            settings=settings,
+            allowed_document_ids=allowed_document_ids,
+        )
         return [
             RetrievedChunk(
                 chunk=item.chunk, document=item.document,
@@ -280,15 +388,33 @@ def _retrieve(
 
     # "auto" — try semantic first, fall back to keyword
     try:
-        semantic_results = _semantic_search(db, group_id, question, limit, settings)
+        semantic_results = _semantic_search(
+            db,
+            group_id,
+            question,
+            limit,
+            settings,
+            allowed_document_ids=allowed_document_ids,
+        )
     except EmbeddingError:
         semantic_results = []
     if semantic_results:
         return semantic_results, "semantic"
-    return _keyword_search(db, group_id, question, limit), "keyword"
+    return _keyword_search(
+        db, group_id, question, limit, allowed_document_ids=allowed_document_ids
+    ), "keyword"
 
 
-def _keyword_search(db: Session, group_id: str, query: str, limit: int) -> list[RetrievedChunk]:
+def _keyword_search(
+    db: Session,
+    group_id: str,
+    query: str,
+    limit: int,
+    *,
+    allowed_document_ids: set[str] | None = None,
+) -> list[RetrievedChunk]:
+    if allowed_document_ids is not None and not allowed_document_ids:
+        return []
     terms = _keyword_terms(query)
     if not terms:
         return []
@@ -312,15 +438,18 @@ def _keyword_search(db: Session, group_id: str, query: str, limit: int) -> list[
         relevance = relevance + case(
             (DocumentChunk.content.ilike(f"%{term}%"), weight), else_=0
         )
+    where_clauses = [
+        DocumentChunk.group_id == group_id,
+        Document.group_id == group_id,
+        Document.status == "ready",
+        or_(*search_conditions),
+    ]
+    if allowed_document_ids is not None:
+        where_clauses.append(DocumentChunk.document_id.in_(allowed_document_ids))
     rows = db.execute(
         select(DocumentChunk, Document, relevance.label("relevance"))
         .join(Document, Document.id == DocumentChunk.document_id)
-        .where(
-            DocumentChunk.group_id == group_id,
-            Document.group_id == group_id,
-            Document.status == "ready",
-            or_(*search_conditions),
-        )
+        .where(*where_clauses)
         .order_by(relevance.desc(), Document.created_at.desc(), DocumentChunk.chunk_index.asc())
         .limit(limit)
     ).all()
@@ -336,14 +465,24 @@ def _semantic_search(
     query: str,
     limit: int,
     settings: Settings,
+    *,
+    allowed_document_ids: set[str] | None = None,
 ) -> list[RetrievedChunk]:
+    if allowed_document_ids is not None and not allowed_document_ids:
+        return []
     validate_pgvector_dimension(db, settings)
     client = create_embedding_client(settings)
     query_vector = client.embed_texts([query]).vectors[0]
 
     from semantic_lighthouse.services.retrieval import _semantic_search_with_vector
 
-    results = _semantic_search_with_vector(db, group_id, query_vector, limit)
+    results = _semantic_search_with_vector(
+        db,
+        group_id,
+        query_vector,
+        limit,
+        allowed_document_ids=allowed_document_ids,
+    )
     return [
         RetrievedChunk(chunk=r.chunk, document=r.document, score=r.score, retrieval_method="semantic")
         for r in results

@@ -1,7 +1,7 @@
 # Product Rationalization and Surface Consolidation Review
 
 Date: 2026-06-20
-Status: S2.4B project summary endpoint delivered and reviewed. S2.4C project-bounded RAG endpoint design pending.
+Status: S2.4C project-bounded RAG endpoint delivered. S2.4D / S2.4 closeout decision pending.
 
 ## 1. FDE Role and Main Chain
 
@@ -833,7 +833,7 @@ This endpoint requires **zero new models, zero new migrations, zero new business
 
 ### 12.8 S2.4C Project-Bounded RAG Endpoint Design
 
-**Status**: Design approved. Implementation not started.
+**Status**: Delivered.
 
 **Decision**: Add a project-scoped RAG answer endpoint:
 
@@ -938,3 +938,12 @@ Focused implementation tests should cover:
 14. Optional `GET /rag/runs?project_id=` filter, if implemented, validates route-group project ownership and does not leak cross-group runs.
 
 Suggested implementation lane: **Safety Lane**. Reason: this touches RAG retrieval scope, persistence, group/project isolation, and a migration.
+
+#### Delivery Note
+
+- Migration `0026_v26_rag_run_project_scope` adds nullable indexed `RagRun.project_id` with no historical backfill.
+- Existing `POST /groups/{gid}/rag/answer` remains group-scoped and persists `project_id = NULL`.
+- New `POST /groups/{gid}/projects/{pid}/rag/answer` validates the route project, rejects archived projects, derives allowed Documents from active project evidence links, and persists `RagRun.project_id`.
+- Keyword, semantic, hybrid, and auto retrieval paths all receive the same allowed Document constraint.
+- No `ProjectEvidenceLink` is automatically created for project-scoped RAG runs.
+- Verification: 48 focused RAG tests passed; 139 related RAG/retrieval/project-evidence/project-context tests passed; migration 0026 upgrade/downgrade/re-upgrade passed on SQLite. A one-shot non-E2E full run timed out after about 10 minutes with no failure output, so non-E2E regression was rerun in grouped suites covering all 851 collected tests: 848 passed, 3 skipped.
