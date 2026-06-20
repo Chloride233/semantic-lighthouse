@@ -795,3 +795,56 @@ class BusinessProjectResponse(BaseModel):
 class BusinessProjectListResponse(BaseModel):
     projects: list[BusinessProjectResponse]
     total: int
+
+
+# ── S2.2 Project Evidence Links ────────────────────────────────────────────
+
+EVIDENCE_TYPES = {"document", "rag_run"}
+EVIDENCE_ROLES = {"context", "requirement", "decision", "validation"}
+
+
+class EvidenceLinkCreateRequest(BaseModel):
+    evidence_type: str = Field(min_length=1, max_length=20)
+    evidence_id: str = Field(min_length=1, max_length=36)
+    role: str = Field(min_length=1, max_length=20)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class EvidenceProvenance(BaseModel):
+    """Minimal provenance — never exposes paths, content, or secrets."""
+    evidence_title: str | None = None
+    evidence_status: str | None = None
+    unavailable: bool = False
+    # Document-only
+    file_name: str | None = None
+    source_label: str | None = None
+    # RAGRun-only
+    question: str | None = None  # truncated 120 chars
+    confidence: str | None = None
+    retrieval_method: str | None = None
+    citation_count: int | None = None
+    # Shared
+    evidence_created_at: str | None = None
+
+
+class EvidenceLinkResponse(BaseModel):
+    id: str
+    project_id: str
+    evidence_type: str
+    evidence_id: str
+    role: str
+    note: str | None = None
+    status: str
+    created_by: str
+    created_at: str
+    updated_at: str
+    removed_by: str | None = None
+    removed_at: str | None = None
+    provenance: EvidenceProvenance | None = None
+
+
+class EvidenceLinkListResponse(BaseModel):
+    links: list[EvidenceLinkResponse]
+    total: int
+    limit: int
+    offset: int

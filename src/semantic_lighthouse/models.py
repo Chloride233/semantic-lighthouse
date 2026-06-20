@@ -725,3 +725,60 @@ class BusinessProject(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
+
+class ProjectEvidenceLink(Base):
+    """S2.2 — explicit user-created link between a Pilot project and group evidence.
+
+    Supports document and rag_run evidence types via polymorphic evidence_id.
+    Server-side validation ensures evidence belongs to the same group as the project.
+    No DB-level foreign keys to evidence sources — type-specific queries enforce integrity.
+
+    Lifecycle: active → removed (user unlink only). Source evidence deletion does NOT
+    auto-set removed — GET derives evidence_status gone dynamically.
+    """
+
+    __tablename__ = "project_evidence_links"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "evidence_type", "evidence_id",
+            name="uq_project_evidence_link",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    group_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("groups.id"), index=True, nullable=False
+    )
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("business_projects.id"), index=True, nullable=False
+    )
+    evidence_type: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # document | rag_run
+    evidence_id: Mapped[str] = mapped_column(
+        String(36), nullable=False
+    )  # polymorphic — validated server-side
+    role: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # context | requirement | decision | validation
+    note: Mapped[str | None] = mapped_column(
+        String(500), nullable=True
+    )  # trimmed, blank→null
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="active"
+    )  # active | removed
+    created_by: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    removed_by: Mapped[str | None] = mapped_column(
+        String(36), nullable=True
+    )
+    removed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )

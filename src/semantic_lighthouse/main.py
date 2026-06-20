@@ -115,6 +115,8 @@ def create_app() -> FastAPI:
     app.include_router(ontology.router)
     app.include_router(ontology.project_model_router)
     app.include_router(runtime.router)
+    from semantic_lighthouse.routers import evidence_links  # noqa: E402
+    app.include_router(evidence_links.router)
 
 
     static_dir = Path(__file__).resolve().parents[2] / "static"
