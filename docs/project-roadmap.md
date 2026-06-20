@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-20
-**Current phase**: Phase 14 **COMPLETE** — 14.1–14.5 all delivered. Backend Review C next.
+**Current phase**: Phase 14 **COMPLETE** — 14.1–14.5 all delivered, Backend Review C hardened. Full non-E2E: 734 passed.
 
 ---
 

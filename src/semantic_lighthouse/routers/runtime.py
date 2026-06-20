@@ -39,11 +39,12 @@ class RuntimeQueryRequest(BaseModel):
     """Read-only query over bound dataset Object Types.
 
     No SQL, no DSL, no expression strings.
+    Filter values are JSON scalars: string, integer, number, boolean, null.
     """
 
     object_type: str = Field(..., min_length=1)
     fields: list[str] | None = Field(default=None, max_length=100)
-    filters: dict[str, str] | None = Field(default=None)
+    filters: dict[str, str | int | float | bool | None] | None = Field(default=None)
     limit: int = Field(default=20, ge=1, le=100)
     offset: int = Field(default=0, ge=0, le=10000)
     explain_only: bool = Field(default=False)
@@ -224,14 +225,22 @@ def query_runtime(
             detail="Project is archived",
         )
 
+    # Convert JSON filter values to strings for the service layer
+    str_filters: dict[str, str] | None = None
+    if body.filters:
+        str_filters = {}
+        for k, v in body.filters.items():
+            str_filters[k] = str(v) if v is not None else ""
+
     try:
         result = execute_query(
             db,
             group_id=group_id,
             project_id=project_id,
             object_type=body.object_type,
+            user_id=current_user.id,
             fields=body.fields,
-            filters=body.filters,
+            filters=str_filters,
             limit=body.limit,
             offset=body.offset,
             explain_only=body.explain_only,

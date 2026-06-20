@@ -1,5 +1,22 @@
 # Pitfall Log
 
+## Tests Pass ≠ Feature Exists — Audit Capability Claim Drift
+
+- Date: 2026-06-20
+- Version: Phase 14.5 Backend Review C
+- Type: pitfall → **FIXED**
+- Context: Phase 14.5 initial delivery claimed "query audit records user/group/project/object_type, field names, filter field names, return row count, and timestamp." The `docs/phase14-planning.md`, `docs/agent-handoff.md`, and `docs/project-roadmap.md` all stated audit was implemented. 56 tests passed. Ruff clean.
+- What happened: Despite documentation claims and passing tests, no audit code existed in `services/runtime.py`, `routers/runtime.py`, `models.py`, or any Alembic migration. No `OntologyRuntimeAudit` model. No audit record written during `generate_bindings`, `execute_query`, or `activate_pilot`. The documentation described a feature that was never implemented. Tests verified query/binding/activation behavior but none checked audit persistence.
+- Engineering judgment: **Tests passing does not prove a feature exists.** Capability claims in documentation must be verified by inspecting the actual code paths — not inferred from test coverage on adjacent functionality. When a document says "query audit records X," there must be (a) a model for X, (b) a migration for X's table, (c) a write to X in the transaction that performs the audited action, and (d) a test that reads X back. None of these existed.
+- Root cause: The initial implementation focused on the happy path (query returns data, binding generation works, activation advances stage) and wrote documentation claims for the audit layer as if it were a natural extension of existing project patterns — but never actually implemented it. The documentation was aspirational, not descriptive.
+- How to prevent recurrence:
+  1. When writing capability claims in documentation, verify each claim against `rg`/`grep` on the actual source tree.
+  2. "X is audited" = there must be an audit model, a migration, a write call in the service, and a test that verifies the audit record exists.
+  3. Review checklists must include "for each claimed feature in docs, find the implementation."
+  4. Do not accept "passing tests" as proof of a feature that tests didn't explicitly cover.
+- Fix or control: Added `OntologyRuntimeAudit` model, migration `0023`, `_record_audit()` calls in `generate_bindings`/`execute_query`/`activate_pilot` (same transaction as state changes), and 8 audit tests. All metadata-only — never filter values, raw data, storage_path, PII, or secrets.
+- Verification: 79 runtime tests (23 new), 239 Phase 14 combined, 734 full non-E2E. Migration upgrade/downgrade/re-upgrade cycle verified.
+
 ## Draft FKs Cannot Depend Directly On Scan-Rebuilt Read-Model IDs
 
 - Date: 2026-06-19

@@ -1,8 +1,11 @@
 """Phase 14.5 — Pilot Read Runtime service.
 
-Deterministic binding generation from accepted business_v1 contract
-drafts to DatasetAssets. Limited, explainable, permission-isolated
+Deterministic binding generation from compiled business_v1 contract
+to DatasetAssets. Limited, explainable, permission-isolated
 read-only query execution over CSV/XLSX with contract type conversion.
+
+Review C hardened: audit, filter-before-offset/limit, compiled contract
+as truth, no PK guessing, full smoke on activation.
 
 No SQL, no DSL, no AST, no LLM, no MCP, no Graph RAG, no writes.
 """
@@ -10,7 +13,7 @@ No SQL, no DSL, no AST, no LLM, no MCP, no Graph RAG, no writes.
 from __future__ import annotations
 
 import csv
-import io
+import re
 from pathlib import Path
 from typing import Any
 
@@ -24,18 +27,71 @@ from semantic_lighthouse.models import (
     OntologyDatasetBinding,
     OntologyModelingDraft,
     OntologyModelPackage,
+    OntologyRuntimeAudit,
 )
+from semantic_lighthouse.services.business_contract_compiler import (
+    compile_business_contract,
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  audit
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _record_audit(
+    db: Session,
+    user_id: str,
+    group_id: str,
+    project_id: str,
+    operation: str,
+    *,
+    object_type: str | None = None,
+    field_names: list[str] | None = None,
+    filter_field_names: list[str] | None = None,
+    limit_val: int | None = None,
+    offset_val: int | None = None,
+    outcome: str,
+    row_count: int | None = None,
+    error_code: str | None = None,
+    error_summary: str | None = None,
+) -> OntologyRuntimeAudit:
+    """Write an immutable runtime audit record.
+
+    Never records filter values, raw data, storage_path, PII, or secrets.
+    """
+    record = OntologyRuntimeAudit(
+        user_id=user_id,
+        group_id=group_id,
+        project_id=project_id,
+        operation=operation,
+        object_type=object_type,
+        field_names=field_names,
+        filter_field_names=filter_field_names,
+        limit_val=limit_val,
+        offset_val=offset_val,
+        outcome=outcome,
+        row_count=row_count,
+        error_code=error_code,
+        error_summary=error_summary,
+    )
+    db.add(record)
+    return record
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  contract value_type → deterministic Python converter
 # ═══════════════════════════════════════════════════════════════════════════
 
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}")
 
-def _convert_value(raw: str | None, value_type: str, field_name: str) -> Any:
+
+def _convert_value(
+    raw: str | None, value_type: str, field_name: str,
+) -> Any:
     """Convert a raw string cell value to the contract's declared type.
 
-    Returns the converted Python value or raises ValueError with a
-    field-specific message. Never silently coerces or forges data.
+    Never includes the raw value in error messages.
     """
     if raw is None or raw.strip() == "":
         return None
@@ -44,14 +100,20 @@ def _convert_value(raw: str | None, value_type: str, field_name: str) -> Any:
 
     if value_type == "string":
         return stripped
-    if value_type in ("integer", "number"):
+    if value_type == "integer":
         try:
-            return int(stripped) if value_type == "integer" else float(stripped)
-        except (ValueError, OverflowError) as exc:
+            return int(stripped)
+        except (ValueError, OverflowError):
             raise ValueError(
-                f"Cannot convert field '{field_name}' value "
-                f"to {value_type}: {stripped!r}"
-            ) from exc
+                f"Field '{field_name}': value is not a valid integer"
+            )
+    if value_type == "number":
+        try:
+            return float(stripped)
+        except (ValueError, OverflowError):
+            raise ValueError(
+                f"Field '{field_name}': value is not a valid number"
+            )
     if value_type == "boolean":
         lower = stripped.lower()
         if lower in ("true", "1", "yes"):
@@ -59,102 +121,169 @@ def _convert_value(raw: str | None, value_type: str, field_name: str) -> Any:
         if lower in ("false", "0", "no"):
             return False
         raise ValueError(
-            f"Cannot convert field '{field_name}' to boolean: {stripped!r}"
+            f"Field '{field_name}': value is not a valid boolean"
         )
-    if value_type in ("date", "datetime"):
-        # Return as string; no datetime parsing needed for read contract
+    if value_type == "date":
+        if not _DATE_RE.match(stripped):
+            raise ValueError(
+                f"Field '{field_name}': value is not a valid ISO date (YYYY-MM-DD)"
+            )
+        return stripped
+    if value_type == "datetime":
+        if not _DATETIME_RE.match(stripped):
+            raise ValueError(
+                f"Field '{field_name}': value is not a valid ISO datetime"
+            )
         return stripped
     return stripped
 
 
+def _convert_filter_value(
+    raw: str, value_type: str, field_name: str,
+) -> Any:
+    """Convert a filter value for comparison. Rejects arrays/objects."""
+    converted = _convert_value(raw, value_type, field_name)
+    if isinstance(converted, (list, dict)):
+        raise ValueError(
+            f"Field '{field_name}': filter value must be a scalar"
+        )
+    return converted
+
+
 # ═══════════════════════════════════════════════════════════════════════════
-#  CSV / XLSX row reader (minimal, shared — no profiling duplication)
+#  sanitized error helpers
+# ═══════════════════════════════════════════════════════════════════════════
+
+_SANITIZED_ERROR_CODES = {
+    "path_outside_root": "dataset_path_outside_root",
+    "path_outside_project": "dataset_path_outside_project",
+    "file_not_found": "dataset_file_not_found",
+    "no_package": "no_project_package",
+    "no_binding": "no_active_binding",
+    "dataset_not_ready": "dataset_not_ready",
+    "read_error": "file_read_error",
+    "type_conversion": "type_conversion_error",
+    "binding_missing": "missing_binding",
+    "smoke_failed": "smoke_query_failed",
+    "archive": "project_archived",
+    "stage": "stage_not_allowed",
+}
+
+
+def _sanitized_code(error_type: str) -> str:
+    """Map internal error type to stable, non-leaking error code."""
+    return _SANITIZED_ERROR_CODES.get(error_type, "internal_error")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  compiled contract context — single source of truth for runtime
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def _read_rows(
-    file_path: str,
-    file_format: str,
-    column_indices: dict[str, int] | None = None,
-    max_rows: int = 100,
-    offset: int = 0,
-) -> tuple[list[str], list[list[str | None]]]:
-    """Read rows from a CSV or XLSX file.
+def _build_contract_context(pkg: OntologyModelPackage) -> dict:
+    """Compile the package into a runtime-ready context.
 
-    Returns (header_names, data_rows) where data_rows are lists of
-    string-or-None values indexed by column position.
-
-    Args:
-        file_path: Absolute path to the dataset file.
-        file_format: "csv" or "xlsx".
-        column_indices: Optional pre-computed header→index map (for XLSX reuse).
-        max_rows: Maximum data rows to return.
-        offset: Number of data rows to skip.
-
-    Raises:
-        ValueError: On unsupported format, encoding, or parse errors.
+    Returns dict with:
+      - manifest: the compiled business manifest
+      - semantic_hash: from manifest
+      - ot_map: {api_name: {primary_key, ...}}
+      - prop_map: {api_name: {object_type, value_type, required}}
+      - fields_by_ot: {object_type_api_name: [prop_api_names]}
     """
-    if file_format == "csv":
-        return _read_csv_rows(file_path, max_rows, offset)
-    if file_format == "xlsx":
-        return _read_xlsx_rows(file_path, max_rows, offset)
-    raise ValueError(f"Unsupported file format: {file_format}")
+    compiled = compile_business_contract(pkg)
+    manifest = compiled["manifest"]
+
+    ot_map: dict[str, dict] = {}
+    for ot in compiled.get("object_types", []):
+        an = ot.get("api_name")
+        if an:
+            ot_map[an] = {
+                "primary_key": ot.get("primary_key", ""),
+                "display_name": ot.get("display_name", ""),
+            }
+
+    prop_map: dict[str, dict] = {}
+    fields_by_ot: dict[str, list[str]] = {}
+    for prop in compiled.get("properties", []):
+        an = prop.get("api_name")
+        ot = prop.get("object_type", "")
+        vt = prop.get("value_type", "string")
+        if an:
+            prop_map[an] = {
+                "object_type": ot,
+                "value_type": vt,
+                "required": prop.get("required", False),
+            }
+            fields_by_ot.setdefault(ot, []).append(an)
+
+    return {
+        "manifest": manifest,
+        "semantic_hash": manifest.get("semantic_hash", ""),
+        "ot_map": ot_map,
+        "prop_map": prop_map,
+        "fields_by_ot": fields_by_ot,
+    }
 
 
-def _read_csv_rows(
-    file_path: str, max_rows: int, offset: int,
-) -> tuple[list[str], list[list[str | None]]]:
-    """Read rows from a UTF-8 CSV file."""
-    raw_bytes = Path(file_path).read_bytes()
-    if not raw_bytes.strip():
-        raise ValueError("Empty CSV file")
+# ═══════════════════════════════════════════════════════════════════════════
+#  CSV / XLSX row reader (streaming for CSV, read_only for XLSX)
+# ═══════════════════════════════════════════════════════════════════════════
 
-    text: str
-    try:
-        text = raw_bytes.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        try:
-            text = raw_bytes.decode("utf-8")
-        except UnicodeDecodeError as e:
-            raise ValueError(f"CSV encoding not supported: {e}") from e
 
-    reader = csv.reader(io.StringIO(text), strict=True)
-    try:
-        header = next(reader)
-    except StopIteration:
-        raise ValueError("CSV file has no rows")
-    except csv.Error as e:
-        raise ValueError(f"CSV parse error: {e}") from e
+def _stream_csv_rows(
+    file_path: str,
+    max_rows: int,
+) -> tuple[list[str], list[list[str | None]], int, bool]:
+    """Stream rows from a CSV file. Never loads entire file into memory.
 
-    if not header or all(h == "" for h in header):
-        raise ValueError("CSV file has no valid header row")
-
-    header = [h.strip() for h in header]
-
-    # Skip offset rows
-    skipped = 0
+    Returns (header, data_rows, scanned_count, truncated).
+    """
+    scanned = 0
     rows: list[list[str | None]] = []
-    for row in reader:
-        if skipped < offset:
-            skipped += 1
-            continue
-        if len(rows) >= max_rows:
-            break
-        parsed: list[str | None] = []
-        for i in range(len(header)):
-            if i >= len(row) or row[i].strip() == "":
-                parsed.append(None)
-            else:
-                parsed.append(row[i].strip())
-        rows.append(parsed)
 
-    return header, rows
+    with open(file_path, "r", encoding="utf-8-sig", errors="replace") as fh:
+        reader = csv.reader(fh, strict=True)
+        try:
+            header_row = next(reader)
+        except StopIteration:
+            raise ValueError("CSV file has no rows")
+        except csv.Error as e:
+            raise ValueError(f"CSV parse error: {e}") from e
+
+        header = [h.strip() for h in header_row]
+        if not header or all(h == "" for h in header):
+            raise ValueError("CSV file has no valid header row")
+
+        # Deduplicate check
+        seen: set[str] = set()
+        for h in header:
+            if not h:
+                raise ValueError("CSV header contains empty column name")
+            if h in seen:
+                raise ValueError(f"Duplicate column name: {h!r}")
+            seen.add(h)
+
+        for row in reader:
+            scanned += 1
+            if len(rows) >= max_rows:
+                return header, rows, scanned, True
+
+            parsed: list[str | None] = []
+            for i in range(len(header)):
+                if i >= len(row) or row[i].strip() == "":
+                    parsed.append(None)
+                else:
+                    parsed.append(row[i].strip())
+            rows.append(parsed)
+
+    return header, rows, scanned, scanned > 0 and len(rows) >= max_rows
 
 
-def _read_xlsx_rows(
-    file_path: str, max_rows: int, offset: int,
-) -> tuple[list[str], list[list[str | None]]]:
-    """Read rows from an XLSX file (first visible sheet)."""
+def _stream_xlsx_rows(
+    file_path: str,
+    max_rows: int,
+) -> tuple[list[str], list[list[str | None]], int, bool]:
+    """Read rows from an XLSX file (first visible sheet, read_only)."""
     try:
         from openpyxl import load_workbook
     except ImportError:
@@ -182,20 +311,18 @@ def _read_xlsx_rows(
         header = [str(v).strip() if v is not None else "" for v in header_row]
         while header and header[-1] == "":
             header.pop()
-
         if not header:
             raise ValueError("XLSX file has no valid header row")
 
-        skipped = 0
+        scanned = 0
         rows: list[list[str | None]] = []
         for row in ws.iter_rows(min_row=2, values_only=True):
             if all(v is None or str(v).strip() == "" for v in row):
                 continue
-            if skipped < offset:
-                skipped += 1
-                continue
+            scanned += 1
             if len(rows) >= max_rows:
-                break
+                return header, rows, scanned, True
+
             parsed: list[str | None] = []
             for i in range(len(header)):
                 if i >= len(row) or row[i] is None or str(row[i]).strip() == "":
@@ -204,9 +331,26 @@ def _read_xlsx_rows(
                     parsed.append(str(row[i]).strip())
             rows.append(parsed)
 
-        return header, rows
+        return header, rows, scanned, False
     finally:
         wb.close()
+
+
+def _read_dataset_rows(
+    file_path: str,
+    file_format: str,
+    max_rows: int,
+) -> tuple[list[str], list[list[str | None]], int, bool]:
+    """Read rows from a dataset file.
+
+    Returns (header, data_rows, scanned_count, truncated).
+    CSV uses streaming; XLSX uses openpyxl read_only.
+    """
+    if file_format == "csv":
+        return _stream_csv_rows(file_path, max_rows)
+    if file_format == "xlsx":
+        return _stream_xlsx_rows(file_path, max_rows)
+    raise ValueError(f"Unsupported file format: {file_format}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -217,21 +361,16 @@ def _read_xlsx_rows(
 def _validate_dataset_path(
     storage_path: str, group_id: str, project_id: str,
 ) -> Path:
-    """Resolve storage_path and verify it stays within the dataset storage tree.
-
-    Path must resolve to: dataset_storage_path / group_id / project_id / ...
-    """
+    """Resolve storage_path and verify it stays within the dataset storage tree."""
     settings = get_settings()
     root = Path(settings.dataset_storage_path).resolve()
     target = Path(storage_path).resolve()
 
-    # Must be under the storage root
     try:
         target.relative_to(root)
     except ValueError:
         raise ValueError("Dataset path is outside the storage root")
 
-    # Must be under the group/project subdirectory
     expected_prefix = root / group_id / project_id
     try:
         target.relative_to(expected_prefix)
@@ -262,7 +401,7 @@ def _get_latest_project_package(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  binding generation
+#  binding generation — strict, no guessing
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -273,22 +412,19 @@ def generate_bindings(
     created_by: str,
 ) -> dict:
     """Deterministically generate OntologyDatasetBindings from the latest
-    project-scoped package's accepted business_v1 drafts.
+    project-scoped package's compiled business_v1 contract.
 
-    Only Object Types with a source_dataset_id get bindings.
-    Action Types never get bindings. Link Types not joined.
+    PK must resolve through: Object Type primary_key → Property draft → column.
+    No fallback to dataset profile PK candidates.
+    Property mapping must exist in: compiled contract + draft evidence + dataset columns.
+    Empty property_mappings → error, not warning.
 
-    Idempotent: re-running with the same package produces no duplicates.
-    Never overwrites bindings that point to a different (older) package.
-
-    Returns:
-        dict with created_count, existing_count, issues list.
+    Returns dict with created_count, existing_count, issues.
     """
     pkg = _get_latest_project_package(db, group_id, project_id)
     if pkg is None:
         return {
-            "created_count": 0,
-            "existing_count": 0,
+            "created_count": 0, "existing_count": 0,
             "issues": [{
                 "code": "no_project_package",
                 "severity": "error",
@@ -296,12 +432,23 @@ def generate_bindings(
             }],
         }
 
-    # Get accepted draft IDs from the package
+    # ── Compile contract as single source of truth ──────────────────────────
+    try:
+        ctx = _build_contract_context(pkg)
+    except Exception:
+        return {
+            "created_count": 0, "existing_count": 0,
+            "issues": [{
+                "code": "contract_compilation_failed",
+                "severity": "error",
+                "message": "Business contract compilation failed.",
+            }],
+        }
+
     source_ids = pkg.source_draft_ids or []
     if not source_ids:
         return {
-            "created_count": 0,
-            "existing_count": 0,
+            "created_count": 0, "existing_count": 0,
             "issues": [{
                 "code": "no_source_drafts",
                 "severity": "error",
@@ -309,7 +456,6 @@ def generate_bindings(
             }],
         }
 
-    # Load accepted drafts that belong to this package
     accepted_drafts = db.scalars(
         select(OntologyModelingDraft).where(
             OntologyModelingDraft.id.in_(source_ids),
@@ -319,14 +465,12 @@ def generate_bindings(
         )
     ).all()
 
-    # Separate by type
     ot_drafts = [d for d in accepted_drafts if d.draft_type == "object_type"]
     prop_drafts = [d for d in accepted_drafts if d.draft_type == "property"]
 
     if not ot_drafts:
         return {
-            "created_count": 0,
-            "existing_count": 0,
+            "created_count": 0, "existing_count": 0,
             "issues": [{
                 "code": "no_accepted_object_types",
                 "severity": "error",
@@ -339,9 +483,9 @@ def generate_bindings(
     existing = 0
 
     for ot in ot_drafts:
-        api_name = (ot.payload or {}).get("api_name")
+        ot_payload = ot.payload or {}
+        api_name = ot_payload.get("api_name")
         ds_id = ot.source_dataset_id
-        pk_api_name = (ot.payload or {}).get("primary_key")
 
         if not api_name or not ds_id:
             issues.append({
@@ -349,13 +493,27 @@ def generate_bindings(
                 "severity": "error",
                 "draft_id": ot.id,
                 "message": (
-                    f"Object Type draft '{ot.name}' missing api_name "
-                    f"or source_dataset_id."
+                    "Object Type draft missing api_name or source_dataset_id."
                 ),
             })
             continue
 
-        # Validate dataset exists and is ready / belongs to this project
+        # Verify Object Type exists in compiled contract
+        ot_ctx = ctx["ot_map"].get(api_name)
+        if not ot_ctx:
+            issues.append({
+                "code": "object_type_not_in_compiled_contract",
+                "severity": "error",
+                "draft_id": ot.id,
+                "object_type": api_name,
+                "message": (
+                    f"Object Type '{api_name}' not found in compiled "
+                    f"business contract."
+                ),
+            })
+            continue
+
+        # ── Validate dataset ──────────────────────────────────────────────
         dataset = db.get(DatasetAsset, ds_id)
         if dataset is None or dataset.group_id != group_id or dataset.project_id != project_id:
             issues.append({
@@ -374,77 +532,137 @@ def generate_bindings(
                 "draft_id": ot.id,
                 "dataset_id": ds_id,
                 "dataset_status": dataset.status,
-                "message": f"Dataset '{dataset.original_name}' status is "
-                           f"'{dataset.status}', not 'ready'.",
+                "message": (
+                    f"Dataset status is '{dataset.status}', not 'ready'."
+                ),
             })
             continue
 
-        # Find PK column
+        # ── Resolve PK through contract → draft → column ──────────────────
+        contract_pk_api_name = ot_ctx.get("primary_key", "")
+        if not contract_pk_api_name:
+            issues.append({
+                "code": "no_primary_key_in_contract",
+                "severity": "error",
+                "draft_id": ot.id,
+                "object_type": api_name,
+                "message": (
+                    f"Object Type '{api_name}' has no primary_key "
+                    f"in the compiled contract."
+                ),
+            })
+            continue
+
+        # Find the Property draft matching the contract PK
         pk_column: str | None = None
-        if pk_api_name:
-            for prop in prop_drafts:
-                if (prop.payload or {}).get("api_name") == pk_api_name:
-                    pk_column = (
-                        (prop.payload or {}).get("property_name")
-                        or (
-                            (prop.evidence_refs or [{}])[0].get("column")
-                            if prop.evidence_refs else None
-                        )
+        for prop in prop_drafts:
+            prop_payload = prop.payload or {}
+            if prop_payload.get("api_name") == contract_pk_api_name:
+                pk_column = (
+                    prop_payload.get("property_name")
+                    or (
+                        (prop.evidence_refs or [{}])[0].get("column")
+                        if prop.evidence_refs else None
                     )
-                    break
+                )
+                break
 
         if not pk_column:
-            # Fall back to dataset profile PK candidates
-            pk_candidates = (dataset.profile_json or {}).get(
-                "primary_key_candidates", []
-            )
-            if pk_candidates:
-                best = sorted(
-                    pk_candidates,
-                    key=lambda p: {"high": 0, "medium": 1, "low": 2}.get(
-                        p.get("confidence", "low"), 3
-                    ),
-                )[0]
-                pk_column = best["column"]
-            else:
-                issues.append({
-                    "code": "no_primary_key",
+            issues.append({
+                "code": "pk_column_not_resolved",
+                "severity": "error",
+                "draft_id": ot.id,
+                "object_type": api_name,
+                "primary_key": contract_pk_api_name,
+                "message": (
+                    f"Primary key '{contract_pk_api_name}' cannot be "
+                    f"resolved to a dataset column through property evidence."
+                ),
+            })
+            continue
+
+        # ── Build property mappings, cross-validated ─────────────────────
+        # contract_fields: property api_names from compiled contract for this OT
+        contract_fields = set(ctx["fields_by_ot"].get(api_name, []))
+        profile_columns = {
+            c.get("name") for c in (dataset.profile_json or {}).get("columns", [])
+        }
+
+        property_mappings: dict[str, str] = {}
+        mapping_issues: list[dict] = []
+
+        for prop in prop_drafts:
+            prop_payload = prop.payload or {}
+            prop_ot = prop_payload.get("object_type")
+            if prop_ot != api_name:
+                continue
+            prop_api_name = prop_payload.get("api_name")
+            if not prop_api_name:
+                continue
+
+            # Must be in compiled contract
+            if prop_api_name not in contract_fields:
+                mapping_issues.append({
+                    "code": "property_not_in_compiled_contract",
                     "severity": "error",
-                    "draft_id": ot.id,
-                    "object_type": api_name,
-                    "message": f"Cannot determine primary key column for "
-                               f"Object Type '{api_name}'.",
+                    "property": prop_api_name,
+                    "message": (
+                        f"Property '{prop_api_name}' not in compiled contract."
+                    ),
                 })
                 continue
 
-        # Build property_mappings from accepted property drafts
-        # that belong to this object type
-        property_mappings: dict[str, str] = {}
-        for prop in prop_drafts:
-            prop_ot = (prop.payload or {}).get("object_type")
-            if prop_ot != api_name:
-                continue
-            prop_api_name = (prop.payload or {}).get("api_name")
             col_name = (
-                (prop.payload or {}).get("property_name")
+                prop_payload.get("property_name")
                 or (
                     (prop.evidence_refs or [{}])[0].get("column")
                     if prop.evidence_refs else None
                 )
             )
-            if prop_api_name and col_name:
-                property_mappings[prop_api_name] = col_name
+            if not col_name:
+                mapping_issues.append({
+                    "code": "column_not_in_evidence",
+                    "severity": "error",
+                    "property": prop_api_name,
+                    "message": (
+                        f"Property '{prop_api_name}' has no column evidence."
+                    ),
+                })
+                continue
+
+            # Must exist in dataset profile columns
+            if col_name not in profile_columns:
+                mapping_issues.append({
+                    "code": "column_not_in_dataset",
+                    "severity": "error",
+                    "property": prop_api_name,
+                    "column": col_name,
+                    "message": (
+                        f"Column '{col_name}' for property '{prop_api_name}' "
+                        f"not found in dataset profile."
+                    ),
+                })
+                continue
+
+            property_mappings[prop_api_name] = col_name
+
+        if mapping_issues:
+            issues.extend(mapping_issues)
 
         if not property_mappings:
             issues.append({
-                "code": "no_property_mappings",
-                "severity": "warning",
+                "code": "no_valid_property_mappings",
+                "severity": "error",
                 "draft_id": ot.id,
                 "object_type": api_name,
-                "message": f"No property mappings for Object Type '{api_name}'.",
+                "message": (
+                    f"No valid property mappings for Object Type "
+                    f"'{api_name}'. All properties failed cross-validation."
+                ),
             })
+            continue
 
-        # Check idempotency: already exists for this package + object_type?
+        # ── Check idempotency ────────────────────────────────────────────
         existing_binding = db.scalar(
             select(OntologyDatasetBinding).where(
                 OntologyDatasetBinding.package_id == pkg.id,
@@ -453,6 +671,16 @@ def generate_bindings(
         )
         if existing_binding is not None:
             existing += 1
+            continue
+
+        # ── Verify binding.dataset_id equals Object Type source_dataset_id ─
+        if ds_id != ot.source_dataset_id:
+            issues.append({
+                "code": "dataset_id_mismatch",
+                "severity": "error",
+                "draft_id": ot.id,
+                "message": "Binding dataset_id does not match Object Type source_dataset_id.",
+            })
             continue
 
         binding = OntologyDatasetBinding(
@@ -469,7 +697,51 @@ def generate_bindings(
         db.add(binding)
         created += 1
 
+    # ── Commit with IntegrityError handling ─────────────────────────────
+    try:
+        if created:
+            db.flush()
+    except Exception:
+        db.rollback()
+        return {
+            "created_count": 0, "existing_count": existing,
+            "issues": [{
+                "code": "concurrent_generation_conflict",
+                "severity": "error",
+                "message": (
+                    "Concurrent binding generation conflict. "
+                    "Re-run to recover."
+                ),
+            }],
+        }
+
+    outcome = "success" if not issues or all(
+        i.get("severity") != "error" for i in issues
+    ) else "failure"
+
+    _record_audit(
+        db, created_by, group_id, project_id, "generate_bindings",
+        object_type=None,
+        outcome=outcome,
+        row_count=created,
+        error_code=(issues[0]["code"] if issues and outcome == "failure" else None),
+        error_summary=(
+            f"{len(issues)} issue(s)" if issues and outcome == "failure"
+            else None
+        ),
+    )
+
+    if outcome == "failure":
+        db.rollback()
+        return {
+            "created_count": 0, "existing_count": existing,
+            "issues": issues,
+        }
+
     if created:
+        db.commit()
+    else:
+        # Still commit the audit record even if nothing created
         db.commit()
 
     return {
@@ -480,7 +752,7 @@ def generate_bindings(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  query execution
+#  query execution — compiled contract, filter-before-offset/limit, streaming
 # ═══════════════════════════════════════════════════════════════════════════
 
 _DEFAULT_LIMIT = 20
@@ -493,6 +765,7 @@ def execute_query(
     group_id: str,
     project_id: str,
     object_type: str,
+    user_id: str,
     fields: list[str] | None = None,
     filters: dict[str, str] | None = None,
     limit: int = _DEFAULT_LIMIT,
@@ -501,31 +774,37 @@ def execute_query(
 ) -> dict:
     """Execute a read-only query against a bound dataset Object Type.
 
-    Args:
-        db: Database session.
-        group_id: Authorized group.
-        project_id: Project within the group.
-        object_type: The api_name of the Object Type to query.
-        fields: Optional whitelist of property api_names to return.
-        filters: Optional {property_api_name: value} for equality filtering.
-        limit: Max rows to return (1–100, default 20).
-        offset: Rows to skip (0–10000).
-        explain_only: If True, return explain info without data rows.
+    Uses compiled business contract as single source of truth for
+    value_types, field whitelist, and semantic_hash.
 
-    Returns:
-        dict with rows, row_count, explain, and error fields.
-
-    Raises:
-        ValueError: On invalid parameters or execution errors.
+    Correct semantics: stream → convert → filter → offset → limit.
     """
-    # ── Validate parameters ───────────────────────────────────────────────
     limit = max(1, min(limit, _MAX_LIMIT))
     offset = max(0, min(offset, _MAX_OFFSET))
 
-    # ── Find the latest package and active binding ────────────────────────
+    audit_kwargs: dict = {
+        "user_id": user_id,
+        "group_id": group_id,
+        "project_id": project_id,
+        "operation": "query",
+        "object_type": object_type,
+        "limit_val": limit,
+        "offset_val": offset,
+    }
+
+    def _fail(code: str, summary: str) -> dict:
+        _record_audit(
+            db, **audit_kwargs, outcome="failure",
+            error_code=code, error_summary=summary,
+        )
+        db.commit()
+        raise ValueError(summary)  # router catches this
+
+    # ── Latest package and binding ──────────────────────────────────────────
     pkg = _get_latest_project_package(db, group_id, project_id)
     if pkg is None:
-        raise ValueError("No project package found for this project")
+        return _fail("no_package",
+                      "No project package found for this project")
 
     binding = db.scalar(
         select(OntologyDatasetBinding).where(
@@ -537,112 +816,122 @@ def execute_query(
         )
     )
     if binding is None:
-        raise ValueError(
-            f"No active binding for Object Type '{object_type}' "
-            f"in the latest package"
-        )
+        return _fail("no_binding",
+                      f"No active binding for Object Type '{object_type}'")
 
-    # ── Validate dataset ──────────────────────────────────────────────────
+    # ── Validate dataset ────────────────────────────────────────────────────
     dataset = db.get(DatasetAsset, binding.dataset_id)
     if dataset is None or dataset.status not in ("ready",):
-        raise ValueError(
-            f"Bound dataset not found or not ready (status: "
-            f"{getattr(dataset, 'status', 'unknown')})"
-        )
+        return _fail("dataset_not_ready",
+                      "Bound dataset not found or not ready")
     if dataset.group_id != group_id or dataset.project_id != project_id:
-        raise ValueError("Bound dataset does not belong to this project")
+        return _fail("dataset_not_ready",
+                      "Bound dataset does not belong to this project")
 
-    # Load accepted property drafts to get value_types
-    source_ids = pkg.source_draft_ids or []
-    accepted_props = db.scalars(
-        select(OntologyModelingDraft).where(
-            OntologyModelingDraft.id.in_(source_ids),
-            OntologyModelingDraft.status == "accepted",
-            OntologyModelingDraft.draft_type == "property",
-            OntologyModelingDraft.group_id == group_id,
-        )
-    ).all()
+    # ── Compile contract — single source of truth ───────────────────────────
+    try:
+        ctx = _build_contract_context(pkg)
+    except Exception:
+        return _fail("contract_compilation",
+                      "Business contract compilation failed")
 
-    # Build api_name → value_type map from property drafts
-    value_types: dict[str, str] = {}
-    for prop in accepted_props:
-        p_api = (prop.payload or {}).get("api_name")
-        p_vt = (prop.payload or {}).get("value_type", "string")
-        if p_api:
-            value_types[p_api] = p_vt
+    # ── Field whitelist from compiled contract ──────────────────────────────
+    all_contract_fields = set(ctx["fields_by_ot"].get(object_type, []))
+    # Cross with binding
+    bound_fields = set(binding.property_mappings.keys())
+    valid_fields = all_contract_fields & bound_fields
 
-    # ── Build field whitelist ─────────────────────────────────────────────
-    # All bound property api_names
-    all_bound_fields = set(binding.property_mappings.keys())
     if fields:
-        # Validate all requested fields are bound
-        invalid = [f for f in fields if f not in all_bound_fields]
+        invalid = [f for f in fields if f not in valid_fields]
         if invalid:
-            raise ValueError(
-                f"Fields not in contract binding: {', '.join(invalid)}"
-            )
+            return _fail("invalid_fields",
+                          f"Fields not in contract: {', '.join(invalid)}")
         selected_fields = fields
     else:
-        selected_fields = sorted(all_bound_fields)
+        selected_fields = sorted(valid_fields)
 
-    # ── Validate filter fields ────────────────────────────────────────────
+    if not selected_fields:
+        return _fail("no_fields",
+                      "No valid fields for this Object Type")
+
+    # ── Validate filter fields against compiled contract ────────────────────
+    filter_field_names: list[str] = []
+    converted_filters: dict[str, Any] = {}
     if filters:
-        for fname in filters:
-            if fname not in all_bound_fields:
-                raise ValueError(
-                    f"Filter field '{fname}' is not a bound property"
+        for fname, fval_str in filters.items():
+            if fname not in valid_fields:
+                return _fail("invalid_filter",
+                              f"Filter field '{fname}' is not a bound property")
+            # Type-convert filter value
+            vt = ctx["prop_map"].get(fname, {}).get("value_type", "string")
+            try:
+                converted_filters[fname] = _convert_filter_value(
+                    fval_str, vt, fname,
                 )
+            except ValueError:
+                return _fail("type_conversion",
+                              f"Filter value for '{fname}' cannot be "
+                              f"converted to {vt}")
+            filter_field_names.append(fname)
 
-    # ── Resolve and validate file path ────────────────────────────────────
-    file_path = _validate_dataset_path(
-        dataset.storage_path, group_id, project_id,
-    )
-
+    # ── Resolve and validate file path ──────────────────────────────────────
+    try:
+        file_path = _validate_dataset_path(
+            dataset.storage_path, group_id, project_id,
+        )
+    except ValueError:
+        return _fail("path_outside_root",
+                      "Dataset path validation failed")
     if not file_path.exists():
-        raise ValueError("Dataset file not found on disk")
+        return _fail("file_not_found",
+                      "Dataset file not found on disk")
 
-    # ── Build explain/provenance info ─────────────────────────────────────
-    contract_info = (pkg.contract_json or {}).get("object_types", [])
-    semantic_hash = ""
-    for ot in contract_info:
-        if isinstance(ot, dict) and ot.get("api_name") == object_type:
-            semantic_hash = ot.get("semantic_hash", "")
-            break
-
+    # ── Build explain/provenance (no filter values, no paths, no raw data) ─
     explain = {
         "package_id": pkg.id,
         "package_version": pkg.version,
-        "package_semantic_hash": semantic_hash or pkg.content_hash,
+        "package_semantic_hash": ctx["semantic_hash"],
         "binding_id": binding.id,
         "dataset_id": dataset.id,
         "dataset_content_hash": dataset.content_hash,
         "object_type": object_type,
         "selected_fields": selected_fields,
-        "filter_fields": sorted(filters.keys()) if filters else [],
+        "filter_field_names": filter_field_names,
         "limit": limit,
         "offset": offset,
     }
 
     if explain_only:
+        _record_audit(
+            db, **audit_kwargs,
+            field_names=selected_fields,
+            filter_field_names=filter_field_names,
+            outcome="success", row_count=0,
+        )
+        db.commit()
         return {"rows": [], "row_count": None, "explain": explain}
 
-    # ── Read data file ────────────────────────────────────────────────────
-    header, data_rows = _read_rows(
-        str(file_path), dataset.file_format,
-        max_rows=limit, offset=offset,
-    )
+    # ── Read data: stream all rows up to scan limit ─────────────────────────
+    settings = get_settings()
+    scan_limit = settings.dataset_max_scan_rows
+    try:
+        header, data_rows, scanned_count, truncated = _read_dataset_rows(
+            str(file_path), dataset.file_format, max_rows=scan_limit,
+        )
+    except Exception:
+        return _fail("read_error",
+                      "Failed to read dataset file")
 
-    # Build column name → position index
     col_index: dict[str, int] = {name: i for i, name in enumerate(header)}
 
-    # ── Map rows through binding ──────────────────────────────────────────
-    results: list[dict] = []
+    # ── Map, type-convert, filter ───────────────────────────────────────────
+    matched: list[dict] = []
     type_errors: list[dict] = []
-    row_index = offset
+    scan_row_index = 0
 
     for row in data_rows:
         mapped: dict[str, Any] = {}
-        row_has_error = False
+        row_ok = True
 
         for prop_api_name in selected_fields:
             col_name = binding.property_mappings.get(prop_api_name)
@@ -651,58 +940,86 @@ def execute_query(
                 continue
 
             raw_val = row[col_index[col_name]]
-            value_type = value_types.get(prop_api_name, "string")
+            vt = ctx["prop_map"].get(prop_api_name, {}).get("value_type", "string")
 
             try:
-                converted = _convert_value(raw_val, value_type, prop_api_name)
+                converted = _convert_value(raw_val, vt, prop_api_name)
                 mapped[prop_api_name] = converted
-            except ValueError as exc:
+            except ValueError:
                 type_errors.append({
-                    "row": row_index,
+                    "row": scan_row_index,
                     "field": prop_api_name,
-                    "value_type": value_type,
-                    "raw_value": raw_val,
-                    "error": str(exc),
+                    "value_type": vt,
                 })
-                row_has_error = True
+                row_ok = False
                 mapped[prop_api_name] = None
 
-        # ── Apply equality filters ────────────────────────────────────────
-        if filters and not row_has_error:
+        if not row_ok:
+            scan_row_index += 1
+            continue
+
+        # Apply type-converted equality filters
+        if converted_filters:
             skip = False
-            for fname, fval in filters.items():
-                col_name = binding.property_mappings.get(fname)
-                if col_name is None or col_name not in col_index:
-                    skip = True
-                    break
-                raw_val = row[col_index[col_name]]
-                if raw_val is None or raw_val.strip() != fval:
+            for fname, fval in converted_filters.items():
+                row_val = mapped.get(fname)
+                if row_val != fval:
                     skip = True
                     break
             if skip:
-                row_index += 1
+                scan_row_index += 1
                 continue
 
-        results.append(mapped)
-        row_index += 1
+        matched.append(mapped)
+        scan_row_index += 1
 
-    # ── Build response ────────────────────────────────────────────────────
+    # ── Apply offset then limit ─────────────────────────────────────────────
+    paged = matched[offset:offset + limit]
+    out_row_count = len(paged)
+
+    # ── Build response ──────────────────────────────────────────────────────
+    explain["scanned_rows"] = scanned_count
+    explain["scan_limit"] = scan_limit
+    explain["scan_truncated"] = truncated
+    explain["matched_before_paging"] = len(matched)
+
     response: dict = {
-        "rows": results,
-        "row_count": len(results),
+        "rows": paged,
+        "row_count": out_row_count,
         "explain": explain,
     }
 
     if type_errors:
-        # Fail fast: if any row had type conversion errors, report them
         response["type_errors"] = type_errors
-        response["row_count"] = None  # Don't return partial data
+        response["row_count"] = None
+
+    # ── Audit (must succeed before returning) ───────────────────────────────
+    final_outcome = (
+        "failure" if type_errors
+        else "empty" if out_row_count == 0
+        else "success"
+    )
+    _record_audit(
+        db, **audit_kwargs,
+        field_names=selected_fields,
+        filter_field_names=filter_field_names,
+        outcome=final_outcome,
+        row_count=out_row_count if not type_errors else None,
+        error_code=(
+            "type_conversion" if type_errors else None
+        ),
+        error_summary=(
+            f"{len(type_errors)} type conversion error(s)"
+            if type_errors else None
+        ),
+    )
+    db.commit()
 
     return response
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  pilot activation
+#  pilot activation — full smoke query per binding
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -714,32 +1031,53 @@ def activate_pilot(
 ) -> dict:
     """Activate the pilot stage for a project.
 
-    Requirements:
-    - Project must be at validate or pilot stage.
-    - Latest project package must exist.
-    - All Object Types from datasets must have complete, valid bindings.
-    - Datasets must be ready with at least one row.
-    - Smoke query must succeed for each binding.
+    Uses the full query execution path for smoke (not just _read_rows).
+    Smoke verifies: binding completeness, PK resolution, all contract
+    property mappings, type conversion.
 
-    Idempotent: calling on an already-pilot project succeeds with no change.
+    On failure: rolls back all state changes, records audit.
+    Idempotent on already-pilot.
     """
     from semantic_lighthouse.services.projects import advance_stage
 
     project = db.get(BusinessProject, project_id)
     if project is None or project.group_id != group_id:
+        _record_audit(
+            db, user_id, group_id, project_id, "activate",
+            outcome="failure", error_code="project_not_found",
+            error_summary="Project not found",
+        )
+        db.commit()
         raise ValueError("Project not found")
 
     if project.status != "active":
+        _record_audit(
+            db, user_id, group_id, project_id, "activate",
+            outcome="failure", error_code="archive",
+            error_summary="Project is archived",
+        )
+        db.commit()
         raise ValueError("Project is archived")
 
     if project.stage not in ("validate", "pilot"):
+        _record_audit(
+            db, user_id, group_id, project_id, "activate",
+            outcome="failure", error_code="stage",
+            error_summary=f"Stage is {project.stage}, not validate/pilot",
+        )
+        db.commit()
         raise ValueError(
             f"Project must be at validate or pilot stage, "
             f"currently: {project.stage}"
         )
 
-    # Already pilot → idempotent
+    # Already pilot → idempotent with audit
     if project.stage == "pilot":
+        _record_audit(
+            db, user_id, group_id, project_id, "activate",
+            outcome="success", row_count=0,
+        )
+        db.commit()
         return {
             "activated": False,
             "already_pilot": True,
@@ -747,12 +1085,28 @@ def activate_pilot(
             "issues": [],
         }
 
-    # ── Get latest package ────────────────────────────────────────────────
+    # ── Get latest package and compiled contract ────────────────────────────
     pkg = _get_latest_project_package(db, group_id, project_id)
     if pkg is None:
+        _record_audit(
+            db, user_id, group_id, project_id, "activate",
+            outcome="failure", error_code="no_package",
+            error_summary="No project package found",
+        )
+        db.commit()
         raise ValueError("No project package found")
 
-    # ── Get accepted object type drafts ───────────────────────────────────
+    try:
+        _build_contract_context(pkg)  # verify compilation works
+    except Exception:
+        _record_audit(
+            db, user_id, group_id, project_id, "activate",
+            outcome="failure", error_code="contract_compilation",
+            error_summary="Business contract compilation failed",
+        )
+        db.commit()
+        raise ValueError("Business contract compilation failed")
+
     source_ids = pkg.source_draft_ids or []
     accepted_ots = db.scalars(
         select(OntologyModelingDraft).where(
@@ -765,15 +1119,21 @@ def activate_pilot(
 
     issues: list[dict] = []
 
-    # Find Object Types that came from datasets (have source_dataset_id)
+    # Only Object Types from datasets
     dataset_ots = [ot for ot in accepted_ots if ot.source_dataset_id]
     if not dataset_ots:
+        _record_audit(
+            db, user_id, group_id, project_id, "activate",
+            outcome="failure",
+            error_code="no_dataset_ots",
+            error_summary="No dataset-grounded Object Types in the package",
+        )
+        db.commit()
         raise ValueError(
-            "No dataset-grounded Object Types found in the package. "
-            "Only dataset-grounded Object Types can have bindings."
+            "No dataset-grounded Object Types found in the package."
         )
 
-    # ── Verify each dataset Object Type has a binding ─────────────────────
+    # ── Full smoke for each binding ─────────────────────────────────────────
     for ot in dataset_ots:
         api_name = (ot.payload or {}).get("api_name")
         ds_id = ot.source_dataset_id
@@ -794,14 +1154,22 @@ def activate_pilot(
             })
             continue
 
-        # Verify dataset is ready
+        # Verify binding.dataset_id equals OT source_dataset_id
+        if binding.dataset_id != ds_id:
+            issues.append({
+                "code": "binding_dataset_mismatch",
+                "severity": "error",
+                "object_type": api_name,
+                "message": "Binding dataset_id does not match Object Type source_dataset_id.",
+            })
+            continue
+
         dataset = db.get(DatasetAsset, ds_id)
         if dataset is None or dataset.status != "ready":
             issues.append({
                 "code": "dataset_not_ready",
                 "severity": "error",
                 "object_type": api_name,
-                "dataset_id": ds_id,
                 "message": f"Dataset not ready for Object Type '{api_name}'.",
             })
             continue
@@ -811,61 +1179,56 @@ def activate_pilot(
                 "code": "empty_dataset",
                 "severity": "error",
                 "object_type": api_name,
-                "dataset_id": ds_id,
                 "message": f"Dataset for '{api_name}' has zero rows.",
             })
             continue
 
-        # ── Smoke query: read one row ─────────────────────────────────────
+        # ── Smoke: use full query with limit=1 ──────────────────────────
         try:
-            file_path = _validate_dataset_path(
-                dataset.storage_path, group_id, project_id,
+            result = execute_query(
+                db, group_id, project_id, api_name,
+                user_id=user_id,
+                limit=1, offset=0,
+                explain_only=False,
             )
-            if not file_path.exists():
+            if result.get("type_errors"):
                 issues.append({
-                    "code": "dataset_file_missing",
+                    "code": "smoke_type_conversion_error",
                     "severity": "error",
                     "object_type": api_name,
-                    "message": "Dataset file not found on disk.",
+                    "message": (
+                        f"Smoke query failed with {len(result['type_errors'])} "
+                        f"type conversion error(s)."
+                    ),
                 })
                 continue
 
-            header, data_rows = _read_rows(
-                str(file_path), dataset.file_format,
-                max_rows=1, offset=0,
-            )
-            if not data_rows:
+            if result.get("row_count", 0) == 0:
                 issues.append({
-                    "code": "no_data_rows",
+                    "code": "smoke_no_rows",
                     "severity": "error",
                     "object_type": api_name,
-                    "message": "Dataset has header but no data rows.",
+                    "message": "Smoke query returned no rows.",
                 })
                 continue
 
-            # Verify the PK column exists in the file header
-            pk_col = binding.primary_key_column
-            if pk_col not in header:
-                issues.append({
-                    "code": "pk_column_missing",
-                    "severity": "error",
-                    "object_type": api_name,
-                    "column": pk_col,
-                    "message": f"Primary key column '{pk_col}' not found "
-                               f"in dataset file.",
-                })
-                continue
-
-        except Exception as exc:
+        except ValueError:
             issues.append({
                 "code": "smoke_query_failed",
                 "severity": "error",
                 "object_type": api_name,
-                "message": str(exc),
+                "message": _sanitized_code("smoke_failed"),
             })
             continue
 
     if issues:
+        _record_audit(
+            db, user_id, group_id, project_id, "activate",
+            outcome="failure",
+            error_code=issues[0]["code"],
+            error_summary=f"{len(issues)} issue(s)",
+        )
+        db.commit()
         return {
             "activated": False,
             "already_pilot": False,
@@ -873,9 +1236,15 @@ def activate_pilot(
             "issues": issues,
         }
 
-    # ── All gates passed: advance to pilot ────────────────────────────────
+    # ── All gates passed: advance to pilot ──────────────────────────────────
     advance_stage("validate", "pilot")
     project.stage = "pilot"
+
+    # Audit in same transaction as state change
+    _record_audit(
+        db, user_id, group_id, project_id, "activate",
+        outcome="success", row_count=len(dataset_ots),
+    )
     db.commit()
 
     return {

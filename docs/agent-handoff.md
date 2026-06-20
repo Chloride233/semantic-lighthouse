@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (Phase 14.5 Pilot Read Runtime delivered — Phase 14 COMPLETE. Backend Review C next.)
+Last updated: 2026-06-20 (Phase 14 COMPLETE — 14.5 delivered + Backend Review C hardened. Migration 0023 at head. 734 non-E2E passed.)
 
 ## Current Phase
 
@@ -877,4 +877,16 @@ separate Safety Lane plan reusing backend authorization, audit, and HITL.
 
 **Next**: Backend Review C / Phase 14 closeout. MCP remains post-Phase 14 candidate — see `docs/mcp-agent-boundary-design.md`.
 
-Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 14 COMPLETE (14.1–14.5 all delivered). Backend Review C next.
+### Backend Review C — Phase 14.5 Hardening (2026-06-20)
+
+**Status**: Complete. Seven review items fixed across audit, filter semantics, type/privacy, binding strictness, compiled contract usage, activation gate, and code hygiene.
+
+Key fixes: Added `OntologyRuntimeAudit` model + migration `0023`. Fixed filter/pagination order (filter-before-offset/limit). CSV streaming (no `read_bytes()`). Type-converted filter values. Error messages no longer leak raw cell values. PK resolution strict — no profile fallback. Property mappings cross-validated against compiled contract + draft evidence + dataset profile. `compile_business_contract()` is single source of truth for fields/value_types/semantic_hash. Activate smoke uses full `execute_query` path. IntegrityError handling on concurrent binding generation.
+
+Verification: 79 runtime tests, 239 Phase 14 combined, 734 full non-E2E (0 failures). Ruff clean. Migration 0023 upgrade/downgrade verified.
+
+**Residual risks**: Audit records are write-only (no query API exposed — by design). XLSX uses read_only (acceptable for ≤50 MiB). Contract re-compiled per query (acceptable overhead, caching deferred).
+
+**Next**: Phase 14 COMPLETE. Future candidates only: MCP read-only gateway (post-Phase 14, requires dedicated Safety Lane plan), Evidence + Object dual-plane query, Domain Pack/Knowledge Artifact. NOT started.
+
+Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Phase 14 COMPLETE (14.1–14.5 delivered + Review C hardened).

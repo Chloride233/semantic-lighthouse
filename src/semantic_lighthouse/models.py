@@ -649,6 +649,45 @@ class OntologyDatasetBinding(Base):
     )
 
 
+class OntologyRuntimeAudit(Base):
+    """Phase 14.5 — immutable audit record for runtime operations.
+
+    Records generate_bindings, query, and activate events.
+    Never stores filter values, raw data, storage_path, PII,
+    stack traces, or secrets.
+    """
+
+    __tablename__ = "ontology_runtime_audit"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), index=True, nullable=False
+    )
+    group_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("groups.id"), index=True, nullable=False
+    )
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("business_projects.id"), index=True, nullable=False
+    )
+    operation: Mapped[str] = mapped_column(
+        String(30), index=True, nullable=False
+    )  # generate_bindings | query | activate
+    object_type: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    field_names: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
+    filter_field_names: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
+    limit_val: Mapped[int | None] = mapped_column(nullable=True)
+    offset_val: Mapped[int | None] = mapped_column(nullable=True)
+    outcome: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # success | failure | empty
+    row_count: Mapped[int | None] = mapped_column(nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    error_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
 class BusinessProject(Base):
     """Phase 14.1 — business pilot project within a group workspace.
 

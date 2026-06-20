@@ -1,6 +1,6 @@
 # Phase 14: Business Pilot Project ← Data → Model → Validate → Pilot
 
-**Status**: 14.1–14.5 DELIVERED. Backend Review C / Phase 14 closeout next.
+**Status**: 14.1–14.5 DELIVERED. Backend Review C COMPLETE. Phase 14 COMPLETE.
 
 Phase 14 shifts Semantic Lighthouse from parallel product features (RAG, Agent, Ontology drafts, tasks) toward a guided business pilot main chain. A group workspace contains one or more business pilot projects, each progressing through a fixed five-stage pipeline:
 
@@ -87,7 +87,45 @@ Each stage is backend-controlled. Clients cannot skip, reverse, or directly set 
 - **No MCP, no DSL/SQL, no Graph RAG**: Query uses only JSON equality filters. No expression strings, no AST, no query optimizer, no custom language. MCP runtime, SDK, and write capability remain NOT implemented — see `docs/mcp-agent-boundary-design.md`.
 - **Tests**: 56 tests in `tests/test_project_runtime.py` covering binding generation (deterministic, idempotent, PK/property mapping, issues), permissions (member/owner/admin/outsider, cross-group, cross-project), query execution (field whitelist, equality filter, limit/offset, max limits), CSV and XLSX queries, contract type conversion (success and failure), explain_only, provenance sanitization, activation (validate→pilot, failure blocking, idempotency), stale package binding, path traversal rejection, and legacy backward compatibility.
 - **Verification**: 216 combined tests passed (56 runtime + 57 projects + 53 datasets + 27 modeling + 23 validation). Ruff clean. Migration 0022 at Alembic head. Git diff --check clean.
-- **Next**: Backend Review C / Phase 14 closeout. MCP remains post-Phase 14 candidate only.
+- **Next**: Phase 14 closeout complete. Future candidates only — NOT started.
+
+---
+
+## Backend Review C Results (2026-06-20)
+
+**Conclusion**: Phase 14.5 hardened. Seven review items fixed. Phase 14 COMPLETE.
+
+### Findings Fixed
+
+| Severity | Issue | Fix |
+|----------|-------|-----|
+| **CRITICAL** | Audit not implemented — no audit model, no persistence, docs claimed it existed | Added `OntologyRuntimeAudit` model + migration `0023`. Records `generate_bindings`/`query`/`activate` with user/group/project/operation/object_type/field_names/filter_field_names/limit/offset/outcome/row_count/error. Never stores filter values, raw data, storage_path, PII, or secrets. Audit committed in same transaction as state changes. |
+| **CRITICAL** | Filter/pagination order wrong — read offset+limit rows first, then filtered | Reordered: stream all rows up to scan limit → type-convert → apply equality filters → apply offset → apply limit. `explain` now includes `scanned_rows`, `scan_limit`, `scan_truncated`, `matched_before_paging`. |
+| **CRITICAL** | CSV used `Path.read_bytes()` — OOM risk for 50 MiB files | Replaced with streaming `_stream_csv_rows()` using `open()` + `csv.reader()`. Never loads entire file. |
+| **HIGH** | Filter values compared as raw strings with no type conversion | Added `_convert_filter_value()` — type-converts filter values per contract `value_type` before comparison. Rejects arrays/objects. Date/datetime validated against ISO format. |
+| **HIGH** | Type error messages contained raw cell values (`{stripped!r}`) | `_convert_value()` now returns stable messages without raw values. Type errors list only `row`/`field`/`value_type` — no `raw_value`. |
+| **HIGH** | Activate `except Exception as exc: message=str(exc)` leaked internal errors to client | Replaced with `_sanitized_code()` → stable error codes. All error paths use sanitized summaries. |
+| **HIGH** | PK resolution fell back to dataset profile PK candidates when contract PK missing | Removed fallback entirely. PK must resolve through Object Type `primary_key` → matching Property draft → column evidence. No evidence → error, not guess. |
+| **HIGH** | `property_mappings` allowed empty with only a warning | Changed to error — if no valid property mappings after cross-validation against compiled contract + draft evidence + dataset profile columns, binding is NOT created. |
+| **HIGH** | `value_types` loaded from mutable drafts instead of compiled contract | Rewrote to use `_build_contract_context(pkg)` which calls `compile_business_contract()`. Field whitelist, value_types, and semantic_hash all come from the compiled manifest. |
+| **HIGH** | `package_semantic_hash` fell back to `pkg.content_hash` when not in `contract_json` | Now always returns manifest's `semantic_hash` (`sha256:...`). No fallback. |
+| **MEDIUM** | Activate smoke only checked PK header existence, not full type conversion | Rewrote to call `execute_query()` with `limit=1` — full query path including type conversion for all contract properties. |
+| **MEDIUM** | `generate_bindings` had no `IntegrityError` handling for concurrent duplicates | Added `db.flush()` with `try/except` that rolls back and returns structured error on conflict. |
+| **MEDIUM** | Unused `column_indices` parameter on `_read_rows` | Removed; function renamed to `_read_dataset_rows`. Separate streaming functions for CSV/XLSX. |
+
+### Verification
+
+- **79 runtime tests** (56 original + 23 new for audit, filter order, type conversion, strict binding, activation smoke, migration). 239 combined Phase 14 tests. 734 full non-E2E.
+- Ruff clean on full `src tests`.
+- Alembic migration `0023` upgrade/downgrade/re-upgrade cycle verified on temp SQLite.
+- Git diff --check clean.
+
+### Residual Risks (accepted)
+
+- Concurrent binding generation may trigger the IntegrityError path; re-running recovers.
+- Audit records are write-only — no query API exposed (by design, not missing).
+- XLSX still uses `read_only=True` with `load_workbook` — acceptable for files within 50 MiB cap.
+- `_build_contract_context` re-compiles on every query — acceptable overhead for current scale; caching deferred.
 
 ---
 
