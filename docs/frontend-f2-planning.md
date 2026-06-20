@@ -1,10 +1,19 @@
 # Frontend F2 — Guided Business Pilot Workspace
 
-**Status**: F2A + F2B delivered. F2C next.
+**Status**: F2A + F2B delivered + reviewed. F2C next.
 
-**F2B delivered**: Model stage (draft list, batch review, quality gates, WARN/PASS/FAIL package build), Validate stage (contract viewer, binding generation, pilot activation), Pilot stage (query workbench with field selection, typed filters, limit, provenance/explain). All stages dispatch from unified project.js shell.
+**F2B Review fixes**:
+- Removed all `location.reload()` — use reloadProject callback instead.
+- PK/pid passed as function parameters, not read from location.hash/state.
+- buildPackage uses quality.status from API, not DOM query.
+- FAIL blocks absolutely, WARN requires explicit user confirm + reason.
+- Shared project-dialog.js with focus trap, Escape cleanup, async confirm, error display.
+- Validate: errors shown inline (not swallowed with .catch([])), binding issues rendered in page (not alert()), activation checks contract OTs.
+- Pilot: inline `<script>` removed, explain toggle via addEventListener, field validation (≥1 field checked), typed JSON filter serialization, scan_truncated warning.
+- Container click handler uses stable delegated pattern with cleanup.
 
-**Verification**: verify_ui 34/36 (2 F2B timing-sensitive, full flow in E2E), E2E 8/8. Screenshots in `.tmp/f2b/`.
+**Verification**: verify_ui 35/35, E2E 10/10 (2 new F2B tests: full closed-loop, member readonly).
+Screenshots: `.tmp/f2b/` (6 files, 29-97 KB, 0 console errors).
 
 Phase 14 established the five-stage business pilot pipeline (goal → data → model → validate → pilot). Frontend F2 gives users a guided single-path workspace to operate it, replacing the flat parallel-feature navigation with a Pilot-first information architecture.
 

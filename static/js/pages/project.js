@@ -107,9 +107,9 @@ export async function render(container, params) {
     switch (stage) {
       case 'goal': return renderGoalStage(main, dsList);
       case 'data': return renderDataStage(main, dsList);
-      case 'model': return import('./project-model.js').then(m => m.renderModelStage(container, gid, pid, project, reloadProject, isOwnerAdmin));
-      case 'validate': return import('./project-validate.js').then(m => m.renderValidateStage(container, gid, pid, project, reloadProject, isOwnerAdmin));
-      case 'pilot': return import('./project-pilot.js').then(m => m.renderPilotStage(container, gid, pid, project, reloadProject, isOwnerAdmin));
+      case 'model': return import('./project-model.js').then(m => m.renderModelStage(container, gid, pid, project, reloadProject, isOwnerAdmin)).catch(e => { main.innerHTML = `<div class="error"><p>加载模型模块失败: ${esc(e.message)}</p></div>`; });
+      case 'validate': return import('./project-validate.js').then(m => m.renderValidateStage(container, gid, pid, project, reloadProject, isOwnerAdmin)).catch(e => { main.innerHTML = `<div class="error"><p>加载验证模块失败: ${esc(e.message)}</p></div>`; });
+      case 'pilot': return import('./project-pilot.js').then(m => m.renderPilotStage(container, gid, pid, project, reloadProject, isOwnerAdmin)).catch(e => { main.innerHTML = `<div class="error"><p>加载 Pilot 模块失败: ${esc(e.message)}</p></div>`; });
       default: return renderFutureStage(main, stage);
     }
   }
@@ -325,17 +325,20 @@ export async function render(container, params) {
     });
   }
 
-  // ── Profile expand/collapse listeners ──────────────────────────────────
-  container.addEventListener('click', (e) => {
+  // ── Profile expand/collapse — stable delegated handler ──────────────────
+  container._dsToggleHandler?.();
+  const dsHandler = (e) => {
     const btn = e.target.closest('[id^="dsToggle-"]');
     if (!btn) return;
     const dsId = btn.id.replace('dsToggle-', '');
-    const profile = document.getElementById('dsProfile-' + dsId);
-    if (profile) {
-      profile.hidden = !profile.hidden;
-      btn.textContent = profile.hidden ? '查看字段▼' : '收起▲';
+    const profileEl = document.getElementById('dsProfile-' + dsId);
+    if (profileEl) {
+      profileEl.hidden = !profileEl.hidden;
+      btn.textContent = profileEl.hidden ? '查看字段▼' : '收起▲';
     }
-  });
+  };
+  container.addEventListener('click', dsHandler);
+  container._dsToggleHandler = () => container.removeEventListener('click', dsHandler);
 
   await renderFull();
 }
