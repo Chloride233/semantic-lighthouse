@@ -23,7 +23,30 @@ function _closeMenu() {
   const btn = document.getElementById('navMoreBtn');
   const menu = document.getElementById('navMoreMenu');
   if (menu) menu.hidden = true;
-  if (btn) btn.setAttribute('aria-expanded', 'false');
+  if (btn) {
+    btn.setAttribute('aria-expanded', 'false');
+    btn.focus();
+  }
+}
+
+function _openMenu() {
+  const btn = document.getElementById('navMoreBtn');
+  const menu = document.getElementById('navMoreMenu');
+  if (!btn || !menu) return;
+  menu.hidden = false;
+  btn.setAttribute('aria-expanded', 'true');
+  const items = menu.querySelectorAll('a');
+  if (items.length) items[0].focus();
+}
+
+function _focusMenuItem(delta) {
+  const menu = document.getElementById('navMoreMenu');
+  if (!menu || menu.hidden) return;
+  const items = [...menu.querySelectorAll('a')];
+  if (!items.length) return;
+  const idx = items.indexOf(document.activeElement);
+  const next = idx < 0 ? 0 : (idx + delta + items.length) % items.length;
+  items[next].focus();
 }
 
 function _setupDocListeners() {
@@ -35,13 +58,7 @@ function _setupDocListeners() {
     if (!btn || !menu) return;
     if (btn.contains(e.target)) {
       e.stopPropagation();
-      const open = menu.hidden;
-      menu.hidden = !open;
-      btn.setAttribute('aria-expanded', String(open));
-      if (open) {
-        const first = menu.querySelector('a');
-        if (first) first.focus();
-      }
+      if (menu.hidden) { _openMenu(); } else { _closeMenu(); }
       return;
     }
     if (!menu.contains(e.target)) {
@@ -49,7 +66,21 @@ function _setupDocListeners() {
     }
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') _closeMenu();
+    const btn = document.getElementById('navMoreBtn');
+    const menu = document.getElementById('navMoreMenu');
+    if (!btn || !menu) return;
+    if (e.key === 'Escape') { _closeMenu(); return; }
+    if (document.activeElement === btn || btn.contains(document.activeElement)) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (menu.hidden) { _openMenu(); } else { _focusMenuItem(1); }
+        return;
+      }
+    }
+    if (!menu.hidden && menu.contains(document.activeElement)) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); _focusMenuItem(1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); _focusMenuItem(-1); }
+    }
   });
 }
 
@@ -95,9 +126,9 @@ export function initNavbar(containerId) {
           ${primaryLinks}
           ${toolsLinks ? `
           <div class="navMore">
-            <button class="navMoreBtn" id="navMoreBtn" aria-expanded="false" aria-haspopup="true">更多工具 ▾</button>
-            <div class="navMoreMenu" id="navMoreMenu" role="menu" hidden>
-              ${toolsLinks.replace(/<a /g, '<a role="menuitem" ')}
+            <button class="navMoreBtn" id="navMoreBtn" aria-expanded="false" aria-haspopup="true" aria-controls="navMoreMenu">更多工具 ▾</button>
+            <div class="navMoreMenu" id="navMoreMenu" role="menu" aria-labelledby="navMoreBtn" hidden>
+              ${toolsLinks.replace(/<a /g, '<a role="menuitem" tabindex="-1" ')}
             </div>
           </div>` : ''}
         </nav>

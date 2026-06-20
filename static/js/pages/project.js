@@ -224,7 +224,7 @@ export async function render(container, params) {
     const fks = profile.foreign_key_suggestions || [];
     const pkCols = new Set(pks.map(p => p.column));
 
-    let html = '<table class="profileTable"><thead><tr><th>字段</th><th>类型</th><th>可空</th><th>非空</th><th>去重</th><th>PK</th></tr></thead><tbody>';
+    let html = '<div class="tableWrap"><table class="profileTable"><thead><tr><th scope="col">字段</th><th scope="col">类型</th><th scope="col">可空</th><th scope="col">非空</th><th scope="col">去重</th><th scope="col">PK</th></tr></thead><tbody>';
     for (const col of columns) {
       const isPK = pkCols.has(col.name);
       html += `<tr>
@@ -236,7 +236,7 @@ export async function render(container, params) {
         <td>${isPK ? esc(pks.find(p => p.column === col.name)?.confidence || '') : ''}</td>
       </tr>`;
     }
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
 
     if (fks.length) {
       html += '<div class="profileFKs"><h4>外键建议</h4><ul>';

@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (Frontend F2B delivered + acceptance-verified — Guided Pilot complete. Phase 14 COMPLETE. Migration 0023 at head.)
+Last updated: 2026-06-20 (Frontend F2 Complete — Guided Pilot workspace delivered. Phase 14 COMPLETE. Migration 0023 at head.)
 
 ## Current Phase
 
@@ -904,10 +904,10 @@ Verification: 79 runtime tests, 239 Phase 14 combined, 734 full non-E2E (0 failu
 
 **Review**: verify_ui 33/33, E2E 8/8 (4 F2A new). Screenshots at `.tmp/f2a-review/`.
 
-**Next**: Frontend F2C — Responsive/accessibility polish, old entry consolidation.
+**Next**: Product closeout/review — verify full chain end-to-end, refresh demo scripts, confirm all docs aligned. Frontend F2 complete.
 
-**F2B acceptance**: verify_ui 47/47, backend 749 passed, E2E 13/13 (real member via invite, WARN/FAIL workflow, project isolation). Screenshots at `.tmp/f2b/` (6 files, 0 console errors).
+**F2C acceptance**: verify_ui 47/47 preserved, E2E expanded with 5 new responsive/a11y tests (no-overflow at 390px, dialog focus trap + Escape, more tools keyboard nav, table th scope, form labels). Screenshots at `.tmp/f2c/` (6 files, stage-verified, menu closed, scroll-to-top). All JS node --check passing, ruff clean on Python test files.
 
-**Known: F2C first fix** — mobile Model/Validate screenshots captured Pilot stage content due to screenshot script navigating after full pipeline completion. Menu dropdown also left expanded in some captures. Functionality unaffected; fix screenshot stage targeting + menu state in F2C first task.
+**F2C known boundaries**: No backend, migration, or API changes. No MCP, Action execution, or data write-back. No new dependencies. Old pages preserved in "更多工具" dropdown, all functional. Screenshot stage targeting fixed — mobile pipeline runs independently, stage elements verified before capture.
 
 Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Frontend F2B delivered + acceptance-verified. F2C next.

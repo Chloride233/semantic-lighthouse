@@ -1,6 +1,6 @@
 # Frontend F2 — Guided Business Pilot Workspace
 
-**Status**: F2A + F2B delivered + reviewed + acceptance-verified. F2C next.
+**Status**: F2A + F2B + F2C complete. Guided Pilot workspace delivered.
 
 **F2B Review fixes**:
 - Removed all `location.reload()` — use reloadProject callback instead.
@@ -24,7 +24,7 @@ Phase 14 established the five-stage business pilot pipeline (goal → data → m
 |-------|------|--------|
 | F2A | Pilot entry, project creation, goal + data stage, nav restructure | ✅ Delivered |
 | F2B | Model → Validate → Pilot full operation loop (modeling, review, package build, binding, query, activation) | ✅ Delivered |
-| F2C | Frontend review, responsive/accessibility polish, old entry points consolidation | Future |
+| F2C | Frontend review, responsive/accessibility polish, old entry points consolidation | ✅ Delivered |
 
 ---
 
@@ -96,9 +96,44 @@ Tasks:
 
 ---
 
-## F2C (Future)
+## F2C Delivered
 
-- Full responsive pass on all pages.
-- Keyboard navigation audit.
-- Accessibility (WCAG AA).
-- Consolidate old entry points.
+Responsive, accessibility, and visual polish pass. No new features added.
+
+### Responsive
+- 1440px, 1024px, 768px, 390px all zero horizontal overflow.
+- Group select constrained to max-width: 180px (desktop) / 140px (mobile).
+- Checkbox/radio use stable native sizing — no longer inherit full-width input rules.
+- Stage rail: horizontal on desktop, vertical on mobile (600px breakpoint).
+- Long api_name/hash: `word-break: break-all` + `overflow-wrap: anywhere`.
+- Tables scroll within container only — `.tableWrap` + `.queryTableWrap` patterns.
+- Dialog fits 390x844 — reduced internal padding at ≤500px.
+- Mobile topbar compact — navRight wraps, navContext truncates long names.
+- Model review row, stageCTAs, and queryRow stack vertically on mobile.
+
+### Accessibility
+- Dialog: `aria-modal="true"`, `aria-labelledby`, focus trap (Tab wraps within dialog), Escape/overlay/cancel all clean up listeners, error has `role="alert"`, focus restored on close.
+- More tools dropdown: Enter/Space/ArrowDown to open, Arrow keys to navigate items, Escape to close, `aria-controls` + `aria-labelledby` on menu.
+- All profile/contract table `<th>` use `scope="col"`.
+- All form controls have associated `<label>` elements.
+- focus-visible: 2px solid outline with offset on buttons, links, selects.
+- Skip link preserved.
+
+### Visual
+- Each stage has one primary action; secondary/danger hierarchy clear.
+- Model review row stays on one line on desktop, stacks on mobile.
+- Validate quality/contract/binding sections remain scan-friendly.
+- Pilot query results + provenance have clear hierarchy.
+- No emoji, gradients, glass effects, hero sections, or card-in-card patterns.
+- Old pages preserved in "更多工具" dropdown, all functional.
+
+### Screenshots
+`.tmp/f2c/` (6 files): model/validate/pilot at desktop (1280px) + mobile (390px).
+- Script waits for stage-specific elements (.draftRow for model, .stagePanel for validate, .queryForm for pilot).
+- Menu closed and scrolled to top before each capture.
+- Programmatic overflow checks (scrollWidth ≤ innerWidth).
+
+### Verification
+- E2E: 5 new F2C tests (responsive no-overflow, dialog focus trap + Escape, more tools keyboard nav, table th scope, form control labels).
+- verify_ui: 47/47 preserved.
+- Screenshot metadata: all 6 files > 0 bytes, scrollWidth ≤ innerWidth, stage elements confirmed.

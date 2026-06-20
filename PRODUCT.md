@@ -56,7 +56,7 @@ The experience should feel like a professional semantic operating layer workspac
 - Phase 11/12 delivered: Ontology Modeling Drafts v1 + Model Quality & Contract Packages v1 — see `docs/phase11-planning.md` and `docs/phase12-planning.md`.
 - Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 — delivered.
 - Phase 14: Business Pilot Project main chain (goal→data→model→validate→pilot) — COMPLETE (backend + frontend F2B delivered, F2C next).
-- Frontend F2: Guided Business Pilot workspace — F2B delivered + acceptance-verified.
+- Frontend F2: Guided Business Pilot workspace — F2 Complete (F2A+F2B+F2C delivered).
 
 ## Product Non-Goals For Now
 

@@ -1059,3 +1059,288 @@ def test_f2b_code_quality_checks(page: Page, base_url: str) -> None:
     # Final check: no [object Object] anywhere
     body_text = page.locator("body").text_content()
     assert "[object Object]" not in body_text, "Must not show raw JS object in any page"
+
+
+# ═════════════════════════════════════════════════════════════════════
+#  F2C — Responsive, accessibility, visual polish
+# ═════════════════════════════════════════════════════════════════════
+
+def test_f2c_responsive_no_overflow_at_390px(page: Page, base_url: str) -> None:
+    """Verify no horizontal overflow at 390px viewport on all Pilot pages."""
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{base_url}/console")
+    _register(page, _unique_email("e2e-f2c-rp"))
+    _login(page)
+    _onboard(page, "F2C Resp")
+
+    # Create project + upload CSV + generate drafts for model stage
+    page.click("#createFirstBtn")
+    page.wait_for_timeout(400)
+    page.fill("#npName", "Resp Project")
+    page.fill("#npGoal", "Responsive test")
+    page.click("#npSubmit")
+    page.wait_for_timeout(1500)
+    page.click("#uploadFirstBtn")
+    page.wait_for_timeout(400)
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    csv_path = UPLOAD_DIR / f"resp-{uuid.uuid4().hex[:8]}.csv"
+    csv_path.write_text("id,label\n1,Alpha\n2,Beta\n", encoding="utf-8")
+    page.set_input_files("#upFile", str(csv_path))
+    page.click("#upSubmit")
+    page.wait_for_timeout(3000)
+
+    # Generate drafts to reach model stage
+    page.wait_for_timeout(500)
+    if page.locator("#genFromDataBtn").count() > 0:
+        page.click("#genFromDataBtn")
+        page.wait_for_timeout(2500)
+
+    # Check model page has no overflow
+    no_overflow = page.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth")
+    assert no_overflow, "Model page at 390px must not have horizontal overflow"
+
+    # Verify stage rail is visible (vertical layout should show all stages)
+    assert page.locator(".stageRailLg").count() > 0, "Stage rail must be visible at 390px"
+
+    # Verify draft rows are not smashed
+    assert page.locator(".draftRow").count() > 0, "Draft rows must be visible at 390px"
+
+    # Check no [object Object]
+    body = page.locator("body").text_content()
+    assert "[object Object]" not in body
+
+    # Accept drafts + build + bind + activate to reach pilot
+    if page.locator("#selectAllProposed").count() > 0:
+        page.click("#selectAllProposed")
+        page.wait_for_timeout(200)
+    if page.locator(".draftCheck:checked").count() > 0:
+        page.click("#batchAcceptBtn")
+        page.wait_for_timeout(400)
+        if page.locator("#dlgConfirm").count() > 0:
+            page.click("#dlgConfirm")
+            page.wait_for_timeout(1500)
+    page.wait_for_timeout(500)
+    build_btn = page.locator("#buildPkgBtn")
+    if build_btn.count() > 0 and not build_btn.is_disabled():
+        build_btn.click()
+        page.wait_for_timeout(500)
+        if page.locator("#dlgReason").count() > 0:
+            page.fill("#dlgReason", "ok")
+            page.click("#dlgConfirm")
+        page.wait_for_timeout(1500)
+    page.wait_for_timeout(500)
+    if page.locator("#genBindingsBtn").count() > 0:
+        page.click("#genBindingsBtn")
+        page.wait_for_timeout(1500)
+    if page.locator("#activateBtn").count() > 0:
+        page.click("#activateBtn")
+        page.wait_for_timeout(300)
+        if page.locator("#dlgConfirm").count() > 0:
+            page.click("#dlgConfirm")
+            page.wait_for_timeout(1500)
+
+    # Check pilot page has no overflow
+    no_overflow_pilot = page.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth")
+    assert no_overflow_pilot, "Pilot page at 390px must not have horizontal overflow"
+
+    # Verify query form is visible
+    assert page.locator("#qOT").count() > 0, "Query workbench must be visible at 390px"
+
+    # Run query and verify table doesn't cause overflow
+    page.click("#qRunBtn")
+    page.wait_for_timeout(2000)
+    no_overflow_result = page.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth")
+    assert no_overflow_result, "Query results at 390px must not cause horizontal overflow"
+
+
+def test_f2c_dialog_focus_trap_and_escape(page: Page, base_url: str) -> None:
+    """Verify dialog: focus trap (Tab stays inside), Escape closes, focus restores."""
+    page.goto(f"{base_url}/console")
+    _register(page, _unique_email("e2e-f2c-dlg"))
+    _login(page)
+    _onboard(page, "F2C Dialog")
+
+    # Create project + upload CSV
+    page.click("#createFirstBtn")
+    page.wait_for_timeout(400)
+    page.fill("#npName", "Dialog Test")
+    page.fill("#npGoal", "Dialog a11y test")
+    page.click("#npSubmit")
+    page.wait_for_timeout(1500)
+    page.click("#uploadFirstBtn")
+    page.wait_for_timeout(400)
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    csv_path = UPLOAD_DIR / f"dlg-{uuid.uuid4().hex[:8]}.csv"
+    csv_path.write_text("id,val\n1,x\n", encoding="utf-8")
+    page.set_input_files("#upFile", str(csv_path))
+    page.click("#upSubmit")
+    page.wait_for_timeout(3000)
+
+    # Generate drafts + accept all
+    page.wait_for_timeout(500)
+    if page.locator("#genFromDataBtn").count() > 0:
+        page.click("#genFromDataBtn")
+        page.wait_for_timeout(2500)
+    if page.locator("#selectAllProposed").count() > 0:
+        page.click("#selectAllProposed")
+        page.wait_for_timeout(200)
+    if page.locator(".draftCheck:checked").count() > 0:
+        page.click("#batchAcceptBtn")
+        page.wait_for_timeout(400)
+        # Dialog should appear
+        expect(page.locator("#dlgConfirm")).to_be_visible(timeout=5000)
+
+        # Verify dialog has aria-modal
+        dlg = page.locator(".dialog")
+        aria_modal = dlg.get_attribute("aria-modal")
+        assert aria_modal == "true", "Dialog must have aria-modal=true"
+
+        # Click confirm to place focus inside dialog, then verify focus trap
+        page.locator("#dlgConfirm").click()
+        page.wait_for_timeout(200)
+
+        # Focus should be on confirm button after click
+        focused_id = page.evaluate("() => document.activeElement?.id || ''")
+        assert focused_id in ("dlgReason", "dlgConfirm", "dlgCancel"), f"Focus must be inside dialog after click, got {focused_id}"
+
+        # Press Shift+Tab: focus should move to cancel (or reason if present), NOT leave dialog
+        page.keyboard.press("Shift+Tab")
+        page.wait_for_timeout(100)
+        focused_after_stab = page.evaluate("() => document.activeElement?.id || ''")
+        assert focused_after_stab in ("dlgReason", "dlgConfirm", "dlgCancel"), f"Shift+Tab must stay in dialog, got {focused_after_stab}"
+
+        # Press Escape: dialog should close
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(500)
+        dlg_gone = page.locator(".dialogOverlay").count() == 0
+        assert dlg_gone, "Escape must close dialog"
+
+
+def test_f2c_more_tools_keyboard_nav(page: Page, base_url: str) -> None:
+    """Verify more-tools dropdown: Enter to open, Arrow keys to navigate, Escape to close."""
+    page.goto(f"{base_url}/console")
+    _register(page, _unique_email("e2e-f2c-mt"))
+    _login(page)
+    _onboard(page, "F2C MoreTools")
+
+    # Focus the more-tools button
+    page.focus("#navMoreBtn")
+    page.wait_for_timeout(200)
+
+    # Verify menu is hidden initially
+    menu_hidden = page.evaluate("() => document.getElementById('navMoreMenu').hidden")
+    assert menu_hidden, "More tools menu must be hidden initially"
+
+    # Press Enter to open
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(300)
+    menu_open = page.evaluate("() => !document.getElementById('navMoreMenu').hidden")
+    assert menu_open, "Enter must open more tools menu"
+
+    # ArrowDown to navigate within menu
+    page.keyboard.press("ArrowDown")
+    page.wait_for_timeout(100)
+    focus_in_menu = page.evaluate("""() => {
+        const menu = document.getElementById('navMoreMenu');
+        return menu && menu.contains(document.activeElement);
+    }""")
+    assert focus_in_menu, "ArrowDown must navigate within menu"
+
+    # Escape to close
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)
+    menu_closed = page.evaluate("() => document.getElementById('navMoreMenu').hidden")
+    assert menu_closed, "Escape must close more tools menu"
+
+
+def test_f2c_table_th_scope(page: Page, base_url: str) -> None:
+    """Verify data tables use proper th scope attributes."""
+    page.goto(f"{base_url}/console")
+    _register(page, _unique_email("e2e-f2c-tbl"))
+    _login(page)
+    _onboard(page, "F2C Table")
+
+    # Create project + upload CSV
+    page.click("#createFirstBtn")
+    page.wait_for_timeout(400)
+    page.fill("#npName", "Table Test")
+    page.fill("#npGoal", "Table scope test")
+    page.click("#npSubmit")
+    page.wait_for_timeout(1500)
+    page.click("#uploadFirstBtn")
+    page.wait_for_timeout(400)
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    csv_path = UPLOAD_DIR / f"tbl-{uuid.uuid4().hex[:8]}.csv"
+    csv_path.write_text("product_id,name,price\n1,Alice,9.99\n", encoding="utf-8")
+    page.set_input_files("#upFile", str(csv_path))
+    page.click("#upSubmit")
+    page.wait_for_timeout(3000)
+
+    # Expand dataset profile to see the table
+    expect(page.locator(".datasetItem")).to_be_visible(timeout=10000)
+    page.locator("[id^='dsToggle-']").first.click()
+    page.wait_for_timeout(400)
+
+    # All th elements in profile table must have scope="col"
+    th_count = page.locator(".profileTable th").count()
+    scoped_count = page.locator(".profileTable th[scope='col']").count()
+    assert th_count > 0, "Profile table must have header cells"
+    assert scoped_count == th_count, f"All {th_count} th must have scope=col, found {scoped_count}"
+
+
+def test_f2c_form_controls_have_labels(page: Page, base_url: str) -> None:
+    """Verify project-dialog confirm form controls have associated labels."""
+    page.goto(f"{base_url}/console")
+    _register(page, _unique_email("e2e-f2c-lbl"))
+    _login(page)
+    _onboard(page, "F2C Labels")
+
+    # Create project + upload CSV + generate drafts to reach accept dialog
+    page.click("#createFirstBtn")
+    page.wait_for_timeout(400)
+    page.fill("#npName", "Label Test")
+    page.fill("#npGoal", "Label test")
+    page.click("#npSubmit")
+    page.wait_for_timeout(1500)
+    page.click("#uploadFirstBtn")
+    page.wait_for_timeout(400)
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    csv_path = UPLOAD_DIR / f"lbl-{uuid.uuid4().hex[:8]}.csv"
+    csv_path.write_text("id,v\n1,x\n", encoding="utf-8")
+    page.set_input_files("#upFile", str(csv_path))
+    page.click("#upSubmit")
+    page.wait_for_timeout(3000)
+    page.wait_for_timeout(500)
+    if page.locator("#genFromDataBtn").count() > 0:
+        page.click("#genFromDataBtn")
+        page.wait_for_timeout(2500)
+    if page.locator("#selectAllProposed").count() > 0:
+        page.click("#selectAllProposed")
+        page.wait_for_timeout(200)
+    if page.locator(".draftCheck:checked").count() > 0:
+        page.click("#batchAcceptBtn")
+        page.wait_for_timeout(400)
+
+    # Project dialog (batch accept confirm) should appear
+    expect(page.locator("#dlgConfirm")).to_be_visible(timeout=5000)
+
+    # All form inputs in project-dialog must have labels
+    orphan_inputs = page.evaluate("""() => {
+        const dlg = document.querySelector('.dialog');
+        if (!dlg) return ['no-dialog'];
+        const inputs = dlg.querySelectorAll('input:not([type="hidden"]), textarea, select');
+        const orphans = [];
+        inputs.forEach(inp => {
+            // Check for explicit label[for] OR implicit wrapping label ancestor
+            if (inp.closest('label')) return;
+            const id = inp.id;
+            if (id && dlg.querySelector('label[for="' + id + '"]')) return;
+            orphans.push(id || ('no-id:' + (inp.name || inp.type)));
+        });
+        return orphans;
+    }""")
+    assert len(orphan_inputs) == 0, f"All dialog inputs must have labels, orphans: {orphan_inputs}"
+
+    # Close dialog
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)

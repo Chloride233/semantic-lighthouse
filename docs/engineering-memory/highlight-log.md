@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Frontend F2C — Responsive, Accessible, Visually-Polished Guided Pilot Workspace
+
+- Date: 2026-06-20
+- Version: F2C
+- Type: polish
+- Context: F2B delivered the full guided pilot closed-loop. F2C was the final polish pass — responsive at all breakpoints (1440/1024/768/390), accessibility (WCAG AA touchpoints), and visual cleanup — without adding features or modifying backend.
+- What happened: CSS fixes targeted the root causes of layout drift: checkbox/radio now use stable native sizing (not inheriting full-width `input` rules), group select constrained to 180px max-width, stage rail adapts direction at 600px (horizontal→vertical), long text uses `word-break: break-all` + `overflow-wrap: anywhere`, tables scroll within containers only. Dialog received full accessibility treatment: `aria-modal`, `aria-labelledby`, focus trap (Tab wraps within), Escape/overlay/cancel cleanup, `role="alert"` on errors. More tools dropdown gained keyboard nav (Enter/Space/ArrowDown to open, Arrow keys to navigate, Escape to close) with `aria-controls` + `aria-labelledby`. Profile/contract table `<th>` now use `scope="col"`. All form controls have associated `<label>`. `focus-visible` uses 2px solid outline with offset. Screenshot script completely rewritten: menu is closed, page scrolled to top, stage-specific elements waited for (.draftRow for model, .stagePanel for validate, .queryForm for pilot), mobile runs its own independent pipeline, programmatic overflow checks (`scrollWidth ≤ innerWidth`).
+- Engineering judgment: Visual polish without feature creep. The key discipline was resisting the temptation to "improve" the UI — all old pages remain in "更多工具" dropdown, no gradients or glass effects were added, no card-in-card patterns introduced. Each stage has one primary action with clear secondary/danger hierarchy. The responsive fixes were done at the CSS selector level (not with per-element inline styles) to maintain consistency. Accessibility fixes were surgical — aria attributes on existing elements, focus management in existing handlers, keyboard nav added to existing dropdown pattern.
+- Verification: E2E expanded to 18 tests (5 new F2C: responsive no-overflow, dialog focus trap+Escape, more tools keyboard nav, table th scope, form labels). verify_ui 47/47 preserved. Screenshots at `.tmp/f2c/` — 6 files, stage-verified, 0 console errors. No backend, migration, or API changes.
+
 ## Frontend F2B — Guided Pilot Full Closed-Loop Acceptance Verified
 
 - Date: 2026-06-20
