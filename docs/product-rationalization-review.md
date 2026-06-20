@@ -415,6 +415,7 @@ This pattern is consistent with `OntologyModelingDraft.evidence_refs` validation
 | Project archived | Existing links remain — project archive does not cascade. List endpoint still works. Creating new links to archived projects returns 409. |
 | Active duplicate link | Second POST with same `(project_id, evidence_type, evidence_id)` and existing link `status=active` returns 200 with the existing record. No new audit row. |
 | Removed link re-POST | Existing link with `status=removed` is reactivated: `status` → `active`, `removed_by`/`removed_at` cleared, `updated_at` set. Audit: `evidence_relink`. Returns 200. |
+| Source evidence deleted | `ProjectEvidenceLink.status` stays `active`. GET dynamically returns `evidence_status: "gone"` / `unavailable: true`. Link is NOT auto-set to `removed` — `removed` only means the user explicitly unlinked. |
 | Remove link | `status` → `removed`, `removed_by` and `removed_at` set. Original evidence never deleted. Link row never physically deleted. Audit: `evidence_unlink`. |
 | List removed links | Default list returns only `active`. Query parameter `?status=removed` or `?status=all` includes removed links. |
 | Audit | Every state transition creates an `OntologyRuntimeAudit` record. `operation`: `evidence_link` / `evidence_unlink` / `evidence_relink`. `object_type` stores `document` or `rag_run`. `field_names` stores only field name strings: `["evidence_type", "role", "note", "status"]` — never field values, IDs, paths, or secrets. `project_id` is a dedicated column. `error_summary` never contains evidence_id, note text, file paths, raw_content, or prompts. |
@@ -428,7 +429,7 @@ The list response for each link includes:
   "id": "...",
   "evidence_type": "document",
   "evidence_id": "...",
-  "role": "business context",
+  "role": "context",
   "note": "Industry whitepaper referenced in goal stage",
   "status": "active",
   "created_by": "...",
@@ -456,7 +457,7 @@ Request:
 {
   "evidence_type": "document",
   "evidence_id": "abc123...",
-  "role": "business context",
+  "role": "context",
   "note": "Referenced during goal definition"
 }
 ```
@@ -478,7 +479,7 @@ Response (201 or 200):
   "project_id": "...",
   "evidence_type": "document",
   "evidence_id": "...",
-  "role": "business context",
+  "role": "context",
   "note": "Referenced during goal definition",
   "status": "active",
   "created_by": "...",
@@ -561,7 +562,7 @@ Errors: 404 if link not found or `link.project_id != project_id` or `link.group_
 | Risk | Mitigation |
 |------|-----------|
 | Polymorphic evidence_id bypasses type safety | Server-side validation queries the correct table per evidence_type before insert. Rejects unknown types at the schema level. |
-| Evidence deleted after link created | Links persist with `evidence_status: "gone"` in provenance. List query gracefully handles missing evidence rows. |
-| Concurrent duplicate creation | Unique constraint on (project_id, evidence_type, evidence_id) catches the race. Second insert raises IntegrityError → caught and mapped to 409. |
+| Evidence deleted after link created | Link row unchanged (`status` stays `active`). GET query dynamically returns `evidence_status: "gone"` / `unavailable: true` when the evidence row is missing. Link is NOT auto-set to `removed`. |
+| Concurrent duplicate creation | Unique constraint catches the race. On IntegrityError: rollback the failed insert, re-query the existing row. If `active` → return 200. If `removed` → apply relink rules (reactivate + evidence_relink audit) → return 200. Never returns 409 for a duplicate race. |
 | Audit table growth | Each link create/remove is one OntologyRuntimeAudit row. Acceptable — query runtime audit is write-only (no query API exposed by design, matching existing Phase 14.5 pattern). |
 | Migration number collision | Next available migration number determined at implementation time. Documented as TBD. |
