@@ -335,3 +335,223 @@ Actual changes (3 files, +27 lines):
   - 6 new checks: Goal knowledge/ask link href correctness, Data stage primary/secondary button class verification, Model ontology link href correctness.
 
 No backend, API, schema, migration, permission, route, navigation, or page changes.
+
+---
+
+## 10. S2.2 Project Evidence Contract — Design
+
+Status: Design complete. Implementation deferred to Safety Lane approval.
+
+### Decision Summary
+
+**Chosen approach**: Single `ProjectEvidenceLink` table with polymorphic `evidence_type` + `evidence_id`. Server-side type-specific validation. No multi-table inheritance. No DB-level foreign keys to evidence sources.
+
+**Rejected alternatives**:
+- **Multiple join tables** (`project_document_links`, `project_ragrun_links`): Adds migration and API surface for each new evidence type. No clear benefit over a single table with a type discriminator, since all evidence types share the same lifecycle (associate, list, archive, audit).
+- **JSON column on BusinessProject**: Cannot index, cannot query "all projects linked to document X," and mixes project metadata with relational evidence.
+- **Reuse `evidence_refs` on OntologyModelingDraft**: Draft-level evidence is about column-to-dataset lineage, not project-level knowledge grounding. Different granularity, different lifecycle, different UX.
+
+### 10.1 Read Model
+
+**Table**: `project_evidence_links` (new migration, TBD number after 0023)
+
+| Column | Type | Constraints | Purpose |
+|--------|------|-------------|---------|
+| `id` | String(36) | PK, default=new_id | Standard UUID primary key |
+| `group_id` | String(36) | FK groups.id, indexed, NOT NULL | Group isolation — never trust client-supplied |
+| `project_id` | String(36) | FK business_projects.id, indexed, NOT NULL | Project scope |
+| `evidence_type` | String(20) | NOT NULL | `document` or `rag_run` (extensible) |
+| `evidence_id` | String(36) | NOT NULL | ID of the Document or RAGRun |
+| `role` | String(80) | NULLABLE | FDE-added label, e.g. "business context," "technical reference" |
+| `note` | Text | NULLABLE | Optional FDE annotation |
+| `status` | String(20) | NOT NULL, default="active" | `active` or `removed` |
+| `created_by` | String(36) | FK users.id, NOT NULL | Who created the link |
+| `created_at` | DateTime(tz=True) | NOT NULL, default=utc_now | Creation timestamp |
+| `removed_by` | String(36) | NULLABLE | Who removed the link |
+| `removed_at` | DateTime(tz=True) | NULLABLE | Removal timestamp |
+
+**Unique constraint**: `(project_id, evidence_type, evidence_id)` — prevents duplicate links for the same evidence to the same project.
+
+**No cascade deletes**. Removing a link sets `status='removed'` + audit fields. Deleting a Document or RAGRun does not cascade — the link row remains with `status='removed'` for audit.
+
+### 10.2 Polymorphic evidence_id Validation
+
+Since `evidence_id` references different tables depending on `evidence_type`, DB-level foreign keys are not used. Instead:
+
+**On CREATE**:
+1. Validate `evidence_type` is in allowed set (`document`, `rag_run`).
+2. Query the evidence table by `evidence_id`.
+3. Assert the evidence row exists AND `evidence.group_id == project.group_id` (both from the URL route).
+4. If the evidence row does not exist or belongs to a different group, return 404 (no existence leak).
+5. Additional lifecycle checks (see 10.4).
+
+This pattern is consistent with `OntologyModelingDraft.evidence_refs` validation (which checks `source_entity_id`/`source_relation_id`/`source_issue_id` by querying the respective tables within the same group).
+
+### 10.3 Permissions and Isolation
+
+| Operation | Permission | Isolation Check |
+|-----------|-----------|----------------|
+| `POST` (create link) | Owner or admin of the group | `group_id` from route; `project.group_id == group_id`; `evidence.group_id == group_id` |
+| `GET` (list links) | Member+ | `group_id` from route; `project.group_id == group_id` |
+| `DELETE` (archive link) | Owner or admin of the group | Same as create; sets `status='removed'` |
+
+**Hard rules**:
+- `group_id` in the request body is always ignored — it comes from the URL path.
+- Cross-group access returns 404 (no 403 that leaks existence).
+- Cross-project access returns 404.
+- Evidence that has been archived (Document.status=archived) or failed (RAGRun.status=error) is still linkable but the response includes a `stale` or `unavailable` flag.
+- Agent runs cannot call the evidence link API. No tool registration for evidence operations.
+- Goal stage knowledge base/ask links remain navigation-only — they do not auto-create evidence links.
+
+### 10.4 Lifecycle
+
+| Scenario | Behavior |
+|----------|----------|
+| Document archived | Existing links remain `active`. List response includes `evidence_status: "archived"` in the provenance summary. New links to archived documents are accepted but marked with the same flag. |
+| RAG run failed (status=error) | Existing links remain `active`. List response includes `evidence_status: "error"`. New links to failed runs are accepted but flagged. |
+| Project archived | Existing links remain — project archive does not cascade. List endpoint still works. Creating new links to archived projects returns 409. |
+| Duplicate link | Second POST with same `(project_id, evidence_type, evidence_id)` returns 409 with the existing link ID. Idempotent — no new row created. |
+| Remove link | `status` → `removed`, `removed_by` and `removed_at` set. The original evidence (Document, RAGRun) is never deleted. The link row is never physically deleted. |
+| List removed links | Default list returns only `active`. Query parameter `?status=removed` or `?status=all` includes removed links. |
+| Audit | Every state transition (create, remove) creates an `OntologyRuntimeAudit` record with `operation="evidence_link"` or `operation="evidence_unlink"`. `field_names` carries `[evidence_type, evidence_id, project_id]`. `filter_field_names` is unused. |
+
+### 10.5 Provenance Summary
+
+The list response for each link includes:
+
+```json
+{
+  "id": "...",
+  "evidence_type": "document",
+  "evidence_id": "...",
+  "role": "business context",
+  "note": "Industry whitepaper referenced in goal stage",
+  "status": "active",
+  "created_by": "...",
+  "created_at": "...",
+  "provenance": {
+    "evidence_title": "Enterprise Ontology Design",
+    "evidence_status": "ready",
+    "evidence_source_path": "knowledge-graph/concepts/ontology.md",
+    "evidence_created_at": "..."
+  }
+}
+```
+
+For RAGRun evidence, `provenance` includes `question` (truncated 120 chars), `confidence`, `retrieval_method`, and `citation_count` — but never the full answer text, citations content, or prompt.
+
+**Never exposed**: `raw_content`, `storage_path`, `answer`, `citations[].snippet`, `prompt`, `error_message`, `secret`, `token`.
+
+### 10.6 API Draft
+
+**`POST /groups/{group_id}/projects/{project_id}/evidence-links`**
+
+Request:
+```json
+{
+  "evidence_type": "document",
+  "evidence_id": "abc123...",
+  "role": "business context",
+  "note": "Referenced during goal definition"
+}
+```
+
+Validation:
+1. `require_group_role(db, user_id, group_id, {"owner", "admin"})` — 403 if not owner/admin.
+2. `_get_project_or_404(db, project_id, group_id)` — 404 if project not in group.
+3. If project.status == "archived" → 409.
+4. Validate `evidence_type` ∈ {document, rag_run} → 422.
+5. Query evidence by evidence_id. If not found or `evidence.group_id != group_id` → 404.
+6. Check unique constraint. If duplicate → 409 with `{"detail": "Evidence already linked", "existing_link_id": "..."}`.
+7. Create link, create `OntologyRuntimeAudit(operation="evidence_link")`, return 201.
+
+Response (201):
+```json
+{
+  "id": "...",
+  "project_id": "...",
+  "evidence_type": "document",
+  "evidence_id": "...",
+  "role": "business context",
+  "note": "Referenced during goal definition",
+  "status": "active",
+  "created_by": "...",
+  "created_at": "...",
+  "provenance": { ... }
+}
+```
+
+**`GET /groups/{group_id}/projects/{project_id}/evidence-links`**
+
+Query params: `?status=active` (default), `?status=removed`, `?status=all`, `?evidence_type=document`, `?limit=20`, `?offset=0`.
+
+Response (200):
+```json
+{
+  "links": [ { ... } ],
+  "total": 5,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+**`DELETE /groups/{group_id}/projects/{project_id}/evidence-links/{link_id}`**
+
+No request body. Sets `status='removed'`, `removed_by`, `removed_at`. Creates audit record. Returns 200 with the updated link. Idempotent — deleting an already-removed link returns 200 (no error).
+
+Errors: 404 if link not found or `link.project_id != project_id` or `link.group_id != group_id`. 403 if not owner/admin.
+
+### 10.7 UI Boundaries (Future S2.4)
+
+- Goal stage may show a "Project Evidence" summary below the existing support links, listing linked documents and RAG runs with their provenance summaries.
+- Users explicitly select "关联到 Pilot" from the knowledge base document list or from a RAG answer card. This is a deliberate action, not automatic.
+- The evidence panel does not embed the full Documents page or RAG console — it shows summaries with links to the standalone pages.
+- No standalone page is hidden until the project-scoped panel reaches replacement parity.
+
+### 10.8 Test Plan
+
+| # | Test | Lane |
+|---|------|------|
+| 1 | Owner creates evidence link (document) — 201 | Safety |
+| 2 | Owner creates evidence link (rag_run) — 201 | Safety |
+| 3 | Admin creates evidence link — 201 | Safety |
+| 4 | Member cannot create — 403 | Safety |
+| 5 | Outsider cannot create — 403 (not 404) | Safety |
+| 6 | Cross-group project returns 404 | Safety |
+| 7 | Cross-group evidence returns 404 (no existence leak) | Safety |
+| 8 | Invalid evidence_type returns 422 | Safety |
+| 9 | Duplicate link returns 409 with existing ID | Safety |
+| 10 | Archived document — link accepted, provenance shows archived | Safety |
+| 11 | Failed RAG run — link accepted, provenance shows error | Safety |
+| 12 | Archived project rejects new links — 409 | Safety |
+| 13 | Member can list links for their group's project | Safety |
+| 14 | Outsider cannot list links — 403 | Safety |
+| 15 | Cross-project link listing returns 404 | Safety |
+| 16 | Owner removes link — status=removed, audit recorded | Safety |
+| 17 | Member cannot remove link — 403 | Safety |
+| 18 | Double remove is idempotent — 200 | Safety |
+| 19 | List with status=removed returns removed links | Safety |
+| 20 | Provenance excludes raw_content, storage_path, answer, prompt | Safety |
+| 21 | Agent tool registry does not include evidence link operations | Safety |
+| 22 | Evidence link audit record written on create and remove | Safety |
+
+### 10.9 Rejected Design Alternatives
+
+| Alternative | Why Rejected |
+|-------------|-------------|
+| Multiple join tables per evidence type | Doubles migration and API surface per type. All evidence types share identical lifecycle — type discriminator is simpler. |
+| DB-level foreign keys to documents/rag_runs | Polymorphic FK not supported in standard SQL without complex CHECK constraints. Server-side validation already proven in OntologyModelingDraft.evidence_refs. |
+| JSON column on BusinessProject | Unindexable. Cannot query "which projects link to document X." Mixes project metadata with evidence. |
+| Auto-link from Goal stage navigation | Violates explicit user action requirement. Goal links are discovery, not commitment. FDE must deliberately choose to associate evidence. |
+| Soft-delete via a separate `removed_links` table | Over-normalization. Status column with audit timestamps provides the same audit trail with simpler queries. |
+| Agent auto-link evidence | Agent does not have project scope. All evidence association requires human judgment about relevance to the specific project. |
+
+### 10.10 Risks and Mitigations
+
+| Risk | Mitigation |
+|------|-----------|
+| Polymorphic evidence_id bypasses type safety | Server-side validation queries the correct table per evidence_type before insert. Rejects unknown types at the schema level. |
+| Evidence deleted after link created | Links persist with `evidence_status: "gone"` in provenance. List query gracefully handles missing evidence rows. |
+| Concurrent duplicate creation | Unique constraint on (project_id, evidence_type, evidence_id) catches the race. Second insert raises IntegrityError → caught and mapped to 409. |
+| Audit table growth | Each link create/remove is one OntologyRuntimeAudit row. Acceptable — query runtime audit is write-only (no query API exposed by design, matching existing Phase 14.5 pattern). |
+| Migration number collision | Next available migration number determined at implementation time. Documented as TBD. |

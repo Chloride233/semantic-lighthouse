@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S2.1 contextual guidance complete"
-description = "Goal stage: upload dataset (primary) + knowledge base / ask links (secondary, not project-scoped). Data stage: generate drafts (primary) + upload more (secondary). Model stage: ontology link (secondary, group-level governance context). No backend, API, schema, migration, permission, or navigation changes. See docs/product-rationalization-review.md section 9."
+current = "S2.2 project evidence contract design complete"
+description = "Design complete: single ProjectEvidenceLink table with polymorphic evidence_type/evidence_id, server-side type validation, group_id + project_id dual isolation, audit via OntologyRuntimeAudit. 22-test plan defined. Implementation deferred to Safety Lane approval. See docs/product-rationalization-review.md section 10."
 
 [next_decision_gate]
-name = "approve S2.2 project evidence contract design"
-description = "S2.2 scope: design and, only after approval, persist explicit project-to-evidence linkage. Evidence association must be group-checked, project-scoped, auditable, and provenance-preserving. Design only — no implementation until approved."
+name = "approve S2.2 Safety Lane implementation"
+description = "Implement ProjectEvidenceLink model (new migration), CRUD API, permissions, lifecycle, provenance sanitization, and 22 targeted tests. Safety Lane: auth, group_id isolation, audit required. No UI changes until S2.4."
 
 [mcp]
 runtime_status = "not started"
