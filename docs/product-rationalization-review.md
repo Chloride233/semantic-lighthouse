@@ -1,7 +1,7 @@
-# Product Rationalization Review — S0 Audit
+# Product Rationalization and Surface Consolidation Review
 
 Date: 2026-06-20
-Status: S1 safety correction complete. 1 dead code removal + 9 doc archives confirmed safe. 3 utility scripts restored after safety review. S2 scope pending approval.
+Status: S2 product-surface consolidation design complete. S2.1 contextual guidance implementation pending approval.
 
 ## 1. FDE Role and Main Chain
 
@@ -82,7 +82,7 @@ The Pilot five stages are the product's primary user path but do NOT represent t
 |---|------|------|----------|------|
 | R1 | `MessageResponse` schema | Dead code | `schemas.py` line 78. Zero imports in any router or service. Grep: `rg "MessageResponse" src/` returns only the definition, no callers. | **None**. Pure dead code. |
 | R2 | `scripts/dev/start-v1-api.ps1` + `stop-v1-api.ps1` | **HOLD** — restored after safety review. | Provides PID management, background process lifecycle, and log redirection. Not equivalent to `start_local_app.ps1` (foreground, no PID). Retained as unattended/headless start option. |
-| R3 | `scripts/download_ecommerce_datasets.py` | **HOLD** — restored after safety review. | Downloads benchmark ecommerce datasets (Olist, Retail Rocket, UCI, Instacart). Awaiting S2 FDE scenario-pack decision on whether non-manufacturing business-object test data is needed. |
+| R3 | `scripts/download_ecommerce_datasets.py` | **HOLD** — restored after safety review. | Downloads benchmark ecommerce datasets (Olist, Retail Rocket, UCI, Instacart). Awaiting a later domain/scenario-pack decision on whether non-manufacturing business-object test data is needed. |
 | R4 | `docs/mvp-plan.md` | Superseded doc | 2-week MVP plan from project inception. Entirely superseded by Phase 1-14 delivery. | **Archived.** S1 moved to `docs/archive/mvp-plan.md`. |
 | R5 | `docs/web-search-design.md` | Design-only doc | Feature classified as "Discovery" since 2026-06-17. Never implemented. | **Archived.** S1 moved to `docs/archive/web-search-design.md`. |
 | R6 | `docs/agent-capability-v2-design.md` | Superseded design | 18-section V2 design document. V2.1/V2.2/V2.3 all delivered. | **Archived.** S1 moved to `docs/archive/agent-capability-v2-design.md`. |
@@ -104,7 +104,7 @@ Each REMOVE item verified with `rg`/import/route/test scans:
 |------|--------------|----------------|---------------|---------------|
 | R1 MessageResponse | `rg "MessageResponse" src/` → 1 hit: definition only | 0 imports | 0 route references | 0 test references |
 | R2 start/stop-v1-api | HOLD — PID + background lifecycle, not equivalent to start_local_app | N/A (PowerShell) | N/A | N/A |
-| R3 download_ecommerce | HOLD — awaiting S2 FDE scenario-pack decision | N/A | N/A | 0 test imports |
+| R3 download_ecommerce | HOLD — awaiting a later domain/scenario-pack decision | N/A | N/A | 0 test imports |
 | R4 mvp-plan.md | `rg "mvp-plan" docs/` → 0 cross-references | N/A | N/A | N/A |
 | R5 web-search-design | `rg "web-search-design"` → 1 reference in CLAUDE.md (historical mention) | N/A | N/A | N/A |
 | R6-R10 Agent docs | Each doc self-contained with no cross-references from active entry docs | N/A | N/A | N/A |
@@ -126,7 +126,7 @@ S1 only performs low-risk cleanup that has zero impact on product behavior. All 
 |----------|------|--------|--------|
 | **S1-1** | R1: `MessageResponse` schema | Delete from schemas.py | ✅ Done — safe |
 | **S1-2** | R2: `start/stop-v1-api.ps1` | **Restored** after safety review | ⚠️ Reversed — provides PID/background lifecycle, not equivalent to start_local_app |
-| **S1-3** | R3: `download_ecommerce_datasets.py` | **Restored** after safety review | ⚠️ Reversed — awaiting S2 FDE scenario-pack decision |
+| **S1-3** | R3: `download_ecommerce_datasets.py` | **Restored** after safety review | ⚠️ Reversed — awaiting a later domain/scenario-pack decision |
 | **S1-4** | R4: `docs/mvp-plan.md` | Archive | ✅ Done |
 | **S1-5** | R5: `docs/web-search-design.md` | Archive | ✅ Done |
 | **S1-6** | R6-R10: Agent superseded docs (5 files) | Archive | ✅ Done |
@@ -238,3 +238,81 @@ The following are historical delivery records, not runtime redundancy. They are 
 - `docs/frontend-redesign-plan.md` (superseded by F2, but records design decisions)
 - `docs/project-workflows.md` (documents internal processes)
 - `docs/CODEMAPS/*.md` (code navigation)
+
+---
+
+## 9. S2 Product-Surface Consolidation Design
+
+### Decision
+
+Do not collapse every capability into Pilot tabs. The current standalone tools
+are group-scoped, while Pilot is project-scoped. Presenting them inside a Pilot
+without a real `project_id` contract would create a false integration and make
+isolation, provenance, and audit behavior harder to explain.
+
+The product surface has two levels:
+
+1. **Pilot** is the guided FDE delivery path for one business problem.
+2. **Ontology** is the shared semantic asset and governance workspace for the group.
+
+Workspace selection remains global context. Evidence, conversations, tasks, and
+Agent workflows remain supporting capabilities until they gain explicit project
+scope or a deliberate cross-project role.
+
+### Navigation Decision
+
+| Surface | S2 decision | Reason |
+|---------|-------------|--------|
+| Pilot | Keep in primary navigation and as default landing | Main guided delivery path |
+| Ontology | Keep in primary navigation | Product north star and group-level governance surface |
+| Workspace | Keep in primary navigation | Group and permission context |
+| Knowledge Base | Keep in More Tools; add contextual Pilot links in S2.1 | Evidence source is group-scoped |
+| Ask | Keep in More Tools; add contextual Pilot link in S2.1 | Useful for problem framing but not project-scoped |
+| Conversations | Keep unchanged | No `project_id`; no replacement exists |
+| Tasks | Keep unchanged | No `project_id`; cannot yet represent Pilot actions safely |
+| Agent | Keep unchanged as an advanced supporting tool | No project scope; existing HITL and audit remain valuable |
+| ETL Jobs / RAG Debug | Keep direct-route operator tools | Not part of normal user navigation |
+
+No navigation entry is hidden or removed in S2.1.
+
+### Stage Guidance Contract
+
+Each Pilot stage exposes one primary action and only relevant supporting paths.
+Supporting links navigate to existing capabilities; they do not imply that the
+resulting records are already attached to the project.
+
+| Pilot stage | Primary action | Supporting path |
+|-------------|----------------|-----------------|
+| Goal | Upload the first dataset | Open Knowledge Base or Ask to clarify the business problem |
+| Data | Upload more data / generate model drafts | Inspect source data profile |
+| Model | Review and accept drafts | Open Ontology governance for shared semantic context |
+| Validate | Build package, generate bindings, activate | Inspect quality and provenance already shown in the stage |
+| Pilot | Query the activated runtime | Keep measurement/iteration as an explicit future gap |
+
+### Implementation Slices
+
+| Slice | Lane | Scope | Exit condition |
+|-------|------|-------|----------------|
+| S2.1 Contextual guidance | Standard | Frontend links and concise stage guidance only; no API/schema change | A new user can identify the next action and relevant support path from each stage |
+| S2.2 Project evidence contract | Safety | Design and, only after approval, persist explicit project-to-evidence linkage | Evidence association is group-checked, project-scoped, auditable, and provenance-preserving |
+| S2.3 Project work context | Safety | Evaluate optional `project_id` for conversations, tasks, and Agent runs | No cross-project leakage; existing group-scoped flows remain compatible |
+| S2.4 Navigation consolidation | Standard | Hide or regroup standalone entries only after replacement parity | Direct routes remain compatible and tests prove replacement workflows |
+
+### S2.1 Boundaries
+
+- No backend, API, schema, migration, permission, or audit changes.
+- No page deletion or route removal.
+- No new tabs that duplicate full standalone applications.
+- No MCP runtime, Graph RAG, Agent auto-write, or new dependency.
+- Do not claim project linkage when the underlying record is only group-scoped.
+- Keep the Swiss visual system; this is workflow guidance, not another redesign.
+- Keep `download_ecommerce_datasets.py` on HOLD. Domain/scenario-pack selection is
+  a separate product decision, not part of S2 surface consolidation.
+
+### Acceptance Signals
+
+- Dataset-first users can continue directly through the five-stage Pilot.
+- Problem-first users can discover Knowledge Base and Ask from the Goal stage.
+- Ontology remains visibly central without competing with the Pilot sequence.
+- Every stage has a clear primary action; supporting tools are secondary.
+- Nothing is hidden before an equivalent project-scoped path exists.
