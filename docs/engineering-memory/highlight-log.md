@@ -3,12 +3,12 @@
 ## S2.3 — Project Context Must Constrain Execution, Not Merely Label It
 
 - Date: 2026-06-20
-- Version: S2.3A
+- Version: S2.3B
 - Type: decision
 - Context: Conversations, Tasks, and Agent runs are group-scoped parallel capabilities. Adding `project_id` could make them legible inside the Pilot chain, but a nullable column alone would falsely imply isolation while retrieval and tools still read the whole group.
-- What happened: S2.3A implemented optional, immutable, backward-compatible project context. Agent runs inherit context from a validated, user-owned Conversation. Scoped Tasks validate source consistency. Archived projects freeze new work without deleting history. Review caught and fixed five subtle boundary gaps: archived history had been blocked, unscoped sources could enter scoped work, list filters skipped project validation, RAG evidence checks omitted group scope, and Agent detail dropped project context. S2.3B will enforce retrieval and tool scope.
-- Engineering judgment: Context labels without execution constraints are dangerous because they create confidence without isolation. The server must derive project scope from persisted rows, propagate it through every retrieval/tool path, and preserve old unscoped behavior explicitly. This is also why S2.3 is split into persistence/validation and retrieval/tool enforcement before final review.
-- Verification: 26 focused and 95 related tests pass; changed-file ruff is clean; migration 0025 upgrade/downgrade/re-upgrade passes on SQLite.
+- What happened: S2.3A implemented optional, immutable, backward-compatible project context. S2.3B then made that context executable: project-scoped Conversation retrieval and Agent document tools now use only active ProjectEvidenceLink Documents; empty project evidence returns no evidence; unscoped behavior remains group-wide; project-scoped `archive_document` is denied. Review caught and fixed eight boundary gaps across the two slices, including archived history blocking, unscoped source mixing, missing project validation on filters, missing `group_id` on RAG evidence checks, semantic retrieval scope propagation, and scoped archive paths in Agent V1/V2/HITL.
+- Engineering judgment: Context labels without execution constraints are dangerous because they create confidence without isolation. The server must derive project scope from persisted rows, propagate it through every retrieval/tool path, preserve old unscoped behavior explicitly, and deny shared-document mutations from scoped Agent runs.
+- Verification: S2.3A passed 26 focused and 95 related tests plus SQLite migration upgrade/downgrade/re-upgrade. S2.3B passed 16 focused tests, 100 related tests, changed-file ruff, and grouped non-E2E regression covering all 832 collected non-E2E tests.
 
 ## S2.2 — Project Evidence Links: Explicit, Human-Reviewed, Auditable
 

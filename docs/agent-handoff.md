@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (S2.3A delivered and safety-reviewed, migration 0025)
+Last updated: 2026-06-20 (S2.3B delivered and safety-reviewed, migration 0025)
 
 ## State Source
 
@@ -11,7 +11,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 | Item | Value |
 |------|-------|
-| Commit | `ed621ef` |
+| Commit | `ea216bc` |
 | Backend pytest | 786 passed |
 | ruff | clean |
 | Migration | `0025` at head |
@@ -20,6 +20,9 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 | Screenshots | `.tmp/f2c/` 6 files |
 | Evidence tests | 38 pass |
 | S2.3A related tests | 95 pass |
+| S2.3B focused tests | 16 pass |
+| S2.3B related regression | 100 pass |
+| S2.3B grouped non-E2E regression | passed across all 832 collected non-E2E tests |
 
 ## Architecture Boundaries
 
@@ -49,16 +52,19 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 | Suite | Count | Notes |
 |-------|-------|-------|
-| Backend (non-E2E) | 786 passed, 3 skipped | ruff clean, migration 0024 at head |
+| Backend (non-E2E baseline) | 786 passed, 3 skipped | Last one-shot baseline before S2.3 |
 | Project evidence | 38 passed | permissions, dual isolation, lifecycle, provenance, audit atomicity |
 | S2.3A related | 95 passed | Conversations, Tasks, Agent, project context; migration 0025 roundtrip |
+| S2.3B focused | 16 passed | Project-bound retrieval, tool scope, empty evidence, archive denial |
+| S2.3B related | 100 passed | Retrieval, Conversations, Agent, project work context |
+| S2.3B grouped non-E2E | Passed | One-shot full command timed out after about 10 minutes; grouped suites covered all 832 collected non-E2E tests and passed |
 | verify_ui | 47/47 | Real owner full chain F2A+F2B, all assertions pass |
 | E2E (Playwright) | 18/18 | F2A, F2B (owner/member/WARN/FAIL/isolation), F2C (responsive/a11y) |
 | Screenshots | 6 files | `.tmp/f2c/`, 32–97 KB, stage-verified, 0 console errors |
 
 ## Next Decision Gate
 
-**Implement S2.3B project-bounded retrieval and tools**: project-scoped Conversations and Agent document tools must use only active ProjectEvidenceLink Documents. Empty evidence never falls back to the group, and scoped Agent runs cannot archive shared Documents. See section 11 of `docs/product-rationalization-review.md`.
+**Close S2.3 and choose the next S2 slice**: S2.3A persistence/validation and S2.3B project-bounded retrieval/tool enforcement are delivered and reviewed. Next work should either record a final S2.3 closeout commit or start a separately scoped S2 surface consolidation/backend slice. No frontend work unless explicitly requested.
 
 ## Key API Surfaces
 

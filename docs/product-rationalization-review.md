@@ -1,7 +1,7 @@
 # Product Rationalization and Surface Consolidation Review
 
 Date: 2026-06-20
-Status: S2.3A delivered and safety-reviewed. S2.3B project-bounded retrieval pending.
+Status: S2.3B delivered and safety-reviewed. S2.3 final closeout / next S2 slice selection pending.
 
 ## 1. FDE Role and Main Chain
 
@@ -601,7 +601,7 @@ Residual boundaries (not in S2.2):
 
 ## 11. S2.3 Project Work Context
 
-Status: S2.3A delivered and safety-reviewed. S2.3B and final closeout remain.
+Status: S2.3B delivered and safety-reviewed. Final closeout / next S2 slice selection remains.
 
 ### 11.1 Decision
 
@@ -655,19 +655,26 @@ Unknown, cross-group, or cross-user source references return 404 to avoid existe
 - Migration `0025`, model/schema fields, response serialization, list filters, archived-project write freeze, Agent conversation validation/inheritance, and project-scoped Task source validation.
 - Related tests must cover nullable compatibility, cross-group 404, archived 409, immutable context, user privacy, source consistency, and no inferred backfill.
 
-**S2.3B — Project-bounded retrieval and tools (CC implementation)**
+**S2.3B — Project-bounded retrieval and tools (delivered and reviewed)**
 
 - Add an optional server-derived allowed Document ID constraint to keyword, semantic, hybrid, Conversation tool-loop, and Agent document tools.
 - Tests must prove project A cannot retrieve/list project B or unlinked documents, empty evidence never falls back group-wide, unscoped behavior is unchanged, and project-scoped archive is denied.
 
-**S2.3C — Safety review and closeout (Codex)**
+**S2.3C — Final closeout / next-slice decision (Codex)**
 
-- Review migration reversibility, every query constraint, archived lifecycle, source validation, tool propagation, and regression compatibility.
-- Run focused suites first; run non-E2E full regression once at the final boundary only.
+- S2.3A and S2.3B safety review is complete. Record final closeout if no more S2.3 work is needed, then choose the next separately scoped S2 slice.
+- Prefer focused or grouped verification at phase boundaries. The all-in-one non-E2E command timed out on Windows; grouped suites are more diagnostic and avoid hiding progress.
 
 ### 11.7 S2.3A Delivery And Review
 
 - Commit `ed621ef` adds migration `0025`, nullable indexed project context, compatible request/response fields, exact list filters, archived-project write freeze, validated Agent Conversation inheritance, and scoped Task source rules.
 - Codex review fixed five boundary defects before acceptance: archived Conversation history remains readable; an unscoped Conversation cannot be combined with a scoped AgentRun or Task; all project list filters validate route-group ownership; RAG evidence checks include `group_id`; Agent detail preserves `project_id`.
 - Verification: 26 focused S2.3A tests and 95 related Conversation/Task/Agent tests pass. Changed-file ruff is clean. SQLite migration upgrade, downgrade to 0024, and re-upgrade to 0025 pass.
-- Full non-E2E regression is intentionally deferred until S2.3C so it runs once at the true phase boundary.
+- Full non-E2E regression was intentionally deferred until S2.3B/S2.3C boundary.
+
+### 11.8 S2.3B Delivery And Review
+
+- Commit `ea216bc` constrains project-scoped retrieval and Agent document tools to server-derived active `ProjectEvidenceLink` Documents. Unscoped retrieval keeps its previous group-wide behavior; scoped empty evidence returns no evidence instead of falling back.
+- Codex review fixed three boundary defects before acceptance: semantic Conversation retrieval now receives `allowed_document_ids`; scoped Agent V1 archive requests fail immediately instead of entering confirmation; scoped Agent V2 and legacy scoped HITL archive paths fail the run instead of mutating shared Documents.
+- Verification: 16 focused S2.3B tests pass. 100 related retrieval/conversation/Agent/project-context tests pass. Changed-file ruff is clean. A one-shot non-E2E full regression timed out after about 10 minutes with no failure output, so regression was rerun in grouped suites covering all 832 collected non-E2E tests; grouped runs passed.
+- Residual boundary: no UI changes. S2.3 only makes project context an execution boundary for backend retrieval/tools.
