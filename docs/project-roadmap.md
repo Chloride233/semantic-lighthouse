@@ -1,7 +1,7 @@
 # Semantic Lighthouse — Project Roadmap
 
 **Last updated**: 2026-06-20
-**Current phase**: Frontend F2B delivered — Guided Pilot workflow complete (goal→data→model→validate→pilot). Phase 14 backend COMPLETE.
+**Current phase**: Frontend F2B delivered + acceptance-verified — Guided Pilot workflow complete (goal→data→model→validate→pilot). Phase 14 backend COMPLETE. F2C next.
 
 ---
 
@@ -17,7 +17,7 @@
 | V3.3 | RAG run audit persistence, group-scoped replay | Stable |
 | V3.4 | Async ETL pipeline, structure-aware chunking, ingestion jobs, HNSW | Stable (hardened) |
 
-**Metrics**: 434 non-E2E pytest passed, ruff clean, alembic `0017` at head (2026-06-19). Production safety checks delivered (APP_ENV, JWT/cookie/database validation). Frontend verification was intentionally not run during the current backend-only iteration lane.
+**Metrics**: 749 non-E2E pytest passed, ruff clean, alembic `0023` at head (2026-06-20). Production safety checks delivered (APP_ENV, JWT/cookie/database validation).
 
 ---
 
@@ -250,10 +250,10 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 11.2 | Draft read model / API | ✅ `POST /groups/{gid}/ontology/drafts` (owner/admin), `GET /groups/{gid}/ontology/drafts` (member+) with draft_type/status/q/source_entity_id filters, group-scoped evidence validation (2026-06-19). Review hardened: rescan evidence lifecycle relink, evidence_refs boundary (2026-06-19). |
 | 11.3 | Draft generation | ✅ Deterministic rules from existing entities/relations, no LLM |
 | 11.4 | Human review workflow | ✅ proposed → accepted/rejected, reviewer audit, single + batch API, atomic semantics, status transition rules, 33 tests (2026-06-19) |
-| 11.5 | UI modeling panel | **Deferred** — entity detail panel + draft list deferred to Kimi unified frontend refactor. CC not implementing. |
+| 11.5 | UI modeling panel | **Deferred** — entity detail panel + draft list deferred. F2B delivered model/validate/pilot UI through the Pilot project workspace instead. |
 | 11.6 | Agent/MCP Boundary Design | ✅ Design-only boundary: existing Agent registry plus future MCP identity mapping, server-side group authorization, invocation audit, bounded/provenance-preserving output, and no-write gates. See `docs/ontology-agent-boundary.md` and `docs/mcp-agent-boundary-design.md`. No MCP runtime or dependency. |
 
-**Out of scope**: Full modeling studio, Graph RAG, graph database, Agent auto-write, external KB auto-fix, draft-to-production pipeline. Phase 11.5 UI deferred to later Kimi frontend refactor — current CC iterations do no frontend work (no static/js, no CSS, no HTML, no verify_ui, no Playwright).
+**Out of scope**: Full modeling studio, Graph RAG, graph database, Agent auto-write, external KB auto-fix, draft-to-production pipeline. Phase 11.5 entity UI deferred — model/validate/pilot UI delivered through F2B Pilot workspace.
 
 **Next**: Phase 13 is PLANNED — see `docs/phase13-planning.md`. Phase 12 is complete.
 
@@ -273,7 +273,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 
 **Completion**: Phase 12 turns accepted drafts into quality-gated, immutable, exportable contract snapshots with declarative Action permission requirements. It does not publish or execute an Ontology.
 
-**Out of scope**: Frontend, modeling studio, Graph RAG, graph database, Agent auto-write/auto-publish, external KB modification, production schema write, Phase 11.5 UI (deferred to Kimi).
+**Out of scope**: Full modeling studio, Graph RAG, graph database, Agent auto-write/auto-publish, external KB modification, production schema write, Phase 11.5 entity detail UI (deferred).
 
 
 ## Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 ← **COMPLETE** (13.1–13.6 all delivered, 12/12 gates PASS)
@@ -287,7 +287,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 13.3 | Business contract compiler | ✅ `compile_business_contract()` — field whitelist, deterministic sort, semantic_hash (sha256:), provenance block. Raises `BusinessContractCompilationError` on validator FAIL. 7 tests. (2026-06-19) |
 | 13.4 | Read-only contract export API | ✅ `GET /packages/{pid}/contract` — member+ read, outsider 403, cross-group 404, 422 on validation failure. Reuses compiler directly. 8 API tests. (2026-06-19) |
 | 13.5 | Manufacturing pilot v1 | ✅ Independent demo group, 11 business_v1 drafts (2 OT + 6 Prop + 2 Link + 1 Action). Full pipeline: draft create → batch review → package build → contract export → idempotent rebuild → cross-group isolation. PASS quality, semantic_hash stable. Demo script + 7 tests. (2026-06-19) |
-| 13.6 | Phase 13 review | ✅ All 12 review gates PASS. 495 non-E2E tests, ruff clean. Minor fix: `parameters: None` double-reporting. Decision: Phase 13 COMPLETE, handoff to Kimi for frontend refactor. See `docs/phase13-review.md`. (2026-06-19) |
+| 13.6 | Phase 13 review | ✅ All 12 review gates PASS. 495 non-E2E tests, ruff clean. Minor fix: `parameters: None` double-reporting. Decision: Phase 13 COMPLETE. Frontend F1/F2 subsequently delivered by CC (Swiss app shell + Guided Pilot workspace). See `docs/phase13-review.md`. (2026-06-19) |
 
 **Out of scope**: Frontend, modeling UI, business object instance tables, package activate/publish, Action execution, Functions runtime, OSDK/code generation, MCP/Agent tool registration, Graph RAG, ERP/MES/PLC integration, external KB modification, knowledge_meta→business_v1 auto-conversion, full JSON Schema/OpenAPI generation, generic manufacturing framework.
 
@@ -304,7 +304,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 14.4 | Model Validation Gate | ✅ Migration `0021` (scope_key + project_id on packages), project-scoped quality/package/contract API, WARN override audit, FAIL blocks absolutely, stage model→validate, legacy isolation. 23 tests. |
 | 14.5 | Pilot Read Runtime + Unified Query Contract | ✅ Migration `0022` (OntologyDatasetBinding) + `0023` (OntologyRuntimeAudit), deterministic binding generation from accepted contract + dataset profiles, unified read-only query with typed filter conversion/streaming CSV/filter-before-offset-limit/compiled contract as truth, pilot activation with full smoke query, audit fail-closed, path safety, permissions, provenance sanitization. 94 runtime tests. No DSL, no MCP, no Graph RAG. |
 
-**Next**: Frontend F2B (Model → Validate → Pilot full operation loop). F2C (responsive/accessibility polish) follows.
+**Next**: Frontend F2C (responsive/accessibility polish, old entry consolidation).
 
 ---
 
@@ -320,7 +320,7 @@ See `docs/frontend-f2-planning.md`.
 
 **F2A delivered**: Navigation restructured to Pilot/Ontology/工作区/更多工具. Pilot is default landing page. Project list + detail (goal/data stages). Dataset upload with multipart. Metadata-only profile display. API error handling (FormData support, human-readable errors). Minimalism & Swiss Style.
 
-**Out of scope**: Frontend (Kimi), delete/recover, Object Runtime, SDK, MCP, Graph RAG, old feature removal, Pilot outcome/KPI dashboard, relation joins, Action execution, data write-back, custom query language.
+**Out of scope**: delete/recover, Object Runtime, SDK, MCP, Graph RAG, old feature removal, Pilot outcome/KPI dashboard, relation joins, Action execution, data write-back, custom query language.
 
 
 ## Future Candidate: MCP Read-only Gateway v1 ← NOT STARTED

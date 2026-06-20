@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (Frontend F2A delivered — Pilot workspace active. Phase 14 backend COMPLETE. Migration 0023 at head.)
+Last updated: 2026-06-20 (Frontend F2B delivered + acceptance-verified — Guided Pilot complete. Phase 14 COMPLETE. Migration 0023 at head.)
 
 ## Current Phase
 
@@ -309,7 +309,7 @@ Result:
 - Ontology KB governance drift: `INDEX.md` / `AUTO_INDEX.md` reference `research/...`, but the inspected `F:\ontology-kb\knowledge-graph` workspace currently lacks a `research/` directory.
 - Eval drift: `docs/eval/rag-queries-ontology.json` includes expected document IDs that do not exist in the current KB, including `concepts/agent`, `concepts/ontology-sdk`, `vendors/palantir-foundry`, `vendors/huawei-fusioninsight`, `cases/banking-knowledge-graph-customer-360`, and `cases/healthcare-ontology-patient-modeling`.
 
-**Next iteration**: Phase 13 COMPLETE (all 12 review gates PASS, `docs/phase13-review.md`). Frontend Refactor F1A delivered by CC — Swiss minimalism app shell, persistent group context, workspace-oriented navigation (工作台/知识/Ontology/执行). F1B Ontology internal workspace to follow. Future backend phases (14a Object Runtime, 14b SDK, 14c Contract Refinement, MCP) remain candidates, not pre-committed.
+**Next iteration**: Phase 14 COMPLETE (backend + frontend F2B). F2C next — responsive/accessibility polish. Future candidates only: MCP read-only gateway (post-Phase 14, requires dedicated Safety Lane plan), Evidence + Object dual-plane query, Domain Pack/Knowledge Artifact. NOT started.
 
 ### Phase 11.1+11.2 Review Hardening — Rescan Evidence Lifecycle (2026-06-19)
 
@@ -904,6 +904,8 @@ Verification: 79 runtime tests, 239 Phase 14 combined, 734 full non-E2E (0 failu
 
 **Review**: verify_ui 33/33, E2E 8/8 (4 F2A new). Screenshots at `.tmp/f2a-review/`.
 
-**Next**: Frontend F2B — Model → Validate → Pilot full operation loop.
+**Next**: Frontend F2C — Responsive/accessibility polish, old entry consolidation.
 
-Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Frontend F2A delivered + reviewed. F2B next.
+**F2B acceptance**: verify_ui 47/47, backend 749 passed, E2E meets requirements (real member via invite, WARN/FAIL workflow, project isolation). Screenshots at `.tmp/f2b/` (6 files, 0 console errors).
+
+Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Frontend F2B delivered + acceptance-verified. F2C next.

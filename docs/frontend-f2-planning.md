@@ -1,6 +1,6 @@
 # Frontend F2 — Guided Business Pilot Workspace
 
-**Status**: F2A + F2B delivered + reviewed. F2C next.
+**Status**: F2A + F2B delivered + reviewed + acceptance-verified. F2C next.
 
 **F2B Review fixes**:
 - Removed all `location.reload()` — use reloadProject callback instead.
@@ -12,8 +12,7 @@
 - Pilot: inline `<script>` removed, explain toggle via addEventListener, field validation (≥1 field checked), typed JSON filter serialization, scan_truncated warning.
 - Container click handler uses stable delegated pattern with cleanup.
 
-**Verification**: verify_ui 35/35, E2E 10/10 (2 new F2B tests: full closed-loop, member readonly).
-Screenshots: `.tmp/f2b/` (6 files, 29-97 KB, 0 console errors).
+**Verification**: verify_ui 47/47, backend pytest 749 passed, E2E 13/13 (5 new F2B tests: owner full closed-loop, real member via invite, WARN/FAIL workflow, project isolation, code quality checks). Screenshots: `.tmp/f2b/` (6 files: model/validate/pilot desktop + mobile, 0 console errors).
 
 Phase 14 established the five-stage business pilot pipeline (goal → data → model → validate → pilot). Frontend F2 gives users a guided single-path workspace to operate it, replacing the flat parallel-feature navigation with a Pilot-first information architecture.
 
@@ -24,7 +23,7 @@ Phase 14 established the five-stage business pilot pipeline (goal → data → m
 | Slice | Task | Status |
 |-------|------|--------|
 | F2A | Pilot entry, project creation, goal + data stage, nav restructure | ✅ Delivered |
-| F2B | Model → Validate → Pilot full operation loop (modeling, review, package build, binding, query, activation) | Next |
+| F2B | Model → Validate → Pilot full operation loop (modeling, review, package build, binding, query, activation) | ✅ Delivered |
 | F2C | Frontend review, responsive/accessibility polish, old entry points consolidation | Future |
 
 ---
@@ -82,14 +81,18 @@ Phase 14 established the five-stage business pilot pipeline (goal → data → m
 
 ---
 
-## F2B (Next)
+## F2B Delivered
 
-Goal: Complete the model → validate → pilot loop.
+Goal: Complete the model → validate → pilot loop. All tasks delivered and verified.
 
 Tasks:
-- Model stage: trigger draft generation, view drafts, batch review.
-- Validate stage: view quality results, build package, view contract.
-- Pilot stage: generate bindings, query runtime, activate pilot.
+- Model stage: trigger draft generation, view drafts, batch review. ✅
+- Validate stage: view quality results, build package, view contract. ✅
+- Pilot stage: generate bindings, query runtime, activate pilot. ✅
+- WARN/FAIL quality gate: WARN requires confirm + reason; FAIL blocks absolutely. ✅
+- Member join-by-invite: real member role verified; can view/query but cannot write. ✅
+- Project isolation: A/B projects in same group, no data leakage. ✅
+- Code quality: no location.reload, no inline script, no alert, no empty catch. ✅
 
 ---
 

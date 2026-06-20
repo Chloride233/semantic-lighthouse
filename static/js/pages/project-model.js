@@ -144,7 +144,7 @@ function buildHTML(drafts, quality, proposed, isOwnerAdmin) {
       <div class="stagePanelHead"><h2>质量门禁</h2><span class="badge ${qBadge}">${esc(qs)}</span></div>
       <p>错误 ${quality.error_count || 0} · 警告 ${quality.warning_count || 0} · 草案 ${quality.draft_count || 0}</p>
       ${issues.length > 0 ? `<button class="linkBtn" id="toggleQuality">查看详情▼</button><div id="qualityIssues" hidden><ul class="issueList">${issues.map(i => `<li><span class="badge ${i.severity === 'error' ? 'badgeDanger' : 'badgeWarn'}">${esc(i.severity)}</span> ${esc(i.code)}: ${esc(i.message || '')}</li>`).join('')}</ul></div>` : ''}
-      ${isOwnerAdmin ? `<div class="stageCTAs" style="margin-top:12px">${canBuild ? '<button class="primary" id="buildPkgBtn">构建 Package</button>' : `<button class="primary" disabled>构建 Package</button><p class="muted" style="margin:0">${esc(blockReason)}</p>`}</div>` : ''}
+      ${isOwnerAdmin ? `<div class="stageCTAs" style="margin-top:12px">${canBuild ? '<button class="primary" id="buildPkgBtn">构建 Package</button>' : `<button class="primary" id="buildPkgBtn" disabled>构建 Package</button><p class="muted" style="margin:0">${esc(blockReason)}</p>`}</div>` : ''}
     </div>`;
 }
 

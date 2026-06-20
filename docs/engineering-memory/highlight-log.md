@@ -1,5 +1,15 @@
 # Highlight Log
 
+## Frontend F2B — Guided Pilot Full Closed-Loop Acceptance Verified
+
+- Date: 2026-06-20
+- Version: F2B
+- Type: acceptance
+- Context: F2B is the second frontend slice of Phase 14, turning the model → validate → pilot stages into a real clickable guided workflow. The question was whether the full owner closed-loop (generate drafts → batch accept → build package → generate bindings → activate → query) works end-to-end, whether real member join-by-invite works, whether WARN/FAIL quality gates are correctly enforced, and whether project isolation holds.
+- What happened: verify_ui expanded from 35 to 47 checks including a real owner full chain with assertions on Alice data, provenance, no storage_path, and stage persistence. E2E tests expanded from 8 to 13 with five new F2B tests: owner full closed-loop, real member via invite (not outsider), WARN/FAIL workflow with Playwright route mocking, project A/B isolation, and code quality checks. No backend, migration, or API changes were needed. All ruff errors fixed (41→0). Six screenshots generated at desktop 1280px and mobile 390px (33–86 KB, 0 console errors).
+- Engineering judgment: The real member test was the critical gap — the previous test claimed to test a member but actually tested an outsider. Fixing it required creating an invite via API and joining through the UI. The WARN/FAIL test uses Playwright route mocking to simulate quality gate status, proving that FAIL blocks the build button and WARN requires explicit reason + captures allow_warnings/override_reason. Project isolation is verified by creating two projects in the same group and asserting no draft/binding name leakage. verify_ui now does real clicks through the full pipeline, not just page-existence checks.
+- Verification: verify_ui 47/47 PASS, backend pytest 749 passed, ruff clean, 6 screenshots valid, git diff --check clean. Documentation aligned: F2B marked delivered, roadmap metrics updated (434→749, 0017→0023), Kimi/outdated frontend-ban text removed.
+
 ## Phase 14.5 — UModel 研读核验：借鉴模型/存储解耦、拒绝 SPL/MCP Runtime、定位 Evidence-grounded Ontology Compiler
 
 - Date: 2026-06-20

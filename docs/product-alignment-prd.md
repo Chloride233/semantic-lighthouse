@@ -84,7 +84,7 @@ The next product workflow adds:
 3. User inspects entity list, relation graph, broken links, and governance issues.
 4. Future modeling workflows turn validated entities into Object Type, Property, Link Type, and Action Type drafts.
 
-## 4. Current Phase: Phase 12 Complete / Phase 13 Planning
+## 4. Current Phase: Phase 14 Complete / Frontend F2B Delivered
 
 Phases 8–10 delivered the foundation chain:
 
@@ -109,9 +109,9 @@ Current delivered capabilities:
 - ontology graph console with scope/status controls
 - RAG evidence-to-ontology entity bridge (read-only navigation)
 
-Phase 11/12 delivered: Ontology Modeling Drafts v1 + Model Quality & Contract Packages v1 (see `docs/phase11-planning.md` and `docs/phase12-planning.md`). Phase 13 is planning: Typed Business Ontology Contract & Manufacturing Pilot v1 — advance the audit-type model package into a deterministically validated, application-readable business Ontology contract with stable type definitions (see `docs/phase13-planning.md`).
+Phase 11/12 delivered: Ontology Modeling Drafts v1 + Model Quality & Contract Packages v1. Phase 13 delivered: Typed Business Ontology Contract & Manufacturing Pilot v1. Phase 14 delivered: Business Pilot Project five-stage main chain (goal→data→model→validate→pilot) — backend complete + frontend F2B delivered. F2C next (responsive/accessibility polish).
 
-## 5. Phase 9 Delivered / Phase 10 Delivered / Phase 11/12 Delivered / Phase 13 Planning
+## 5. Phase 9–14 Delivered
 
 Phase 9 Ontology Core v1 — delivered (2026-06-18). All planned capabilities delivered and verified against real KB (74 documents, 74 entities, 186 relations, 97 issues). See `docs/ontology-governance-demo-report.md`.
 

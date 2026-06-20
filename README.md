@@ -10,7 +10,7 @@
 注册登录 -> 进入群组 -> 上传/导入知识 -> 提问 -> 查看引用/可信度/知识缺口 -> 确认下一步任务 -> Agent/HITL 审计 -> Ontology 治理与图谱 -> 语义操作层
 ```
 
-Agent 不是默认目标，而是受控协调层：只有多步骤、多工具、需要审计或用户确认的流程才使用 Agent。Phase 8–12 已全部交付：Phase 8（体验整合）、Phase 9（Ontology Core v1 治理与图谱）、Phase 10（治理运营与演示打磨）、Phase 11（Ontology Modeling Drafts v1）、Phase 12（Model Quality & Contract Packages v1）。下一阶段是 Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 —— 把审计型模型包推进为经过确定性校验、可被应用读取、具备稳定类型定义的业务 Ontology 契约。见 `docs/phase13-planning.md`。
+Agent 不是默认目标，而是受控协调层：只有多步骤、多工具、需要审计或用户确认的流程才使用 Agent。Phase 8–14 已全部交付：Phase 8（体验整合）、Phase 9（Ontology Core v1 治理与图谱）、Phase 10（治理运营与演示打磨）、Phase 11（Ontology Modeling Drafts v1）、Phase 12（Model Quality & Contract Packages v1）、Phase 13（Typed Business Ontology Contract & Manufacturing Pilot v1）、Phase 14（Business Pilot Project 五阶段主链：goal→data→model→validate→pilot）。前端 F2B 已交付并通过验收。F2C 下一阶段：响应式/可访问性打磨。见 `docs/phase14-planning.md`。
 
 ## V1 Scope
 

@@ -55,8 +55,8 @@ The experience should feel like a professional semantic operating layer workspac
 - Phase 10 delivered: Governance Operations — issue triage, real KB curation demo (97 issues → 39 backlog entries), graph UX polish, evidence-to-ontology bridge, end-to-end review.
 - Phase 11/12 delivered: Ontology Modeling Drafts v1 + Model Quality & Contract Packages v1 — see `docs/phase11-planning.md` and `docs/phase12-planning.md`.
 - Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 — delivered.
-- Phase 14: Business Pilot Project main chain (goal→data→model→validate→pilot) — delivered (backend complete, Frontend F2A active).
-- Frontend F2: Guided Business Pilot workspace — F2A delivered.
+- Phase 14: Business Pilot Project main chain (goal→data→model→validate→pilot) — COMPLETE (backend + frontend F2B delivered, F2C next).
+- Frontend F2: Guided Business Pilot workspace — F2B delivered + acceptance-verified.
 
 ## Product Non-Goals For Now
 

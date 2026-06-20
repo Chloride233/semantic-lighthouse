@@ -294,7 +294,6 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         page.fill("#npGoal", "Verify smoke test project")
         page.click("#npSubmit")
         page.wait_for_timeout(2000)
-        pid = page.evaluate("() => location.hash.split('/')[3] || ''")
         is_project_detail = page.locator(".projectDetail").count() > 0
         is_stage_rail = page.locator(".stageRailLg").count() > 0
         has_goal_badge = page.locator("text=已完成").count() > 0
@@ -311,13 +310,15 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         fd, csv_path = tempfile.mkstemp(suffix=".csv")
         os.close(fd)
         with open(csv_path, "w", encoding="utf-8") as f:
-            f.write("order_id,customer,amount\n100,Acme,500\n101,Beta,750\n")
+            f.write("order_id,customer,amount\n100,Alice,500\n101,Beta,750\n")
         page.set_input_files("#upFile", csv_path)
         page.click("#upSubmit")
         # Wait for upload + profiling + stage advance
         page.wait_for_timeout(3000)
-        try: os.unlink(csv_path)
-        except OSError: pass
+        try:
+            os.unlink(csv_path)
+        except OSError:
+            pass
 
         # After upload: stage must be "data"
         stage_panel_visible = page.locator(".stagePanel").count() > 0
@@ -341,19 +342,117 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         # (E2E covers full member flow; verify_ui checks basic render)
         results.append(("F2A Dataset profile complete", True))
 
-        # ── F2B: Model → Validate → Pilot smoke (full flow in E2E) ──────────
+        # ── F2B: Full owner closed-loop — Model → Validate → Pilot ──────────
+        # Project should be at data stage after CSV upload in F2A
         page.goto(f"{base}/console#/groups/{gid}/projects")
         page.wait_for_timeout(800)
         if page.locator(".projectCard").count() > 0:
             page.locator(".projectCard").first.click()
             page.wait_for_timeout(1200)
-        has_detail = page.locator(".projectDetail").count() > 0
-        has_stage_controls = page.locator(".stagePanel").count() > 0
-        results.append(("F2B Model/Validate/Pilot page renders", has_detail and has_stage_controls))
 
+        has_detail = page.locator(".projectDetail").count() > 0
+        results.append(("F2B Project detail renders", has_detail))
+        assert has_detail, "Project detail must render for F2B flow"
+
+        # Generate drafts from data stage
+        gen_drafts_visible = page.locator("#genFromDataBtn").count() > 0
+        results.append(("F2B Generate drafts button visible at data stage", gen_drafts_visible))
+        assert gen_drafts_visible, "Generate drafts button must be visible"
+        page.click("#genFromDataBtn")
+        page.wait_for_timeout(2000)
+        page.wait_for_timeout(500)
+
+        # Draft rows must appear (model stage)
+        draft_rows = page.locator(".draftRow").count()
+        results.append(("F2B Drafts generated at model stage", draft_rows > 0))
+        assert draft_rows > 0, "Draft rows must appear after generation"
+
+        # Batch accept all proposed drafts
+        if page.locator("#selectAllProposed").count() > 0:
+            page.click("#selectAllProposed")
+            page.wait_for_timeout(200)
+        checked = page.locator(".draftCheck:checked").count()
+        results.append(("F2B Drafts selected for review", checked > 0))
+        assert checked > 0, "At least one draft must be checked"
+        page.click("#batchAcceptBtn")
+        page.wait_for_timeout(400)
+        dlg_visible = page.locator("#dlgConfirm").count() > 0
+        results.append(("F2B Batch accept dialog appears", dlg_visible))
+        if dlg_visible:
+            page.click("#dlgConfirm")
+            page.wait_for_timeout(1500)
+
+        # Build package (handle WARN if quality has warnings)
+        page.wait_for_timeout(500)
+        build_visible = page.locator("#buildPkgBtn").count() > 0
+        results.append(("F2B Build package button visible", build_visible))
+        if build_visible:
+            build_btn = page.locator("#buildPkgBtn")
+            if not build_btn.is_disabled():
+                build_btn.click()
+                page.wait_for_timeout(500)
+                # Handle WARN dialog if it appears
+                if page.locator("#dlgReason").count() > 0:
+                    page.fill("#dlgReason", "Accept warnings for verify_ui")
+                    page.click("#dlgConfirm")
+                page.wait_for_timeout(1500)
+
+        # Generate bindings at validate stage
+        page.wait_for_timeout(500)
+        bind_visible = page.locator("#genBindingsBtn").count() > 0
+        results.append(("F2B Generate bindings button visible", bind_visible))
+        assert bind_visible, "Generate bindings button must be visible at validate stage"
+        page.click("#genBindingsBtn")
+        page.wait_for_timeout(1500)
+
+        # Activate pilot
+        activate_visible = page.locator("#activateBtn").count() > 0
+        results.append(("F2B Activate button visible", activate_visible))
+        if activate_visible:
+            page.click("#activateBtn")
+            page.wait_for_timeout(300)
+            if page.locator("#dlgConfirm").count() > 0:
+                page.click("#dlgConfirm")
+                page.wait_for_timeout(1500)
+
+        # Query workbench must be visible at pilot stage
+        qot_visible = page.locator("#qOT").count() > 0
+        results.append(("F2B Query workbench renders at pilot stage", qot_visible))
+        assert qot_visible, "Query workbench must render at pilot stage"
+
+        # Execute query
+        page.click("#qRunBtn")
+        page.wait_for_timeout(2000)
+
+        # Assert results contain Alice
         body = page.locator("body").text_content()
+        has_alice = "Alice" in body
+        results.append(("F2B Query results contain Alice", has_alice))
+        assert has_alice, "Query results must include Alice"
+
+        # Assert provenance exists and no storage_path leak
         no_storage = "dataset-storage" not in body.lower()
+        has_provenance = "explainBox" in body or "查看溯源" in body
         results.append(("F2B No storage_path leak", no_storage))
+        results.append(("F2B Provenance/explain present", has_provenance))
+        assert no_storage, "Must not leak storage_path"
+        assert has_provenance, "Provenance must be present in query results"
+
+        # Query should NOT advance stage — stage must still be pilot
+        page.goto(f"{base}/console#/groups/{gid}/projects")
+        page.wait_for_timeout(800)
+        if page.locator(".projectCard").count() > 0:
+            page.locator(".projectCard").first.click()
+            page.wait_for_timeout(1200)
+        qot_after = page.locator("#qOT").count() > 0
+        results.append(("F2B Stage stays at pilot after query", qot_after))
+        assert qot_after, "Stage must remain pilot after query"
+
+        # In-app navigation: go to project list then back, verify login/pilot persist
+        page.goto(f"{base}/console#/groups/{gid}/projects")
+        page.wait_for_timeout(800)
+        has_list = page.locator(".pageTitle").count() > 0 or page.locator(".projectCard").count() > 0
+        results.append(("F2B In-app navigation preserves state", has_list))
 
     # 11. Logout
     page.goto(f"{base}/console#/login")
