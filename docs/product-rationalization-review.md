@@ -338,9 +338,9 @@ No backend, API, schema, migration, permission, route, navigation, or page chang
 
 ---
 
-## 10. S2.2 Project Evidence Contract — Design
+## 10. S2.2 Project Evidence Contract
 
-Status: Design complete. Implementation deferred to Safety Lane approval.
+Status: Delivered and safety-reviewed. Frontend integration remains deferred to S2.4.
 
 ### Decision Summary
 
@@ -353,7 +353,7 @@ Status: Design complete. Implementation deferred to Safety Lane approval.
 
 ### 10.1 Read Model
 
-**Table**: `project_evidence_links` (new migration, TBD number after 0023)
+**Table**: `project_evidence_links` (migration `0024`)
 
 | Column | Type | Constraints | Purpose |
 |--------|------|-------------|---------|
@@ -515,7 +515,7 @@ Errors: 404 if link not found or `link.project_id != project_id` or `link.group_
 - The evidence panel does not embed the full Documents page or RAG console — it shows summaries with links to the standalone pages.
 - No standalone page is hidden until the project-scoped panel reaches replacement parity.
 
-### 10.8 Test Plan (26 tests)
+### 10.8 Original Test Plan (26 tests)
 
 | # | Test | Lane |
 |---|------|------|
@@ -565,7 +565,7 @@ Errors: 404 if link not found or `link.project_id != project_id` or `link.group_
 | Evidence deleted after link created | Link row unchanged (`status` stays `active`). GET query dynamically returns `evidence_status: "gone"` / `unavailable: true` when the evidence row is missing. Link is NOT auto-set to `removed`. |
 | Concurrent duplicate creation | Unique constraint catches the race. On IntegrityError: rollback the failed insert, re-query the existing row. If `active` → return 200. If `removed` → apply relink rules (reactivate + evidence_relink audit) → return 200. Never returns 409 for a duplicate race. |
 | Audit table growth | Each link create/remove is one OntologyRuntimeAudit row. Acceptable — query runtime audit is write-only (no query API exposed by design, matching existing Phase 14.5 pattern). |
-| Migration number collision | Next available migration number determined at implementation time. Documented as TBD. |
+| Migration number collision | Resolved as migration `0024`; upgrade and downgrade were verified on SQLite. |
 
 ### S2.2 Delivered
 

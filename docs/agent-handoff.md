@@ -23,7 +23,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 ## Architecture Boundaries
 
 - **Auth**: JWT access token (15min) + httpOnly refresh cookie + rotation + replay detection. BCrypt passwords. Owner/Admin/Member roles per group.
-- **Group isolation**: `group_id` enforced at DB query level on all multi-tenant resources — documents, chunks, RAG runs, conversations, tasks, Agent runs, ontology entities/relations/issues, modeling drafts, packages, projects, datasets, bindings. Never trust client-supplied `group_id` alone.
+- **Group isolation**: `group_id` enforced at DB query level on all multi-tenant resources — documents, chunks, RAG runs, conversations, tasks, Agent runs, ontology entities/relations/issues, modeling drafts, packages, projects, datasets, bindings, and project evidence links. Evidence links additionally constrain every lookup by `project_id`. Never trust client-supplied `group_id` alone.
 - **Agent**: Controlled coordination layer only. Deterministic backend logic (permissions, status filters, hash checks, CRUD) must not be replaced by LLM decisions. All Agent write actions require role authorization, `group_id` isolation, and user confirmation (HITL).
 - **MCP**: Not started. Future candidate only — requires dedicated Safety Lane plan. See `docs/mcp-agent-boundary-design.md`.
 - **Frontend**: F2 complete. Vanilla JS ES modules + hash router. Zero npm dependencies. Old pages preserved in "更多工具" dropdown.
@@ -48,14 +48,15 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 | Suite | Count | Notes |
 |-------|-------|-------|
-| Backend (non-E2E) | 749 passed | ruff clean, migration 0023 at head |
+| Backend (non-E2E) | 786 passed, 3 skipped | ruff clean, migration 0024 at head |
+| Project evidence | 38 passed | permissions, dual isolation, lifecycle, provenance, audit atomicity |
 | verify_ui | 47/47 | Real owner full chain F2A+F2B, all assertions pass |
 | E2E (Playwright) | 18/18 | F2A, F2B (owner/member/WARN/FAIL/isolation), F2C (responsive/a11y) |
 | Screenshots | 6 files | `.tmp/f2c/`, 32–97 KB, stage-verified, 0 console errors |
 
 ## Next Decision Gate
 
-**Feature rationalization and FDE scenario-pack planning**: decide which existing features stay in the demo narrative as supporting paths, which get consolidated, and how the guided Pilot five-stage chain (Phase 14) is presented as the primary demo flow. See `docs/project-status.toml`.
+**S2.3 project work context design**: evaluate optional `project_id` context for conversations, tasks, and Agent runs while preserving existing group-scoped compatibility. Design first; no implementation or UI work until approved. See `docs/project-status.toml`.
 
 ## Key API Surfaces
 
@@ -71,6 +72,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 - `POST /groups/{gid}/ontology/drafts`, `GET /drafts`, `POST /drafts/generate|review|review-batch`
 - `POST /groups/{gid}/ontology/packages`, `GET /packages`, `GET /packages/{pid}/contract`
 - `POST /groups/{gid}/projects`, `GET /projects`, `GET /projects/{pid}`
+- `POST|GET /groups/{gid}/projects/{pid}/evidence-links`, `DELETE /groups/{gid}/projects/{pid}/evidence-links/{link_id}`
 - `POST /projects/{pid}/datasets`, `GET /datasets`
 - `POST /projects/{pid}/model-drafts/generate`, `GET /model-drafts/quality`
 - `POST /projects/{pid}/model-drafts/packages`, `GET /packages/{pid}/contract`
@@ -101,7 +103,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 .\.venv\Scripts\python -m pytest tests/test_specific.py -p no:cacheprovider
 
 # Full regression (Safety Lane)
-.\.venv\Scripts\python -m pytest -p no:cacheprovider --basetemp=.tmp\pytest-run
+.\.venv\Scripts\python -m pytest -p no:cacheprovider --ignore=tests/e2e --basetemp=.tmp\pytest-run
 
 # Lint
 .\.venv\Scripts\python -m ruff check src tests
