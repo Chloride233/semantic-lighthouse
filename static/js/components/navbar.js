@@ -17,9 +17,46 @@ const TOOLS = [
   { label: 'Agent', path: '/groups/{gid}/agent', needsGroup: true },
 ];
 
+let _docListenersSetup = false;
+
+function _closeMenu() {
+  const btn = document.getElementById('navMoreBtn');
+  const menu = document.getElementById('navMoreMenu');
+  if (menu) menu.hidden = true;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function _setupDocListeners() {
+  if (_docListenersSetup) return;
+  _docListenersSetup = true;
+  document.addEventListener('click', (e) => {
+    const btn = document.getElementById('navMoreBtn');
+    const menu = document.getElementById('navMoreMenu');
+    if (!btn || !menu) return;
+    if (btn.contains(e.target)) {
+      e.stopPropagation();
+      const open = menu.hidden;
+      menu.hidden = !open;
+      btn.setAttribute('aria-expanded', String(open));
+      if (open) {
+        const first = menu.querySelector('a');
+        if (first) first.focus();
+      }
+      return;
+    }
+    if (!menu.contains(e.target)) {
+      _closeMenu();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') _closeMenu();
+  });
+}
+
 export function initNavbar(containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
+  _setupDocListeners();
 
   function render() {
     const signedIn = !!state.accessToken;
@@ -82,27 +119,6 @@ export function initNavbar(containerId) {
         ${signedIn ? '<button class="secondary small" id="navLogoutBtn">退出</button>' : ''}
       </div>
     `;
-
-    // More-tools dropdown toggle
-    const btn = document.getElementById('navMoreBtn');
-    const menu = document.getElementById('navMoreMenu');
-    if (btn && menu) {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const open = menu.hidden;
-        menu.hidden = !open;
-        btn.setAttribute('aria-expanded', String(open));
-      });
-      document.addEventListener('click', () => {
-        menu.hidden = true;
-        btn.setAttribute('aria-expanded', 'false');
-      });
-      menu.addEventListener('click', (e) => e.stopPropagation());
-      // Keyboard: Escape closes
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
-      });
-    }
 
     if (signedIn) {
       document.getElementById('navLogoutBtn')?.addEventListener('click', async () => {

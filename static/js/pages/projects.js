@@ -71,11 +71,10 @@ export async function render(container, params) {
 
   const emptyHTML = `
     <div class="emptyState">
-      <div class="emptyIcon">◆</div>
+      <div class="emptyIcon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
       <p class="emptyTitle">还没有 Pilot 项目</p>
       <p class="emptyHint">创建一个业务 Pilot 项目，从目标出发，经过数据建模，最终到达可查询的语义运行时。</p>
-      ${isOwnerAdmin ? '<button class="primary" id="createFirstBtn">创建第一个 Pilot</button>' : ''}
-      <p class="muted" style="margin-top:12px">需要 owner 或 admin 角色才能创建项目。</p>
+      ${isOwnerAdmin ? '<button class="primary" id="createFirstBtn">创建第一个 Pilot</button>' : '<p class="muted" style="margin-top:12px">需要 owner 或 admin 角色才能创建项目。</p>'}
     </div>
   `;
 
@@ -154,15 +153,14 @@ export async function render(container, params) {
       if (!name) { errEl.textContent = '项目名称不能为空'; errEl.style.display = 'block'; return; }
 
       try {
-        await api(`/groups/${gid}/projects`, {
+        const project = await api(`/groups/${gid}/projects`, {
           method: 'POST',
           body: JSON.stringify({ name, business_goal: goal, entry_mode: mode, industry_template: tmpl }),
         });
         close();
         showToast('项目已创建', 'success');
-        // Re-render
-        const { render: rerender } = await import('../pages/projects.js');
-        await rerender(container, params);
+        const { navigate } = await import('../router.js');
+        navigate(`/groups/${gid}/projects/${project.id}`);
       } catch (err) {
         errEl.textContent = err.humanMessage || err.message;
         errEl.style.display = 'block';

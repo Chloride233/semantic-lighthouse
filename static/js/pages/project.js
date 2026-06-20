@@ -146,7 +146,7 @@ export async function render(container, params) {
         ${isOwnerAdmin ? `
           <div class="stageCTAs">
             <button class="primary" id="uploadMoreBtn">上传更多数据</button>
-            <p class="stageHint">下一步：生成模型草案（F2B 即将推出）</p>
+            <p class="stageHint">下一步：生成模型草案 — 数据准备就绪后即可开始建模</p>
           </div>
         ` : ''}
       </div>
@@ -165,7 +165,7 @@ export async function render(container, params) {
         <div class="stagePanelHead">
           <h2>${STAGE_LABELS[stage]} — 阶段进行中</h2>
         </div>
-        <p>当前项目处于 <strong>${STAGE_LABELS[stage]}</strong> 阶段。操作控件将在前端 F2B 中实现。</p>
+        <p>当前项目处于 <strong>${STAGE_LABELS[stage]}</strong> 阶段。后续操作将在模型工作区中提供。</p>
       </div>
     `;
   }

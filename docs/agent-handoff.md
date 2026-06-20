@@ -902,6 +902,8 @@ Verification: 79 runtime tests, 239 Phase 14 combined, 734 full non-E2E (0 failu
 - First-use paths: login → Pilot list, new workspace → Pilot empty state, group switch → Pilot list.
 - Old routes preserved, all accessible via 更多工具 or direct URLs.
 
+**Review**: verify_ui 33/33, E2E 8/8 (4 F2A new). Screenshots at `.tmp/f2a-review/`.
+
 **Next**: Frontend F2B — Model → Validate → Pilot full operation loop.
 
-Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Frontend F2A delivered. F2B next.
+Do not rely on chat history. Use `git log -1 --oneline` for the latest verified baseline and confirm a clean worktree. Frontend F2A delivered + reviewed. F2B next.

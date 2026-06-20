@@ -4,20 +4,28 @@ import { state, clearAuth } from './state.js';
 function _humanError(body) {
   if (!body) return '请求失败';
   if (typeof body === 'string') return body;
-  if (Array.isArray(body) && body.length) return _humanError(body[0]);
+  if (Array.isArray(body) && body.length) {
+    // FastAPI validation error array: [{msg, loc, type}, ...]
+    return body.map(e => {
+      if (e.msg) return e.msg;
+      if (e.message) return e.message;
+      return '';
+    }).filter(Boolean).join('; ') || '请求失败';
+  }
   if (body.detail) {
     if (typeof body.detail === 'string') return body.detail;
+    if (Array.isArray(body.detail) && body.detail.length) return _humanError(body.detail);
     if (typeof body.detail === 'object') {
       if (body.detail.message) return body.detail.message;
       if (body.detail.issues && Array.isArray(body.detail.issues)) {
-        return body.detail.issues.map(i => i.message || i.code || '').filter(Boolean).join('; ') || '请求失败';
+        return body.detail.issues.map(i => i.message || i.code || i.msg || '').filter(Boolean).join('; ') || '请求失败';
       }
       return JSON.stringify(body.detail);
     }
   }
   if (body.message) return body.message;
   if (body.issues && Array.isArray(body.issues)) {
-    return body.issues.map(i => i.message || i.code || '').filter(Boolean).join('; ') || '请求失败';
+    return body.issues.map(i => i.message || i.code || i.msg || '').filter(Boolean).join('; ') || '请求失败';
   }
   return '请求失败';
 }
