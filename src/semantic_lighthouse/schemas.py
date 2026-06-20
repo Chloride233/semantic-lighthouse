@@ -289,12 +289,14 @@ class IngestionJobDetailResponse(IngestionJobResponse):
 
 class ConversationCreateRequest(BaseModel):
     title: str | None = None
+    project_id: str | None = None
 
 
 class ConversationResponse(BaseModel):
     id: str
     group_id: str
     user_id: str
+    project_id: str | None = None
     title: str
     message_count: int = 0
     created_at: datetime
@@ -332,6 +334,7 @@ class AgentRunResponse(BaseModel):
     id: str
     group_id: str
     user_id: str
+    project_id: str | None = None
     conversation_id: str | None = None
     goal: str
     status: str
@@ -366,6 +369,7 @@ class AgentRunDetailResponse(AgentRunResponse):
 
 class AgentRunCreateRequest(BaseModel):
     goal: str = Field(min_length=1, max_length=2000)
+    project_id: str | None = None
     conversation_id: str | None = None
 
 
@@ -482,6 +486,7 @@ class TaskCreateRequest(BaseModel):
     description: str = ""
     source_type: str = Field(pattern="^(rag_run|conversation|agent_run|manual)$")
     source_id: str = Field(min_length=1, max_length=36)
+    project_id: str | None = None
 
 
 class TaskUpdateRequest(BaseModel):
@@ -493,6 +498,7 @@ class TaskUpdateRequest(BaseModel):
 class TaskResponse(BaseModel):
     id: str
     group_id: str
+    project_id: str | None = None
     title: str
     description: str
     status: str

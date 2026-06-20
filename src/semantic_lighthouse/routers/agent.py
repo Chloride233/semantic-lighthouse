@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 from semantic_lighthouse.config import Settings, get_settings
 from semantic_lighthouse.database import get_db
 from semantic_lighthouse.dependencies import get_current_user, get_membership_or_404
-from semantic_lighthouse.models import AgentRun, AgentStep, AgentMemory, User, utc_now
+from semantic_lighthouse.models import (
+    AgentRun, AgentStep, AgentMemory, BusinessProject, Conversation, User, utc_now,
+)
 from semantic_lighthouse.schemas import (
     AgentRunCreateRequest,
     AgentRunDetailResponse,
@@ -34,11 +36,19 @@ from semantic_lighthouse.services.agent_orchestrator import (
 router = APIRouter(prefix="/groups/{group_id}/agent", tags=["agent"])
 
 
+def _get_project_or_404(db: Session, group_id: str, project_id: str) -> BusinessProject:
+    project = db.get(BusinessProject, project_id)
+    if project is None or project.group_id != group_id:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
 def _run_response(run: AgentRun) -> AgentRunResponse:
     return AgentRunResponse(
         id=run.id,
         group_id=run.group_id,
         user_id=run.user_id,
+        project_id=run.project_id,
         conversation_id=run.conversation_id,
         goal=run.goal,
         status=run.status,
@@ -79,7 +89,27 @@ def start_agent_run(
     settings: Settings = Depends(get_settings),
 ) -> AgentRunResponse:
     get_membership_or_404(db, current_user.id, group_id)
-    run = create_run(db, group_id, current_user.id, body.goal, body.conversation_id)
+
+    # S2.3A: validate project and conversation consistency
+    project_id = body.project_id
+    if body.conversation_id:
+        conv = db.get(Conversation, body.conversation_id)
+        if conv is None or conv.group_id != group_id or conv.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        if project_id is not None and project_id != conv.project_id:
+            raise HTTPException(
+                status_code=409,
+                detail="Project context does not match conversation",
+            )
+        project_id = conv.project_id
+    if project_id:
+        project = _get_project_or_404(db, group_id, project_id)
+        if project.status == "archived":
+            raise HTTPException(
+                status_code=409, detail="Cannot create Agent run in an archived project"
+            )
+
+    run = create_run(db, group_id, current_user.id, body.goal, body.conversation_id, project_id)
 
     add_step(
         db, run, phase="plan", step_index=0,
@@ -97,13 +127,18 @@ def start_agent_run(
 @router.get("/runs", response_model=list[AgentRunResponse])
 def list_agent_runs(
     group_id: str,
+    project_id: str | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[AgentRunResponse]:
     get_membership_or_404(db, current_user.id, group_id)
+    conditions = [AgentRun.group_id == group_id, AgentRun.user_id == current_user.id]
+    if project_id is not None:
+        _get_project_or_404(db, group_id, project_id)
+        conditions.append(AgentRun.project_id == project_id)
     runs = db.scalars(
         select(AgentRun)
-        .where(AgentRun.group_id == group_id, AgentRun.user_id == current_user.id)
+        .where(*conditions)
         .order_by(AgentRun.created_at.desc())
         .limit(20)
     ).all()
@@ -132,6 +167,7 @@ def get_agent_run(
 
     return AgentRunDetailResponse(
         id=run.id, group_id=run.group_id, user_id=run.user_id,
+        project_id=run.project_id,
         conversation_id=run.conversation_id, goal=run.goal,
         status=run.status, current_phase=run.current_phase,
         step_count=len(steps), created_at=run.created_at,
@@ -183,6 +219,13 @@ def execute_agent_step(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
     if run.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot access another user's run")
+    if run.project_id:
+        project = db.get(BusinessProject, run.project_id)
+        if project is not None and project.status == "archived":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot execute Agent run scoped to an archived project",
+            )
     if run.status not in ("planning", "executing", "awaiting_confirmation"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Run is {run.status}, cannot execute")
 
@@ -317,6 +360,13 @@ def respond_to_agent(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
     if run.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot access another user's run")
+    if run.project_id:
+        project = db.get(BusinessProject, run.project_id)
+        if project is not None and project.status == "archived":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot respond to Agent run scoped to an archived project",
+            )
 
     response_lower = body.response.strip().lower()
 

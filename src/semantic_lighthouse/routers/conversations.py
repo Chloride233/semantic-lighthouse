@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from semantic_lighthouse.config import Settings, get_settings
 from semantic_lighthouse.database import get_db
 from semantic_lighthouse.dependencies import get_current_user, get_membership_or_404
-from semantic_lighthouse.models import Conversation, ConversationMessage, Document, DocumentChunk, User
+from semantic_lighthouse.models import BusinessProject, Conversation, ConversationMessage, Document, DocumentChunk, User
 from semantic_lighthouse.routers._shared import snippet, validate_pgvector_dimension
 from semantic_lighthouse.routers.rag import _build_match_reason
 from semantic_lighthouse.schemas import (
@@ -155,11 +155,19 @@ def _resolve_tool_answer(
     )
 
 
+def _get_project_or_404(db: Session, group_id: str, project_id: str) -> BusinessProject:
+    project = db.get(BusinessProject, project_id)
+    if project is None or project.group_id != group_id:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
 def _conversation_response(conv: Conversation) -> ConversationResponse:
     return ConversationResponse(
         id=conv.id,
         group_id=conv.group_id,
         user_id=conv.user_id,
+        project_id=conv.project_id,
         title=conv.title,
         message_count=len(conv.messages) if conv.messages else 0,
         created_at=conv.created_at,
@@ -191,10 +199,18 @@ def create_conversation(
     db: Session = Depends(get_db),
 ) -> ConversationResponse:
     get_membership_or_404(db, current_user.id, group_id)
+    if body.project_id is not None:
+        project = _get_project_or_404(db, group_id, body.project_id)
+        if project.status == "archived":
+            raise HTTPException(
+                status_code=409,
+                detail="Cannot create scoped resource in archived project",
+            )
     title = (body.title or "New Conversation").strip()[:240] or "New Conversation"
     conv = Conversation(
         group_id=group_id,
         user_id=current_user.id,
+        project_id=body.project_id,
         title=title,
     )
     db.add(conv)
@@ -206,13 +222,18 @@ def create_conversation(
 @router.get("", response_model=list[ConversationResponse])
 def list_conversations(
     group_id: str,
+    project_id: str | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[ConversationResponse]:
     get_membership_or_404(db, current_user.id, group_id)
+    conditions = [Conversation.group_id == group_id, Conversation.user_id == current_user.id]
+    if project_id is not None:
+        _get_project_or_404(db, group_id, project_id)
+        conditions.append(Conversation.project_id == project_id)
     convs = db.scalars(
         select(Conversation)
-        .where(Conversation.group_id == group_id, Conversation.user_id == current_user.id)
+        .where(*conditions)
         .order_by(Conversation.updated_at.desc())
     ).all()
     return [_conversation_response(c) for c in convs]
@@ -248,6 +269,7 @@ def get_conversation(
         id=conv.id,
         group_id=conv.group_id,
         user_id=conv.user_id,
+        project_id=conv.project_id,
         title=conv.title,
         message_count=len(messages),
         created_at=conv.created_at,
@@ -280,6 +302,13 @@ def send_message(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot send messages to another user's conversation",
         )
+    if conv.project_id:
+        project = db.get(BusinessProject, conv.project_id)
+        if project is not None and project.status == "archived":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot send messages in a conversation scoped to an archived project",
+            )
 
     # ── load history before adding current user message ───────────────
     history_messages = db.scalars(

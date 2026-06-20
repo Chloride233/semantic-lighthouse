@@ -370,10 +370,12 @@ def create_run(
     user_id: str,
     goal: str,
     conversation_id: str | None = None,
+    project_id: str | None = None,
 ) -> AgentRun:
     run = AgentRun(
         group_id=group_id,
         user_id=user_id,
+        project_id=project_id,
         conversation_id=conversation_id,
         goal=goal,
         status="planning",

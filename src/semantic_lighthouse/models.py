@@ -253,6 +253,9 @@ class Conversation(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), index=True, nullable=False)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True, nullable=False)
+    project_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("business_projects.id"), index=True, nullable=True
+    )
     title: Mapped[str] = mapped_column(String(240), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
@@ -289,6 +292,9 @@ class AgentRun(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), index=True, nullable=False)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True, nullable=False)
+    project_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("business_projects.id"), index=True, nullable=True
+    )
     conversation_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("conversations.id"), nullable=True)
     goal: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -535,6 +541,9 @@ class Task(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     group_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("groups.id"), index=True, nullable=False
+    )
+    project_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("business_projects.id"), index=True, nullable=True
     )
     title: Mapped[str] = mapped_column(String(240), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
