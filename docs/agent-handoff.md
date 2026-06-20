@@ -11,7 +11,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 | Item | Value |
 |------|-------|
-| Commit | `c298e4e` |
+| Commit | `220c81f` |
 | Backend pytest | 848 passed, 3 skipped |
 | ruff | clean |
 | Migration | `0026` at head |
