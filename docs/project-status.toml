@@ -21,11 +21,11 @@ screenshots_path = ".tmp/f2c/"
 
 [focus]
 current = "product rationalization review"
-description = "S0 audit complete — all capabilities classified as KEEP / CONSOLIDATE / HIDE / REMOVE. See docs/product-rationalization-review.md. S1 slimming scope pending approval."
+description = "S0 audit complete — all capabilities classified. FDE = Forward Deployed Engineer. Pilot 5-stage is main chain but not full FDE scope. See docs/product-rationalization-review.md. S1 low-risk cleanup pending approval."
 
 [next_decision_gate]
-name = "approve S1 slimming scope"
-description = "Review and approve the S1 deletion list from docs/product-rationalization-review.md. Upon approval: remove dead code (R1-R12), reduce navigation entries, hide Agent/Conversations/问答 from '更多工具' dropdown."
+name = "approve S1 low-risk cleanup"
+description = "S1 scope: delete MessageResponse dead code, delete v1 start/stop scripts, delete ecommerce download script, move 8 superseded docs to archive. Zero navigation changes. Zero product behavior changes. S2 evaluates nav consolidation and page hiding."
 
 [mcp]
 runtime_status = "not started"
