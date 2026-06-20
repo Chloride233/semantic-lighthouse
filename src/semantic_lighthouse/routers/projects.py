@@ -17,12 +17,16 @@ from semantic_lighthouse.dependencies import (
     get_membership_or_404,
     require_group_role,
 )
-from semantic_lighthouse.models import BusinessProject, User, utc_now
+from semantic_lighthouse.models import (
+    AgentRun, BusinessProject, Conversation, ProjectEvidenceLink, Task, User, utc_now,
+)
 from semantic_lighthouse.schemas import (
     BusinessProjectCreateRequest,
     BusinessProjectListResponse,
     BusinessProjectResponse,
     BusinessProjectUpdateRequest,
+    ProjectSummaryResponse,
+    TaskCountsByStatus,
 )
 
 router = APIRouter(prefix="/groups/{group_id}/projects", tags=["projects"])
@@ -175,3 +179,93 @@ def archive_project(
     db.commit()
     db.refresh(project)
     return _project_response(project)
+
+
+# ── S2.4B Project Summary ──────────────────────────────────────────────────
+
+
+def _safe_evidence_provenance(link: ProjectEvidenceLink, db: Session) -> dict:
+    """Minimal provenance for a ProjectEvidenceLink. Never exposes paths or content."""
+    prov: dict = {"evidence_type": link.evidence_type, "role": link.role, "status": link.status}
+    if link.evidence_type == "document":
+        from semantic_lighthouse.models import Document
+        doc = db.get(Document, link.evidence_id)
+        if doc is not None:
+            prov["title"] = doc.title
+            prov["file_name"] = doc.file_name
+            prov["evidence_status"] = doc.status
+        else:
+            prov["unavailable"] = True
+    return prov
+
+
+@router.get("/{project_id}/summary", response_model=ProjectSummaryResponse)
+def get_project_summary(
+    group_id: str,
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ProjectSummaryResponse:
+    """Read-only project summary. Member+."""
+    get_membership_or_404(db, current_user.id, group_id)
+
+    project = db.get(BusinessProject, project_id)
+    if project is None or project.group_id != group_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    # Evidence
+    evidence_links = db.scalars(
+        select(ProjectEvidenceLink).where(
+            ProjectEvidenceLink.group_id == group_id,
+            ProjectEvidenceLink.project_id == project_id,
+            ProjectEvidenceLink.status == "active",
+        ).order_by(ProjectEvidenceLink.created_at.desc()).limit(5)
+    ).all()
+    evidence_count = db.scalar(
+        select(func.count()).select_from(ProjectEvidenceLink).where(
+            ProjectEvidenceLink.group_id == group_id,
+            ProjectEvidenceLink.project_id == project_id,
+            ProjectEvidenceLink.status == "active",
+        )
+    ) or 0
+
+    # Conversations
+    conversation_count = db.scalar(
+        select(func.count()).select_from(Conversation).where(
+            Conversation.group_id == group_id,
+            Conversation.project_id == project_id,
+        )
+    ) or 0
+
+    # Tasks by status
+    task_statuses = db.execute(
+        select(Task.status, func.count()).where(
+            Task.group_id == group_id,
+            Task.project_id == project_id,
+        ).group_by(Task.status)
+    ).all()
+    task_counts = {"pending": 0, "in_progress": 0, "done": 0, "cancelled": 0}
+    for status_val, count in task_statuses:
+        if status_val in task_counts:
+            task_counts[status_val] = count
+
+    # Agent runs
+    agent_run_count = db.scalar(
+        select(func.count()).select_from(AgentRun).where(
+            AgentRun.group_id == group_id,
+            AgentRun.project_id == project_id,
+        )
+    ) or 0
+
+    return ProjectSummaryResponse(
+        project={
+            "id": project.id, "name": project.name,
+            "business_goal": project.business_goal,
+            "stage": project.stage, "status": project.status,
+        },
+        evidence_count=evidence_count,
+        recent_evidence=[_safe_evidence_provenance(link, db) for link in evidence_links],
+        conversation_count=conversation_count,
+        task_count=TaskCountsByStatus(**task_counts),
+        agent_run_count=agent_run_count,
+    )

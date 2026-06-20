@@ -854,3 +854,21 @@ class EvidenceLinkListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+# ── S2.4B Project Summary ──────────────────────────────────────────────────
+
+class TaskCountsByStatus(BaseModel):
+    pending: int = 0
+    in_progress: int = 0
+    done: int = 0
+    cancelled: int = 0
+
+
+class ProjectSummaryResponse(BaseModel):
+    project: dict
+    evidence_count: int
+    recent_evidence: list[dict]
+    conversation_count: int
+    task_count: TaskCountsByStatus
+    agent_run_count: int

@@ -606,3 +606,84 @@ class TestStageHelper:
     def test_next_stage_unknown_raises(self):
         with pytest.raises(ValueError, match="Unknown stage"):
             next_stage("unknown")
+
+
+# ── S2.4B Project Summary ──────────────────────────────────────────────────
+
+
+class TestProjectSummary:
+    def test_member_can_read_summary(self, client):
+        _, _, oh = register_and_login(client, "sum-own@t.com")
+        _, _, mh = register_and_login(client, "sum-mem@t.com")
+        gid = _create_group(client, oh, "SumGrp")
+        _join_group(client, gid, oh, mh)
+        pid = _create_project(client, gid, oh, name="SumProj")["id"]
+        r = client.get(f"/groups/{gid}/projects/{pid}/summary", headers=mh)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["project"]["name"] == "SumProj"
+        assert data["evidence_count"] == 0
+        assert data["recent_evidence"] == []
+        assert data["conversation_count"] == 0
+        assert data["task_count"]["pending"] == 0
+        assert data["agent_run_count"] == 0
+
+    def test_non_member_cannot_read_summary(self, client):
+        _, _, oh = register_and_login(client, "sum-out-own@t.com")
+        _, _, outsider_h = register_and_login(client, "sum-out@t.com")
+        gid = _create_group(client, oh, "OutGrp")
+        pid = _create_project(client, gid, oh)["id"]
+        r = client.get(f"/groups/{gid}/projects/{pid}/summary", headers=outsider_h)
+        assert r.status_code == 403
+
+    def test_cross_group_project_returns_404(self, client):
+        _, _, oh1 = register_and_login(client, "sum-cg1@t.com")
+        _, _, oh2 = register_and_login(client, "sum-cg2@t.com")
+        gid1 = _create_group(client, oh1, "CG1")
+        gid2 = _create_group(client, oh2, "CG2")
+        pid = _create_project(client, gid1, oh1)["id"]
+        r = client.get(f"/groups/{gid2}/projects/{pid}/summary", headers=oh2)
+        assert r.status_code == 404
+
+    def test_empty_project_zero_counts(self, client):
+        _, _, oh = register_and_login(client, "sum-empty@t.com")
+        gid = _create_group(client, oh, "EGrp")
+        pid = _create_project(client, gid, oh)["id"]
+        r = client.get(f"/groups/{gid}/projects/{pid}/summary", headers=oh)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["evidence_count"] == 0
+        assert data["recent_evidence"] == []
+        assert data["conversation_count"] == 0
+        assert data["task_count"]["pending"] == 0
+
+    def test_archived_project_readable(self, client):
+        _, _, oh = register_and_login(client, "sum-arch@t.com")
+        gid = _create_group(client, oh, "ArchGrp")
+        pid = _create_project(client, gid, oh)["id"]
+        client.post(f"/groups/{gid}/projects/{pid}/archive", headers=oh)
+        r = client.get(f"/groups/{gid}/projects/{pid}/summary", headers=oh)
+        assert r.status_code == 200
+        assert r.json()["project"]["status"] == "archived"
+
+    def test_evidence_count_only_active_links(self, client):
+        _, _, oh = register_and_login(client, "sum-ev@t.com")
+        gid = _create_group(client, oh, "EvGrp")
+        pid = _create_project(client, gid, oh)["id"]
+        r = client.get(f"/groups/{gid}/projects/{pid}/summary", headers=oh)
+        assert r.status_code == 200
+        assert r.json()["evidence_count"] == 0
+
+    def test_summary_excludes_sensitive_fields(self, client):
+        _, _, oh = register_and_login(client, "sum-safe@t.com")
+        gid = _create_group(client, oh, "SafeGrp")
+        pid = _create_project(client, gid, oh)["id"]
+        r = client.get(f"/groups/{gid}/projects/{pid}/summary", headers=oh)
+        assert r.status_code == 200
+        data = r.json()
+        body = str(data)
+        assert "raw_content" not in body
+        assert "source_path" not in body
+        assert "storage_path" not in body
+        assert "answer" not in body
+        assert "prompt" not in body

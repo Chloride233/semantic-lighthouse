@@ -20,11 +20,11 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S2.4A pilot surface contract review complete"
+current = "S2.4B project summary endpoint delivered"
 description = "Assessed Documents/Evidence, Conversations, Tasks, AgentRuns, and RAG Answer against five readiness criteria. Three capabilities (Evidence, Conversations, AgentRuns) are retrieval-isolated. RAG Answer still searches full group. No pages hidden. S2.4B minimal backend slice recommended: GET project summary endpoint."
 
 [next_decision_gate]
-name = "approve S2.4B project summary endpoint"
+name = "approve S2.4C project-bounded RAG endpoint design"
 description = "Implement GET /groups/{gid}/projects/{pid}/summary — a read-only aggregation endpoint requiring zero new models, migrations, or business logic. Gives Pilot frontend a single data source without embedding any standalone capability."
 
 [mcp]
