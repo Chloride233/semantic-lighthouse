@@ -1617,6 +1617,29 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
 .profileFKs ul { margin: 0; padding-left: 18px; }
 .profileFKs li { margin-bottom: 2px; }
 
+/* ── Stage support links ─────────────────────────────────────── */
+.stageSupport {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+.supportLink {
+  display: inline-block;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+.supportLink:hover { border-color: var(--brand); background: var(--brand-light); text-decoration: none; }
+
 /* ── Dialog overlay ────────────────────────────────────────────── */
 .dialogOverlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.3);

@@ -305,6 +305,16 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         results.append(("F2A Upload button visible at goal stage", has_upload_btn))
         assert has_upload_btn, "Upload button must be visible at goal stage"
 
+        # S2.1: Goal stage contextual links
+        goal_kl = page.locator("#goalKnowledgeLink")
+        goal_al = page.locator("#goalAskLink")
+        goal_kl_ok = goal_kl.count() > 0 and f"/groups/{gid}/documents" in (goal_kl.get_attribute("href") or "")
+        goal_al_ok = goal_al.count() > 0 and (goal_al.get_attribute("href") or "") == "#/ask"
+        results.append(("S2.1 Goal knowledge link exists with correct href", goal_kl_ok))
+        results.append(("S2.1 Goal ask link exists with correct href", goal_al_ok))
+        assert goal_kl_ok, "Goal stage must have link to knowledge base"
+        assert goal_al_ok, "Goal stage must have link to ask page"
+
         page.click("#uploadFirstBtn")
         page.wait_for_timeout(400)
         fd, csv_path = tempfile.mkstemp(suffix=".csv")
@@ -358,6 +368,11 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         gen_drafts_visible = page.locator("#genFromDataBtn").count() > 0
         results.append(("F2B Generate drafts button visible at data stage", gen_drafts_visible))
         assert gen_drafts_visible, "Generate drafts button must be visible"
+        # S2.1: Data stage button hierarchy
+        gen_btn_class = page.locator("#genFromDataBtn").get_attribute("class") or ""
+        upload_btn_class = page.locator("#uploadMoreBtn").get_attribute("class") or ""
+        results.append(("S2.1 Data stage gen is primary", "primary" in gen_btn_class))
+        results.append(("S2.1 Data stage upload is secondary", "secondary" in upload_btn_class))
         page.click("#genFromDataBtn")
         page.wait_for_timeout(2000)
         page.wait_for_timeout(500)
@@ -366,6 +381,18 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         draft_rows = page.locator(".draftRow").count()
         results.append(("F2B Drafts generated at model stage", draft_rows > 0))
         assert draft_rows > 0, "Draft rows must appear after generation"
+
+        # S2.1: Model stage ontology link
+        model_ol = page.locator("#modelOntologyLink")
+        model_ol_ok = model_ol.count() > 0
+        results.append(("S2.1 Model ontology link exists", model_ol_ok))
+        if model_ol_ok:
+            model_href = model_ol.get_attribute("href") or ""
+            results.append(("S2.1 Model ontology link has Ontology href", "/ontology" in model_href))
+            assert "/ontology" in model_href, "Model Ontology link must point to Ontology"
+        else:
+            results.append(("S2.1 Model ontology link href check", False))
+            assert model_ol_ok, "Model stage must have link to group Ontology"
 
         # Batch accept all proposed drafts
         if page.locator("#selectAllProposed").count() > 0:

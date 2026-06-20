@@ -27,7 +27,7 @@ export async function renderModelStage(container, gid, pid, project, reloadProje
     const quality = qualityData;
     const proposed = drafts.filter(d => d.status === 'proposed');
 
-    main.innerHTML = buildHTML(drafts, quality, proposed, isOwnerAdmin);
+    main.innerHTML = buildHTML(drafts, quality, proposed, isOwnerAdmin, gid);
 
     // Generation button
     document.getElementById('genDraftsBtn')?.addEventListener('click', async () => {
@@ -100,7 +100,7 @@ export async function renderModelStage(container, gid, pid, project, reloadProje
   await loadAndRender();
 }
 
-function buildHTML(drafts, quality, proposed, isOwnerAdmin) {
+function buildHTML(drafts, quality, proposed, isOwnerAdmin, gid) {
   const qs = quality.status || 'PASS';
   const qBadge = qs === 'PASS' ? 'badgeOk' : qs === 'WARN' ? 'badgeWarn' : 'badgeDanger';
   const issues = quality.issues || [];
@@ -140,6 +140,10 @@ function buildHTML(drafts, quality, proposed, isOwnerAdmin) {
     </div>
     ${counts.some(c => c.n > 0) ? `<div class="draftSummary">${counts.filter(c => c.n > 0).map(c => `<span class="badge badgeMuted">${c.label} ${c.n}</span>`).join(' ')}</div>` : ''}
     ${drafts.length === 0 ? '<p class="muted">尚无草案。点击"生成模型草案"从数据集创建。</p>' : `<div class="draftList">${drafts.map(d => draftRowHTML(d, isOwnerAdmin)).join('')}</div>`}
+    <div class="stageSupport" style="margin-top:16px">
+      <p class="muted" style="font-size:var(--text-xs);margin:0 0 6px">组级语义治理上下文（尚未关联当前项目）：</p>
+      <a id="modelOntologyLink" href="#/groups/${gid}/ontology" class="supportLink">查看共享 Ontology</a>
+    </div>
     <div class="stagePanel" style="margin-top:20px">
       <div class="stagePanelHead"><h2>质量门禁</h2><span class="badge ${qBadge}">${esc(qs)}</span></div>
       <p>错误 ${quality.error_count || 0} · 警告 ${quality.warning_count || 0} · 草案 ${quality.draft_count || 0}</p>

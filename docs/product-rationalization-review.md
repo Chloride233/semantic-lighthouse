@@ -1,7 +1,7 @@
 # Product Rationalization and Surface Consolidation Review
 
 Date: 2026-06-20
-Status: S2 product-surface consolidation design complete. S2.1 contextual guidance implementation pending approval.
+Status: S2.1 contextual guidance delivered. S2.2 project evidence contract design pending approval.
 
 ## 1. FDE Role and Main Chain
 
@@ -316,3 +316,22 @@ resulting records are already attached to the project.
 - Ontology remains visibly central without competing with the Pilot sequence.
 - Every stage has a clear primary action; supporting tools are secondary.
 - Nothing is hidden before an equivalent project-scoped path exists.
+
+### S2.1 Delivered
+
+Actual changes (3 files, +27 lines):
+
+- `static/js/pages/project.js`:
+  - Goal stage: added `.stageSupport` area with `#goalKnowledgeLink` (→ `#/groups/{gid}/documents`) and `#goalAskLink` (→ `#/ask`). Copy explicitly states links are not yet project-scoped.
+  - Data stage: `#genFromDataBtn` now has class `primary`, `#uploadMoreBtn` now has class `secondary`.
+
+- `static/js/pages/project-model.js`:
+  - Model stage: added `.stageSupport` area with `#modelOntologyLink` (→ `#/groups/{gid}/ontology`). Copy states this is group-level governance context.
+
+- `static/styles.css`:
+  - Added `.stageSupport` (border-top separator, flex-wrap, gap) and `.supportLink` (inline border, radius ≤ 6px, hover to brand-light).
+
+- `scripts/verify_ui.py`:
+  - 6 new checks: Goal knowledge/ask link href correctness, Data stage primary/secondary button class verification, Model ontology link href correctness.
+
+No backend, API, schema, migration, permission, route, navigation, or page changes.

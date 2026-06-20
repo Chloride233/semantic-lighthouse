@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S2 product-surface consolidation design complete"
-description = "Pilot remains the guided project delivery path; Ontology remains the group-level semantic governance workspace. Supporting tools stay visible until real project-scoped replacements exist. See section 9 of docs/product-rationalization-review.md."
+current = "S2.1 contextual guidance complete"
+description = "Goal stage: upload dataset (primary) + knowledge base / ask links (secondary, not project-scoped). Data stage: generate drafts (primary) + upload more (secondary). Model stage: ontology link (secondary, group-level governance context). No backend, API, schema, migration, permission, or navigation changes. See docs/product-rationalization-review.md section 9."
 
 [next_decision_gate]
-name = "approve S2.1 contextual guidance implementation"
-description = "S2.1 adds only contextual links and concise stage guidance inside the existing Pilot flow. No backend, API, schema, migration, permission, route-removal, or page-hiding work."
+name = "approve S2.2 project evidence contract design"
+description = "S2.2 scope: design and, only after approval, persist explicit project-to-evidence linkage. Evidence association must be group-checked, project-scoped, auditable, and provenance-preserving. Design only — no implementation until approved."
 
 [mcp]
 runtime_status = "not started"

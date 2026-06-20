@@ -131,6 +131,11 @@ export async function render(container, params) {
             ${!hasDatasets ? '<button class="primary" id="uploadFirstBtn">上传数据集</button>' : ''}
           </div>
         ` : '<p class="muted">需要 owner 或 admin 角色才能上传数据。</p>'}
+        <div class="stageSupport">
+          <p class="muted" style="font-size:var(--text-xs);margin:0 0 6px">准备阶段补充业务背景（尚未关联当前项目）：</p>
+          <a id="goalKnowledgeLink" href="#/groups/${gid}/documents" class="supportLink">查看知识库</a>
+          <a id="goalAskLink" href="#/ask" class="supportLink">知识问答</a>
+        </div>
       </div>
       ${dsList.length > 0 ? datasetListHTML(dsList) : ''}
     `;
@@ -151,8 +156,8 @@ export async function render(container, params) {
         <p>数据集已上传并完成分析。后端已识别字段类型、主键候选和外键建议。</p>
         ${isOwnerAdmin ? `
           <div class="stageCTAs">
-            <button class="primary" id="uploadMoreBtn">上传更多数据</button>
             <button class="primary" id="genFromDataBtn">生成模型草案</button>
+            <button class="secondary" id="uploadMoreBtn">上传更多数据</button>
             <p class="stageHint">数据准备就绪后即可开始建模</p>
           </div>
         ` : ''}
