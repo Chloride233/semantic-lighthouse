@@ -1,5 +1,14 @@
 # Highlight Log
 
+## S2.4 Closeout — Backend Surface Is Ready Enough; Do Not Expand By Momentum
+
+- Date: 2026-06-20
+- Version: S2.4 closeout
+- Type: decision
+- What happened: Closed S2.4 backend consolidation after S2.4A contract review, S2.4B project summary endpoint, and S2.4C project-bounded RAG. S2.4D/E/F are deferred candidates, not automatic next work.
+- Engineering judgment: The backend now has the contracts needed for Pilot surface planning: project evidence summaries, project-scoped Conversations/Tasks/Agent runs from S2.3, and project-bounded RAG from S2.4C. More backend endpoints should be driven by a concrete frontend replacement gap, not by the feeling that every standalone page needs a new embedded API first.
+- Verification: Documentation-only closeout based on the S2.4C baseline: 48 focused RAG tests, 139 related tests, SQLite migration roundtrip, grouped non-E2E regression across 851 collected tests, and full ruff already passed.
+
 ## S2.4C — Project-Bounded RAG Is Scoped Run, Not Auto-Linked Evidence
 
 - Date: 2026-06-20

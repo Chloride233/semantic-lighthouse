@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (S2.4C delivered, migration 0026)
+Last updated: 2026-06-20 (S2.4 backend consolidation closed)
 
 ## State Source
 
@@ -11,7 +11,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 | Item | Value |
 |------|-------|
-| Commit | `220c81f` |
+| Commit | `74d6dd8` |
 | Backend pytest | 848 passed, 3 skipped |
 | ruff | clean |
 | Migration | `0026` at head |
@@ -72,7 +72,7 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 ## Next Decision Gate
 
-**Choose S2.4D or S2.4 closeout**: S2.4C is delivered. The next slice can be project-scoped task creation / conversation starter design, or a closeout pass before any frontend/navigation work. Do not hide standalone pages until replacement parity is proven by tests.
+**Frontend surface planning or explicit S2.4D design**: S2.4 backend consolidation is closed. S2.4A proved the contract boundaries, S2.4B added the project summary endpoint, and S2.4C added project-bounded RAG. Do not automatically continue with S2.4D/E/F; only design another backend slice if frontend replacement planning exposes a concrete API gap. Do not hide standalone pages until replacement parity is proven by tests.
 
 ## Key API Surfaces
 

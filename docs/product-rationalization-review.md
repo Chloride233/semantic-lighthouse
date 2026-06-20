@@ -1,7 +1,7 @@
 # Product Rationalization and Surface Consolidation Review
 
 Date: 2026-06-20
-Status: S2.4C project-bounded RAG endpoint delivered. S2.4D / S2.4 closeout decision pending.
+Status: S2.4 backend consolidation closed. S2.4D/E/F remain deferred candidates, not automatic next work.
 
 ## 1. FDE Role and Main Chain
 
@@ -683,7 +683,7 @@ Unknown, cross-group, or cross-user source references return 404 to avoid existe
 
 ## 12. S2.4 Pilot Surface Consolidation
 
-Status: S2.4B project summary endpoint delivered and reviewed.
+Status: S2.4 backend consolidation closed after S2.4A/B/C.
 
 ### 12.1 Decision
 
@@ -761,15 +761,15 @@ A capability is ready for Pilot surface exposure when:
 
 | Criterion | Status | Evidence |
 |-----------|--------|----------|
-| Project scope | ⚠️ Indirect | `RagRun` has no `project_id`. A RAG run can be linked to a project via `ProjectEvidenceLink` after creation. A project-scoped task with `source_type=rag_run` requires an active evidence link. But RAG retrieval itself is not project-bounded — the Ask page always searches the full group. |
-| Retrieval isolation | ❌ | The standalone Ask page (`/ask`) does not accept a `project_id` and always retrieves from the full group. `RagRun` records are group-scoped. Project-bounded retrieval only exists inside project-scoped Conversations and Agent runs. |
-| Write freeze | N/A | `RagRun` has no `project_id` to freeze. |
+| Project scope | ✅ | S2.4C added nullable indexed `RagRun.project_id` and `POST /groups/{gid}/projects/{pid}/rag/answer`. Existing group Ask remains `project_id = NULL`. |
+| Retrieval isolation | ✅ | Project RAG derives allowed Documents from active `ProjectEvidenceLink` rows and never falls back to group-wide retrieval when project evidence is empty. |
+| Write freeze | ✅ | Archived projects reject new project-scoped RAG answers (409). Historical runs remain readable. |
 | Audit trail | ✅ | `RagRun` records question, answer, confidence, citations, and retrieval method. |
 | Identity boundary | ✅ | `RagRun` is group-scoped. |
 
-**Pilot surface candidate**: None today. The Ask page must remain a standalone tool until RAG retrieval can be project-bounded. Linking a RAG run to a project via evidence link is a post-hoc operation — it does not make the retrieval itself project-scoped.
+**Pilot surface candidate**: Project-bounded Ask panel in the Pilot Goal stage. Frontend work remains separate; the standalone Ask page must remain until a replacement UI proves parity.
 
-**What would make this ready**: A `project_id` on `RagRun` (or a project-scoped RAG endpoint) that constrains retrieval to active project evidence. This is S2.3B-level work but was not in S2.3 scope.
+**Boundary**: Project-scoped `RagRun.project_id` proves where the answer was generated. `ProjectEvidenceLink` still proves a human intentionally attached the answer as durable project evidence. S2.4C does not auto-create evidence links.
 
 ### 12.4 Consolidation State Summary
 
@@ -779,13 +779,13 @@ A capability is ready for Pilot surface exposure when:
 | Conversations | ✅ | ✅ | ✅ | Scoped conversation list + create |
 | Tasks | ✅ | N/A | ✅ | Scoped task list + create |
 | Agent Runs | ✅ | ✅ | ✅ | Scoped run list + create |
-| RAG Answer (Ask) | ❌ | ❌ | N/A | None — keep standalone |
+| RAG Answer (Ask) | ✅ | ✅ | ✅ | Project-bounded Ask panel |
 
 ### 12.5 Pages That Must Retain Direct Access
 
 | Page | Reason |
 |------|--------|
-| Ask (`/ask`) | No project-bounded RAG retrieval exists. Full group search is the only retrieval path. Evidence linking is post-hoc. |
+| Ask (`/ask`) | Project-bounded RAG exists via API, but no Pilot-embedded Ask UI exists yet. The standalone group Ask remains the only current UI and must stay accessible. |
 | Conversations (`/groups/{gid}/conversations`) | No Pilot-embedded chat UI exists. The standalone page is the only way to read and send messages. Project-scoped listing via API filter exists but has no UI. |
 | Tasks (`/groups/{gid}/tasks`) | No Pilot-embedded task board exists. Project-scoped listing and creation via API exist but have no UI. |
 | Agent (`/groups/{gid}/agent`) | No Pilot-embedded HITL flow exists. Agent tool confirmation requires the standalone console. Project-scoped execution works via API but has no UI. |
@@ -822,14 +822,14 @@ This endpoint requires **zero new models, zero new migrations, zero new business
 - No new write endpoints
 - No project-bounded RAG endpoint
 
-### 12.7 S2.4C+ Candidates (Not Scheduled)
+### 12.7 S2.4C+ Candidates
 
 | Slice | Scope |
 |-------|-------|
-| S2.4C | Project-bounded RAG endpoint design (`POST /groups/{gid}/projects/{pid}/rag/answer`) |
-| S2.4D | Pilot-embedded task creation (reuses existing `POST /tasks` with `project_id`) |
-| S2.4E | Pilot-embedded conversation starter (reuses existing `POST /conversations` with `project_id`) |
-| S2.4F | Navigation evaluation — hide pages only after replacement parity is proven by tests |
+| S2.4C | Delivered: project-bounded RAG endpoint (`POST /groups/{gid}/projects/{pid}/rag/answer`) |
+| S2.4D | Deferred candidate: Pilot-embedded task creation design, reusing existing `POST /tasks` with `project_id` |
+| S2.4E | Deferred candidate: Pilot-embedded conversation starter design, reusing existing `POST /conversations` with `project_id` |
+| S2.4F | Deferred candidate: Navigation evaluation — hide pages only after replacement parity is proven by tests |
 
 ### 12.8 S2.4C Project-Bounded RAG Endpoint Design
 
@@ -947,3 +947,15 @@ Suggested implementation lane: **Safety Lane**. Reason: this touches RAG retriev
 - Keyword, semantic, hybrid, and auto retrieval paths all receive the same allowed Document constraint.
 - No `ProjectEvidenceLink` is automatically created for project-scoped RAG runs.
 - Verification: 48 focused RAG tests passed; 139 related RAG/retrieval/project-evidence/project-context tests passed; migration 0026 upgrade/downgrade/re-upgrade passed on SQLite. A one-shot non-E2E full run timed out after about 10 minutes with no failure output, so non-E2E regression was rerun in grouped suites covering all 851 collected tests: 848 passed, 3 skipped.
+
+### 12.9 S2.4 Closeout Decision
+
+S2.4 backend consolidation is complete enough for the next frontend surface planning pass:
+
+- S2.4A defined the readiness criteria and prevented premature page hiding.
+- S2.4B added a read-only project summary endpoint for Pilot overview panels.
+- S2.4C added project-bounded RAG with durable `RagRun.project_id`, strict active-evidence retrieval scope, archived-project write freeze, and no automatic evidence linking.
+
+Do not keep expanding the backend merely because more Pilot embedding is possible. Tasks, Conversations, and Agent runs already have project-scoped backend APIs from S2.3, and RAG now has the missing project-scoped answer path. S2.4D/E/F should be reopened only if frontend replacement planning discovers a concrete API gap.
+
+Standalone pages remain accessible. Navigation hiding belongs to a frontend parity pass, not to backend closeout.

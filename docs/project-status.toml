@@ -20,19 +20,19 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S2.4C project-bounded RAG endpoint delivered"
-description = "POST /groups/{gid}/projects/{pid}/rag/answer is implemented. Migration 0026 adds nullable RagRun.project_id. Project RAG retrieves only active project evidence Documents, preserves existing group-scoped Ask, and does not automatically create ProjectEvidenceLink rows."
+current = "S2.4 backend consolidation closed"
+description = "S2.4A contract review, S2.4B project summary, and S2.4C project-bounded RAG are delivered. The backend now has enough project-scoped contracts for Pilot surface planning; do not expand S2.4D/E/F unless a concrete frontend replacement or API gap requires it."
 
 [next_decision_gate]
-name = "choose S2.4D or S2.4 closeout"
-description = "Either design the next Pilot surface backend slice (project-scoped task creation/conversation starter) or close S2.4 backend consolidation before any frontend/navigation work. No page hiding until replacement parity is proven."
+name = "frontend surface planning or explicit S2.4D design"
+description = "Plan the Pilot surface replacement around existing project-scoped APIs. S2.4D/E/F remain deferred candidates, not automatic next work. No page hiding until replacement parity is proven."
 
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "220c81f"
+latest_commit = "74d6dd8"
 backend_pytest = 848
 ruff = "clean"
 migration_head = "0026"
