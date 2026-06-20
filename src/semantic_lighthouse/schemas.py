@@ -75,10 +75,6 @@ class RoleUpdateRequest(BaseModel):
     role: str = Field(pattern="^(owner|admin|member)$")
 
 
-class MessageResponse(BaseModel):
-    message: str
-
-
 class DocumentResponse(BaseModel):
     id: str
     group_id: str

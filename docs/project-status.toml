@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "product rationalization review"
-description = "S0 audit complete — all capabilities classified. FDE = Forward Deployed Engineer. Pilot 5-stage is main chain but not full FDE scope. See docs/product-rationalization-review.md. S1 low-risk cleanup pending approval."
+current = "S1 low-risk cleanup complete"
+description = "3 files deleted (MessageResponse, v1 scripts, ecommerce script), 9 docs archived. Zero product behavior changes. See docs/product-rationalization-review.md. S2 product-surface consolidation design pending approval."
 
 [next_decision_gate]
-name = "approve S1 low-risk cleanup"
-description = "S1 scope: delete MessageResponse dead code, delete v1 start/stop scripts, delete ecommerce download script, move 8 superseded docs to archive. Zero navigation changes. Zero product behavior changes. S2 evaluates nav consolidation and page hiding."
+name = "approve S2 product-surface consolidation design"
+description = "S2 scope: evaluate navigation reduction, capability integration (Tasks/RAG/Conversations/Agent into Pilot surface), page hiding, Ontology nav placement. Design only — no implementation until approved."
 
 [mcp]
 runtime_status = "not started"

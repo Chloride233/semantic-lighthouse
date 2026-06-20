@@ -1,7 +1,7 @@
 # Product Rationalization Review — S0 Audit
 
 Date: 2026-06-20
-Status: S0 audit complete. No code deleted. S1 scope pending approval.
+Status: S1 complete. Low-risk cleanup executed. S2 scope pending approval.
 
 ## 1. FDE Role and Main Chain
 
@@ -83,16 +83,16 @@ The Pilot five stages are the product's primary user path but do NOT represent t
 | R1 | `MessageResponse` schema | Dead code | `schemas.py` line 78. Zero imports in any router or service. Grep: `rg "MessageResponse" src/` returns only the definition, no callers. | **None**. Pure dead code. |
 | R2 | `scripts/dev/start-v1-api.ps1` + `stop-v1-api.ps1` | Stale scripts | Named "v1" but start current app. Superseded by `scripts/start_local_app.ps1`. PID-file pattern is vestigial — no other script uses `.runtime/` PID files. | **None**. `start_local_app.ps1` provides the same functionality. |
 | R3 | `scripts/download_ecommerce_datasets.py` | Niche script | Downloads Olist/Retail Rocket/UCI/Instacart datasets via KaggleHub. Not referenced by any test, demo, or pipeline script. Requires `kagglehub` pip package (not in requirements.txt). | **None**. Manufacturing dataset generator (`generate_manufacturing_dataset.py`) covers Pilot demo data needs. |
-| R4 | `docs/mvp-plan.md` | Superseded doc | 2-week MVP plan from project inception. Entirely superseded by Phase 1-14 delivery. References concepts that no longer exist in the current product. | **None**. Historical record of project origin — archive if desired. |
-| R5 | `docs/web-search-design.md` | Design-only doc | Feature classified as "Discovery" since 2026-06-17. Never implemented. No backend router, service, or frontend page. `project-status.toml` confirms "not started." | **None**. Retaining design for future reference is optional. |
-| R6 | `docs/agent-capability-v2-design.md` | Superseded design | 18-section V2 design document. V2.1/V2.2/V2.3 all delivered per agent-handoff.md. Current implementation differs from design in several documented ways (post-review docs capture final state). | **Low**. Archive if removed; current agent behavior is documented in handoff.md and test files. |
-| R7 | `docs/agent-capability-v2-review.md` | Superseded review | Pre-implementation Chinese design review. Conditions passed. Implementation complete. | **Low**. Archive. |
-| R8 | `docs/agent-capability-v2.1-post-review.md` | Superseded review | V2.1 post-implementation review. Version superseded by V2.2/V2.3. | **Low**. Archive. |
-| R9 | `docs/agent-capability-v23-eval.md` | Superseded eval | V2.3 eval results. 39 tests. Real DeepSeek smoke. Historical evidence that the eval was done, but the results are captured in handoff.md. | **Low**. Archive. |
-| R10 | `docs/agent-eval-report.md` | Superseded eval | Agent Workflow Evaluation v1. Superseded by V2.3 eval (`agent-capability-v23-eval.md`). | **Low**. Archive. |
-| R11 | `docs/rag-quality-eval-report.md` | Placeholder report | Contains "Populated by scripts/..." sections never filled. Baseline only. The scripts that generate it (`run_eval.py`, `run_rag_quality_eval.py`) are still active. | **Deferred**. Do NOT delete in S1. Mark as "regenerate from scripts" — report content may be regenerated in the future. |
-| R12 | `docs/research/public-agent-architecture-research.md` | Research note | 8 public projects analyzed. Adoption decisions recorded in handoff.md. Useful as historical reference but not active documentation. | **Low**. Archive. |
-| R13 | `docs/ecc-stage-prompts.md` | ECC prompt templates | Saved ECC plan prompts for major phases. ECC has been offloaded — this file is no longer operationally relevant. | **Low**. Archive. |
+| R4 | `docs/mvp-plan.md` | Superseded doc | 2-week MVP plan from project inception. Entirely superseded by Phase 1-14 delivery. | **Archived.** S1 moved to `docs/archive/mvp-plan.md`. |
+| R5 | `docs/web-search-design.md` | Design-only doc | Feature classified as "Discovery" since 2026-06-17. Never implemented. | **Archived.** S1 moved to `docs/archive/web-search-design.md`. |
+| R6 | `docs/agent-capability-v2-design.md` | Superseded design | 18-section V2 design document. V2.1/V2.2/V2.3 all delivered. | **Archived.** S1 moved to `docs/archive/agent-capability-v2-design.md`. |
+| R7 | `docs/agent-capability-v2-review.md` | Superseded review | Pre-implementation Chinese design review. Conditions passed. | **Archived.** S1 moved. |
+| R8 | `docs/agent-capability-v2.1-post-review.md` | Superseded review | V2.1 post-implementation review. | **Archived.** S1 moved. |
+| R9 | `docs/agent-capability-v23-eval.md` | Superseded eval | V2.3 eval results. 39 tests. Real DeepSeek smoke. | **Archived.** S1 moved. |
+| R10 | `docs/agent-eval-report.md` | Superseded eval | Agent Workflow Evaluation v1. Superseded by V2.3. | **Archived.** S1 moved. |
+| R11 | `docs/rag-quality-eval-report.md` | Placeholder report | Sections never filled. Active eval scripts (`run_eval.py`, `run_rag_quality_eval.py`) still reference it. | **Deferred.** Marked as "pending regeneration." |
+| R12 | `docs/research/public-agent-architecture-research.md` | Research note | 8 public projects analyzed. Adoption decisions in handoff.md. | **Archived.** S1 moved. |
+| R13 | `docs/ecc-stage-prompts.md` | ECC prompt templates | ECC has been offloaded. | **Archived.** S1 moved to `docs/archive/ecc-stage-prompts.md`. |
 
 ---
 
@@ -120,18 +120,20 @@ Each REMOVE item verified with `rg`/import/route/test scans:
 
 S1 only performs low-risk cleanup that has zero impact on product behavior. All navigation, consolidation, and hiding decisions are deferred to S2.
 
-### S1 Approved Actions (low-risk, no product behavior change)
+### S1 Actions — Complete ✅
 
-| Priority | Item | Action | Risk | Verification |
-|----------|------|--------|------|-------------|
-| **S1-1** | R1: `MessageResponse` schema | Delete from schemas.py | Zero | ruff check; full pytest shows no import failures |
-| **S1-2** | R2: `start/stop-v1-api.ps1` | Delete both scripts | Zero | None — `start_local_app.ps1` provides equivalent function |
-| **S1-3** | R3: `download_ecommerce_datasets.py` | Delete | Zero | None — no test/demo/pipeline references |
-| **S1-4** | R4: `docs/mvp-plan.md` | Move to `docs/archive/` | Zero | check_doc_alignment.py |
-| **S1-5** | R5: `docs/web-search-design.md` | Move to `docs/archive/` | Zero | Remove stale cross-reference from CLAUDE.md |
-| **S1-6** | R6-R10: Agent superseded docs (5 files) | Move to `docs/archive/` | Low | Verify handoff.md captures final agent state |
-| **S1-7** | R12: `public-agent-architecture-research.md` | Move to `docs/archive/` | Low | None |
-| **S1-8** | R13: `docs/ecc-stage-prompts.md` | Move to `docs/archive/` | Low | ECC has been offloaded |
+| Priority | Item | Action | Status |
+|----------|------|--------|--------|
+| **S1-1** | R1: `MessageResponse` schema | Delete from schemas.py | ✅ Done |
+| **S1-2** | R2: `start/stop-v1-api.ps1` | Delete both scripts | ✅ Done |
+| **S1-3** | R3: `download_ecommerce_datasets.py` | Delete | ✅ Done |
+| **S1-4** | R4: `docs/mvp-plan.md` | Archive | ✅ Done |
+| **S1-5** | R5: `docs/web-search-design.md` | Archive | ✅ Done |
+| **S1-6** | R6-R10: Agent superseded docs (5 files) | Archive | ✅ Done |
+| **S1-7** | R12: `public-agent-architecture-research.md` | Archive | ✅ Done |
+| **S1-8** | R13: `docs/ecc-stage-prompts.md` | Archive | ✅ Done |
+
+**Summary**: 3 deletions + 9 archival moves. Zero product behavior changes. Zero navigation changes.
 
 ### Deferred from S1
 
@@ -193,8 +195,8 @@ S1 makes no navigation changes. The current layout is preserved:
 | Dead code (schema) | 1 orphan | 0 orphan | -1 |
 | Stale scripts | 2 | 0 | -2 |
 | Niche scripts | 1 | 0 | -1 |
-| Superseded docs archived | 0 in archive | 8 moved to archive | -8 from active docs |
-| **Total files affected** | — | — | **12 files** (1 delete, 2 delete, 1 delete, 8 archive) |
+| Superseded docs archived | 1 in archive | 10 in archive | 9 moved to archive |
+| **Total files affected** | — | — | **12 files** (3 deleted, 9 archived) |
 | **Navigation changes** | — | — | **0** (deferred to S2) |
 | **Frontend LOC change** | — | — | **0** (no navbar.js changes in S1) |
 
@@ -236,5 +238,4 @@ The following are historical delivery records, not runtime redundancy. They are 
 - All `docs/ontology-*-demo-report.md` demo artifacts
 - `docs/frontend-redesign-plan.md` (superseded by F2, but records design decisions)
 - `docs/project-workflows.md` (documents internal processes)
-- `docs/ecc-stage-prompts.md` (records ECC prompt templates)
 - `docs/CODEMAPS/*.md` (code navigation)
