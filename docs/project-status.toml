@@ -20,19 +20,19 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S2.2 project evidence contract design complete"
-description = "Design complete: single ProjectEvidenceLink table with polymorphic evidence_type/evidence_id, server-side type validation, group_id + project_id dual isolation, audit via OntologyRuntimeAudit. 26-test plan defined. Implementation deferred to Safety Lane approval. See docs/product-rationalization-review.md section 10."
+current = "S2.2 project evidence contract complete"
+description = "Migration 0024 (project_evidence_links), 3 API endpoints, 38 targeted tests, full regression 786 passed. Group+project dual isolation. Audit via OntologyRuntimeAudit. See docs/product-rationalization-review.md section 10."
 
 [next_decision_gate]
-name = "approve S2.2 Safety Lane implementation"
-description = "Implement ProjectEvidenceLink model (new migration), CRUD API, permissions, lifecycle, provenance sanitization, and 26 targeted tests. Safety Lane: auth, group_id isolation, audit required. No UI changes until S2.4."
+name = "S2.2 backend safety review complete / plan S2.3"
+description = "S2.3 scope: evaluate optional project_id for conversations, tasks, and Agent runs. Design only — no implementation until approved."
 
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "99741b0"
-backend_pytest = 749
+latest_commit = "9773d97"
+backend_pytest = 786
 ruff = "clean"
-migration_head = "0023"
+migration_head = "0024"

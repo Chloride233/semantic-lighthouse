@@ -1,7 +1,7 @@
 # Product Rationalization and Surface Consolidation Review
 
 Date: 2026-06-20
-Status: S2.1 contextual guidance delivered. S2.2 project evidence contract design pending approval.
+Status: S2.1 contextual guidance delivered. S2.2 project evidence contract delivered.
 
 ## 1. FDE Role and Main Chain
 
@@ -566,3 +566,33 @@ Errors: 404 if link not found or `link.project_id != project_id` or `link.group_
 | Concurrent duplicate creation | Unique constraint catches the race. On IntegrityError: rollback the failed insert, re-query the existing row. If `active` → return 200. If `removed` → apply relink rules (reactivate + evidence_relink audit) → return 200. Never returns 409 for a duplicate race. |
 | Audit table growth | Each link create/remove is one OntologyRuntimeAudit row. Acceptable — query runtime audit is write-only (no query API exposed by design, matching existing Phase 14.5 pattern). |
 | Migration number collision | Next available migration number determined at implementation time. Documented as TBD. |
+
+### S2.2 Delivered
+
+Implementation (6 new files, +1078 lines):
+
+- **Model**: `ProjectEvidenceLink` in `models.py` — 13 columns, polymorphic evidence_id, unique constraint on (project_id, evidence_type, evidence_id), soft-delete via status=removed with removed_by/removed_at audit fields.
+
+- **Migration**: `0024_v24_project_evidence_links` — upgrade/downgrade verified on SQLite.
+
+- **Router**: `src/semantic_lighthouse/routers/evidence_links.py` — 3 endpoints:
+  - `POST` (owner/admin): 201 new, 200 active duplicate, 200 relink. Dynamic status codes via FastAPI Response. Idempotency: existing link checked before status validation.
+  - `GET` (member+): status_filter, evidence_type, limit/offset with 422 validation. Dual group_id+project_id filtering.
+  - `DELETE` (owner/admin): soft-delete with updated_at tracking. Double delete idempotent.
+
+- **Schemas**: `EvidenceLinkCreateRequest`, `EvidenceLinkResponse`, `EvidenceLinkListResponse`, `EvidenceProvenance` in `schemas.py`.
+
+- **Permissions**: `get_membership_or_404` (403 for non-member), `require_group_role` (403 for non-owner/admin). Cross-group/project returns 404.
+
+- **Provenance**: Document (title, status, file_name, safe source_label, created_at) and RAGRun (truncated question, confidence, retrieval_method, citation_count). Never exposes source_path, storage_path, raw_content, answer, snippet, or prompt. Source evidence gone → link stays active, provenance returns unavailable=true.
+
+- **Audit**: Reuses `OntologyRuntimeAudit` with operations `evidence_link`/`evidence_unlink`/`evidence_relink`. `field_names` stores only field name strings, never values.
+
+- **Tests**: 38 targeted tests covering permissions, isolation, evidence status validation, idempotency, lifecycle, audit, provenance minimization, input boundaries, and fail-closed commit behavior.
+
+- **Full regression**: 786 passed, 3 skipped.
+
+Residual boundaries (not in S2.2):
+- No UI — evidence links are API-only. Goal stage links remain navigation-only.
+- No Agent auto-link — Agent tool registry has zero evidence write tools.
+- No conversation/task/AgentRun project scope (deferred to S2.3).

@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20
+Last updated: 2026-06-20 (F2 Complete, S2.2 delivered, migration 0024)
 
 ## State Source
 
@@ -11,13 +11,14 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 | Item | Value |
 |------|-------|
-| Commit | `99741b0` |
-| Backend pytest | 749 passed |
+| Commit | `9773d97` |
+| Backend pytest | 786 passed |
 | ruff | clean |
-| Migration | `0023` at head |
+| Migration | `0024` at head |
 | verify_ui | 47/47 |
 | E2E | 18/18 |
 | Screenshots | `.tmp/f2c/` 6 files |
+| Evidence tests | 38 pass |
 
 ## Architecture Boundaries
 

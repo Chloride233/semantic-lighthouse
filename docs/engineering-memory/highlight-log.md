@@ -1,5 +1,14 @@
 # Highlight Log
 
+## S2.2 — Project Evidence Links: Explicit, Human-Reviewed, Auditable
+
+- Date: 2026-06-20
+- Version: S2.2
+- Type: decision
+- Context: FDE needs to ground business problems in enterprise knowledge. The question: how to associate Documents and RAG runs with a specific Pilot project without auto-linking, without leaking cross-group data, and without letting Agent auto-associate.
+- What happened: Single `ProjectEvidenceLink` table with polymorphic evidence_type/evidence_id. Owner/admin create; member read. Active duplicate is idempotent (200, no audit). Removed links can be relinked. Evidence must be ready/success to link. Archived projects block new links but active duplicates survive. Source evidence deletion does NOT auto-remove links — GET dynamically returns unavailable=true. 38 targeted tests, 786 full regression. Audit via existing OntologyRuntimeAudit.
+- Engineering judgment: Evidence association must be explicit (user action, not auto-link), project-scoped (not just group-scoped), revocable (soft-delete), and auditable (every transition recorded). Agent must not auto-link evidence. The key decision was the single-table polymorphic design over multi-table join tables — all evidence types share identical lifecycle, so a type discriminator is simpler.
+
 ## Frontend F2C — Responsive, Accessible, Visually-Polished Guided Pilot Workspace
 
 - Date: 2026-06-20

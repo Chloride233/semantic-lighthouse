@@ -876,7 +876,6 @@ def test_link_and_audit_share_transaction(client, db_session):
     )
     assert resp.status_code == 201
 
-    # Verify both link and audit row exist
     db_session.expire_all()
     links = db_session.query(ProjectEvidenceLink).filter(
         ProjectEvidenceLink.project_id == pid
@@ -887,3 +886,45 @@ def test_link_and_audit_share_transaction(client, db_session):
         OntologyRuntimeAudit.project_id == pid, OntologyRuntimeAudit.operation == "evidence_link"
     ).all()
     assert len(audits) == 1, "Audit row must exist alongside the link"
+
+
+def test_audit_commit_failure_fail_closed(client, db_session, monkeypatch):
+    """A failed commit exposes neither the link nor audit to another session."""
+    gid, pid, owner_id, member_id = _setup_group_and_project(db_session)
+    doc_id = new_id()
+    _add_document(db_session, gid, doc_id)
+    db_session.commit()
+    headers = _auth_headers(client, f"own-{gid[:8]}@t.com")
+
+    def failing_commit():
+        # Force both pending rows into the open transaction before failure.
+        db_session.flush()
+        raise RuntimeError("simulated commit failure")
+
+    original_commit = db_session.commit
+    monkeypatch.setattr(db_session, "commit", failing_commit)
+
+    try:
+        with pytest.raises(RuntimeError, match="simulated commit failure"):
+            client.post(
+                f"/groups/{gid}/projects/{pid}/evidence-links",
+                json={
+                    "evidence_type": "document",
+                    "evidence_id": doc_id,
+                    "role": "context",
+                },
+                headers=headers,
+            )
+
+        with Session(bind=db_session.get_bind()) as verify_session:
+            link_count = verify_session.query(ProjectEvidenceLink).filter(
+                ProjectEvidenceLink.project_id == pid
+            ).count()
+            audit_count = verify_session.query(OntologyRuntimeAudit).filter(
+                OntologyRuntimeAudit.project_id == pid
+            ).count()
+            assert link_count == 0
+            assert audit_count == 0
+    finally:
+        monkeypatch.setattr(db_session, "commit", original_commit)
+        db_session.rollback()
