@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (F2 Complete, S2.2 delivered, migration 0024)
+Last updated: 2026-06-20 (S2.3A delivered and safety-reviewed, migration 0025)
 
 ## State Source
 
@@ -11,19 +11,20 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 
 | Item | Value |
 |------|-------|
-| Commit | `9773d97` |
+| Commit | `ed621ef` |
 | Backend pytest | 786 passed |
 | ruff | clean |
-| Migration | `0024` at head |
+| Migration | `0025` at head |
 | verify_ui | 47/47 |
 | E2E | 18/18 |
 | Screenshots | `.tmp/f2c/` 6 files |
 | Evidence tests | 38 pass |
+| S2.3A related tests | 95 pass |
 
 ## Architecture Boundaries
 
 - **Auth**: JWT access token (15min) + httpOnly refresh cookie + rotation + replay detection. BCrypt passwords. Owner/Admin/Member roles per group.
-- **Group isolation**: `group_id` enforced at DB query level on all multi-tenant resources — documents, chunks, RAG runs, conversations, tasks, Agent runs, ontology entities/relations/issues, modeling drafts, packages, projects, datasets, bindings, and project evidence links. Evidence links additionally constrain every lookup by `project_id`. Never trust client-supplied `group_id` alone.
+- **Group isolation**: `group_id` enforced at DB query level on all multi-tenant resources — documents, chunks, RAG runs, conversations, tasks, Agent runs, ontology entities/relations/issues, modeling drafts, packages, projects, datasets, bindings, and project evidence links. Conversations, Tasks, and Agent runs now support immutable optional `project_id`, validated against the route group. Never trust client-supplied scope alone.
 - **Agent**: Controlled coordination layer only. Deterministic backend logic (permissions, status filters, hash checks, CRUD) must not be replaced by LLM decisions. All Agent write actions require role authorization, `group_id` isolation, and user confirmation (HITL).
 - **MCP**: Not started. Future candidate only — requires dedicated Safety Lane plan. See `docs/mcp-agent-boundary-design.md`.
 - **Frontend**: F2 complete. Vanilla JS ES modules + hash router. Zero npm dependencies. Old pages preserved in "更多工具" dropdown.
@@ -43,7 +44,6 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 - No caching layer — repeated queries re-read files.
 - `test_conversations.py` blocked by Windows temp dir PermissionError (19 tests, pre-existing).
 - `test_upload_then_ask_with_answer_card` uses forced menu-open via JS evaluation (timing workaround).
-- AgentRun creation currently accepts `conversation_id` without validating conversation group or ownership. S2.3A must close this integrity gap before project context is persisted.
 
 ## Verification Summary
 
@@ -51,13 +51,14 @@ Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
 |-------|-------|-------|
 | Backend (non-E2E) | 786 passed, 3 skipped | ruff clean, migration 0024 at head |
 | Project evidence | 38 passed | permissions, dual isolation, lifecycle, provenance, audit atomicity |
+| S2.3A related | 95 passed | Conversations, Tasks, Agent, project context; migration 0025 roundtrip |
 | verify_ui | 47/47 | Real owner full chain F2A+F2B, all assertions pass |
 | E2E (Playwright) | 18/18 | F2A, F2B (owner/member/WARN/FAIL/isolation), F2C (responsive/a11y) |
 | Screenshots | 6 files | `.tmp/f2c/`, 32–97 KB, stage-verified, 0 console errors |
 
 ## Next Decision Gate
 
-**Approve S2.3A Safety Lane implementation**: add optional immutable project context and server-side consistency checks without changing existing routes or unscoped behavior. S2.3B will separately enforce project-bounded retrieval and Agent tools. See section 11 of `docs/product-rationalization-review.md`.
+**Implement S2.3B project-bounded retrieval and tools**: project-scoped Conversations and Agent document tools must use only active ProjectEvidenceLink Documents. Empty evidence never falls back to the group, and scoped Agent runs cannot archive shared Documents. See section 11 of `docs/product-rationalization-review.md`.
 
 ## Key API Surfaces
 

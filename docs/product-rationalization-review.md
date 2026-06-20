@@ -1,7 +1,7 @@
 # Product Rationalization and Surface Consolidation Review
 
 Date: 2026-06-20
-Status: S2.3 project work context design complete. Implementation pending approval.
+Status: S2.3A delivered and safety-reviewed. S2.3B project-bounded retrieval pending.
 
 ## 1. FDE Role and Main Chain
 
@@ -601,7 +601,7 @@ Residual boundaries (not in S2.2):
 
 ## 11. S2.3 Project Work Context
 
-Status: Design complete. Implementation requires two Safety Lane slices and a final backend review.
+Status: S2.3A delivered and safety-reviewed. S2.3B and final closeout remain.
 
 ### 11.1 Decision
 
@@ -650,7 +650,7 @@ Unknown, cross-group, or cross-user source references return 404 to avoid existe
 
 ### 11.6 Delivery Slices
 
-**S2.3A — Context persistence and validation (CC implementation)**
+**S2.3A — Context persistence and validation (delivered)**
 
 - Migration `0025`, model/schema fields, response serialization, list filters, archived-project write freeze, Agent conversation validation/inheritance, and project-scoped Task source validation.
 - Related tests must cover nullable compatibility, cross-group 404, archived 409, immutable context, user privacy, source consistency, and no inferred backfill.
@@ -664,3 +664,10 @@ Unknown, cross-group, or cross-user source references return 404 to avoid existe
 
 - Review migration reversibility, every query constraint, archived lifecycle, source validation, tool propagation, and regression compatibility.
 - Run focused suites first; run non-E2E full regression once at the final boundary only.
+
+### 11.7 S2.3A Delivery And Review
+
+- Commit `ed621ef` adds migration `0025`, nullable indexed project context, compatible request/response fields, exact list filters, archived-project write freeze, validated Agent Conversation inheritance, and scoped Task source rules.
+- Codex review fixed five boundary defects before acceptance: archived Conversation history remains readable; an unscoped Conversation cannot be combined with a scoped AgentRun or Task; all project list filters validate route-group ownership; RAG evidence checks include `group_id`; Agent detail preserves `project_id`.
+- Verification: 26 focused S2.3A tests and 95 related Conversation/Task/Agent tests pass. Changed-file ruff is clean. SQLite migration upgrade, downgrade to 0024, and re-upgrade to 0025 pass.
+- Full non-E2E regression is intentionally deferred until S2.3C so it runs once at the true phase boundary.

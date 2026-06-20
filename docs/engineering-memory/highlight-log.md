@@ -3,11 +3,12 @@
 ## S2.3 — Project Context Must Constrain Execution, Not Merely Label It
 
 - Date: 2026-06-20
-- Version: S2.3 design
+- Version: S2.3A
 - Type: decision
 - Context: Conversations, Tasks, and Agent runs are group-scoped parallel capabilities. Adding `project_id` could make them legible inside the Pilot chain, but a nullable column alone would falsely imply isolation while retrieval and tools still read the whole group.
-- What happened: The design makes project context optional, immutable, and backward-compatible. Scoped Conversations and Agent runs can only retrieve active Documents explicitly linked through `ProjectEvidenceLink`; an empty evidence set never falls back group-wide. Agent runs inherit context from a validated, user-owned Conversation. Scoped Tasks validate source consistency. Archived projects freeze new work without deleting history. Group-global document archive is denied from a project-scoped Agent run.
+- What happened: S2.3A implemented optional, immutable, backward-compatible project context. Agent runs inherit context from a validated, user-owned Conversation. Scoped Tasks validate source consistency. Archived projects freeze new work without deleting history. Review caught and fixed five subtle boundary gaps: archived history had been blocked, unscoped sources could enter scoped work, list filters skipped project validation, RAG evidence checks omitted group scope, and Agent detail dropped project context. S2.3B will enforce retrieval and tool scope.
 - Engineering judgment: Context labels without execution constraints are dangerous because they create confidence without isolation. The server must derive project scope from persisted rows, propagate it through every retrieval/tool path, and preserve old unscoped behavior explicitly. This is also why S2.3 is split into persistence/validation and retrieval/tool enforcement before final review.
+- Verification: 26 focused and 95 related tests pass; changed-file ruff is clean; migration 0025 upgrade/downgrade/re-upgrade passes on SQLite.
 
 ## S2.2 — Project Evidence Links: Explicit, Human-Reviewed, Auditable
 
