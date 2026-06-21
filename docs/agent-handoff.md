@@ -71,7 +71,7 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 | Sorting stability | ✅ | Latest outcome: `created_at.desc(), id.desc()`. Latest package: `created_at.desc(), id.desc()`. Latest runtime: `created_at.desc(), id.desc()`. All have stable tiebreakers. |
 | No migration drift | ✅ | Only migration is 0027 (pilot_outcome_records from 16.1). No additional migrations for 16.2/16.4. |
 | Test coverage | ✅ | 66 tests: 40 CRUD + 13 summary + 13 artifact. All pass. |
-| Doc alignment | ✅ | `check_doc_alignment.py` PASS. `project-status.toml` latest_commit = `d884813`. |
+| Doc alignment | ✅ | `check_doc_alignment.py` PASS. `project-status.toml` latest_commit = `abb1149`. |
 
 ## Phase 17 Closeout Review
 
