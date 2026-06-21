@@ -52,6 +52,18 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
         <a href="#/groups/${gid}/tasks" class="supportLink">全部任务 →</a>
       </div>
       <div id="pilotTaskContent"><div class="loading"><span class="spinner"></span>加载任务...</div></div>
+    </div>
+    <div class="stagePanel" id="pilotConvStarter">
+      <div class="stagePanelHead">
+        <h2>项目对话</h2>
+        <a href="#/groups/${gid}/conversations" class="supportLink">全部对话 →</a>
+      </div>
+      <p class="muted" style="font-size:var(--text-xs);margin:0 0 8px">围绕当前项目创建对话，消息将自动关联项目证据进行检索。</p>
+      <div class="pilotConvForm">
+        <input id="pilotConvTitle" type="text" placeholder="对话标题..." value="${esc(project.name + ' 咨询')}" maxlength="240" autocomplete="off" />
+        <button id="pilotConvCreateBtn" class="primary small">开始对话</button>
+      </div>
+      <p id="pilotConvError" class="formError" style="display:none"></p>
     </div>`;
 
   const fieldEl = document.getElementById('qFields');
@@ -145,7 +157,40 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
   document.getElementById('qRunBtn')?.addEventListener('click', () => doQuery(false));
   document.getElementById('qExplainBtn')?.addEventListener('click', () => doQuery(true));
 
+  bindConvStarter(gid, pid, project);
   loadTaskSummary(gid, pid, canCreateTask);
+}
+
+function bindConvStarter(gid, pid, project) {
+  const input = document.getElementById('pilotConvTitle');
+  const btn = document.getElementById('pilotConvCreateBtn');
+  const errEl = document.getElementById('pilotConvError');
+  if (!input || !btn) return;
+
+  const submit = async () => {
+    const title = input.value.trim() || project.name + ' 咨询';
+    if (errEl) errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = '...';
+    try {
+      await api(`/groups/${gid}/conversations`, {
+        method: 'POST',
+        body: JSON.stringify({ title, project_id: pid }),
+      });
+      showToast('对话已创建', 'success');
+      location.hash = `#/groups/${gid}/conversations`;
+    } catch (err) {
+      if (errEl) { errEl.textContent = err.humanMessage || err.message || '创建失败'; errEl.style.display = 'block'; }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '开始对话';
+    }
+  };
+
+  btn.addEventListener('click', submit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submit();
+  });
 }
 
 const STATUS_LABELS = { pending: '待处理', in_progress: '进行中', done: '已完成', cancelled: '已取消' };

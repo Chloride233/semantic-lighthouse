@@ -1738,6 +1738,21 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
 .pilotTaskCreate input:focus { border-color: var(--brand); box-shadow: var(--shadow-glow); }
 .pilotTaskCreate button { flex-shrink: 0; }
 
+/* ── Pilot conversation starter ────────────────────────────────── */
+.pilotConvForm { display: flex; gap: 6px; }
+.pilotConvForm input {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-family: inherit;
+  outline: none;
+  min-height: auto;
+}
+.pilotConvForm input:focus { border-color: var(--brand); box-shadow: var(--shadow-glow); }
+.pilotConvForm button { flex-shrink: 0; }
+
 /* ── Dialog overlay ────────────────────────────────────────────── */
 .dialogOverlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.3);
