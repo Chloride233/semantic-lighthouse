@@ -1,6 +1,6 @@
 # Phase 15 Planning — Evidence-to-Ontology Feedback Loop v1
 
-Status: 15.1 implemented. 15.2/15.3 not started.
+Status: 15.1 reviewed. 15.2 delivered. 15.3 not started.
 
 ## Decision
 
@@ -76,7 +76,7 @@ Verification:
 
 ### 15.2 — Project Evidence Review Surface
 
-Lane: Standard.
+Lane: Standard. Delivered.
 
 Goal: Make saved RAG answers visible in the Pilot evidence summary, distinct from document evidence.
 
@@ -85,6 +85,13 @@ Expected implementation shape:
 - Reuse `GET /groups/{gid}/projects/{pid}/summary` and/or evidence-link list.
 - Show evidence type, role, saved time, and unavailable state.
 - Do not show raw prompts, raw answer text, file paths, storage paths, secrets, or stack traces.
+
+Delivered shape:
+
+- Reuses `GET /groups/{gid}/projects/{pid}/summary`.
+- Goal-stage project evidence summary distinguishes document evidence from saved RAG answers.
+- Shows evidence type, role, saved time, safe provenance metadata, and unavailable state.
+- Keeps raw prompts, raw answer text, file paths, storage paths, secrets, and stack traces out of the UI.
 
 ### 15.3 — Evidence-Backed Modeling Draft Candidate Design
 

@@ -20,19 +20,19 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 15.1 reviewed"
-description = "Phase 15.1 reviewed: Pilot scoped Ask answers can be explicitly saved as project evidence through the existing ProjectEvidenceLink API. The save action is user-triggered, owner/admin-only, refreshes the project evidence summary after save, and does not auto-link answers, write Ontology, start MCP runtime, or introduce Graph RAG."
+current = "Phase 15.2 delivered"
+description = "Phase 15.2 delivered: Pilot project evidence summary now distinguishes saved RAG answers from document evidence, shows role, saved time, safe provenance, and unavailable state, and still does not expose raw prompts, raw answers, paths, secrets, or stack traces."
 
 [next_decision_gate]
-name = "plan Phase 15.2"
-description = "Improve the project evidence review surface so saved RAG answers are visible as project evidence, distinct from document evidence, without exposing raw prompts, raw answers, file paths, storage paths, secrets, or stack traces."
+name = "plan Phase 15.3"
+description = "Design how reviewed project evidence may feed modeling draft candidates without LLM-only generation, auto-accept, publish, external KB writes, MCP runtime, Graph RAG, or Agent auto-writing Ontology."
 
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "9e2d559"
+latest_commit = "ff987d3"
 backend_pytest = 848
 ruff = "clean"
 migration_head = "0026"
