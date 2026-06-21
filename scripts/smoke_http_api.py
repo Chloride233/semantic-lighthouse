@@ -18,7 +18,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import signal
 import subprocess
 import sys
 import time
@@ -309,17 +308,20 @@ def main() -> int:
             artifact_md = resp.read().decode("utf-8")
             ct = resp.headers.get("Content-Type", "")
             code = resp.status
-    except Exception as e:
+    except Exception:
         artifact_md = ""
         ct = ""
         code = 0
 
     if code == 200 and "text/markdown" in ct.lower():
         passed, issues = check_artifact(artifact_md)
-        ok("outcome_artifact",
-           f"size={len(artifact_md)}B ct={ct} check={'PASS' if passed else 'FAIL'}")
-        for issue in issues:
-            print(f"         {issue}")
+        if passed:
+            ok("outcome_artifact", f"size={len(artifact_md)}B ct={ct} check=PASS")
+        else:
+            fail("outcome_artifact", f"size={len(artifact_md)}B ct={ct} check=FAIL")
+            for issue in issues:
+                print(f"         {issue}")
+            return _cleanup(proc, db_path, 1)
     else:
         fail("outcome_artifact", f"HTTP {code} ct={ct}: {body[:120]}")
         return _cleanup(proc, db_path, 1)
