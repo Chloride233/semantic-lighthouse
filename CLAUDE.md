@@ -18,21 +18,24 @@ auth and group isolation -> document ingestion -> retrieval evidence -> citation
 
 Every feature must be explainable by the project owner in business terms, technical terms, risk terms, and interview terms.
 
-## Required Read Order
+## Required Context
 
-Before changing code, read these files in order:
+Do not pay the full context tax on every session. Before changing code, read:
 
 1. `AGENTS.md`
-2. `docs/project-status.toml` — canonical project state (single source of truth)
-3. `PRODUCT.md`
-4. `docs/product-alignment-prd.md`
-5. `README.md`
-6. `docs/agent-handoff.md`
-7. `docs/project-roadmap.md`
-8. `docs/engineering-memory/README.md`
-9. `docs/engineering-memory/learning-index.md`
-10. The most recent retrospective, pitfall log, and highlight log entries
-11. `docs/cloud-smoke-playbook.md` when deployment or cloud verification is involved
+2. `docs/project-status.toml` — canonical project state and next gate
+3. `docs/development-workflow.md` — lane, verification, parallel-session, and self-check rules
+4. `git status --short` and recent `git log --oneline -5`
+
+Then route additional reading by task:
+
+- Product, roadmap, or positioning: `PRODUCT.md`, `docs/product-alignment-prd.md`, `docs/project-roadmap.md`.
+- Phase closeout, review, or handoff: `docs/agent-handoff.md` and only the relevant latest engineering-memory entries.
+- Backend/API/auth/group isolation/migrations/RAG/Ontology: relevant `src/`, `tests/`, `alembic/`, and phase docs.
+- Frontend: relevant `static/js/`, `static/styles.css`, and frontend planning docs only.
+- Deployment/cloud verification: `docs/cloud-smoke-playbook.md` and deployment files.
+
+If a task is Fast Lane, avoid reading the full roadmap, archived handoff, or engineering memory unless the task explicitly touches them.
 
 ## Working Rules
 

@@ -6,6 +6,7 @@ Last updated: 2026-06-20 (S2.4 backend consolidation closed)
 
 **Canonical project state**: `docs/project-status.toml` — always read this first.
 Detailed delivery history: `docs/archive/agent-handoff-through-phase14.md`.
+This handoff is operational context, not the canonical phase tracker. If the baseline below conflicts with `docs/project-status.toml` or `git log`, treat it as historical and follow `docs/project-status.toml`.
 
 ## Latest Baseline
 

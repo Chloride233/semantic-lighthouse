@@ -119,6 +119,57 @@ The project uses `docs/project-status.toml` as the single source of truth for cu
 - **Doc/phase closeout**: run `scripts/check_doc_alignment.py` to catch stale expressions and missing status references.
 - **No Git hooks, Claude hooks, dependencies, or CI tasks** are added for doc alignment — it runs manually at doc boundaries.
 
+## Context Discipline
+
+- Start every session with `docs/project-status.toml`, this workflow file, `git status --short`, and recent `git log --oneline -5`.
+- Load extra documents by task, not by habit. Product work reads product docs; backend work reads relevant code/tests; deployment work reads deployment docs.
+- Do not read the full roadmap, archived handoffs, or engineering memory for a small Fast Lane task.
+- If `codebase-memory-mcp` is available, use it first for architecture, call-chain, route, symbol, and impact analysis. Use `rg` for plain text search.
+
+## Parallel Session Rules
+
+Use multiple AI sessions only when the work can be separated by role and file ownership.
+
+- **Master session**: owns planning, task slicing, final review, and commit ordering. It should not do large implementation work while worker sessions are active.
+- **Implementation session**: owns one slice, one lane, and a narrow file set. It must stop if `git status --short` shows unrelated staged or unstaged changes.
+- **Review session**: reads the diff, tests, permissions, data isolation, audit behavior, and documentation impact. It should not make broad rewrites.
+- **Verification session**: runs agreed commands and reports exact pass/fail output. It should not hide progress with `tail` or start new feature work.
+
+Do not run parallel implementation sessions in the same worktree unless their file sets are disjoint and the master session has explicitly assigned ownership. Prefer one active implementation session plus one review/verification session.
+
+## Agent Self-Check Contract
+
+Every implementation or review handoff should end with a short self-check:
+
+```text
+Scope completed:
+- <what changed>
+
+Boundaries preserved:
+- <what was intentionally not changed>
+
+Verification run:
+- <command> -> <result>
+
+Diff risk:
+- <highest-risk changed area, or "none beyond requested scope">
+
+Docs/status:
+- <updated docs, or "not needed for this lane">
+
+Commit:
+- <hash/message, or "not committed because ...">
+```
+
+If the same test or lint failure is fixed twice and still fails, stop and ask for review instead of continuing to guess.
+
+## Commit Closure
+
+- Each implementation slice should produce at most one commit.
+- Keep staged changes limited to the current slice. If unrelated staged changes exist, stop before staging or committing.
+- Status-only documentation updates may be a separate follow-up commit when they need to record the new commit hash.
+- Do not mix review fixes, feature work, and documentation cleanup in one commit unless they are inseparable.
+
 ## Over-Execution Prohibitions
 
 These rules apply regardless of lane:

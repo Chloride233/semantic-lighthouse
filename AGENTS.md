@@ -16,19 +16,24 @@ Core chain:
 auth and group isolation -> document ingestion -> retrieval evidence -> citation-grounded RAG -> user-confirmed task/action -> controlled Agent workflow -> Ontology governance and graph -> semantic operating layer
 ```
 
-## Required Reading For New Sessions
+## Context Routing For New Sessions
 
-Before changing code, read:
+Avoid loading every project document by default. Before changing code, read the core context first:
 
-1. `docs/project-status.toml` — canonical project state (single source of truth)
-2. `PRODUCT.md`
-3. `docs/product-alignment-prd.md`
-4. `CLAUDE.md`
-5. `README.md`
-6. `docs/agent-handoff.md`
-7. `docs/project-roadmap.md`
-8. `docs/engineering-memory/README.md`
-9. Latest entries in `docs/engineering-memory/highlight-log.md` and `pitfall-log.md`
+1. `docs/project-status.toml` — canonical current state and next gate.
+2. `docs/development-workflow.md` — lane, verification, parallel-session, and self-check rules.
+3. `git status --short` and recent `git log --oneline -5` — current worktree and baseline.
+
+Then read task-routed context only as needed:
+
+- Product or roadmap work: `PRODUCT.md`, `docs/product-alignment-prd.md`, `docs/project-roadmap.md`.
+- Phase closeout or handoff work: `docs/agent-handoff.md` plus relevant latest engineering-memory entries.
+- Architecture, call-chain, or impact analysis: use `codebase-memory-mcp` first when available, then inspect relevant files.
+- Backend/API/auth/group isolation/migrations/RAG/ontology work: relevant `src/`, `tests/`, `alembic/`, and phase docs.
+- Frontend work: relevant `static/js/`, `static/styles.css`, and frontend planning docs only.
+- Deployment/cloud work: `docs/cloud-smoke-playbook.md` and deployment files.
+
+Do not read the full roadmap, handoff history, or engineering memory for a small Fast Lane change unless the task specifically needs it.
 
 ## Working Rules
 
