@@ -1,6 +1,6 @@
 # Phase 17 Planning — FDE Demo Readiness & Operational Smoke v1
 
-Status: 17.1 & 17.3 SPECS DETAILED — 17.2/17.4/17.5 pending.
+Status: 17.1/17.2/17.3 DELIVERED — 17.4/17.5 pending.
 
 ## Decision
 
@@ -269,40 +269,40 @@ The artifact must:
 - The smoke script (17.2) may optionally tear down the demo group after
   completion, or leave it for inspection.
 
-### 17.2 — Backend Operational Smoke Script
+### 17.2 — Backend Operational Smoke Script ← DELIVERED 2026-06-21
 
-**Lane: Standard (Python script + tests).**
+**Lane: Standard (Python script).**
 
-A single script: `scripts/smoke_fde_demo.py`.
+**Delivered shape**:
 
-Requirements:
-- Calls the full chain via the API (using `requests` or `httpx`, whichever
-  the project already uses for smoke tests).
-- Step-by-step with clear pass/fail per step.
-- Uses a dedicated demo group (isolated from real data).
-- Cleans up or uses idempotent creation so it's re-runnable.
-- Returns exit code 0 on full pass, 1 on any step failure.
-- Prints per-step timing for latency visibility.
-- Does NOT require real LLM/embedding calls if fake provider can be used;
-  falls back to real provider if configured.
+- Script: `scripts/smoke_fde_demo.py` — 11 steps, runs in ~1.3s on temp SQLite.
+- Uses FastAPI TestClient (in-process, no uvicorn, no real network).
+- Fake providers for embedding and chat (no API keys needed).
+- Direct DB seed for heavy parts (documents, evidence links, packages, runtime audit).
+- Public API calls for: register, login, group create, project create, outcome create,
+  outcome-summary GET, outcome-artifact.md GET.
+- Inline artifact quality gate (`validate_artifact()`) per 17.3 spec.
+- Auto-creates temp DB at `.tmp/smoke-fde-demo.db`, cleans up on exit.
+- Exit code 0 on pass, 1 on failure.
+- Step-by-step PASS/FAIL with per-step timing.
 
-Steps:
+**Smoke output (2026-06-21)**:
 ```
-1. Register demo user
-2. Create demo group
-3. Create pilot project (goal stage)
-4. Upload seed dataset (advance to data stage)
-5. Generate modeling drafts from dataset (advance to model stage)
-6. Review drafts (accept)
-7. Build package (advance to validate stage)
-8. Generate bindings (advance to pilot stage)
-9. Run pilot query
-10. Create outcome record
-11. Fetch outcome-summary JSON
-12. Fetch outcome-artifact.md
-13. Run artifact quality gate (17.3)
-14. Print summary: PASS/FAIL with per-step results
+  [PASS] register (1.02s)
+  [PASS] login (1.20s)
+  [PASS] create_group (1.21s)
+  [PASS] create_project (1.23s)
+  [PASS] seed_evidence (1.23s) — 2 docs + 1 rag_run + 3 evidence links
+  [PASS] seed_package (1.23s) — 1 package v1 PASS (4 drafts)
+  [PASS] seed_runtime (1.23s) — 2 audit records (bindings + query, 8 rows)
+  [PASS] create_outcome (1.26s) — Plant 3 Equipment Reliability v1
+  [PASS] outcome_summary (1.26s) — evidence=3 pkg=1 runtime=2 outcome=yes
+  [PASS] outcome_artifact (1.27s) — 1911B text/markdown
+  [PASS] artifact_quality_gate (1.27s) — WARN (1 finding)
+FDE Demo Smoke: PASS  |  Steps: 11  Passed: 11  Failed: 0  |  Artifact gate: WARN
 ```
+
+Run command: `.venv/Scripts/python scripts/smoke_fde_demo.py`
 
 ### 17.3 — Artifact Quality Gate ← SPEC DETAILED 2026-06-21
 
