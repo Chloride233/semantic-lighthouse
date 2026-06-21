@@ -127,7 +127,6 @@ export async function render(container, params) {
     const hasDatasets = dsList.filter(d => d.status === 'ready').length > 0;
     const evidenceCount = summary?.evidence_count ?? 0;
     const recentEvidence = summary?.recent_evidence ?? [];
-    const hasEvidence = evidenceCount > 0;
 
     main.innerHTML = `
       <div class="stagePanel">
@@ -139,7 +138,7 @@ export async function render(container, params) {
 
         ${renderEvidenceInGoal(recentEvidence, evidenceCount)}
 
-        ${renderAskPanel(hasEvidence)}
+        ${renderAskPanel(evidenceCount)}
 
         ${isOwnerAdmin ? `
           <div class="stageCTAs">
@@ -158,9 +157,7 @@ export async function render(container, params) {
     if (isOwnerAdmin && !hasDatasets) {
       document.getElementById('uploadFirstBtn')?.addEventListener('click', () => openUploadDialog());
     }
-    if (hasEvidence) {
-      bindGoalAsk();
-    }
+    bindGoalAsk();
   }
 
   // ── Goal evidence summary ───────────────────────────────────────────
@@ -169,7 +166,6 @@ export async function render(container, params) {
     if (!recentEvidence.length) {
       return `
         <div class="goalEvidenceSummary noEvidenceHint">
-          <span class="noEvidenceIcon">📭</span>
           <span>该项目尚未关联任何证据文档。请先在知识库上传文档并添加为项目证据。</span>
           <a href="#/groups/${gid}/documents" class="supportLink" style="margin-left:8px">前往知识库</a>
         </div>`;
@@ -192,21 +188,14 @@ export async function render(container, params) {
 
   // ── Goal scoped Ask panel ────────────────────────────────────────────
 
-  function renderAskPanel(hasEvidence) {
-    if (!hasEvidence) {
-      return `
-        <div class="goalAskPanel">
-          <h4 class="goalAskTitle">项目内知识问答</h4>
-          <div class="noEvidenceHint">
-            <span class="noEvidenceIcon">🔍</span>
-            <span>尚无项目证据，无法进行项目内问答。请先为项目添加证据文档。</span>
-          </div>
-        </div>`;
-    }
+  function renderAskPanel(evidenceCount) {
+    const hint = evidenceCount === 0
+      ? '<div class="noEvidenceHint"><span>尚无项目证据。仍可提问，系统会返回项目级无证据结果，不会回退到全工作区检索。</span></div>'
+      : '<p class="muted" style="font-size:var(--text-xs);margin:4px 0 8px">基于项目关联的证据文档检索回答，给出引用来源和可信度判断。</p>';
     return `
       <div class="goalAskPanel">
         <h4 class="goalAskTitle">项目内知识问答</h4>
-        <p class="muted" style="font-size:var(--text-xs);margin:4px 0 8px">基于项目关联的证据文档检索回答，给出引用来源和可信度判断。</p>
+        ${hint}
         <div class="goalAskInput">
           <input id="goalAskQuestion" type="text" placeholder="基于项目证据提问..." autocomplete="off" />
           <button id="goalAskSubmitBtn" class="primary">提问</button>
@@ -259,10 +248,10 @@ export async function render(container, params) {
     const tk = summary.task_count || {};
     return `
       <div class="summaryStrip" id="projectSummaryStrip">
-        <span class="summaryCount"><span class="summaryCountIcon">📄</span>证据 ${summary.evidence_count ?? 0}</span>
-        <span class="summaryCount"><span class="summaryCountIcon">💬</span>对话 ${summary.conversation_count ?? 0}</span>
-        <span class="summaryCount"><span class="summaryCountIcon">📋</span>任务 ${(tk.pending ?? 0) + (tk.in_progress ?? 0) + (tk.done ?? 0) + (tk.cancelled ?? 0)}</span>
-        <span class="summaryCount"><span class="summaryCountIcon">🤖</span>Agent ${summary.agent_run_count ?? 0}</span>
+        <span class="summaryCount">证据 ${summary.evidence_count ?? 0}</span>
+        <span class="summaryCount">对话 ${summary.conversation_count ?? 0}</span>
+        <span class="summaryCount">任务 ${(tk.pending ?? 0) + (tk.in_progress ?? 0) + (tk.done ?? 0) + (tk.cancelled ?? 0)}</span>
+        <span class="summaryCount">Agent ${summary.agent_run_count ?? 0}</span>
       </div>`;
   }
 

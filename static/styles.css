@@ -1654,7 +1654,6 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
   color: var(--muted);
 }
 .summaryCount { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
-.summaryCountIcon { font-size: var(--text-sm); }
 
 /* ── Goal evidence summary ──────────────────────────────────────── */
 .goalEvidenceSummary {
@@ -1707,7 +1706,6 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
   font-size: var(--text-xs);
   color: var(--muted);
 }
-.noEvidenceIcon { font-size: var(--text-base); flex-shrink: 0; }
 
 /* ── Dialog overlay ────────────────────────────────────────────── */
 .dialogOverlay {

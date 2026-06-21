@@ -15,13 +15,13 @@ summary = "Business Pilot Project — five-stage main chain (goal → data → m
 [frontend]
 status = "F2 complete"
 summary = "Guided Pilot workspace delivered. F2A: Pilot entry + nav restructure. F2B: Model → Validate → Pilot full operation loop. F2C: Responsive, accessibility, visual polish."
-latest_verified_ui = "47/47"
+latest_verified_ui = "53/53"
 latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S2.5A complete"
-description = "S2.5A delivered: Project Overview summary strip + scoped Ask panel inside Pilot Goal stage. Uses GET /groups/{gid}/projects/{pid}/summary and POST /groups/{gid}/projects/{pid}/rag/answer. Renders answer, confidence, citations, knowledge gaps, and no-evidence state. Next: S2.5B Project Actions Summary or S2.5C Scoped Conversation Starter."
+current = "S2.5A complete and reviewed"
+description = "S2.5A delivered and reviewed: Project Overview summary strip + scoped Ask panel inside Pilot Goal stage. Uses GET /groups/{gid}/projects/{pid}/summary and POST /groups/{gid}/projects/{pid}/rag/answer. Codex review removed decorative emoji UI and keeps no-evidence handling on the project-scoped RAG path. Next: S2.5B Project Actions Summary or S2.5C Scoped Conversation Starter."
 
 [next_decision_gate]
 name = "proceed to S2.5B or S2.5C"
