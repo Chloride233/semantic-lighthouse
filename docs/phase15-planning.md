@@ -99,7 +99,7 @@ Lane: Fast (design only). DESIGN DELIVERED 2026-06-21. See `docs/phase15.3-desig
 
 Goal: Decide whether and how reviewed project evidence can feed modeling draft proposals.
 
-Decision: Existing schema supports it. Implementation requires a new evidence→draft candidate endpoint (`POST /projects/{pid}/evidence-draft`) that bridges `ProjectEvidenceLink` to `OntologyModelingDraft` with user-authored name/description/type, auto-derived `source_rag_run_id`/`project_id`/`evidence_refs`, and `payload.generator = "evidence_backed_v1"`. No new models or migrations needed. Three implementation slices (A: endpoint, B: frontend, C: filter) defined in the design doc.
+Decision: Existing schema supports it. Implementation requires a new evidence→draft candidate endpoint (`POST /groups/{gid}/projects/{pid}/evidence-draft`) that bridges `ProjectEvidenceLink` to `OntologyModelingDraft` with user-authored name/description/type, auto-derived `source_rag_run_id`/`project_id`/`evidence_refs`, and `payload.generator = "evidence_backed_v1"`. No new models or migrations needed. Three implementation slices (A: endpoint, B: frontend, C: filter) defined in the design doc.
 
 Rules enforced:
 
@@ -109,43 +109,3 @@ Rules enforced:
 - no external KB write
 - generated proposals carry `source_rag_run_id`, `project_id`, and bounded `evidence_refs`
 - evidence link validation: must exist, be active, belong to the same project/group
-
-## First CC Prompt
-
-```text
-Implement Phase 15.1 only: Save scoped RAG answer as project evidence.
-
-Read:
-- docs/project-status.toml
-- docs/development-workflow.md
-- docs/phase15-planning.md
-- static/js/pages/project.js
-- static/js/api.js
-- src/semantic_lighthouse/routers/evidence_links.py only if endpoint contract is unclear
-
-Lane: Standard.
-
-Scope:
-- In the Pilot Goal scoped Ask panel, add a secondary action to save the current project RAG answer as project evidence.
-- Reuse existing POST /groups/{gid}/projects/{pid}/evidence-links.
-- Use evidence_type=rag_run and evidence_id=run_id from the scoped RAG answer.
-- Show saved/already-linked/failure state.
-- Owner/admin only if the endpoint requires it; members should not see a write action.
-
-Hard boundaries:
-- Do not modify backend, DB, migrations, routes, or auth unless the existing API cannot support the flow.
-- Do not auto-link answers.
-- Do not create tasks automatically.
-- Do not add Agent/MCP/Graph RAG behavior.
-- Do not hide or alter standalone pages/navigation.
-
-Verify:
-- node --check on changed JS files
-- .\\.venv\\Scripts\\python scripts\\verify_ui.py
-- git diff --check
-- git status --short
-
-At the end:
-- Update docs/project-status.toml with Phase 15.1 result.
-- Commit with message: feat: save scoped answer as project evidence
-```

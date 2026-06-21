@@ -20,7 +20,7 @@ No new models, migrations, or dependency for the minimal path. The existing `Ont
 
 ## Why This Is Design-First
 
-The existing `create_draft` endpoint (`POST /groups/{gid}/drafts`) already accepts `source_rag_run_id`, `project_id`, and `evidence_refs`. A user COULD craft these manually. The gap is product-level: no user-facing path connects "I see reviewed project evidence" to "I want to propose a draft grounded in that evidence."
+The existing `create_draft` endpoint (`POST /groups/{gid}/ontology/drafts`) already accepts `source_rag_run_id`, `project_id`, and `evidence_refs`. A user COULD craft these manually. The gap is product-level: no user-facing path connects "I see reviewed project evidence" to "I want to propose a draft grounded in that evidence."
 
 This design answers:
 
@@ -87,7 +87,7 @@ A candidate proposal is a user-initiated action: "take this piece of evidence an
   "linked_at": "2026-06-21T12:00:00Z",
   "provenance_snapshot": {
     "question": "What are the key entities in the manufacturing workflow?",
-    "confidence": 0.85,
+    "confidence": "high",
     "retrieval_method": "hybrid",
     "citation_count": 4,
     "generated_at": "2026-06-21T11:55:00Z"
@@ -96,8 +96,8 @@ A candidate proposal is a user-initiated action: "take this piece of evidence an
 ```
 
 Rules for `evidence_refs`:
-- Each entry is a plain JSON object — no nested objects, no paths, no secrets
-- `provenance_snapshot` is the same bounded metadata that Phase 15.2 already exposes
+- Each entry is a bounded JSON object with at most one nested `provenance_snapshot`; no paths or secrets
+- `provenance_snapshot` uses the same bounded metadata that Phase 15.2 already exposes
 - Never includes: raw prompts, raw answers, file paths, storage paths, secrets, tokens, stack traces
 - At most 20 evidence items per draft (cap reused from `MAX_EVIDENCE_SAMPLES = 20`)
 
@@ -186,7 +186,7 @@ In the Pilot workspace evidence panel:
 
 ### Slice C: Evidence-only draft list filter (Standard Lane, optional)
 
-Extend `GET /groups/{gid}/drafts` with `source` filter: `evidence_backed` to show only evidence-backed drafts. Reuses the `payload.generator` field for filtering.
+Extend `GET /groups/{gid}/ontology/drafts` with `source` filter: `evidence_backed` to show only evidence-backed drafts. Reuses the `payload.generator` field for filtering.
 
 ## Boundaries (Hard)
 
@@ -213,8 +213,8 @@ Extend `GET /groups/{gid}/drafts` with `source` filter: `evidence_backed` to sho
 
 | Path | Source | Generator | Use Case |
 |------|--------|-----------|----------|
-| `POST /drafts` | Manual user entry | None (manual) | Ad-hoc proposals |
-| `POST /drafts/generate` | Ontology scan data | `ontology_scan_v1` | Deterministic entity/relation drafts |
+| `POST /groups/{gid}/ontology/drafts` | Manual user entry | None (manual) | Ad-hoc proposals |
+| `POST /groups/{gid}/ontology/drafts/generate` | Ontology scan data | `ontology_scan_v1` | Deterministic entity/relation drafts |
 | `POST /projects/{pid}/model-drafts/generate` | Dataset assets | `dataset_deterministic_v1` | Phase 14.3 data-to-model |
 | **`POST /projects/{pid}/evidence-draft`** | Project evidence links | `evidence_backed_v1` | **Phase 15.3 — this design** |
 
