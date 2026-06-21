@@ -15,6 +15,9 @@ const CITATION_LABELS = {
 export async function render(container, params) {
   const gid = params.gid || state.currentGroupId;
   if (!gid) { container.innerHTML = '<p class="muted">请先选择工作区。</p>'; return; }
+  const hash = location.hash.replace('#', '');
+  const qp = new URLSearchParams(hash.split('?')[1] || '');
+  const targetConversationId = qp.get('conversation_id');
 
   container.innerHTML = '<h1 class="pageTitle">多轮对话</h1><p class="pageMeta">围绕同一咨询主题持续追问、补充背景和沉淀建议。</p><div class="loading"><span class="spinner"></span> 正在加载对话...</div>';
 
@@ -45,6 +48,10 @@ export async function render(container, params) {
     ${newPanelHtml}${panel('对话列表', listHtml)}
     <div id="chatArea" style="margin-top:16px"></div>
   `;
+
+  if (targetConversationId && convs.some((c) => c.id === targetConversationId)) {
+    await renderChat(container, gid, targetConversationId);
+  }
 
   document.getElementById('createConvBtn').addEventListener('click', async () => {
     const title = document.getElementById('convTitle').value.trim() || '新的咨询对话';

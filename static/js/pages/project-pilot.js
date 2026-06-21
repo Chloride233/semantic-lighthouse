@@ -8,6 +8,7 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
   if (!main) return;
   main.innerHTML = '<div class="loading"><span class="spinner"></span>加载 Pilot 数据...</div>';
   const canCreateTask = isOwnerAdmin && project.status !== 'archived';
+  const canCreateConversation = project.status !== 'archived';
 
   let bindings, contractInfo = null;
   try {
@@ -53,18 +54,7 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
       </div>
       <div id="pilotTaskContent"><div class="loading"><span class="spinner"></span>加载任务...</div></div>
     </div>
-    <div class="stagePanel" id="pilotConvStarter">
-      <div class="stagePanelHead">
-        <h2>项目对话</h2>
-        <a href="#/groups/${gid}/conversations" class="supportLink">全部对话 →</a>
-      </div>
-      <p class="muted" style="font-size:var(--text-xs);margin:0 0 8px">围绕当前项目创建对话，消息将自动关联项目证据进行检索。</p>
-      <div class="pilotConvForm">
-        <input id="pilotConvTitle" type="text" placeholder="对话标题..." value="${esc(project.name + ' 咨询')}" maxlength="240" autocomplete="off" />
-        <button id="pilotConvCreateBtn" class="primary small">开始对话</button>
-      </div>
-      <p id="pilotConvError" class="formError" style="display:none"></p>
-    </div>`;
+    ${conversationStarterHTML(gid, project, canCreateConversation)}`;
 
   const fieldEl = document.getElementById('qFields');
   const filterEl = document.getElementById('qFilter');
@@ -157,8 +147,26 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
   document.getElementById('qRunBtn')?.addEventListener('click', () => doQuery(false));
   document.getElementById('qExplainBtn')?.addEventListener('click', () => doQuery(true));
 
-  bindConvStarter(gid, pid, project);
+  if (canCreateConversation) bindConvStarter(gid, pid, project);
   loadTaskSummary(gid, pid, canCreateTask);
+}
+
+function conversationStarterHTML(gid, project, canCreateConversation) {
+  return `
+    <div class="stagePanel" id="pilotConvStarter">
+      <div class="stagePanelHead">
+        <h2>项目对话</h2>
+        <a href="#/groups/${gid}/conversations" class="supportLink">全部对话 →</a>
+      </div>
+      <p class="muted" style="font-size:var(--text-xs);margin:0 0 8px">围绕当前项目创建对话，消息将自动关联项目证据进行检索。</p>
+      ${canCreateConversation ? `
+        <div class="pilotConvForm">
+          <input id="pilotConvTitle" type="text" placeholder="对话标题..." value="${esc(project.name + ' 咨询')}" maxlength="240" autocomplete="off" />
+          <button id="pilotConvCreateBtn" class="primary small">开始对话</button>
+        </div>
+        <p id="pilotConvError" class="formError" style="display:none"></p>
+      ` : '<p class="muted" style="font-size:var(--text-xs);margin:0">项目已归档，不能创建新的项目对话。</p>'}
+    </div>`;
 }
 
 function bindConvStarter(gid, pid, project) {
@@ -173,12 +181,12 @@ function bindConvStarter(gid, pid, project) {
     btn.disabled = true;
     btn.textContent = '...';
     try {
-      await api(`/groups/${gid}/conversations`, {
+      const conv = await api(`/groups/${gid}/conversations`, {
         method: 'POST',
         body: JSON.stringify({ title, project_id: pid }),
       });
       showToast('对话已创建', 'success');
-      location.hash = `#/groups/${gid}/conversations`;
+      location.hash = `#/groups/${gid}/conversations?conversation_id=${encodeURIComponent(conv.id)}`;
     } catch (err) {
       if (errEl) { errEl.textContent = err.humanMessage || err.message || '创建失败'; errEl.style.display = 'block'; }
     } finally {
