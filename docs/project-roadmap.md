@@ -374,6 +374,24 @@ See `docs/phase17-planning.md`. Closeout review passed 2026-06-21: smoke 11/11 P
 
 ---
 
+## Phase 18: Cloud Deployment Smoke v1 ← PLANNED
+
+**Goal**: Prove the FDE demo chain runs on PostgreSQL + pgvector via Docker Compose, not just local SQLite/TestClient. Validates deployability — the strongest portfolio signal.
+
+See `docs/phase18-planning.md`.
+
+| # | Task | Description |
+|---|------|-------------|
+| 18.1 | Deployment config audit | Review `.env.example`, docker-compose, Dockerfile, config.py, Alembic env.py. Document gaps; minor fixes only. |
+| 18.2 | Migration smoke on PostgreSQL | Run `alembic upgrade head` on temporary PostgreSQL + pgvector. Verify 0027 at head. |
+| 18.3 | HTTP health/API smoke | Health check + auth + FDE outcome endpoints via curl/HTTP against running Docker Compose stack. |
+| 18.4 | FDE smoke deployment adapter | Extend smoke script with `--base-url` mode (real HTTP). Defer to Phase 19 if complex. |
+| 18.5 | Closeout review | Record results, document risks, update handoff. |
+
+**Out of scope**: Cloud resource creation, image push, real API keys, real data, frontend, MCP, Graph RAG, Kubernetes, HTTPS, CI/CD.
+
+---
+
 ## Future Candidate: MCP Read-only Gateway v1 ← NOT STARTED
 
 **Timing**: Candidate after Phase 13 review. The originally proposed Phase 12

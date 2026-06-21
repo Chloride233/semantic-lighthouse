@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "portfolio polish complete"
-description = "Portfolio entrypoint docs refreshed: README.md now highlights FDE demo chain and smoke script, PRODUCT.md lists Phase 15–17 deliveries, roadmap stale references cleaned. Phase 17 closeout complete. FDE demo chain: smoke 11/11 PASS, artifact gate PASS (0 findings), interview script ready."
+current = "Phase 18 planned"
+description = "Phase 18 plan written: Cloud Deployment Smoke v1. Five slices: config audit (18.1), PostgreSQL migration smoke (18.2), HTTP health/API smoke (18.3), smoke adapter (18.4, may defer), closeout (18.5). Goal: prove FDE chain on PostgreSQL + Docker, not just local SQLite."
 
 [next_decision_gate]
-name = "plan Phase 18"
-description = "Candidates: cloud deployment smoke, ontology operationalization with real data, 16.3 outcome panel UI, or full test audit. Recommended: cloud deployment smoke. See docs/agent-handoff.md."
+name = "implement Phase 18.1 config audit"
+description = "Phase 18 plan written. First slice: 18.1 deployment config audit — review .env.example, docker-compose, Dockerfile, config.py, Alembic env.py. Doc-and-config-only (Fast Lane). See docs/phase18-planning.md."
 
 [mcp]
 runtime_status = "not started"

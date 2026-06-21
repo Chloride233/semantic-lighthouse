@@ -89,18 +89,7 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 ## Next Decision Gate
 
-**Plan Phase 18**: Phase 17 complete. FDE demo chain is runnable (smoke 11/11 PASS), verifiable (artifact gate PASS), and interview-ready (5-min demo script + FAQ). Candidates for Phase 18:
-
-| Candidate | Rationale | Effort |
-|-----------|-----------|--------|
-| Cloud deployment smoke | Prove the chain works on PostgreSQL + pgvector; validate docker-compose.prod.yml | Standard |
-| Ontology operationalization with real data | Replace synthetic seed with real CMMS/ERP dataset; measure query performance at scale | Safety |
-| 16.3 Front-end outcome panel | Add Pilot stage for outcome visualization in F2 workspace | Standard |
-| Full test suite audit | Run full pytest after Phase 16–17 script changes; fix any regressions | Standard |
-
-Current recommendation: cloud deployment smoke — it proves the chain works beyond local SQLite and is the strongest portfolio signal for 2027 internship/FTE review.
-
-**Portfolio polish** (this round) refreshed README.md, PRODUCT.md, and cleaned stale roadmap references. Entry docs now point to the FDE demo chain as the strongest current demo.
+**Implement Phase 18.1 (deployment config audit)**: Phase 18 planned — Cloud Deployment Smoke v1. See `docs/phase18-planning.md`. Five slices: config audit (18.1), migration smoke on PostgreSQL (18.2), HTTP health/API smoke (18.3), smoke adapter (18.4, may defer), closeout (18.5). First slice is doc-and-config-only (Fast Lane). Remaining candidates from Phase 17 closeout (ontology operationalization, 16.3 UI, test audit) remain deferred.
 
 ## Phase 15 Delivery Summary
 
