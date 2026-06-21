@@ -59,10 +59,14 @@ This project keeps Claude Code MCP surface minimal to avoid tool-definition bloa
 
 - **Default (always on):** built-in tools only — file read/write, shell/terminal, git, search. No MCP servers.
 - **On-demand only:** Docker, SSH, PostgreSQL, browser/Playwright, GitHub, web search (exa), library docs (context7), ECC memory, ECC multi-agent workflows.
+- **Developer code graph exception:** `codebase-memory-mcp` may be enabled for this project as a local development tool. Project name: `F-semantic-lighthouse`.
+- **When codebase-memory-mcp is available:** use `list_projects`, `get_architecture`, `search_graph`, `trace_path`, `get_code_snippet`, and `search_code` before manual file reads for architecture, symbol discovery, call graph tracing, impact analysis, route lookup, and code snippets.
+- **Fallback:** use `rg` for plain text search, exact string search, non-code files, or when `codebase-memory-mcp` is unavailable.
 - **How to enable a server for a session:** edit `.claude/settings.local.json` → add the server name to `enabledMcpjsonServers`, or temporarily remove the field.
 - **How to disable again:** restore `"enabledMcpjsonServers": []`.
 - **Do not** enable the full ECC MCP suite at once — each server adds dozens of tool definitions to every turn.
 - **Do not** commit server names that contain personal account handles or instance identifiers.
+- **Boundary:** the developer code graph tool does not authorize product MCP runtime. Do not add MCP server/client code, SDK dependencies, resources, or tools to Semantic Lighthouse unless a separate Safety Lane phase explicitly approves runtime MCP work.
 
 See `.claude/settings.local.json` for the current allowlist.
 

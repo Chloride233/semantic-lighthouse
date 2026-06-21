@@ -45,6 +45,15 @@ Before changing code, read:
 - Every meaningful change must update project memory and be committed to Git.
 - Do not commit secrets, tokens, cookies, database files, runtime storage, `.venv/`, or `.claude/`.
 
+## Development Code Graph Tool
+
+This project may use `codebase-memory-mcp` as a developer-only code exploration tool.
+
+- Project name: `F-semantic-lighthouse`.
+- When exploring architecture, symbols, call graphs, impact analysis, routes, or code snippets, prefer `codebase-memory-mcp` tools first: `list_projects`, `get_architecture`, `search_graph`, `trace_path`, `get_code_snippet`, and `search_code`.
+- Use `rg` for plain text search, exact string search, non-code files, or when `codebase-memory-mcp` is unavailable.
+- This does not change the product MCP moratorium. Do not add MCP runtime, SDK dependencies, resources, tools, or server/client code to Semantic Lighthouse unless a separate Safety Lane phase explicitly approves runtime MCP work.
+
 ## Shared Knowledge Base
 
 The persistent enterprise AI transformation knowledge base lives at:
