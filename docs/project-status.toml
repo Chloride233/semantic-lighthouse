@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 17.2 smoke script delivered"
-description = "Phase 17.2 smoke_fde_demo.py delivered: 11-step full-chain API smoke on temp SQLite. Fake providers, direct DB seed for heavy parts, API calls for Phase 16 endpoints. Inline artifact quality gate. ~0.8s runtime, 11/11 PASS, artifact gate PASS (0 findings)."
+current = "Phase 17.4 interview refresh delivered"
+description = "Phase 17.4 interview-demo-questions.md refreshed: FDE demo narrative (what SL is/isn't, manufacturing seed rationale, full chain architecture, deliverables table, smoke proof, risk boundaries, engineering value), 5-minute demo script, 5 FAQ items. 17.1–17.4 delivered."
 
 [next_decision_gate]
-name = "implement Phase 17.4 interview refresh"
-description = "17.1/17.2/17.3 delivered. Next: 17.4 update interview-demo-questions.md with FDE delivery narrative and smoke demo flow, or 17.5 closeout review. See docs/phase17-planning.md."
+name = "Phase 17.5 closeout review"
+description = "17.1 seed + 17.2 smoke + 17.3 artifact gate + 17.4 interview refresh all delivered. Smoke: 11/11 PASS, artifact gate PASS (0 findings). Next: 17.5 closeout review. See docs/phase17-planning.md."
 
 [mcp]
 runtime_status = "not started"

@@ -1,6 +1,6 @@
 # Phase 17 Planning — FDE Demo Readiness & Operational Smoke v1
 
-Status: 17.1/17.2/17.3 DELIVERED — 17.4/17.5 pending.
+Status: 17.1–17.4 DELIVERED — 17.5 closeout review pending.
 
 ## Decision
 
@@ -443,16 +443,29 @@ Examples:
 - A follow-up task may add pytest coverage for the validator itself, but
   the validator is a script, not a backend service — no FastAPI dependency.
 
-### 17.4 — Interview/Demo Script Refresh
+### 17.4 — Interview/Demo Script Refresh ← DELIVERED 2026-06-21
 
 **Lane: Fast (docs only).**
 
-Update `docs/interview-demo-questions.md`:
-- Add Phase 16 FDE delivery narrative section.
-- Add smoke script demo flow (what to show, what to say).
-- Update "why not Graph RAG / MCP / Agent auto-write" with current state.
-- Update north star narrative with Phase 14–16 chain evidence.
-- Keep existing Phase 8–13 demo content intact.
+**Delivered shape**:
+
+- Updated `docs/interview-demo-questions.md` with Phase 14–17 FDE Demo section:
+  - "What Semantic Lighthouse Is (and Isn't)" — Ontology positioning vs RAG/Agent
+  - FDE user business flow — 11-step chain from registration to markdown artifact
+  - Why manufacturing equipment reliability seed (not ecommerce)
+  - Full chain architecture diagram (Phase 14 → 16.1 → 16.2 → 16.4 → 17.2 → 17.3)
+  - FDE deliverables table (Outcome Record / Outcome Summary / Markdown Artifact)
+  - Smoke script proof: command, output, 11/11 PASS, ~0.8s
+  - Risk boundaries table (7 rows: no auto-write, no data leak, no Graph RAG, no MCP, no UI refactor, no real data, no cloud deploy)
+  - Engineering value table (6 rows: group isolation, auditable evidence, bounded artifact, deterministic backend, HITL boundary, immutable outcome)
+- Five-Minute Demo Script with per-phase timing (0:00–4:00)
+- FAQ section: 5 common questions with full answers
+  - vs RAG
+  - vs Knowledge Graph demo
+  - Why not Agent auto-modeling
+  - Why read-only runtime/smoke first
+  - Scaling to real enterprise data
+- Deprecated old "Two-Minute Demo Script" and "Phase 9 Teaser (Planned)" → replaced with delivered Phase 9–13 summary
 
 ### 17.5 — Phase 17 Closeout Review
 

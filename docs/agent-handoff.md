@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-21 (Phase 17.2 smoke script delivered)
+Last updated: 2026-06-21 (Phase 17.4 interview refresh delivered)
 
 ## State Source
 
@@ -75,7 +75,7 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 ## Next Decision Gate
 
-**Implement Phase 17.4 (interview/demo script refresh)**: Phase 17.1 seed contract + 17.2 smoke script + 17.3 inline quality gate delivered. Smoke runs in ~0.8s, 11/11 steps pass, artifact gate PASS (0 findings). Next: 17.4 update `docs/interview-demo-questions.md` with FDE delivery narrative and smoke demo flow.
+**Phase 17.5 closeout review**: Phase 17.1 seed contract + 17.2 smoke script + 17.3 artifact quality gate + 17.4 interview/demo script refresh all delivered. Smoke: 11/11 PASS, artifact gate PASS (0 findings). Next: 17.5 closeout review — verify smoke, artifact gate, docs aligned, no regressions.
 
 ## Phase 15 Delivery Summary
 
