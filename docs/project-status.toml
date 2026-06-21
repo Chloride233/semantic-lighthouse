@@ -8,9 +8,9 @@
 version = 1
 
 [product]
-phase = "Phase 16.4"
-status = "delivered"
-summary = "Pilot Outcome & FDE Delivery Record v1 — 16.1 (outcomes CRUD), 16.2 (JSON summary), 16.4 (markdown artifact) delivered. 16.3 UI deferred. 66 tests pass, ruff clean, migration 0027 at head."
+phase = "Phase 17"
+status = "portfolio polish complete"
+summary = "Phase 17 FDE Demo Readiness complete: seed scenario contract, 11-step smoke script, artifact quality gate, interview/demo script refresh, and portfolio entrypoint polish. Current strongest demo: smoke 11/11 PASS, artifact gate PASS (0 findings). Phase 16.3 UI remains deferred."
 
 [frontend]
 status = "F2 complete"
