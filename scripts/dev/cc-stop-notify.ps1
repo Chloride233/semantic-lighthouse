@@ -36,6 +36,15 @@ try {
         if ($Object.PSObject.Properties.Name -contains $Name) {
             return $Object.$Name
         }
+        if ($Object -is [hashtable] -and $Object.ContainsKey("raw_input")) {
+            $match = [regex]::Match(
+                [string]$Object["raw_input"],
+                '"' + [regex]::Escape($Name) + '"\s*:\s*"((?:\\.|[^"\\])*)"'
+            )
+            if ($match.Success) {
+                return [regex]::Unescape($match.Groups[1].Value)
+            }
+        }
         return $null
     }
 
