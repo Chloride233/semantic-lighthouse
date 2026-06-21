@@ -1696,6 +1696,17 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
 }
 .goalAskInput input:focus { border-color: var(--brand); box-shadow: var(--shadow-glow); }
 .goalAskInput button { flex-shrink: 0; }
+.goalAskSaveRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-xs);
+}
+.goalAskSaveRow button { flex-shrink: 0; }
 
 /* ── No-evidence hint ───────────────────────────────────────────── */
 .noEvidenceHint {

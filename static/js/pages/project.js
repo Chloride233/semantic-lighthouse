@@ -112,7 +112,7 @@ export async function render(container, params) {
       container.innerHTML = ''; renderFull();
     };
     switch (stage) {
-      case 'goal': return renderGoalStage(main, dsList, summary);
+      case 'goal': return renderGoalStage(main, dsList, summary, project);
       case 'data': return renderDataStage(main, dsList);
       case 'model': return import('./project-model.js').then(m => m.renderModelStage(container, gid, pid, project, reloadProject, isOwnerAdmin)).catch(e => { main.innerHTML = `<div class="error"><p>加载模型模块失败: ${esc(e.message)}</p></div>`; });
       case 'validate': return import('./project-validate.js').then(m => m.renderValidateStage(container, gid, pid, project, reloadProject, isOwnerAdmin)).catch(e => { main.innerHTML = `<div class="error"><p>加载验证模块失败: ${esc(e.message)}</p></div>`; });
@@ -123,7 +123,7 @@ export async function render(container, params) {
 
   // ── Goal stage ────────────────────────────────────────────────────────
 
-  function renderGoalStage(main, dsList, summary) {
+  function renderGoalStage(main, dsList, summary, project) {
     const hasDatasets = dsList.filter(d => d.status === 'ready').length > 0;
     const evidenceCount = summary?.evidence_count ?? 0;
     const recentEvidence = summary?.recent_evidence ?? [];
@@ -157,7 +157,7 @@ export async function render(container, params) {
     if (isOwnerAdmin && !hasDatasets) {
       document.getElementById('uploadFirstBtn')?.addEventListener('click', () => openUploadDialog());
     }
-    bindGoalAsk();
+    bindGoalAsk(project);
   }
 
   // ── Goal evidence summary ───────────────────────────────────────────
@@ -205,12 +205,13 @@ export async function render(container, params) {
       </div>`;
   }
 
-  function bindGoalAsk() {
+  function bindGoalAsk(project) {
     const input = document.getElementById('goalAskQuestion');
     const btn = document.getElementById('goalAskSubmitBtn');
     const errEl = document.getElementById('goalAskError');
     const resultEl = document.getElementById('goalAskResult');
     if (!input || !btn || !errEl || !resultEl) return;
+    const canSaveEvidence = isOwnerAdmin && project.status !== 'archived';
 
     const submit = async () => {
       const question = input.value.trim();
@@ -225,7 +226,8 @@ export async function render(container, params) {
         });
         data._sourceId = data.run_id || '';
         const cardHTML = answerCard(data, { showConfirm: false, groupId: gid, hideNextSteps: true });
-        resultEl.innerHTML = cardHTML;
+        resultEl.innerHTML = cardHTML + renderSaveAnswerAction(data, canSaveEvidence);
+        bindSaveAnswerAction(data);
       } catch (err) {
         errEl.textContent = err.humanMessage || err.message || '获取回答失败';
         errEl.style.display = 'block';
@@ -238,6 +240,43 @@ export async function render(container, params) {
     btn.addEventListener('click', submit);
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') submit();
+    });
+  }
+
+  function renderSaveAnswerAction(data, canSaveEvidence) {
+    const canSaveRun = data.run_id && Array.isArray(data.citations) && data.citations.length > 0;
+    if (!canSaveEvidence || !canSaveRun) return '';
+    return `
+      <div class="goalAskSaveRow">
+        <button id="goalAskSaveEvidenceBtn" class="secondary small">保存为项目证据</button>
+        <span id="goalAskSaveStatus" class="muted">保存后会作为用户确认的项目证据，不会自动写入 Ontology。</span>
+      </div>`;
+  }
+
+  function bindSaveAnswerAction(data) {
+    const btn = document.getElementById('goalAskSaveEvidenceBtn');
+    const statusEl = document.getElementById('goalAskSaveStatus');
+    if (!btn || !statusEl || !data.run_id) return;
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      statusEl.textContent = '保存中...';
+      try {
+        await api(`/groups/${gid}/projects/${pid}/evidence-links`, {
+          method: 'POST',
+          body: JSON.stringify({
+            evidence_type: 'rag_run',
+            evidence_id: data.run_id,
+            role: 'decision',
+            note: 'Saved from Pilot scoped Ask',
+          }),
+        });
+        btn.textContent = '已保存';
+        statusEl.textContent = '已保存为项目证据。重复保存会复用已有证据链接。';
+      } catch (err) {
+        btn.disabled = false;
+        statusEl.textContent = err.humanMessage || err.message || '保存失败';
+      }
     });
   }
 

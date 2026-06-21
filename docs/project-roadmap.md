@@ -330,7 +330,7 @@ See `docs/phase15-planning.md`.
 
 | # | Task | Description |
 |---|------|-------------|
-| 15.1 | Save scoped RAG answer as project evidence | Planned. User-confirmed save from Pilot scoped Ask into `ProjectEvidenceLink` with `evidence_type=rag_run`. No auto-linking. |
+| 15.1 | Save scoped RAG answer as project evidence | ✅ Delivered. User-confirmed save from Pilot scoped Ask into `ProjectEvidenceLink` with `evidence_type=rag_run` and `role=decision`. Owner/admin-only write action. No auto-linking. |
 | 15.2 | Project evidence review surface | Planned. Make saved RAG answers visible as project evidence, distinct from document evidence. |
 | 15.3 | Evidence-backed modeling draft candidate design | Planned. Design how reviewed project evidence may feed modeling proposals without LLM-only generation, auto-accept, publish, or KB writes. |
 

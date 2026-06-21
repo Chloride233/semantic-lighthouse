@@ -1,6 +1,6 @@
 # Phase 15 Planning — Evidence-to-Ontology Feedback Loop v1
 
-Status: planned. No implementation yet.
+Status: 15.1 implemented. 15.2/15.3 not started.
 
 ## Decision
 
@@ -50,28 +50,27 @@ Not allowed:
 
 ### 15.1 — Save Scoped RAG Answer As Project Evidence
 
-Lane: Standard.
+Lane: Standard. Delivered.
 
 Goal: In the Pilot scoped Ask panel, let owner/admin intentionally save the generated project RAG answer as durable project evidence.
 
-Expected implementation shape:
+Implemented shape:
 
 - Use the existing project-scoped RAG answer result from S2.5A.
 - Add a secondary action: "保存为项目证据".
 - Call existing `POST /groups/{gid}/projects/{pid}/evidence-links` with:
   - `evidence_type = "rag_run"`
   - `evidence_id = run_id`
-  - role chosen conservatively, likely `decision` or user-selectable if existing UI pattern supports it
-  - note optional and bounded
+  - `role = "decision"`
+  - bounded note
 - Show saved/already-linked state.
 - Do not auto-create links after answer generation.
 
-Stop and document an API gap if the existing evidence-link endpoint does not support this cleanly.
+Owner/admin only. Members can ask but do not see the write action.
 
 Verification:
 
 - related frontend smoke via `scripts/verify_ui.py`
-- related backend evidence-link tests only if backend changes become unavoidable
 - `node --check` on changed JS files
 - `git diff --check`
 
@@ -142,4 +141,3 @@ At the end:
 - Update docs/project-status.toml with Phase 15.1 result.
 - Commit with message: feat: save scoped answer as project evidence
 ```
-
