@@ -1,6 +1,6 @@
 # Phase 16 Planning — Pilot Outcome & FDE Delivery Record v1
 
-Status: 16.1–16.2 DELIVERED — slices 16.3–16.4 pending.
+Status: 16.1–16.2–16.4 DELIVERED — 16.3 (UI) deferred.
 
 ## Decision
 
@@ -198,26 +198,35 @@ Design decisions to resolve:
   the existing Pilot stage.
 - Whether the report is a single scrollable page or tabbed sections.
 
-### 16.4 — Exportable Interview/Demo Artifact
+### 16.4 — Exportable Interview/Demo Artifact ← DELIVERED 2026-06-21
 
-**Lane: Standard (if HTML/markdown) or Fast (if read-only display)**
+**Lane: Standard (backend markdown endpoint).**
 
-Generate or display a concise delivery record suitable for demo/interview.
-No PDF/export dependency unless already available; HTML/markdown first.
+**Delivered shape**:
 
-Expected shape:
-- A single-page view (or printable HTML) that contains the full outcome record.
-- Suitable for: sharing as a portfolio artifact, showing in an interview,
-  handing to an FDE reviewer.
-- Markdown export if the system already produces markdown; otherwise, styled
-  HTML that prints cleanly.
-- No external service dependency for PDF generation.
+- Endpoint: `GET /groups/{gid}/projects/{pid}/outcome-artifact.md` in `routers/projects.py`.
+- Returns `text/markdown; charset=utf-8` with `Content-Disposition: inline; filename="pilot-outcome-{project_id}.md"`.
+- Permission: member+ read via `get_membership_or_404`.
+- Markdown sections: title, business goal, project state, latest outcome (or "Not recorded yet"), evidence summary, package summary, runtime summary, provenance note.
+- Reuses `_build_outcome_summary()` shared helper (refactored from 16.2 `get_outcome_summary`).
+- `_format_markdown_artifact()` converts the summary to clean markdown with colons outside `**bold**` markers.
+- No raw prompts, answers, content, paths, secrets, tokens, or stack traces in output.
+- No new tables, no migration, no PDF/HTML dependency.
+- Existing `GET /outcome-summary` JSON endpoint unchanged (verified by test).
+- Tests: 13 new tests in `TestOutcomeArtifact` (member read, outsider 403, cross-group 404, business goal, decision/risks/actions from outcome, "Not recorded yet" when no outcome, evidence summary, package summary, runtime summary, no forbidden keys, no side effects, provenance note, JSON endpoint still works). Combined 66/66 pass (40 + 13 + 13).
+- **Design decisions resolved**:
+  - Markdown format (no PDF/HTML dependency).
+  - Dedicated endpoint (`outcome-artifact.md`) rather than query parameter on JSON endpoint.
+  - Shared `_build_outcome_summary()` helper between JSON and markdown endpoints.
+  - Colons placed outside `**bold**` markers for clean plain-text readability.
+  - Provenance note declares what's NOT included without itself containing forbidden data values.
 
-Design decisions to resolve:
-- Markdown export (simple, already in the tech stack) vs. styled HTML page.
-- Whether to add a "copy as markdown" button vs. a dedicated export route.
-- Whether the export is a separate endpoint or a query parameter on the UI
-  (`?export=1`).
+### 16.3 — Pilot Delivery Report UI ← DEFERRED
+
+**Reason**: Phase 16.4 (exportable markdown artifact) was prioritized as it provides
+immediate interview/demo value without frontend changes. 16.3 UI requires Pilot
+workspace frontend work, which is a larger scope. The markdown artifact can be viewed
+in any browser or text editor and serves as the interview/demo deliverable.
 
 ## Hard Boundaries (repeated for implementation phase)
 

@@ -1045,3 +1045,230 @@ class TestOutcomeSummary:
         assert p["business_goal"] == "Prove ontology value"
         assert p["stage"] == "goal"
         assert p["status"] == "active"
+
+
+# ── Phase 16.4: Markdown Artifact ────────────────────────────────────────
+
+
+class TestOutcomeArtifact:
+    """GET /groups/{gid}/projects/{pid}/outcome-artifact.md — markdown export."""
+
+    # "answer", "prompt", "secret", "token", "stack_trace" excluded because
+    # the provenance note legitimately mentions "raw answers", "raw prompts",
+    # "secrets", "tokens", and "stack traces" as things NOT included.
+    # Use underscored forms (raw_answer, raw_prompt) as they won't
+    # appear in the declarative provenance note.
+    FORBIDDEN_TERMS = [
+        "raw_content", "raw_answer", "raw_prompt",
+        "source_path", "storage_path",
+        "password",
+    ]
+
+    def _get_artifact(self, client, gid, pid, h):
+        r = client.get(
+            f"/groups/{gid}/projects/{pid}/outcome-artifact.md", headers=h
+        )
+        return r
+
+    def test_member_can_read_artifact(self, client):
+        _, _, owner_h = register_and_login(client, "oa-mem-own@test.com")
+        _, _, member_h = register_and_login(client, "oa-mem@test.com")
+        gid = _create_group(client, owner_h)
+        _join_group(client, gid, owner_h, member_h)
+        pid = _create_project(client, gid, owner_h)["id"]
+        r = self._get_artifact(client, gid, pid, member_h)
+        assert r.status_code == 200
+        assert "text/markdown" in r.headers.get("content-type", "")
+        assert "Pilot Outcome" in r.text
+        assert "Not recorded yet" in r.text
+
+    def test_outsider_cannot_read_artifact(self, client):
+        _, _, owner_h = register_and_login(client, "oa-out-own@test.com")
+        _, _, outsider_h = register_and_login(client, "oa-out@test.com")
+        gid = _create_group(client, owner_h)
+        pid = _create_project(client, gid, owner_h)["id"]
+        r = self._get_artifact(client, gid, pid, outsider_h)
+        assert r.status_code == 403
+
+    def test_cross_group_project_404(self, client):
+        _, _, ha = register_and_login(client, "oa-cg-a@test.com")
+        _, _, hb = register_and_login(client, "oa-cg-b@test.com")
+        ga = _create_group(client, ha, "GA")
+        gb = _create_group(client, hb, "GB")
+        pid = _create_project(client, ga, ha)["id"]
+        r = self._get_artifact(client, gb, pid, hb)
+        assert r.status_code == 404
+
+    def test_artifact_contains_business_goal(self, client):
+        _, _, h = register_and_login(client, "oa-goal@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(
+            client, gid, h,
+            business_goal="Deliver enterprise ontology for manufacturing",
+        )["id"]
+        r = self._get_artifact(client, gid, pid, h)
+        assert r.status_code == 200
+        assert "Deliver enterprise ontology for manufacturing" in r.text
+
+    def test_artifact_contains_decision_from_outcome(self, client):
+        _, _, h = register_and_login(client, "oa-dec@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        _create_outcome(
+            client, gid, pid, h,
+            title="Final Delivery",
+            decision_summary="Proceed to production pilot.",
+            risks=["Data gaps in supplier domain"],
+            next_actions=["Expand supplier dataset", "Validate with real users"],
+        )
+        r = self._get_artifact(client, gid, pid, h)
+        assert r.status_code == 200
+        text = r.text
+        assert "Final Delivery" in text
+        assert "Proceed to production pilot" in text
+        assert "Data gaps in supplier domain" in text
+        assert "Expand supplier dataset" in text
+
+    def test_artifact_without_outcome_has_not_recorded(self, client):
+        _, _, h = register_and_login(client, "oa-null@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        r = self._get_artifact(client, gid, pid, h)
+        assert r.status_code == 200
+        assert "Not recorded yet" in r.text
+
+    def test_artifact_contains_evidence_summary(
+        self, client, db_session: Session
+    ):
+        _, _, h = register_and_login(client, "oa-ev@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        owner_id = client.get("/auth/me", headers=h).json()["id"]
+
+        doc_id = _add_document(db_session, gid, owner_id, "artifact-doc")
+        _add_evidence_link(
+            db_session, gid, pid, doc_id, owner_id,
+            evidence_type="document", role="context",
+        )
+        rag_id = _add_rag_run(db_session, gid, owner_id)
+        _add_evidence_link(
+            db_session, gid, pid, rag_id, owner_id,
+            evidence_type="rag_run", role="decision",
+        )
+        db_session.commit()
+
+        r = self._get_artifact(client, gid, pid, h)
+        assert r.status_code == 200
+        text = r.text
+        assert "Total Active Evidence Links" in text
+        assert "document: 1" in text
+        assert "rag_run: 1" in text
+
+    def test_artifact_contains_package_summary(
+        self, client, db_session: Session
+    ):
+        _, _, h = register_and_login(client, "oa-pkg@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        owner_id = client.get("/auth/me", headers=h).json()["id"]
+
+        _add_package(db_session, gid, pid, owner_id, version=1, quality_status="WARN")
+        db_session.commit()
+
+        r = self._get_artifact(client, gid, pid, h)
+        assert r.status_code == 200
+        text = r.text
+        assert "Total Packages" in text
+        assert "WARN" in text
+
+    def test_artifact_contains_runtime_summary(
+        self, client, db_session: Session
+    ):
+        _, _, h = register_and_login(client, "oa-rt@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        owner_id = client.get("/auth/me", headers=h).json()["id"]
+
+        from semantic_lighthouse.models import OntologyRuntimeAudit
+        db_session.add(
+            OntologyRuntimeAudit(
+                id=new_id(), user_id=owner_id,
+                group_id=gid, project_id=pid,
+                operation="query", outcome="success", row_count=10,
+            )
+        )
+        db_session.commit()
+
+        r = self._get_artifact(client, gid, pid, h)
+        assert r.status_code == 200
+        text = r.text
+        assert "Total Operations" in text
+        assert "query" in text
+        assert "success" in text
+
+    def test_artifact_no_forbidden_keys(self, client, db_session: Session):
+        _, _, h = register_and_login(client, "oa-priv@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        owner_id = client.get("/auth/me", headers=h).json()["id"]
+
+        doc_id = _add_document(db_session, gid, owner_id, "priv-art")
+        _add_evidence_link(db_session, gid, pid, doc_id, owner_id)
+        _add_package(db_session, gid, pid, owner_id)
+        db_session.commit()
+
+        _create_outcome(client, gid, pid, h)
+
+        r = self._get_artifact(client, gid, pid, h)
+        assert r.status_code == 200
+        text = r.text.lower()
+        for term in self.FORBIDDEN_TERMS:
+            assert term not in text, (
+                f"Forbidden term '{term}' found in markdown artifact"
+            )
+
+    def test_artifact_does_not_create_outcomes(self, client):
+        """GET artifact must have no side effects."""
+        _, _, h = register_and_login(client, "oa-side@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+
+        r_before = client.get(
+            f"/groups/{gid}/projects/{pid}/outcomes", headers=h
+        )
+        assert r_before.json()["total"] == 0
+
+        r = self._get_artifact(client, gid, pid, h)
+        assert r.status_code == 200
+
+        r_after = client.get(
+            f"/groups/{gid}/projects/{pid}/outcomes", headers=h
+        )
+        assert r_after.json()["total"] == 0
+
+    def test_artifact_contains_provenance_note(self, client):
+        _, _, h = register_and_login(client, "oa-prov@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        r = self._get_artifact(client, gid, pid, h)
+        assert r.status_code == 200
+        assert "Provenance" in r.text
+        assert "group-scoped project summary" in r.text
+
+    def test_json_summary_still_works(self, client):
+        """Existing outcome-summary JSON endpoint unchanged by refactor."""
+        _, _, h = register_and_login(client, "oa-json@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        _create_outcome(
+            client, gid, pid, h,
+            title="Refactor Test",
+            decision_summary="Refactored.",
+        )
+        r = client.get(
+            f"/groups/{gid}/projects/{pid}/outcome-summary", headers=h
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["latest_outcome"]["title"] == "Refactor Test"
+        assert data["decision_summary"] == "Refactored."

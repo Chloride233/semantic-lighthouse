@@ -7,7 +7,7 @@ Permissions: member read, owner/admin write/archive.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -288,28 +288,20 @@ def get_project_summary(
     )
 
 
-# ── Phase 16.2: Pilot Outcome Summary ───────────────────────────────────────
+# ── Phase 16.2/16.4: Pilot Outcome Summary (shared helper) ──────────────────
 
 
-@router.get(
-    "/{project_id}/outcome-summary",
-    response_model=PilotOutcomeSummaryResponse,
-)
-def get_outcome_summary(
-    group_id: str,
-    project_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+def _build_outcome_summary(
+    db: Session, group_id: str, project_id: str,
 ) -> PilotOutcomeSummaryResponse:
-    """Read-only FDE delivery summary (member+).
+    """Build a bounded FDE delivery summary from existing project data.
 
     Aggregates project metadata, latest PilotOutcomeRecord, active evidence
     counts by type/role, package summary, and minimal runtime operation counts.
     Never exposes raw prompts, answers, paths, secrets, or stack traces.
-    Does not create, update, or delete any records.
-    """
-    get_membership_or_404(db, user.id, group_id)
 
+    Shared by get_outcome_summary (JSON) and get_outcome_artifact (Markdown).
+    """
     project = db.get(BusinessProject, project_id)
     if project is None or project.group_id != group_id:
         raise HTTPException(
@@ -439,4 +431,182 @@ def get_outcome_summary(
         decision_summary=decision_summary,
         risks=risks,
         next_actions=next_actions,
+    )
+
+
+@router.get(
+    "/{project_id}/outcome-summary",
+    response_model=PilotOutcomeSummaryResponse,
+)
+def get_outcome_summary(
+    group_id: str,
+    project_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> PilotOutcomeSummaryResponse:
+    """Read-only FDE delivery summary (member+). Returns JSON."""
+    get_membership_or_404(db, user.id, group_id)
+    return _build_outcome_summary(db, group_id, project_id)
+
+
+# ── Phase 16.4: Markdown Artifact ───────────────────────────────────────────
+
+
+def _format_markdown_artifact(summary: PilotOutcomeSummaryResponse) -> str:
+    """Format a PilotOutcomeSummaryResponse as a bounded Markdown artifact.
+
+    Never includes raw prompts, answers, content, paths, secrets, or stack traces.
+    """
+    p = summary.project
+    lines: list[str] = []
+
+    # Title
+    lines.append(f"# {p.get('name', 'Unnamed Project')} — Pilot Outcome / FDE Delivery Record")
+    lines.append("")
+
+    # Business Goal
+    lines.append("## Business Goal")
+    lines.append("")
+    goal = p.get("business_goal", "").strip()
+    lines.append(goal if goal else "(No business goal recorded.)")
+    lines.append("")
+
+    # Project State
+    lines.append("## Project State")
+    lines.append("")
+    lines.append(f"- **Stage**: {p.get('stage', 'unknown')}")
+    lines.append(f"- **Status**: {p.get('status', 'unknown')}")
+    lines.append("")
+
+    # Latest Outcome
+    lines.append("## Latest Outcome")
+    lines.append("")
+    lo = summary.latest_outcome
+    if lo is not None:
+        created = lo.created_at.isoformat() if lo.created_at else "unknown"
+        lines.append(f"**{lo.title}**  ")
+        lines.append(f"*Created: {created}*")
+        lines.append("")
+        lines.append("### Decision Summary")
+        lines.append("")
+        ds = lo.decision_summary.strip()
+        lines.append(ds if ds else "(No decision recorded.)")
+        lines.append("")
+        lines.append("### Risks")
+        lines.append("")
+        if lo.risks:
+            for risk in lo.risks:
+                lines.append(f"- {risk}")
+        else:
+            lines.append("(No risks recorded.)")
+        lines.append("")
+        lines.append("### Next Actions")
+        lines.append("")
+        if lo.next_actions:
+            for action in lo.next_actions:
+                lines.append(f"- {action}")
+        else:
+            lines.append("(No next actions recorded.)")
+    else:
+        lines.append("Not recorded yet.")
+    lines.append("")
+
+    # Evidence Summary
+    lines.append("## Evidence Summary")
+    lines.append("")
+    es = summary.evidence_summary
+    lines.append(f"- **Total Active Evidence Links**: {es.total_active}")
+    if es.by_type:
+        type_items = ", ".join(f"{k}: {v}" for k, v in sorted(es.by_type.items()))
+        lines.append(f"- **By Type**: {type_items}")
+    else:
+        lines.append("- **By Type:** (none)")
+    if es.by_role:
+        role_items = ", ".join(f"{k}: {v}" for k, v in sorted(es.by_role.items()))
+        lines.append(f"- **By Role**: {role_items}")
+    else:
+        lines.append("- **By Role:** (none)")
+    lines.append("")
+
+    # Package Summary
+    lines.append("## Ontology Package Summary")
+    lines.append("")
+    ps = summary.package_summary
+    lines.append(f"- **Total Packages**: {ps.count}")
+    if ps.latest is not None:
+        lp = ps.latest
+        lines.append("")
+        lines.append("### Latest Package")
+        lines.append("")
+        lines.append(f"- **ID**: `{lp.package_id}`")
+        lines.append(f"- **Version**: {lp.version}")
+        lines.append(f"- **Content Hash**: `{lp.content_hash}`")
+        lines.append(f"- **Quality Status**: {lp.quality_status}")
+        lines.append(f"- **Draft Count**: {lp.draft_count}")
+        if lp.created_at:
+            lines.append(f"- **Created**: {lp.created_at.isoformat()}")
+    else:
+        lines.append("")
+        lines.append("No packages yet.")
+    lines.append("")
+
+    # Runtime Summary
+    lines.append("## Runtime Summary")
+    lines.append("")
+    rs = summary.runtime_summary
+    lines.append(f"- **Total Operations**: {rs.total_operations}")
+    if rs.last_operation is not None:
+        lop = rs.last_operation
+        lines.append(f"- **Last Operation**: {lop.get('operation', 'unknown')} "
+                      f"({lop.get('outcome', 'unknown')})")
+        if lop.get("created_at"):
+            lines.append(f"- **Last Operation At**: {lop['created_at']}")
+    else:
+        lines.append("- **Last Operation**: (none)")
+    if rs.note:
+        lines.append(f"- **Note**: {rs.note}")
+    lines.append("")
+
+    # Provenance
+    lines.append("## Provenance")
+    lines.append("")
+    lines.append(
+        "This artifact is generated from a group-scoped project summary.  \n"
+        "It does not contain raw prompts, raw answers, document content,  \n"
+        "file paths, secrets, tokens, or stack traces.  \n"
+        "Generated by Semantic Lighthouse — Pilot Outcome & FDE Delivery Record v1."
+    )
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+@router.get(
+    "/{project_id}/outcome-artifact.md",
+    response_class=Response,
+)
+def get_outcome_artifact(
+    group_id: str,
+    project_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Export a bounded Markdown FDE delivery artifact (member+).
+
+    Returns text/markdown; charset=utf-8 with inline Content-Disposition.
+    Does not create, update, or delete any records.
+    Never contains raw prompts, answers, paths, secrets, or stack traces.
+    """
+    get_membership_or_404(db, user.id, group_id)
+    summary = _build_outcome_summary(db, group_id, project_id)
+    md = _format_markdown_artifact(summary)
+
+    return Response(
+        content=md,
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            "Content-Disposition": (
+                f"inline; filename=\"pilot-outcome-{project_id}.md\""
+            ),
+        },
     )

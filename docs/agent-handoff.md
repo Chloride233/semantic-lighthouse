@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-21 (Phase 16.2 delivered)
+Last updated: 2026-06-21 (Phase 16.4 delivered)
 
 ## State Source
 
@@ -12,13 +12,14 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 | Item | Value |
 |------|-------|
-| Commit | `58620bc` (16.1) |
-| Phase 16.2 delivery commit | `b5f6877` |
-| Backend pytest | Phase 16.1–16.2: 53/53 pass |
+| Commit | `58620bc` (16.1), `b5f6877` (16.2) |
+| Phase 16.4 delivery commit | *(pending commit)* |
+| Backend pytest | Phase 16.1–16.2–16.4: 66/66 pass |
 | ruff | clean (changed files only) |
 | Migration | `0027` at head |
 | Phase 16.1 outcome CRUD tests | 40 pass |
-| Phase 16.2 outcome-summary tests | 13 pass (53 total) |
+| Phase 16.2 outcome-summary tests | 13 pass |
+| Phase 16.4 markdown artifact tests | 13 pass (66 total) |
 
 ## Architecture Boundaries
 
@@ -49,14 +50,15 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 | Suite | Count | Notes |
 |-------|-------|-------|
 | Phase 16.1 outcomes CRUD | 40 passed | Permissions, evidence/package validation, query_refs privacy, cross-group isolation, list/read. |
-| Phase 16.2 outcome-summary | 13 passed | Member read, outsider 403, cross-group 404, null-latest, uses-latest, evidence counts, package summary, runtime summary, no forbidden keys, no side effects, isolation. |
-| Ruff (changed files) | clean | schemas.py, projects.py, test_pilot_outcomes.py |
-| Migration smoke | 0027 at head | No new migration for 16.2; 0027 still at head. |
+| Phase 16.2 outcome-summary | 13 passed | Member read, outsider 403, cross-group 404, null-latest, uses-latest, evidence/package/runtime counts. |
+| Phase 16.4 markdown artifact | 13 passed | Member read, content checks, forbidden keys, no side effects, JSON endpoint unchanged. |
+| Ruff (changed files) | clean | projects.py, test_pilot_outcomes.py |
+| Migration smoke | 0027 at head | No new migration for 16.2/16.4; 0027 still at head. |
 | Doc alignment | PASS | 7 entry docs checked, no stale expressions |
 
 ## Next Decision Gate
 
-**Implement Phase 16.3 or 16.4**: Phase 16.1–16.2 backend delivered (outcome records + outcome-summary). Next decision: implement 16.3 (delivery report UI), 16.4 (exportable artifact), or review with project owner. See `docs/phase16-planning.md`.
+**Phase 16 closeout or Phase 17 planning**: Phase 16.1–16.2–16.4 backend delivered (outcomes CRUD + JSON summary + markdown artifact). 16.3 UI deferred. Next: Phase 16 closeout review, deploy smoke, or plan Phase 17. See `docs/phase16-planning.md`.
 
 ## Phase 15 Delivery Summary
 
@@ -91,6 +93,7 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 - `POST /groups/{gid}/projects`, `GET /projects`, `GET /projects/{pid}`
 - `GET /groups/{gid}/projects/{pid}/summary`
 - `GET /groups/{gid}/projects/{pid}/outcome-summary`
+- `GET /groups/{gid}/projects/{pid}/outcome-artifact.md`
 - `POST|GET /groups/{gid}/projects/{pid}/outcomes`, `GET /groups/{gid}/projects/{pid}/outcomes/{outcome_id}`
 - `POST|GET /groups/{gid}/projects/{pid}/evidence-links`, `DELETE /groups/{gid}/projects/{pid}/evidence-links/{link_id}`
 - `POST /projects/{pid}/datasets`, `GET /datasets`
