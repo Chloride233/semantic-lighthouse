@@ -85,11 +85,11 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 | Interview script | ✅ Refreshed | `docs/interview-demo-questions.md` — FDE narrative, 5-min demo script, 5 FAQ items |
 | Docs aligned | ✅ PASS | `check_doc_alignment.py` PASS, 7 entry docs |
 | No code regressions | ✅ N/A | No product code changed in Phase 17 (scripts only) |
-| Migration drift | ✅ None | `migration_head` = `0027`, same as Phase 16 closeout |
+| Migration drift | ✅ Expected | `migration_head` = `0028` after Alembic version table length fix |
 
 ## Next Decision Gate
 
-**Phase 18.5 closeout review**: Phase 18.1 config audit + 18.2 PostgreSQL migration smoke (28/28, `version_num_length=64` fix) + 18.3 HTTP API smoke (9/9 PASS) + 18.4 base-url adapter all delivered. Next: 18.5 closeout — record final Phase 18 results, risks, and status.
+**Phase 18.5 closeout review**: Phase 18.1 config audit + 18.2 PostgreSQL migration smoke (28/28, `version_num_length=64` fix, migration head `0028`) + 18.3 HTTP API smoke (9/9 PASS) + 18.4 base-url adapter all delivered. Next: 18.5 closeout — record final Phase 18 results, risks, and status.
 
 ## Phase 15 Delivery Summary
 

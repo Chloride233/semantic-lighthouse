@@ -221,7 +221,7 @@ Verify:
 - Artifact quality gate passes on deployment-generated markdown.
 - Docs aligned (`check_doc_alignment.py`).
 - No regressions in existing 66 Phase 16 tests.
-- `migration_head` still 0027 (no new migrations).
+- `migration_head` is 0028 after the Alembic version table length fix.
 
 ## Hard Boundaries
 

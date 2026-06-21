@@ -9,8 +9,8 @@ version = 1
 
 [product]
 phase = "Phase 18"
-status = "planned"
-summary = "Phase 18 Cloud Deployment Smoke v1 planned. Goal: prove the FDE demo chain works beyond local SQLite/TestClient through deployment config audit, PostgreSQL migration smoke, HTTP health/API smoke, optional FDE smoke adapter, and closeout. Current strongest completed demo remains Phase 17: smoke 11/11 PASS, artifact gate PASS (0 findings)."
+status = "18.1-18.4 delivered"
+summary = "Phase 18 Cloud Deployment Smoke v1 in progress: config audit, PostgreSQL migration smoke fix, HTTP health/API smoke, and base-url adapter delivered. Migration head is 0028 after the Alembic version table length fix. Next: Phase 18.5 closeout."
 
 [frontend]
 status = "F2 complete"
@@ -32,7 +32,7 @@ runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "d884813"
+latest_commit = "abb1149"
 backend_pytest = 848
 ruff = "clean"
 migration_head = "0028"
