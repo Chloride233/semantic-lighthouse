@@ -210,7 +210,21 @@ wc -c < /tmp/outcome-artifact.md
 head -5 /tmp/outcome-artifact.md
 ```
 
-**Local FDE smoke (pre-deployment)**:
+**Local HTTP API smoke (pre-deployment, real HTTP)**:
+```powershell
+.\.venv\Scripts\python scripts\smoke_http_api.py
+```
+
+**Deployment HTTP API smoke (against running server)**:
+```bash
+cd /opt/semantic-lighthouse
+.venv/Scripts/python scripts/smoke_http_api.py \
+  --base-url http://127.0.0.1:8000 \
+  --email-prefix deploy-smoke \
+  --password DeployPass1!
+```
+
+**Local FDE full-chain smoke (TestClient, faster)**:
 ```powershell
 .\.venv\Scripts\python scripts\smoke_fde_demo.py
 ```

@@ -89,7 +89,7 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 ## Next Decision Gate
 
-**Retry Phase 18.2 or skip to 18.3**: Phase 18.2 PostgreSQL migration smoke blocked — Docker Desktop daemon not running (CLI v29.5.3 available, engine pipe not found). Procedure documented in `docs/phase18-planning.md` §18.2. Next: retry 18.2 when Docker becomes available, or skip to 18.3 (HTTP health/API smoke via local uvicorn + SQLite).
+**Phase 18.5 closeout review**: Phase 18.1 config audit + 18.3 HTTP API smoke + 18.4 base-url adapter delivered. 18.2 blocked by known `alembic_version.version_num VARCHAR(32)` issue on PostgreSQL (needs migration/env.py fix — deferred per hard boundary). Next: 18.5 closeout — record results, risks, and final Phase 18 status.
 
 ## Phase 15 Delivery Summary
 

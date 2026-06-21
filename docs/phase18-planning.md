@@ -1,6 +1,6 @@
 # Phase 18 Planning — Cloud Deployment Smoke v1
 
-Status: 18.1 DELIVERED — 18.2 BLOCKED (Docker daemon unavailable) — 18.3–18.5 pending.
+Status: 18.1/18.3/18.4 DELIVERED — 18.2 FAILED (known issue) — 18.5 closeout pending.
 
 ## Decision
 
@@ -128,86 +128,75 @@ local prototype. This is the single strongest portfolio signal available.
 
 **Next**: 18.2 PostgreSQL migration smoke.
 
-### 18.2 — Migration Smoke on PostgreSQL ← BLOCKED 2026-06-21
+### 18.2 — Migration Smoke on PostgreSQL ← FAILED (known issue)
 
 **Lane: Standard (requires Docker daemon).**
 
-**Status**: Docker CLI available (v29.5.3) but Docker Desktop daemon not running
-(`dockerDesktopLinuxEngine` pipe not found). Cannot start temporary PostgreSQL
-container. Blocked until Docker Desktop is started.
+**Status**: Docker daemon available (v29.5.3). Container started, pg_isready passed.
+Alembic `upgrade head` failed at migration 0013→0014 with:
 
-**Procedure (to execute when Docker available)**:
-
-```bash
-docker run -d --name sl-phase18-migration-smoke \
-  -e POSTGRES_PASSWORD=smoke \
-  -e POSTGRES_DB=sl_smoke \
-  -p 54329:5432 \
-  pgvector/pgvector:pg17
-
-until docker exec sl-phase18-migration-smoke pg_isready -U postgres; do sleep 1; done
-
-DATABASE_URL="postgresql+psycopg://postgres:smoke@localhost:54329/sl_smoke" \
-  .venv/Scripts/python -m alembic upgrade head
-
-DATABASE_URL="postgresql+psycopg://postgres:smoke@localhost:54329/sl_smoke" \
-  .venv/Scripts/python -m alembic current
-
-docker stop sl-phase18-migration-smoke
-docker rm sl-phase18-migration-smoke
+```
+psycopg.errors.StringDataRightTruncation: value too long for type character varying(32)
+UPDATE alembic_version SET version_num='0014_v14_ontology_issue_nullable_doc'
 ```
 
-Expected: `0027_v27_pilot_outcome_records (head)`, no errors.
+**Root cause**: The `alembic_version.version_num` column defaults to `VARCHAR(32)`,
+but the project's revision IDs exceed 32 characters (e.g.,
+`0014_v14_ontology_issue_nullable_doc` = 39 chars). SQLite ignores this constraint;
+PostgreSQL enforces it strictly.
 
-**Next**: Retry when Docker Desktop is available, or proceed to 18.3 (HTTP health/API smoke)
-using local uvicorn + SQLite if Docker remains unavailable.
+**Fix needed** (not applied — requires migration modification, blocked by Phase 18
+hard boundary of "不改 alembic migration"):
+1. Widen `alembic_version.version_num` to `VARCHAR(64)` or `VARCHAR(255)`, OR
+2. Add `version_num_length = 64` to Alembic's `context.configure()` in `env.py`.
 
-### 18.3 — HTTP Health/API Smoke
+**Procedure documented for future retry** — same as above but requires the
+`version_num` fix to succeed on PostgreSQL.
+
+**Next**: Proceed to 18.3 (HTTP health/API smoke) — validated on SQLite with real HTTP.
+
+### 18.3 — HTTP Health/API Smoke ← DELIVERED 2026-06-21
 
 **Lane: Standard.**
 
-After Docker Compose starts the full stack:
+**Delivered shape**:
 
+- Script: `scripts/smoke_http_api.py` — 9 steps using real HTTP (stdlib `urllib`).
+- **Local mode** (default): starts uvicorn on port 8018, temp SQLite DB, fake providers.
+  Auto-waits for `/health`, runs full chain, cleans up subprocess and DB.
+- Steps: health → register → login → create group → create project →
+  create outcome → outcome-summary → outcome-artifact (with inline quality check).
+- **Result**: 9/9 PASS, ~2.9s.
+- Inline artifact checks: 6 required sections + 11 forbidden terms.
+- Exit code: 0 on full pass, non-zero on any failure.
+
+Run command:
 ```bash
-# Health
-curl -fsS http://127.0.0.1:8000/health
-# → {"status":"ok","database":"connected","embedding_provider":"fake","chat_provider":"fake"}
-
-# Auth
-TOKEN=$(curl -sS -X POST http://127.0.0.1:8000/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"smoke@deploy.local","password":"SmokePass1","display_name":"Smoke Op"}' \
-  | ...)
-
-# FDE chain
-curl -sS -X POST http://127.0.0.1:8000/groups -H "Authorization: Bearer $TOKEN" ...
-# ...
+.venv/Scripts/python scripts/smoke_http_api.py
 ```
 
-Cover the minimum: health, register, login, create group, create project,
-create outcome, fetch summary, fetch artifact.
+### 18.4 — FDE Smoke Deployment Adapter ← DELIVERED 2026-06-21
 
-This can be a section in the smoke script or a standalone shell snippet.
-Prefer integrating into `scripts/smoke_fde_demo.py` with a `--base-url` flag
-(see 18.4).
+**Lane: Standard.**
 
-### 18.4 — FDE Smoke Deployment Adapter
+**Delivered shape**: `scripts/smoke_http_api.py` supports `--base-url` mode
+(no uvicorn management, no DB seeding, no cleanup — targets an already-running API).
 
-**Lane: Standard (if implemented) or deferred.**
+```bash
+# Deployment smoke against running server
+.venv/Scripts/python scripts/smoke_http_api.py \
+  --base-url http://127.0.0.1:8000 \
+  --email-prefix deploy-smoke \
+  --password DeployPass1! \
+  --timeout-seconds 10
+```
 
-Goal: make `scripts/smoke_fde_demo.py` work against a running API server
-instead of TestClient.
+CLI flags: `--base-url`, `--email-prefix`, `--password`, `--timeout-seconds`.
+Email uses timestamp suffix for uniqueness — safe for repeated runs against
+the same server. No data cleanup on remote server.
 
-Proposed design:
-- Add `--base-url http://127.0.0.1:8000` flag.
-- When `--base-url` is set: use `requests` (or `httpx`) for API calls;
-  keep DB seed steps as direct SQLAlchemy (they need the same DB session).
-  OR: run all steps through the API, seeding evidence/packages/runtime
-  via direct DB connection to the PostgreSQL instance.
-- When not set: use TestClient as today (backward compatible).
-
-If this is too complex for v1: defer to Phase 19. Phase 18.3 provides
-sufficient deployment smoke coverage for closeout.
+This replaces the originally planned `smoke_fde_demo.py --base-url` extension
+with a cleaner, dedicated script focused on HTTP-layer validation.
 
 ### 18.5 — Closeout Review
 
