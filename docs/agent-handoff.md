@@ -111,6 +111,10 @@ The previous "frontend freeze" / "deferred to Kimi" policy has been **retired**.
 - No uncontrolled redesign or framework rewrite.
 - Historical "Kimi" / "frontend freeze" references in active docs have been updated with policy notes. Archive docs retain history.
 
+## Legacy Console Page Polish (2026-06-21)
+
+**Status**: CSS-only polish applied to legacy console pages (Documents, Tasks, Ontology, Agent, Conversations, Groups). Added `.legacyPage`, `.legacyPanel`, `.legacyFilters`, `.legacyTable`, `.legacyCard`, `.groupGrid` classes plus 390px mobile safeguard. 53/53 verify_ui PASS, no `button:not(` selectors, all JS syntax checks pass.
+
 ## Frontend Visual Baseline Refresh (2026-06-21)
 
 **Status**: first-pass visual refresh delivered.

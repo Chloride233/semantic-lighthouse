@@ -2575,3 +2575,155 @@ textarea {
     width: 100%;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Legacy console page polish (Phase 18 visual pass continuation)
+   Documents, Tasks, Ontology, Agent, Conversations, Groups.
+   Minimal overrides — reuse existing class vocabulary.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Page chrome for legacy routes (no .pageHead wrapper) ───── */
+.legacyPage .pageTitle,
+.legacyPage > .pageTitle {
+  margin-bottom: 10px;
+}
+
+.legacyPage .pageMeta,
+.legacyPage > .pageMeta {
+  margin-bottom: 32px;
+}
+
+/* ── Legacy panel component (panel.js) ────────────────────────── */
+.legacyPanel {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  background: var(--surface-raised);
+}
+
+.legacyPanel summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 10px;
+  font-size: var(--text-base);
+}
+
+.legacyPanel summary:hover {
+  color: var(--brand-hover);
+}
+
+/* ── Legacy filter bar ─────────────────────────────────────────── */
+.legacyFilters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.legacyFilters button,
+.legacyFilters select {
+  border-radius: 999px;
+  padding: 6px 16px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 34px;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+
+.legacyFilters button:hover,
+.legacyFilters select:hover {
+  border-color: var(--brand);
+  background: var(--surface-soft);
+}
+
+.legacyFilters button.active {
+  background: #050505;
+  color: #fff;
+  border-color: #050505;
+}
+
+/* ── Quiet data table for legacy pages ────────────────────────── */
+.legacyTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.legacyTable th {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--subtle);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  text-transform: none;
+}
+
+.legacyTable td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: top;
+}
+
+.legacyTable tbody tr:hover {
+  background: var(--surface-soft);
+}
+
+/* ── Legacy card row (hover, clickable) ───────────────────────── */
+.legacyCard {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  background: var(--panel);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+
+.legacyCard:hover {
+  border-color: var(--brand);
+  background: var(--surface-soft);
+}
+
+/* ── Groups grid ───────────────────────────────────────────────── */
+.groupGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 500px) {
+  .groupGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── 390px mobile safeguard ───────────────────────────────────── */
+@media (max-width: 390px) {
+  .shell {
+    width: calc(100% - 24px);
+    padding: 20px 0 48px;
+  }
+
+  .topbar {
+    width: calc(100% - 24px);
+  }
+
+  .pageTitle,
+  .projectTitle {
+    font-size: clamp(1.6rem, 10vw, 2rem);
+  }
+
+  .legacyFilters {
+    flex-direction: column;
+  }
+
+  .legacyFilters button,
+  .legacyFilters select {
+    width: 100%;
+  }
+}
