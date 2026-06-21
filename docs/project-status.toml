@@ -21,7 +21,7 @@ screenshots_path = ".tmp/f2c/"
 
 [focus]
 current = "Phase 17.2 smoke script delivered"
-description = "Phase 17.2 smoke_fde_demo.py delivered: 11-step full-chain API smoke on temp SQLite. Fake providers, direct DB seed for heavy parts, API calls for Phase 16 endpoints. Inline artifact quality gate. ~1.3s runtime, 11/11 PASS, artifact gate WARN (1 finding)."
+description = "Phase 17.2 smoke_fde_demo.py delivered: 11-step full-chain API smoke on temp SQLite. Fake providers, direct DB seed for heavy parts, API calls for Phase 16 endpoints. Inline artifact quality gate. ~0.8s runtime, 11/11 PASS, artifact gate PASS (0 findings)."
 
 [next_decision_gate]
 name = "implement Phase 17.4 interview refresh"

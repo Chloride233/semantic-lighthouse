@@ -298,8 +298,8 @@ The artifact must:
   [PASS] create_outcome (1.26s) — Plant 3 Equipment Reliability v1
   [PASS] outcome_summary (1.26s) — evidence=3 pkg=1 runtime=2 outcome=yes
   [PASS] outcome_artifact (1.27s) — 1911B text/markdown
-  [PASS] artifact_quality_gate (1.27s) — WARN (1 finding)
-FDE Demo Smoke: PASS  |  Steps: 11  Passed: 11  Failed: 0  |  Artifact gate: WARN
+  [PASS] artifact_quality_gate (1.27s) — PASS (0 findings)
+FDE Demo Smoke: PASS  |  Steps: 11  Passed: 11  Failed: 0  |  Artifact gate: PASS
 ```
 
 Run command: `.venv/Scripts/python scripts/smoke_fde_demo.py`

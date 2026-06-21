@@ -37,7 +37,6 @@ from semantic_lighthouse.config import Settings, get_settings
 from semantic_lighthouse.database import get_db
 from semantic_lighthouse.models import (
     Base,
-    BusinessProject,
     Document,
     OntologyModelPackage,
     OntologyRuntimeAudit,
@@ -186,11 +185,17 @@ def validate_artifact(artifact_md: str) -> tuple[bool, str, list[str]]:
         has_warn = True
 
     if "Not recorded yet" not in artifact_md:
-        ds_start = artifact_md.find("### Decision Summary")
+        ds_heading = "### Decision Summary"
+        ds_start = artifact_md.find(ds_heading)
         if ds_start != -1:
-            ds_next = artifact_md.find("##", ds_start + 1)
-            ds_content = artifact_md[ds_start:ds_next] if ds_next != -1 else artifact_md[ds_start:]
-            ds_text = ds_content.replace("### Decision Summary", "").strip()
+            ds_content_start = ds_start + len(ds_heading)
+            next_heading = re.search(r"\n#{2,3}\s+", artifact_md[ds_content_start:])
+            ds_content_end = (
+                ds_content_start + next_heading.start()
+                if next_heading is not None
+                else len(artifact_md)
+            )
+            ds_text = artifact_md[ds_content_start:ds_content_end].strip()
             if len(ds_text) < 20:
                 findings.append("[WARN] business_signals: decision_summary too short")
                 has_warn = True
@@ -251,7 +256,6 @@ def main() -> int:
         with TestClient(app) as client:
 
             # ── Step 1: Register demo user ────────────────────────
-            t = time.monotonic()
             r = client.post("/auth/register", json={
                 "email": "demo-operator@fde.local",
                 "password": "DemoPass123!",
@@ -265,7 +269,6 @@ def main() -> int:
                 return 1
 
             # ── Step 2: Login ─────────────────────────────────────
-            t = time.monotonic()
             r = client.post("/auth/login", json={
                 "email": "demo-operator@fde.local",
                 "password": "DemoPass123!",
@@ -280,7 +283,6 @@ def main() -> int:
             h = {"Authorization": f"Bearer {token}"}
 
             # ── Step 3: Create demo group ─────────────────────────
-            t = time.monotonic()
             r = client.post("/groups", json={
                 "name": "FDE Demo — Manufacturing",
                 "description": "Phase 17 smoke test group",
@@ -293,7 +295,6 @@ def main() -> int:
                 return 1
 
             # ── Step 4: Create pilot project ──────────────────────
-            t = time.monotonic()
             r = client.post(f"/groups/{gid}/projects", json={
                 "name": "Equipment Reliability Pilot — Plant 3",
                 "entry_mode": "problem_first",
@@ -313,7 +314,6 @@ def main() -> int:
                 return 1
 
             # ── Step 5: Seed evidence (direct DB) ─────────────────
-            t = time.monotonic()
             doc_1 = new_id()
             doc_2 = new_id()
             rag_run_id = new_id()
@@ -364,7 +364,6 @@ def main() -> int:
             step_ok("seed_evidence", "2 docs + 1 rag_run + 3 evidence links")
 
             # ── Step 6: Seed package (direct DB) ──────────────────
-            t = time.monotonic()
             pkg_id = new_id()
             sess.add(OntologyModelPackage(
                 id=pkg_id, group_id=gid, project_id=pid,
@@ -380,7 +379,6 @@ def main() -> int:
             step_ok("seed_package", "1 package v1 PASS (4 drafts)")
 
             # ── Step 7: Seed runtime audit (direct DB) ────────────
-            t = time.monotonic()
             sess.add_all([
                 OntologyRuntimeAudit(id=new_id(), user_id=user_id,
                                      group_id=gid, project_id=pid,
@@ -398,7 +396,6 @@ def main() -> int:
             sess.commit()
 
             # ── Step 8: Create outcome record via API ─────────────
-            t = time.monotonic()
             r = client.post(f"/groups/{gid}/projects/{pid}/outcomes", json={
                 "title": "Plant 3 Equipment Reliability — FDE Delivery v1",
                 "selected_evidence_link_ids": [el_1, el_2, el_3],
@@ -434,7 +431,6 @@ def main() -> int:
                 return 1
 
             # ── Step 9: Fetch outcome-summary JSON ────────────────
-            t = time.monotonic()
             r = client.get(
                 f"/groups/{gid}/projects/{pid}/outcome-summary", headers=h
             )
@@ -450,7 +446,6 @@ def main() -> int:
                 return 1
 
             # ── Step 10: Fetch outcome-artifact.md ────────────────
-            t = time.monotonic()
             r = client.get(
                 f"/groups/{gid}/projects/{pid}/outcome-artifact.md", headers=h
             )
@@ -465,7 +460,6 @@ def main() -> int:
                 return 1
 
             # ── Step 11: Run artifact quality gate ─────────────────
-            t = time.monotonic()
             passed, status, findings = validate_artifact(artifact_md)
             ok = status in ("PASS", "WARN")
             if ok:
