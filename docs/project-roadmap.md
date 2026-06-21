@@ -337,11 +337,11 @@ See `docs/phase15-planning.md`.
 **Out of scope**: MCP runtime, Graph RAG, Agent auto-writing Ontology, external KB modification, full modeling studio, page hiding, LLM-only draft generation, auto-accept/publish.
 
 
-## Phase 16: Pilot Outcome & FDE Delivery Record v1 ← PLANNED
+## Phase 16: Pilot Outcome & FDE Delivery Record v1 ← BACKEND DELIVERED (16.3 UI deferred)
 
 **Goal**: Turn the completed Pilot workflow chain into a durable, auditable delivery record suitable for FDE handoff, interview demonstration, and portfolio evidence.
 
-See `docs/phase16-planning.md`.
+See `docs/phase16-planning.md`. Closeout review passed 2026-06-21: permissions correct, group/project isolation hard, GET endpoints side-effect-free, privacy bounded, sorting stable, 66 tests pass.
 
 | # | Task | Description |
 |---|------|-------------|

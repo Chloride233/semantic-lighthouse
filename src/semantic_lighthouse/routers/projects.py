@@ -364,7 +364,7 @@ def _build_outcome_summary(
             OntologyModelPackage.group_id == group_id,
             OntologyModelPackage.project_id == project_id,
         )
-        .order_by(OntologyModelPackage.created_at.desc())
+        .order_by(OntologyModelPackage.created_at.desc(), OntologyModelPackage.id.desc())
     ).all()
 
     latest_pkg = None

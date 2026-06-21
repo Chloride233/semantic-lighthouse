@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 16.4 delivered"
-description = "Phase 16.4 markdown artifact endpoint delivered: GET /groups/{gid}/projects/{pid}/outcome-artifact.md returns bounded text/markdown. Shared _build_outcome_summary() helper refactored from 16.2. 16.3 UI deferred. 66 tests pass, no new tables/migrations."
+current = "Phase 16 backend closeout complete"
+description = "Phase 16 closeout review passed: 16.1 outcomes CRUD + 16.2 JSON summary + 16.4 markdown artifact. 16.3 UI deferred. Permissions, group/project isolation, GET no-side-effects, privacy, sorting stability all verified. 66 tests pass, migration 0027 at head."
 
 [next_decision_gate]
-name = "Phase 16 closeout or Phase 17 planning"
-description = "Phase 16.1–16.2–16.4 delivered (outcomes CRUD + JSON summary + markdown artifact). 16.3 UI deferred. Next: Phase 16 closeout review, deploy smoke, or plan Phase 17. See docs/phase16-planning.md."
+name = "plan Phase 17"
+description = "Phase 16 backend closeout complete. Phase 17 candidate: ontology model operationalization, Pilot workflow hardening, or enterprise deployment smoke. See docs/phase16-planning.md and docs/product-alignment-prd.md."
 
 [mcp]
 runtime_status = "not started"

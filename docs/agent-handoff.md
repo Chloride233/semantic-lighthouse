@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-21 (Phase 16.4 delivered)
+Last updated: 2026-06-21 (Phase 16 backend closeout complete)
 
 ## State Source
 
@@ -52,13 +52,30 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 | Phase 16.1 outcomes CRUD | 40 passed | Permissions, evidence/package validation, query_refs privacy, cross-group isolation, list/read. |
 | Phase 16.2 outcome-summary | 13 passed | Member read, outsider 403, cross-group 404, null-latest, uses-latest, evidence/package/runtime counts. |
 | Phase 16.4 markdown artifact | 13 passed | Member read, content checks, forbidden keys, no side effects, JSON endpoint unchanged. |
-| Ruff (changed files) | clean | projects.py, test_pilot_outcomes.py |
+| Ruff (changed files) | clean | projects.py, outcomes.py, schemas.py, test_pilot_outcomes.py |
 | Migration smoke | 0027 at head | No new migration for 16.2/16.4; 0027 still at head. |
+| Closeout review (2026-06-21) | PASS | All gates below checked and passed. |
 | Doc alignment | PASS | 7 entry docs checked, no stale expressions |
+
+## Phase 16 Closeout Review
+
+**Review date**: 2026-06-21. **Reviewer**: automated closeout pass.
+
+| Gate | Status | Detail |
+|------|--------|--------|
+| Permissions | ✅ | POST outcomes: owner/admin via `require_group_role`. GET outcomes/outcome-summary/outcome-artifact.md: member+ via `get_membership_or_404`. |
+| Group isolation | ✅ | All queries filter `.group_id == group_id`; `_get_project_or_404` rejects cross-group. |
+| Project isolation | ✅ | Evidence links validated for same project; packages validated for same project if scoped; outcome list/get queries filter `.project_id == project_id`. |
+| GET side-effect-free | ✅ | `get_outcome_summary`, `get_outcome_artifact`, `list_outcomes`, `get_outcome` — all read-only, no db.add/commit. |
+| Privacy | ✅ | Evidence refs: bounded `_build_provenance` (no raw_content/paths). Package refs: id/version/hash/status/count only. Query refs: recursive `_validate_query_refs_safe`. Markdown: provenance note sanitized. Artifact/summary responses contain no raw data, paths, secrets, or stack traces. |
+| Sorting stability | ✅ | Latest outcome: `created_at.desc(), id.desc()`. Latest package: `created_at.desc(), id.desc()`. Latest runtime: `created_at.desc(), id.desc()`. All have stable tiebreakers. |
+| No migration drift | ✅ | Only migration is 0027 (pilot_outcome_records from 16.1). No additional migrations for 16.2/16.4. |
+| Test coverage | ✅ | 66 tests: 40 CRUD + 13 summary + 13 artifact. All pass. |
+| Doc alignment | ✅ | `check_doc_alignment.py` PASS. `project-status.toml` latest_commit = `d884813`. |
 
 ## Next Decision Gate
 
-**Phase 16 closeout or Phase 17 planning**: Phase 16.1–16.2–16.4 backend delivered (outcomes CRUD + JSON summary + markdown artifact). 16.3 UI deferred. Next: Phase 16 closeout review, deploy smoke, or plan Phase 17. See `docs/phase16-planning.md`.
+**Plan Phase 17**: Phase 16 backend closeout complete. 16.1–16.2–16.4 delivered, 16.3 UI deferred. Phase 17 should be planned from `docs/product-alignment-prd.md` priorities. Candidate directions: ontology model operationalization, Pilot workflow hardening, or enterprise deployment smoke.
 
 ## Phase 15 Delivery Summary
 
