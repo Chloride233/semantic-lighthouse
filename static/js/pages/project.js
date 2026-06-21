@@ -127,6 +127,10 @@ export async function render(container, params) {
     const hasDatasets = dsList.filter(d => d.status === 'ready').length > 0;
     const evidenceCount = summary?.evidence_count ?? 0;
     const recentEvidence = summary?.recent_evidence ?? [];
+    const canPropose = isOwnerAdmin && project.status !== 'archived';
+    container._canPropose = canPropose;
+    container._evidenceSelection.clear();
+    container._recentEvidence = recentEvidence;
 
     main.innerHTML = `
       <div class="stagePanel">
@@ -136,7 +140,7 @@ export async function render(container, params) {
         </div>
         <p>项目已创建，业务目标已记录。下一步是为 Pilot 项目上传业务数据集。</p>
 
-        ${renderEvidenceInGoal(recentEvidence, evidenceCount)}
+        ${renderEvidenceInGoal(recentEvidence, evidenceCount, canPropose)}
 
         ${renderAskPanel(evidenceCount)}
 
@@ -156,6 +160,10 @@ export async function render(container, params) {
     `;
     if (isOwnerAdmin && !hasDatasets) {
       document.getElementById('uploadFirstBtn')?.addEventListener('click', () => openUploadDialog());
+    }
+    if (canPropose) {
+      bindEvidenceSelection();
+      document.getElementById('proposeDraftBtn')?.addEventListener('click', openProposeDraftDialog);
     }
     bindGoalAsk(project);
   }
@@ -191,7 +199,7 @@ export async function render(container, params) {
     return prov.source_label || prov.file_name || '';
   }
 
-  function renderEvidenceInGoal(recentEvidence, evidenceCount) {
+  function renderEvidenceInGoal(recentEvidence, evidenceCount, canPropose = false) {
     if (!recentEvidence.length) {
       return `
         <div class="goalEvidenceSummary noEvidenceHint" id="goalEvidenceSummary">
@@ -207,7 +215,13 @@ export async function render(container, params) {
       const unavailable = prov.unavailable || prov.evidence_status === 'gone';
       const meta = evidenceMetaText(ev);
       return `
-      <li class="goalEvidenceItem">
+      <li class="goalEvidenceItem${canPropose && ev.id && !unavailable ? ' goalEvidenceItemSelectable' : ''}">
+        ${canPropose && ev.id ? `
+          <label class="goalEvidenceCheck">
+            <input type="checkbox" class="goalEvidenceCheckbox" value="${esc(ev.id)}" data-evidence-link-id="${esc(ev.id)}" ${unavailable ? 'disabled' : ''} />
+            <span class="checkboxMark"></span>
+          </label>
+        ` : ''}
         <div class="goalEvidenceMain">
           <span class="goalEvidenceTitle">${esc(evidenceDisplayTitle(ev))}</span>
           ${meta ? `<span class="goalEvidenceMeta">${esc(meta)}</span>` : ''}
@@ -221,11 +235,18 @@ export async function render(container, params) {
       </li>`;
     }).join('');
     const hiddenCount = Math.max((evidenceCount || 0) - shown.length, 0);
+    const toolbarHTML = canPropose ? `
+      <div class="goalEvidenceToolbar" id="goalEvidenceToolbar">
+        <span class="muted" style="font-size:var(--text-xs)" id="goalEvidenceSelectCount">已选 0 条</span>
+        <button class="primary small" id="proposeDraftBtn" disabled>提出建模草案</button>
+      </div>
+    ` : '';
     return `
       <div class="goalEvidenceSummary" id="goalEvidenceSummary">
         <h4 class="goalEvidenceSummaryTitle">项目证据（${evidenceCount}）</h4>
         <ul class="goalEvidenceList">${items}</ul>
         ${hiddenCount > 0 ? `<p class="muted" style="font-size:var(--text-xs);margin:4px 0 0">还有 ${hiddenCount} 条证据...</p>` : ''}
+        ${toolbarHTML}
         <a href="#/groups/${gid}/documents" class="supportLink" style="margin-top:6px">管理证据</a>
       </div>`;
   }
@@ -235,11 +256,149 @@ export async function render(container, params) {
     if (stripEl) stripEl.outerHTML = summaryStripHTML(summary);
     const evidenceEl = document.getElementById('goalEvidenceSummary');
     if (evidenceEl) {
+      const canPropose = container._canPropose ?? false;
       evidenceEl.outerHTML = renderEvidenceInGoal(
         summary?.recent_evidence || [],
         summary?.evidence_count ?? 0,
+        canPropose,
       );
+      bindEvidenceSelection();
     }
+  }
+
+  // ── Evidence selection for draft proposal ────────────────────────────
+
+  container._evidenceSelection = new Set();
+
+  function bindEvidenceSelection() {
+    const checkboxes = document.querySelectorAll('.goalEvidenceCheckbox');
+    const btn = document.getElementById('proposeDraftBtn');
+    const countEl = document.getElementById('goalEvidenceSelectCount');
+
+    checkboxes.forEach(cb => {
+      cb.addEventListener('change', () => {
+        const linkId = cb.getAttribute('data-evidence-link-id');
+        if (cb.checked) {
+          container._evidenceSelection.add(linkId);
+        } else {
+          container._evidenceSelection.delete(linkId);
+        }
+        const count = container._evidenceSelection.size;
+        if (countEl) countEl.textContent = `已选 ${count} 条`;
+        if (btn) btn.disabled = count === 0;
+      });
+    });
+  }
+
+  // ── Proposal dialog ──────────────────────────────────────────────────
+
+  function openProposeDraftDialog() {
+    const selectedIds = [...container._evidenceSelection];
+    if (!selectedIds.length) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'dialogOverlay';
+    overlay.id = 'proposeDraftOverlay';
+    overlay.innerHTML = `
+      <div class="dialog" role="dialog" aria-label="提出建模草案">
+        <h2 class="dialogTitle">提出建模草案</h2>
+        <div class="dialogBody">
+          <p class="muted">基于 ${selectedIds.length} 条已选证据创建建模草案。草案将进入提案状态，需人工审核，不会自动发布。</p>
+          <label class="field">
+            <span>草案类型 <span style="color:var(--danger)">*</span></span>
+            <select id="proposeDraftType">
+              <option value="object_type">Object Type（对象类型）</option>
+              <option value="property">Property（属性）</option>
+              <option value="link_type">Link Type（链接类型）</option>
+              <option value="action_type">Action Type（操作类型）</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>名称 <span style="color:var(--danger)">*</span></span>
+            <input id="proposeDraftName" type="text" maxlength="240" placeholder="例：Manufacturing Work Order" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>描述</span>
+            <textarea id="proposeDraftDesc" rows="3" maxlength="2000" placeholder="基于证据说明为何提出此草案..."></textarea>
+          </label>
+          <div class="proposeEvidenceSummary">
+            <h4>已选证据</h4>
+            <ul>
+              ${selectedIds.map(lid => {
+                const cache = container._recentEvidence || [];
+                const ev = cache.find(e => e.id === lid);
+                if (!ev) return `<li class="muted">证据 ${esc(lid.slice(0, 8))}...</li>`;
+                return `<li>${esc(evidenceDisplayTitle(ev))} <span class="badge badgeMuted">${esc(EVIDENCE_TYPE_LABELS[ev.evidence_type] || ev.evidence_type)}</span></li>`;
+              }).join('')}
+            </ul>
+          </div>
+        </div>
+        <p class="formError" id="proposeDraftError" style="display:none;padding:0 20px"></p>
+        <div class="dialogActions">
+          <button class="secondary" id="proposeDraftCancel">取消</button>
+          <button class="primary" id="proposeDraftSubmit">提交草案</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener('keydown', escClose);
+    };
+
+    document.getElementById('proposeDraftCancel').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    function escClose(e) {
+      if (e.key === 'Escape') { close(); }
+    }
+    document.addEventListener('keydown', escClose);
+
+    document.getElementById('proposeDraftSubmit').addEventListener('click', async () => {
+      const draftType = document.getElementById('proposeDraftType').value;
+      const name = document.getElementById('proposeDraftName').value.trim();
+      const description = document.getElementById('proposeDraftDesc').value.trim();
+      const errEl = document.getElementById('proposeDraftError');
+      const submitBtn = document.getElementById('proposeDraftSubmit');
+
+      if (!name) {
+        errEl.textContent = '请输入草案名称。';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      errEl.style.display = 'none';
+
+      try {
+        const result = await api(
+          `/groups/${gid}/projects/${pid}/evidence-draft`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              draft_type: draftType,
+              name,
+              description,
+              evidence_link_ids: selectedIds,
+            }),
+          },
+        );
+        showToast(`已创建建模草案「${esc(name)}」（提案状态）`, 'success');
+        // Clear selection and refresh evidence
+        container._evidenceSelection.clear();
+        try {
+          const summary = await loadSummary();
+          refreshEvidenceSummary(summary);
+        } catch (_) { /* summary refresh is best-effort */ }
+        close();
+      } catch (err) {
+        errEl.textContent = err.humanMessage || err.message || '提交失败';
+        errEl.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
   }
 
   // ── Goal scoped Ask panel ────────────────────────────────────────────

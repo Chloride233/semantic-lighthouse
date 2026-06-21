@@ -95,7 +95,7 @@ Delivered shape:
 
 ### 15.3 — Evidence-Backed Modeling Draft Candidate Design
 
-Lane: Fast (design) → Standard (Slice A). DESIGN DELIVERED + SLICE A DELIVERED 2026-06-21. See `docs/phase15.3-design.md`.
+Lane: Fast (design) → Standard (Slice A + B). DESIGN + SLICE A + SLICE B DELIVERED 2026-06-21. See `docs/phase15.3-design.md`.
 
 Goal: Decide whether and how reviewed project evidence can feed modeling draft proposals.
 
@@ -119,3 +119,15 @@ Slice A delivered shape:
 - Bounded provenance in evidence_refs: never includes raw prompt, raw answer, raw_content, source_path, storage_path, secrets, tokens, or stack traces.
 - 22 tests: permissions (owner/admin/member/outsider), isolation (cross-group project/link, cross-project link), validation (removed link, empty links, invalid type, nonexistent link), source_rag_run_id derivation (rag_run, document-only, mixed), idempotency (duplicate, different name, different links), evidence_refs privacy (no raw answer, no raw_content/path, no secrets), draft lifecycle (visible in list, status always proposed).
 - Zero regressions: 35 existing evidence tests + 29 existing ontology draft tests pass unchanged.
+
+Slice B delivered shape:
+
+- In Pilot goal stage, owner/admin see checkboxes on each evidence item (disabled for unavailable/gone evidence).
+- "提出建模草案" button appears in a toolbar below the evidence list, enabled when ≥1 evidence item is selected.
+- Clicking opens a dialog with: draft_type select (object_type/property/link_type/action_type), name input, description textarea, selected evidence read-only summary.
+- Submit calls `POST /groups/{gid}/projects/{pid}/evidence-draft` (Slice A endpoint).
+- Success: toast with draft name, evidence selection cleared, summary refreshed.
+- Failure: human-readable error in dialog, form remains for correction.
+- Controls hidden for members and archived projects.
+- No raw prompts, answers, paths, secrets, tokens, or stack traces exposed in UI.
+- 53/53 UI regression tests pass (`scripts/verify_ui.py`).

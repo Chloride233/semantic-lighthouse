@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 15.3 Slice A delivered"
-description = "Phase 15.3 Slice A delivered: POST /groups/{gid}/projects/{pid}/evidence-draft endpoint creates proposed OntologyModelingDraft from active ProjectEvidenceLink records with bounded evidence_refs, safe provenance snapshots, idempotency, and full group/project isolation. 22 tests pass. No migration. See docs/phase15.3-design.md."
+current = "Phase 15.3 Slice B delivered"
+description = "Phase 15.3 Slice B delivered: evidence-to-draft proposal UI in Pilot goal stage. Owner/admin select project evidence via checkboxes, click 提出建模草案, fill draft_type/name/description in dialog, submit to Slice A endpoint. Members see no controls. Archived projects hide controls. 53/53 UI tests pass. See docs/phase15.3-design.md."
 
 [next_decision_gate]
-name = "Phase 15.3 Slice B frontend or Slice A review"
-description = "Frontend: evidence-to-draft proposal UI in Pilot workspace. Or: review Slice A endpoint for correctness, edge cases, and integration readiness."
+name = "Phase 15.3 Slice C filter or Phase 15 closeout"
+description = "Slice C: evidence-only draft list filter (GET /groups/{gid}/ontology/drafts?source=evidence_backed). Or: Phase 15 closeout/review — full regression, handoff update, retrospective."
 
 [mcp]
 runtime_status = "not started"

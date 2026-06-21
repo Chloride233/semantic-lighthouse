@@ -1804,7 +1804,7 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
 /* ── Field / upload ────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field span { font-size: var(--text-sm); font-weight: 500; }
-.field input, .field textarea {
+.field input, .field select, .field textarea {
   padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm);
   font-size: var(--text-sm); font-family: inherit; background: var(--panel);
 }
@@ -1816,6 +1816,41 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
 @keyframes progressPulse {
   0% { width: 10%; } 50% { width: 70%; } 100% { width: 10%; }
 }
+
+/* ── Evidence selection for draft proposal ─────────────────────────── */
+.goalEvidenceItemSelectable {
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.goalEvidenceCheck {
+  display: flex; align-items: center; flex-shrink: 0; padding-top: 2px;
+  cursor: pointer; user-select: none;
+}
+.goalEvidenceCheck input[type="checkbox"] { display: none; }
+.checkboxMark {
+  width: 16px; height: 16px; border: 1.5px solid var(--line-strong);
+  border-radius: 3px; background: var(--panel);
+  display: inline-block; position: relative; flex-shrink: 0;
+}
+.goalEvidenceCheck input:checked + .checkboxMark {
+  background: var(--brand); border-color: var(--brand);
+}
+.goalEvidenceCheck input:checked + .checkboxMark::after {
+  content: ''; position: absolute; left: 4px; top: 1px;
+  width: 5px; height: 9px; border: solid #fff;
+  border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.goalEvidenceCheck input:disabled + .checkboxMark {
+  border-color: var(--line); background: var(--surface); cursor: not-allowed;
+}
+.goalEvidenceToolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0; gap: 12px;
+  border-bottom: 1px solid var(--line); margin-bottom: 6px;
+}
+.proposeEvidenceSummary { font-size: var(--text-sm); }
+.proposeEvidenceSummary h4 { margin: 0 0 4px; font-weight: 500; }
+.proposeEvidenceSummary ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
+.proposeEvidenceSummary li { font-size: var(--text-xs); }
 
 /* ── Link button ───────────────────────────────────────────────── */
 .linkBtn { background: none; border: none; color: var(--info); font-size: var(--text-xs); cursor: pointer; padding: 0; font-family: inherit; }
