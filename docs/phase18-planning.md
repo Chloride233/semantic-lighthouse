@@ -1,6 +1,6 @@
 # Phase 18 Planning — Cloud Deployment Smoke v1
 
-Status: 18.1 DELIVERED — 18.2–18.5 pending.
+Status: 18.1 DELIVERED — 18.2 BLOCKED (Docker daemon unavailable) — 18.3–18.5 pending.
 
 ## Decision
 
