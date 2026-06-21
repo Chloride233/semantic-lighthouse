@@ -322,6 +322,20 @@ See `docs/frontend-f2-planning.md`.
 
 **Out of scope**: delete/recover, Object Runtime, SDK, MCP, Graph RAG, old feature removal, Pilot outcome/KPI dashboard, relation joins, Action execution, data write-back, custom query language.
 
+## Phase 15: Evidence-to-Ontology Feedback Loop v1 ← PLANNED
+
+**Goal**: Turn useful project-scoped evidence into deliberate, auditable inputs for the Ontology semantic operating layer without automatic writes.
+
+See `docs/phase15-planning.md`.
+
+| # | Task | Description |
+|---|------|-------------|
+| 15.1 | Save scoped RAG answer as project evidence | Planned. User-confirmed save from Pilot scoped Ask into `ProjectEvidenceLink` with `evidence_type=rag_run`. No auto-linking. |
+| 15.2 | Project evidence review surface | Planned. Make saved RAG answers visible as project evidence, distinct from document evidence. |
+| 15.3 | Evidence-backed modeling draft candidate design | Planned. Design how reviewed project evidence may feed modeling proposals without LLM-only generation, auto-accept, publish, or KB writes. |
+
+**Out of scope**: MCP runtime, Graph RAG, Agent auto-writing Ontology, external KB modification, full modeling studio, page hiding.
+
 
 ## Future Candidate: MCP Read-only Gateway v1 ← NOT STARTED
 
