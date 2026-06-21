@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S2.5A complete and reviewed"
-description = "S2.5A delivered and reviewed: Project Overview summary strip + scoped Ask panel inside Pilot Goal stage. Uses GET /groups/{gid}/projects/{pid}/summary and POST /groups/{gid}/projects/{pid}/rag/answer. Codex review removed decorative emoji UI and keeps no-evidence handling on the project-scoped RAG path. Next: S2.5B Project Actions Summary or S2.5C Scoped Conversation Starter."
+current = "S2.5B complete"
+description = "S2.5B delivered: Pilot-stage task summary using existing project-scoped Tasks API. Shows compact task list with status badges, manual create-task action scoped to project. Uses GET /groups/{gid}/tasks?project_id={pid} and POST /groups/{gid}/tasks with project_id. S2.5A also complete. Next: S2.5C Scoped Conversation Starter."
 
 [next_decision_gate]
-name = "proceed to S2.5B or S2.5C"
-description = "S2.5B adds Pilot-stage task summary using existing project-scoped task list/filter. S2.5C adds lightweight scoped conversation starter from Goal or Pilot. Choose based on priority."
+name = "proceed to S2.5C or close S2.5"
+description = "S2.5C adds lightweight scoped conversation starter from Goal or Pilot. S2.5D is navigation parity review (Fast/Standard). Consider closing S2.5 surface after S2.5C."
 
 [mcp]
 runtime_status = "not started"

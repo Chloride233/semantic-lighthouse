@@ -43,6 +43,13 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
         <div class="queryActions"><button class="primary" id="qRunBtn">执行查询</button><button class="secondary" id="qExplainBtn">仅查看说明</button></div>
       </div>
       <div id="qResults"></div>
+    </div>
+    <div class="stagePanel" id="pilotTaskSummary">
+      <div class="stagePanelHead">
+        <h2>项目任务</h2>
+        <a href="#/groups/${gid}/tasks" class="supportLink">全部任务 →</a>
+      </div>
+      <div id="pilotTaskContent"><div class="loading"><span class="spinner"></span>加载任务...</div></div>
     </div>`;
 
   const fieldEl = document.getElementById('qFields');
@@ -132,6 +139,112 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
 
   document.getElementById('qRunBtn')?.addEventListener('click', () => doQuery(false));
   document.getElementById('qExplainBtn')?.addEventListener('click', () => doQuery(true));
+
+  loadTaskSummary(gid, pid, isOwnerAdmin);
+}
+
+const STATUS_LABELS = { pending: '待处理', in_progress: '进行中', done: '已完成', cancelled: '已取消' };
+const STATUS_CLASS = { pending: 'badgeInfo', in_progress: 'badgeWarn', done: 'badgeOk', cancelled: 'badgeMuted' };
+
+async function loadTaskSummary(gid, pid, isOwnerAdmin) {
+  const contentEl = document.getElementById('pilotTaskContent');
+  if (!contentEl) return;
+
+  let tasks = [], total = 0;
+  try {
+    const result = await api(`/groups/${gid}/tasks?project_id=${pid}&limit=5`);
+    tasks = result.tasks || [];
+    total = result.total || 0;
+  } catch (err) {
+    contentEl.innerHTML = `<p class="muted">无法加载任务：${esc(err.humanMessage || err.message)}</p>`;
+    return;
+  }
+
+  contentEl.innerHTML = renderTaskSummary(tasks, total, gid, pid, isOwnerAdmin);
+  if (isOwnerAdmin) bindCreateTask(gid, pid);
+}
+
+function renderTaskSummary(tasks, total, gid, pid, isOwnerAdmin) {
+  const hasTasks = total > 0;
+
+  let html = '';
+
+  if (!hasTasks) {
+    html += `
+      <div class="pilotTaskEmpty">
+        <p class="muted">暂无任务。Pilot 阶段可创建后续行动项。</p>
+      </div>`;
+  } else {
+    html += `
+      <div class="pilotTaskList">
+        ${tasks.slice(0, 5).map(t => `
+          <div class="pilotTaskItem">
+            <span class="badge ${STATUS_CLASS[t.status] || 'badgeMuted'}" style="font-size:var(--text-xs);flex-shrink:0">${STATUS_LABELS[t.status] || t.status}</span>
+            <span class="pilotTaskTitle">${esc(t.title)}</span>
+            <span class="muted" style="font-size:var(--text-xs);margin-left:auto;white-space:nowrap">${fmtShortDate(t.created_at)}</span>
+          </div>
+        `).join('')}
+      </div>`;
+    if (total > 5) {
+      html += `<p class="muted" style="font-size:var(--text-xs);margin:6px 0 0">还有 ${total - 5} 个任务...</p>`;
+    }
+  }
+
+  if (isOwnerAdmin) {
+    html += `
+      <div class="pilotTaskCreate">
+        <input id="pilotTaskInput" type="text" placeholder="添加任务..." maxlength="200" autocomplete="off" />
+        <button id="pilotTaskCreateBtn" class="secondary small">添加</button>
+      </div>
+      <p id="pilotTaskError" class="formError" style="display:none"></p>`;
+  }
+
+  return html;
+}
+
+function bindCreateTask(gid, pid) {
+  const input = document.getElementById('pilotTaskInput');
+  const btn = document.getElementById('pilotTaskCreateBtn');
+  const errEl = document.getElementById('pilotTaskError');
+  if (!input || !btn) return;
+
+  const submit = async () => {
+    const title = input.value.trim();
+    if (!title) { if (errEl) { errEl.textContent = '请输入任务标题。'; errEl.style.display = 'block'; } return; }
+    if (errEl) errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = '...';
+    try {
+      await api(`/groups/${gid}/tasks`, {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          description: '',
+          source_type: 'manual',
+          source_id: `manual-${Date.now().toString(36)}`,
+          project_id: pid,
+        }),
+      });
+      input.value = '';
+      showToast('任务已创建', 'success');
+      loadTaskSummary(gid, pid, true);
+    } catch (err) {
+      if (errEl) { errEl.textContent = err.humanMessage || err.message || '创建失败'; errEl.style.display = 'block'; }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '添加';
+    }
+  };
+
+  btn.addEventListener('click', submit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submit();
+  });
+}
+
+function fmtShortDate(iso) {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (_) { return iso.slice(0, 16); }
 }
 
 function resultHTML(result) {

@@ -1707,6 +1707,37 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
   color: var(--muted);
 }
 
+/* ── Pilot task summary ────────────────────────────────────────── */
+.pilotTaskCounts { display: flex; flex-wrap: wrap; gap: 4px; }
+.pilotTaskList { display: flex; flex-direction: column; gap: 4px; }
+.pilotTaskItem {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: var(--text-xs);
+}
+.pilotTaskTitle { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pilotTaskEmpty { padding: 8px 0; }
+.pilotTaskCreate {
+  display: flex; gap: 6px; margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.pilotTaskCreate input {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-family: inherit;
+  outline: none;
+  min-height: auto;
+}
+.pilotTaskCreate input:focus { border-color: var(--brand); box-shadow: var(--shadow-glow); }
+.pilotTaskCreate button { flex-shrink: 0; }
+
 /* ── Dialog overlay ────────────────────────────────────────────── */
 .dialogOverlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.3);
