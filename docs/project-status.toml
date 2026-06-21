@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S2.5 Pilot surface planning ready"
-description = "Pilot frontend surface planning is defined in docs/pilot-surface-s2-planning.md. Start with S2.5A Project Overview + scoped Ask. Do not expand backend S2.4D/E/F unless a concrete frontend replacement or API gap requires it."
+current = "S2.5A complete"
+description = "S2.5A delivered: Project Overview summary strip + scoped Ask panel inside Pilot Goal stage. Uses GET /groups/{gid}/projects/{pid}/summary and POST /groups/{gid}/projects/{pid}/rag/answer. Renders answer, confidence, citations, knowledge gaps, and no-evidence state. Next: S2.5B Project Actions Summary or S2.5C Scoped Conversation Starter."
 
 [next_decision_gate]
-name = "implement S2.5A or hand prompt to CC"
-description = "Implement only Project Overview + scoped Ask inside the Pilot Goal stage. No backend, no page hiding, no Agent/Task/Conversation embedding in the first slice."
+name = "proceed to S2.5B or S2.5C"
+description = "S2.5B adds Pilot-stage task summary using existing project-scoped task list/filter. S2.5C adds lightweight scoped conversation starter from Goal or Pilot. Choose based on priority."
 
 [mcp]
 runtime_status = "not started"

@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { esc } from '../util/esc.js';
 import { showToast } from '../util/toast.js';
+import { answerCard } from '../components/answer-card.js';
 
 const STAGE_LABELS = {
   goal: '目标', data: '数据', model: '模型', validate: '验证', pilot: 'Pilot',
@@ -48,12 +49,16 @@ export async function render(container, params) {
     return api(`/groups/${gid}/projects/${pid}/datasets?limit=50`);
   }
 
+  async function loadSummary() {
+    return api(`/groups/${gid}/projects/${pid}/summary`);
+  }
+
   async function renderFull() {
     container.innerHTML = '<div class="loading"><span class="spinner"></span>加载 Pilot 详情...</div>';
 
-    let project, datasets;
+    let project, datasets, summary;
     try {
-      [project, datasets] = await Promise.all([loadProject(), loadDatasets()]);
+      [project, datasets, summary] = await Promise.all([loadProject(), loadDatasets(), loadSummary()]);
     } catch (err) {
       container.innerHTML = `<div class="error"><p>${esc(err.humanMessage || err.message)}</p></div>`;
       return;
@@ -76,6 +81,8 @@ export async function render(container, params) {
 
         ${fiveStageRail(stage)}
 
+        ${summaryStripHTML(summary)}
+
         <div class="projectBody">
           <div class="projectMain" id="projectMain"></div>
           <aside class="projectAside">
@@ -97,15 +104,15 @@ export async function render(container, params) {
     `;
 
     const main = document.getElementById('projectMain');
-    renderStageContent(main, stage, project, dsList);
+    renderStageContent(main, stage, project, dsList, summary);
   }
 
-  function renderStageContent(main, stage, project, dsList) {
+  function renderStageContent(main, stage, project, dsList, summary) {
     const reloadProject = () => {
       container.innerHTML = ''; renderFull();
     };
     switch (stage) {
-      case 'goal': return renderGoalStage(main, dsList);
+      case 'goal': return renderGoalStage(main, dsList, summary);
       case 'data': return renderDataStage(main, dsList);
       case 'model': return import('./project-model.js').then(m => m.renderModelStage(container, gid, pid, project, reloadProject, isOwnerAdmin)).catch(e => { main.innerHTML = `<div class="error"><p>加载模型模块失败: ${esc(e.message)}</p></div>`; });
       case 'validate': return import('./project-validate.js').then(m => m.renderValidateStage(container, gid, pid, project, reloadProject, isOwnerAdmin)).catch(e => { main.innerHTML = `<div class="error"><p>加载验证模块失败: ${esc(e.message)}</p></div>`; });
@@ -116,8 +123,12 @@ export async function render(container, params) {
 
   // ── Goal stage ────────────────────────────────────────────────────────
 
-  function renderGoalStage(main, dsList) {
+  function renderGoalStage(main, dsList, summary) {
     const hasDatasets = dsList.filter(d => d.status === 'ready').length > 0;
+    const evidenceCount = summary?.evidence_count ?? 0;
+    const recentEvidence = summary?.recent_evidence ?? [];
+    const hasEvidence = evidenceCount > 0;
+
     main.innerHTML = `
       <div class="stagePanel">
         <div class="stagePanelHead">
@@ -125,6 +136,11 @@ export async function render(container, params) {
           <span class="badge badgeOk">已完成</span>
         </div>
         <p>项目已创建，业务目标已记录。下一步是为 Pilot 项目上传业务数据集。</p>
+
+        ${renderEvidenceInGoal(recentEvidence, evidenceCount)}
+
+        ${renderAskPanel(hasEvidence)}
+
         ${isOwnerAdmin ? `
           <div class="stageCTAs">
             <p class="stageHint">${hasDatasets ? '已有就绪数据集。数据阶段已自动推进。' : '上传 CSV 或 XLSX 数据集开始数据阶段。'}</p>
@@ -142,6 +158,112 @@ export async function render(container, params) {
     if (isOwnerAdmin && !hasDatasets) {
       document.getElementById('uploadFirstBtn')?.addEventListener('click', () => openUploadDialog());
     }
+    if (hasEvidence) {
+      bindGoalAsk();
+    }
+  }
+
+  // ── Goal evidence summary ───────────────────────────────────────────
+
+  function renderEvidenceInGoal(recentEvidence, evidenceCount) {
+    if (!recentEvidence.length) {
+      return `
+        <div class="goalEvidenceSummary noEvidenceHint">
+          <span class="noEvidenceIcon">📭</span>
+          <span>该项目尚未关联任何证据文档。请先在知识库上传文档并添加为项目证据。</span>
+          <a href="#/groups/${gid}/documents" class="supportLink" style="margin-left:8px">前往知识库</a>
+        </div>`;
+    }
+    const items = recentEvidence.slice(0, 3).map(ev => `
+      <li class="goalEvidenceItem">
+        <span class="goalEvidenceTitle">${esc(ev.title || '未命名')}</span>
+        <span class="badge badgeMuted" style="font-size:var(--text-xs)">${esc(ev.evidence_type || '')}</span>
+        ${ev.created_at ? `<span class="muted" style="font-size:var(--text-xs)">${fmtDate(ev.created_at)}</span>` : ''}
+      </li>
+    `).join('');
+    return `
+      <div class="goalEvidenceSummary">
+        <h4 class="goalEvidenceSummaryTitle">项目证据（${evidenceCount}）</h4>
+        <ul class="goalEvidenceList">${items}</ul>
+        ${evidenceCount > 3 ? `<p class="muted" style="font-size:var(--text-xs);margin:4px 0 0">还有 ${evidenceCount - 3} 条证据...</p>` : ''}
+        <a href="#/groups/${gid}/documents" class="supportLink" style="margin-top:6px">管理证据</a>
+      </div>`;
+  }
+
+  // ── Goal scoped Ask panel ────────────────────────────────────────────
+
+  function renderAskPanel(hasEvidence) {
+    if (!hasEvidence) {
+      return `
+        <div class="goalAskPanel">
+          <h4 class="goalAskTitle">项目内知识问答</h4>
+          <div class="noEvidenceHint">
+            <span class="noEvidenceIcon">🔍</span>
+            <span>尚无项目证据，无法进行项目内问答。请先为项目添加证据文档。</span>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="goalAskPanel">
+        <h4 class="goalAskTitle">项目内知识问答</h4>
+        <p class="muted" style="font-size:var(--text-xs);margin:4px 0 8px">基于项目关联的证据文档检索回答，给出引用来源和可信度判断。</p>
+        <div class="goalAskInput">
+          <input id="goalAskQuestion" type="text" placeholder="基于项目证据提问..." autocomplete="off" />
+          <button id="goalAskSubmitBtn" class="primary">提问</button>
+        </div>
+        <p id="goalAskError" class="formError" style="display:none"></p>
+        <div id="goalAskResult"></div>
+      </div>`;
+  }
+
+  function bindGoalAsk() {
+    const input = document.getElementById('goalAskQuestion');
+    const btn = document.getElementById('goalAskSubmitBtn');
+    const errEl = document.getElementById('goalAskError');
+    const resultEl = document.getElementById('goalAskResult');
+    if (!input || !btn || !errEl || !resultEl) return;
+
+    const submit = async () => {
+      const question = input.value.trim();
+      if (!question) { errEl.textContent = '请输入问题。'; errEl.style.display = 'block'; return; }
+      errEl.style.display = 'none';
+      btn.disabled = true;
+      resultEl.innerHTML = '<div class="loading"><span class="spinner"></span>正在检索项目证据...</div>';
+      try {
+        const data = await api(`/groups/${gid}/projects/${pid}/rag/answer`, {
+          method: 'POST',
+          body: JSON.stringify({ question, retrieval_method: 'hybrid' }),
+        });
+        data._sourceId = data.run_id || '';
+        const cardHTML = answerCard(data, { showConfirm: false, groupId: gid, hideNextSteps: true });
+        resultEl.innerHTML = cardHTML;
+      } catch (err) {
+        errEl.textContent = err.humanMessage || err.message || '获取回答失败';
+        errEl.style.display = 'block';
+        resultEl.innerHTML = '';
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    btn.addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submit();
+    });
+  }
+
+  // ── Summary strip (header, all stages) ──────────────────────────────
+
+  function summaryStripHTML(summary) {
+    if (!summary) return '';
+    const tk = summary.task_count || {};
+    return `
+      <div class="summaryStrip" id="projectSummaryStrip">
+        <span class="summaryCount"><span class="summaryCountIcon">📄</span>证据 ${summary.evidence_count ?? 0}</span>
+        <span class="summaryCount"><span class="summaryCountIcon">💬</span>对话 ${summary.conversation_count ?? 0}</span>
+        <span class="summaryCount"><span class="summaryCountIcon">📋</span>任务 ${(tk.pending ?? 0) + (tk.in_progress ?? 0) + (tk.done ?? 0) + (tk.cancelled ?? 0)}</span>
+        <span class="summaryCount"><span class="summaryCountIcon">🤖</span>Agent ${summary.agent_run_count ?? 0}</span>
+      </div>`;
   }
 
   // ── Data stage ─────────────────────────────────────────────────────────
