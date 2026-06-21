@@ -89,7 +89,7 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 ## Next Decision Gate
 
-**Implement Phase 18.1 (deployment config audit)**: Phase 18 planned — Cloud Deployment Smoke v1. See `docs/phase18-planning.md`. Five slices: config audit (18.1), migration smoke on PostgreSQL (18.2), HTTP health/API smoke (18.3), smoke adapter (18.4, may defer), closeout (18.5). First slice is doc-and-config-only (Fast Lane). Remaining candidates from Phase 17 closeout (ontology operationalization, 16.3 UI, test audit) remain deferred.
+**Implement Phase 18.2 (PostgreSQL migration smoke)**: Phase 18.1 deployment config audit delivered. 11 items audited: 8 PASS, 3 FIXED (`.env.example` additions, cloud smoke playbook FDE chain). Next: 18.2 — run `alembic upgrade head` on temporary PostgreSQL + pgvector, verify 0027 at head. See `docs/phase18-planning.md`.
 
 ## Phase 15 Delivery Summary
 

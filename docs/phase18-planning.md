@@ -1,6 +1,6 @@
 # Phase 18 Planning — Cloud Deployment Smoke v1
 
-Status: PLANNING
+Status: 18.1 DELIVERED — 18.2–18.5 pending.
 
 ## Decision
 
@@ -101,22 +101,32 @@ local prototype. This is the single strongest portfolio signal available.
 
 ## Suggested Slices
 
-### 18.1 — Deployment Config Audit
+### 18.1 — Deployment Config Audit ← DELIVERED 2026-06-21
 
-**Lane: Fast → Standard (if minor code fixes needed).**
+**Lane: Fast (docs + minor config fixes only).**
 
-Review and document the deployment configuration surface:
+**Audit results**:
 
-| Item | What to check |
-|------|--------------|
-| `.env.example` | All required vars present; no secrets; comments explain each var |
-| `docker-compose.prod.yml` | PostgreSQL + pgvector service definition; API service with correct `DATABASE_URL`; volume mounts for uploads/datasets; health check |
-| `Dockerfile` | Multi-stage build still works; `APP_ENV` defaults correctly; no hardcoded paths |
-| `config.py` | `APP_ENV=production` assertions (JWT ≥32 chars, cookie_secure=true, DATABASE_URL ≠ default); fake provider detection |
-| Alembic `env.py` | Correct `DATABASE_URL` resolution; migration path includes all versions |
-| Storage paths | `UPLOAD_DIR`, `DATASET_STORAGE_DIR` exist and are volume-mapped |
+| # | Item | Status | Detail |
+|---|------|--------|--------|
+| 1 | DATABASE_URL for PostgreSQL | ✅ PASS | `.env.example`, config.py default, and `docker-compose.prod.yml` all use correct PostgreSQL format |
+| 2 | JWT_SECRET_KEY | ✅ PASS | Placeholder documented; prod safety check requires ≥32 chars and non-default |
+| 3 | EMBEDDING_PROVIDER / CHAT_PROVIDER fake mode | ✅ FIXED | Added comments to `.env.example` documenting `fake` provider for deployment smoke |
+| 4 | COOKIE_SECURE | ✅ PASS | Dev default `false`; production requires `true` via safety check |
+| 5 | Storage / upload paths | ✅ FIXED | Added missing `DATASET_STORAGE_PATH` to `.env.example`; all paths volume-mapped in prod compose |
+| 6 | pgvector extension | ✅ PASS | `pgvector/pgvector:pg17` image includes pgvector; no separate CREATE EXTENSION needed |
+| 7 | Alembic upgrade head | ✅ PASS | `scripts/docker/start-api.sh` runs migrations before uvicorn; `env.py` reads settings correctly |
+| 8 | Health check endpoint | ✅ PASS | `docker-compose.prod.yml` healthcheck uses `curl /health`; Dockerfile installs curl |
+| 9 | No secrets committed | ✅ PASS | `.env.example` uses placeholders; `.env.production` is gitignored |
+| 10 | APP_ENV variable | ✅ FIXED | Added `APP_ENV=development` to `.env.example` (was missing; config.py default is "development") |
+| 11 | Cloud smoke playbook | ✅ FIXED | Added Chain 5 (FDE Outcome Delivery) with curl examples and passing criteria |
 
-Output: a config audit section in the planning doc or a brief `docs/phase18-config-audit.md`. No code changes unless a gap blocks the smoke.
+**Fixes applied** (3 files):
+- `.env.example`: Added `APP_ENV`, `DATASET_STORAGE_PATH`, section headers (App/Storage/Embedding/Chat/Agent), comments for `fake` provider smoke mode
+- `docs/cloud-smoke-playbook.md`: Added Chain 5 (FDE) with curl commands, passing criteria, and local smoke reference; updated interview version text
+- No code changes; no migration; no frontend
+
+**Next**: 18.2 PostgreSQL migration smoke.
 
 ### 18.2 — Migration Smoke on PostgreSQL
 

@@ -172,6 +172,7 @@ curl -fsS -o /dev/null -w "%{http_code}" "$BASE_URL/static/styles.css" && echo "
 | Chain 2 (Conversation) | message_count >= 4 (2 user + 2 assistant) |
 | Chain 3 (Agent) | status=completed, step_count >= 2 |
 | Chain 4 (Console) | 200 for console HTML + JS + CSS |
+| Chain 5 (FDE) | outcome-summary 200, outcome-artifact.md returns text/markdown, artifact gate PASS |
 
 ## Failure Interpretation
 
@@ -184,6 +185,36 @@ curl -fsS -o /dev/null -w "%{http_code}" "$BASE_URL/static/styles.css" && echo "
 | `citations: 0` | Retrieval failed or embeddings not rebuilt |
 | `database: unavailable` | PostgreSQL not reachable |
 
+## Chain 5: FDE Outcome Delivery (Phase 16+)
+
+> Added 2026-06-21 during Phase 18.1 config audit. The FDE outcome chain is
+> the strongest current demo. Verify it after the 4-chain smoke above.
+
+```bash
+# Create outcome record
+OUTCOME=$(curl -fsS -X POST "$BASE_URL/groups/$GROUP_ID/projects/$PROJECT_ID/outcomes" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"title":"Deploy Smoke Outcome","decision_summary":"Deployment verified."}')
+OUTCOME_ID=$(printf '%s' "$OUTCOME" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+
+# Fetch outcome summary (JSON)
+curl -fsS "$BASE_URL/groups/$GROUP_ID/projects/$PROJECT_ID/outcome-summary" \
+  -H "Authorization: Bearer $TOKEN" | python3 -c '
+import json,sys; d=json.load(sys.stdin)
+print(f"evidence={d[\"evidence_summary\"][\"total_active\"]} pkg={d[\"package_summary\"][\"count\"]} runtime={d[\"runtime_summary\"][\"total_operations\"]}")'
+
+# Fetch markdown artifact
+curl -fsS "$BASE_URL/groups/$GROUP_ID/projects/$PROJECT_ID/outcome-artifact.md" \
+  -H "Authorization: Bearer $TOKEN" -o /tmp/outcome-artifact.md
+wc -c < /tmp/outcome-artifact.md
+head -5 /tmp/outcome-artifact.md
+```
+
+**Local FDE smoke (pre-deployment)**:
+```powershell
+.\.venv\Scripts\python scripts\smoke_fde_demo.py
+```
+
 ## Interview Version
 
-> I verify deployment through a quick script and a 4-chain smoke suite covering auth, RAG, multi-turn conversation, agent orchestration, and frontend console. Each chain proves a different layer of the enterprise RAG/Agent stack, not just Swagger.
+> I verify deployment through a quick script and a 5-chain smoke suite covering auth, RAG, multi-turn conversation, agent orchestration, frontend console, and the FDE outcome delivery chain. Each chain proves a different layer of the enterprise RAG/Agent/Ontology stack. The FDE chain — business goal → evidence → package → runtime → outcome → markdown artifact — is the strongest current demo.
