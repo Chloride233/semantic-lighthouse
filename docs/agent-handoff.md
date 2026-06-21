@@ -89,7 +89,7 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 ## Next Decision Gate
 
-**Implement Phase 18.2 (PostgreSQL migration smoke)**: Phase 18.1 deployment config audit delivered. 11 items audited: 8 PASS, 3 FIXED (`.env.example` additions, cloud smoke playbook FDE chain). Next: 18.2 — run `alembic upgrade head` on temporary PostgreSQL + pgvector, verify 0027 at head. See `docs/phase18-planning.md`.
+**Retry Phase 18.2 or skip to 18.3**: Phase 18.2 PostgreSQL migration smoke blocked — Docker Desktop daemon not running (CLI v29.5.3 available, engine pipe not found). Procedure documented in `docs/phase18-planning.md` §18.2. Next: retry 18.2 when Docker becomes available, or skip to 18.3 (HTTP health/API smoke via local uvicorn + SQLite).
 
 ## Phase 15 Delivery Summary
 

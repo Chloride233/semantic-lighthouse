@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 18.1 delivered"
-description = "Phase 18.1 deployment config audit delivered: 11 items audited (8 PASS, 3 FIXED). Fixed .env.example (added APP_ENV, DATASET_STORAGE_PATH, fake provider comments, section headers). Updated cloud smoke playbook with FDE Chain 5."
+current = "Phase 18.2 blocked (Docker daemon not running)"
+description = "Phase 18.2 PostgreSQL migration smoke blocked: Docker CLI v29.5.3 available but daemon not started. Procedure documented in phase18-planning.md. 18.1 config audit delivered. Next: retry 18.2 when Docker available, or skip to 18.3 HTTP smoke via local uvicorn."
 
 [next_decision_gate]
-name = "implement Phase 18.2 PostgreSQL migration smoke"
-description = "Phase 18.1 delivered. Next: 18.2 — run alembic upgrade head on temporary PostgreSQL + pgvector, verify 0027 at head. See docs/phase18-planning.md."
+name = "retry Phase 18.2 or skip to 18.3"
+description = "Phase 18.2 blocked on Docker availability. Options: (a) retry when Docker Desktop is started, (b) skip to 18.3 HTTP health/API smoke using local uvicorn + SQLite. See docs/phase18-planning.md."
 
 [mcp]
 runtime_status = "not started"

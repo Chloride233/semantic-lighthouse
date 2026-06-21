@@ -128,33 +128,39 @@ local prototype. This is the single strongest portfolio signal available.
 
 **Next**: 18.2 PostgreSQL migration smoke.
 
-### 18.2 — Migration Smoke on PostgreSQL
+### 18.2 — Migration Smoke on PostgreSQL ← BLOCKED 2026-06-21
 
-**Lane: Standard.**
+**Lane: Standard (requires Docker daemon).**
 
-Create a standalone script or procedure:
+**Status**: Docker CLI available (v29.5.3) but Docker Desktop daemon not running
+(`dockerDesktopLinuxEngine` pipe not found). Cannot start temporary PostgreSQL
+container. Blocked until Docker Desktop is started.
+
+**Procedure (to execute when Docker available)**:
 
 ```bash
-# Start a temporary PostgreSQL with pgvector
-docker run -d --name sl-pg-smoke \
+docker run -d --name sl-phase18-migration-smoke \
   -e POSTGRES_PASSWORD=smoke \
   -e POSTGRES_DB=sl_smoke \
   -p 54329:5432 \
   pgvector/pgvector:pg17
 
-# Run migrations
-DATABASE_URL="postgresql+psycopg://postgres:smoke@localhost:54329/sl_smoke" \
-  alembic upgrade head
+until docker exec sl-phase18-migration-smoke pg_isready -U postgres; do sleep 1; done
 
-# Verify
 DATABASE_URL="postgresql+psycopg://postgres:smoke@localhost:54329/sl_smoke" \
-  alembic current
+  .venv/Scripts/python -m alembic upgrade head
+
+DATABASE_URL="postgresql+psycopg://postgres:smoke@localhost:54329/sl_smoke" \
+  .venv/Scripts/python -m alembic current
+
+docker stop sl-phase18-migration-smoke
+docker rm sl-phase18-migration-smoke
 ```
 
-Expected: `0027_v27_pilot_outcome_records` at head, no errors.
+Expected: `0027_v27_pilot_outcome_records (head)`, no errors.
 
-If local Docker is unavailable, document the procedure for manual execution on
-a cloud server and mark as "procedure verified on manual run."
+**Next**: Retry when Docker Desktop is available, or proceed to 18.3 (HTTP health/API smoke)
+using local uvicorn + SQLite if Docker remains unavailable.
 
 ### 18.3 — HTTP Health/API Smoke
 
