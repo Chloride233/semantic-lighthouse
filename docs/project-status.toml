@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 18.3/18.4 delivered"
-description = "Phase 18.3 HTTP API smoke (9/9 PASS, ~2.9s local) + 18.4 base-url adapter delivered. 18.2 PostgreSQL migration blocked by alembic_version VARCHAR(32) issue. 18.1 config audit delivered. Next: 18.5 closeout review."
+current = "Phase 18.1–18.4 delivered"
+description = "Phase 18.1 config audit + 18.2 PostgreSQL migration smoke (28/28, env.py fix + migration 0028) + 18.3 HTTP API smoke (9/9 PASS) + 18.4 base-url adapter delivered. Next: 18.5 closeout review."
 
 [next_decision_gate]
 name = "Phase 18.5 closeout review"
-description = "18.1/18.3/18.4 delivered. 18.2 blocked (known issue — needs migration/env.py fix, deferred). Next: 18.5 closeout — record results, risks, final Phase 18 status. See docs/phase18-planning.md."
+description = "All Phase 18 slices delivered. Next: 18.5 closeout — record final results, risks, mark Phase 18 complete. See docs/phase18-planning.md."
 
 [mcp]
 runtime_status = "not started"
@@ -35,4 +35,4 @@ summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/cl
 latest_commit = "d884813"
 backend_pytest = 848
 ruff = "clean"
-migration_head = "0027"
+migration_head = "0028"

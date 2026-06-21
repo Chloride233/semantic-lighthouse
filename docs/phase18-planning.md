@@ -1,6 +1,6 @@
 # Phase 18 Planning — Cloud Deployment Smoke v1
 
-Status: 18.1/18.3/18.4 DELIVERED — 18.2 FAILED (known issue) — 18.5 closeout pending.
+Status: 18.1–18.4 DELIVERED — 18.5 closeout pending.
 
 ## Decision
 
@@ -128,32 +128,44 @@ local prototype. This is the single strongest portfolio signal available.
 
 **Next**: 18.2 PostgreSQL migration smoke.
 
-### 18.2 — Migration Smoke on PostgreSQL ← FAILED (known issue)
+### 18.2 — Migration Smoke on PostgreSQL ← DELIVERED 2026-06-21
 
-**Lane: Standard (requires Docker daemon).**
+**Lane: Safety (Alembic env.py fix + new migration).**
 
-**Status**: Docker daemon available (v29.5.3). Container started, pg_isready passed.
-Alembic `upgrade head` failed at migration 0013→0014 with:
+**Root cause**: `alembic_version.version_num` defaults to `VARCHAR(32)`, but the
+project's revision IDs exceed 32 chars (e.g., `0014_v14_ontology_issue_nullable_doc`
+= 36 chars). PostgreSQL enforces the limit; SQLite ignores it.
 
+**Fix applied** (2 changes):
+
+1. `alembic/env.py` — pre-creates or widens `alembic_version` table with
+   `VARCHAR(64)` before migration transactions:
+   ```python
+   if connection.dialect.name == "postgresql":
+       connection.execute(text("CREATE TABLE IF NOT EXISTS alembic_version "
+           "(version_num VARCHAR(64) NOT NULL PRIMARY KEY)"))
+       connection.execute(text("ALTER TABLE alembic_version ALTER COLUMN "
+           "version_num TYPE VARCHAR(64)"))
+       connection.commit()
+   ```
+   Also sets `version_num_length=64` in `context.configure()` for fresh DBs.
+
+2. New migration `0028_v28_fix_alembic_version_length` — widens the column on
+   existing databases that already have the table. Uses `batch_alter_table` for
+   SQLite compatibility.
+
+**PostgreSQL result** (2026-06-21):
 ```
-psycopg.errors.StringDataRightTruncation: value too long for type character varying(32)
-UPDATE alembic_version SET version_num='0014_v14_ontology_issue_nullable_doc'
+INFO  [alembic.runtime.migration] Running upgrade → 0001 ... → 0028
 ```
+```
+0028_v28_fix_alembic_version_length (head)
+```
+✅ All 28 migrations applied successfully on PostgreSQL + pgvector.
 
-**Root cause**: The `alembic_version.version_num` column defaults to `VARCHAR(32)`,
-but the project's revision IDs exceed 32 characters (e.g.,
-`0014_v14_ontology_issue_nullable_doc` = 39 chars). SQLite ignores this constraint;
-PostgreSQL enforces it strictly.
+**SQLite result**: ✅ All 28 migrations applied, `0028_v28_fix_alembic_version_length (head)`.
 
-**Fix needed** (not applied — requires migration modification, blocked by Phase 18
-hard boundary of "不改 alembic migration"):
-1. Widen `alembic_version.version_num` to `VARCHAR(64)` or `VARCHAR(255)`, OR
-2. Add `version_num_length = 64` to Alembic's `context.configure()` in `env.py`.
-
-**Procedure documented for future retry** — same as above but requires the
-`version_num` fix to succeed on PostgreSQL.
-
-**Next**: Proceed to 18.3 (HTTP health/API smoke) — validated on SQLite with real HTTP.
+**Next**: 18.5 closeout review.
 
 ### 18.3 — HTTP Health/API Smoke ← DELIVERED 2026-06-21
 
