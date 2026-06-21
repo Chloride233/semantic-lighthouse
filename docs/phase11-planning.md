@@ -1,7 +1,7 @@
 # Phase 11 Planning — Ontology Modeling Drafts v1
 
 **Date**: 2026-06-19
-**Status**: Phase 11 backend complete (11.1–11.4+11.6 delivered). UI (11.5) deferred to Kimi frontend refactor. Phase 11.6 boundary later extended with MCP design; no runtime implemented.
+**Status**: Phase 11 backend complete (11.1–11.4+11.6 delivered). UI (11.5) was deferred at the time. **[2026-06-21 policy update]**: Frontend no longer frozen; future UI uses `ui-ux-pro-max-skill` Minimalism & Swiss Style. Phase 11.6 boundary later extended with MCP design; no runtime implemented.
 
 ---
 
@@ -43,7 +43,7 @@ Turn the governed entity/relation/issue read model from Phase 9/10 into a human-
 | 11.3 | Draft generation from existing entities | ✅ Deterministic rules: entity_type → Object Type candidate, existing wikilinks → Link Type candidates, frontmatter fields → Property candidates. Backlog action_types (`create_missing_*`, `update_eval_gold_doc_id`) → human-action suggestions. No LLM, no Agent. |
 | 11.4 | Human review workflow | ✅ Delivered (2026-06-19). Single + batch review endpoints. Status transitions: proposed → accepted/rejected (one-way, final, 409 on re-review). Batch atomic (all-or-nothing). Rejected requires non-empty review_note (model_validator). Review never modifies payload, evidence_refs, created_by, created_at, or source pointers. 33 tests. No Agent access. |
 
-| 11.5 | UI: entity detail modeling panel + draft list | **Deferred** — panel and draft list UI deferred to Kimi unified frontend refactor. CC iterations do no frontend work (no static/js, no CSS, no HTML, no verify_ui, no Playwright). |
+| 11.5 | UI: entity detail modeling panel + draft list | **Was deferred** — panel and draft list UI was deferred at the time. **[2026-06-21]**: Frontend no longer frozen; future UI available under `ui-ux-pro-max-skill` Minimalism & Swiss Style. |
 | 11.6 | Agent/MCP Boundary Design | ✅ Design-only. `docs/ontology-agent-boundary.md` defines current Agent boundary; `docs/mcp-agent-boundary-design.md` adds future MCP identity, permission, audit, output-safety, read-only capability mapping, and runtime entry gates. No MCP server/client, SDK, dependency, or tool registration. |
 
 ---
@@ -64,7 +64,7 @@ Turn the governed entity/relation/issue read model from Phase 9/10 into a human-
 - **Tests**: ≥10 new modeling draft tests per slice (CRUD, status lifecycle, group isolation, permissions, evidence linkage)
 - **ruff**: clean across all changed files
 - **pytest**: backend full suite uses `--ignore=tests/e2e` at phase boundaries
-- **frontend verification**: deferred with 11.5 to the later Kimi frontend refactor; CC does not run `verify_ui`, Playwright, or `tests/e2e`
+- **frontend verification**: was deferred with 11.5 at the time; **[2026-06-21]**: verification available when UI work resumes under new policy
 - **git diff --check**: clean on every commit
 
 ---
@@ -214,6 +214,6 @@ Never modifies existing drafts' status, payload, reviewed_by, reviewed_at, revie
 - No external KB modification
 - No DELETE / PATCH / reopen endpoint
 - No new migration
-- No 11.5 UI (deferred to Kimi frontend refactor).
+- No 11.5 UI (was deferred at the time; frontend policy updated 2026-06-21).
 
 **Next**: Phase 12 planning — see `docs/project-roadmap.md`.

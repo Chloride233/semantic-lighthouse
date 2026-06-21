@@ -47,6 +47,7 @@ Do not read the full roadmap, handoff history, or engineering memory for a small
 - Do not let new work drift back into "generic RAG app" or "generic Agent platform" framing. If a feature touches product direction, explain how it supports the Ontology semantic operating layer.
 - Treat MCP as a future Agent-facing adapter only. Do not add MCP runtime, SDK dependencies, resources, or tools. Future MCP work must reuse server-side identity, group authorization, audit, bounded provenance, and backend HITL; never trust model/client-supplied `group_id` as authority. See `docs/project-status.toml` for current MCP status.
 - Frontend F2 is complete. Current project state is in `docs/project-status.toml`.
+- **Frontend policy (updated 2026-06-21)**: Frontend is no longer frozen. Future UI work must use `ui-ux-pro-max-skill` with Minimalism & Swiss Style. Avoid uncontrolled redesign; all UI changes must follow lane-based verification and run appropriate UI checks (`verify_ui`, Playwright) when code is modified.
 - Every meaningful change must update project memory and be committed to Git.
 - Do not commit secrets, tokens, cookies, database files, runtime storage, `.venv/`, or `.claude/`.
 

@@ -91,7 +91,7 @@ The following are explicitly deferred — Phase 13 does NOT claim them:
 - Functions runtime / computed properties.
 - Graph RAG traversal on business_v1 links.
 - ERP/MES/PLC integration.
-- Frontend modeling UI (deferred to Kimi).
+- Frontend modeling UI (was deferred at the time; policy updated 2026-06-21).
 
 ## Residual Risks
 
@@ -114,7 +114,7 @@ The backend now has:
 - A read-only export API with group isolation (13.4)
 - A reproducible manufacturing pilot proving the full pipeline (13.5)
 
-This is the right moment to hand the business_v1 contract model to **Kimi for frontend refactor planning** — the backend contract surface is defined, validated, and demonstrated. The frontend work (Phase 11.5 deferred) can now target a typed contract rather than raw audit JSON.
+This is the right moment to hand the business_v1 contract model for **frontend refactor planning** — the backend contract surface is defined, validated, and demonstrated. The frontend work (Phase 11.5, was deferred at the time) can now target a typed contract rather than raw audit JSON. **[2026-06-21 policy update]**: Frontend no longer frozen; future UI uses `ui-ux-pro-max-skill` Minimalism & Swiss Style.
 
 The following remain candidates for future phases but are **not pre-committed**:
 
@@ -125,7 +125,7 @@ The following remain candidates for future phases but are **not pre-committed**:
 | Phase 14c: Contract Refinement | constraints, competency questions, change-impact analysis needed |
 | MCP / Agent tool registration | requires MCP boundary approval per `docs/mcp-agent-boundary-design.md` |
 
-**Next immediate action**: Phase 11.5 frontend refactor handoff to Kimi — using the stable business_v1 contract as the data model surface.
+**Next immediate action (at the time)**: Phase 11.5 frontend refactor — using the stable business_v1 contract as the data model surface. **[2026-06-21]**: Frontend policy updated; available as candidate.
 
 ---
 

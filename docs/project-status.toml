@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 18 closeout complete"
-description = "Phase 18 closeout passed: 8 gates PASS. PostgreSQL migration 28/28, HTTP API smoke 9/9, config audit 11/11, migration 0028 at head. FDE chain proven deployable."
+current = "frontend policy realigned"
+description = "Frontend policy realigned: no longer frozen. Future UI uses ui-ux-pro-max-skill Minimalism & Swiss Style. 16.3 Outcome Panel UI available as candidate. Phase 18 closeout complete."
 
 [next_decision_gate]
-name = "plan Phase 19 or portfolio decision"
-description = "Phase 18 complete. Next: plan Phase 19 (ontology operationalization with real data), implement 16.3 (front-end outcome panel), or wrap up portfolio. See docs/agent-handoff.md."
+name = "plan Phase 19 or implement 16.3 UI"
+description = "Frontend policy realigned. 16.3 Outcome Panel UI now available as candidate under ui-ux-pro-max-skill Minimalism & Swiss Style. Other options: Phase 19 (ontology operationalization with real data) or portfolio wrap-up. See docs/agent-handoff.md."
 
 [mcp]
 runtime_status = "not started"

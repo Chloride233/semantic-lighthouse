@@ -80,7 +80,7 @@ proposals. Before they inform production systems, they must:
 - Agent creation, review, or publication of packages.
 - Modification of `F:\ontology-kb\knowledge-graph`.
 - Draft/package direct write to production business systems.
-- Phase 11.5 UI (deferred to Kimi frontend refactor).
+- Phase 11.5 UI (was deferred at the time; frontend policy updated 2026-06-21).
 
 ---
 

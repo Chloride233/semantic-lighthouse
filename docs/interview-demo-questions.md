@@ -275,7 +275,7 @@ FDE Demo Smoke: PASS | 11/11 | ~0.8s
 | **不泄露 raw data** | outcome-summary 和 artifact 永不含 raw_answer, raw_prompt, source_path, storage_path, secret, token, password, stack_trace |
 | **不做 Graph RAG** | Ontology 治理图谱存在（Phase 9），但检索仍用 hybrid search；Graph RAG 待 entity/relation 数据成熟 |
 | **不做 MCP runtime** | MCP 是 future adapter candidate，设计文档存在（`mcp-agent-boundary-design.md`），但零实现 |
-| **不做前端重构** | 前端 F2 完成（Guided Pilot workspace），新功能优先后端链路而非 UI |
+| **前端策略** | F2 已完成，前端不再冻结。未来 UI 工作使用 `ui-ux-pro-max-skill` Minimalism & Swiss Style，避免无控制的大改 |
 | **不做真实企业数据** | seed dataset 全部 synthetic，不接入外部 KB、不自动抓取、不部署到云 |
 
 ### 工程价值（面试核心论点）

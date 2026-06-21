@@ -102,11 +102,20 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 | Migration drift | ✅ | `0028` at head (new migration for VARCHAR(64) fix) |
 | No regressions | ✅ | Only `alembic/env.py` changed |
 
+## Frontend Policy Realignment (2026-06-21)
+
+The previous "frontend freeze" / "deferred to Kimi" policy has been **retired**. The new policy:
+- Frontend work can re-enter future planning.
+- UI/UX standard: `ui-ux-pro-max-skill` with **Minimalism & Swiss Style**.
+- All future UI changes must follow lane-based verification: `verify_ui` and Playwright when code changes.
+- No uncontrolled redesign or framework rewrite.
+- Historical "Kimi" / "frontend freeze" references in active docs have been updated with policy notes. Archive docs retain history.
+
 ## Next Decision Gate
 
-**Plan Phase 19 or portfolio decision**: Phase 18 complete. The FDE chain is proven deployable on PostgreSQL. Candidates:
+**Plan Phase 19 or portfolio decision**: Phase 18 complete. Frontend policy realigned — UI candidates now available. Options:
+- 16.3 Outcome Panel UI: candidate under `ui-ux-pro-max-skill` Minimalism & Swiss Style
 - Phase 19: ontology operationalization with real data
-- 16.3: front-end outcome panel (UI work, deferred since Phase 16)
 - Portfolio wrap-up: final docs refresh, demo video, or cloud deployment
 
 ## Phase 15 Delivery Summary

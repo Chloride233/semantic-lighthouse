@@ -347,7 +347,7 @@ See `docs/phase16-planning.md`. Closeout review passed 2026-06-21: permissions c
 |---|------|-------------|
 | 16.1 | Outcome record design / schema boundary | ✅ Delivered: PilotOutcomeRecord model, migration 0027, outcomes CR API, 40 tests. Evidences/packages validated; query_refs forbidden-key reject; bounded provenance. |
 | 16.2 | Read-only outcome summary endpoint | ✅ Delivered: `GET /outcome-summary` on projects router. Aggregates project, latest outcome, evidence/package/runtime summaries. 13 new tests (53 total). No migration. |
-| 16.3 | Pilot delivery report UI | **Deferred** — frontend work deferred; markdown artifact (16.4) serves as interview deliverable |
+| 16.3 | Pilot delivery report UI | **Candidate** — available for future UI implementation under `ui-ux-pro-max-skill` Minimalism & Swiss Style. Markdown artifact (16.4) serves as current interview deliverable. |
 | 16.4 | Exportable interview/demo artifact | ✅ Delivered: `GET /outcome-artifact.md` returns bounded markdown. Shares `_build_outcome_summary()` with 16.2 JSON endpoint. 13 new tests (66 total). |
 
 **Out of scope**: Graph RAG, MCP runtime, Agent auto-write, external KB write, autonomous publish, new framework/dependency, full PM system, full reporting engine.

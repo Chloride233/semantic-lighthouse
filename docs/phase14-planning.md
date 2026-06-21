@@ -135,6 +135,6 @@ Each stage is backend-controlled. Clients cannot skip, reverse, or directly set 
 - Stage is server-managed — clients see it read-only.
 - Industry template is a hint, not a validated enum — no cross-project template enforcement.
 - Old features (RAG, Agent, Ontology drafts, tasks) remain as parallel capabilities. Phase 14 does not remove them.
-- Frontend deferred to Kimi; CC backend-only.
+- Frontend was deferred at the time; CC backend-only for Phase 14. **[2026-06-21 policy update]**: Frontend no longer frozen; future UI uses `ui-ux-pro-max-skill` Minimalism & Swiss Style.
 - No Pilot outcome/KPI dashboard. No relation joins in query. No Action execution. No data write-back.
 - No MCP server/client/SDK. No Graph RAG. No custom query language. No new dependencies added.

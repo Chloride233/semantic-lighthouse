@@ -433,7 +433,7 @@ Phase 13 does **NOT** do any of the following:
 
 | Non-goal | Why deferred |
 |---|---|
-| Frontend or modeling UI | Phase 11.5 UI remains deferred to Kimi. No static/js, CSS, or HTML changes. |
+| Frontend or modeling UI | Phase 11.5 UI was deferred at the time. **[2026-06-21]**: Frontend no longer frozen; future UI uses `ui-ux-pro-max-skill` Minimalism & Swiss Style. |
 | Business object instance tables | No `equipment` or `work_orders` database table. |
 | Package activate/publish | Packages remain app-internal snapshots. |
 | Action execution | `CreateWorkOrder` is declared, never invoked. |
@@ -501,7 +501,7 @@ Phase 13 review (13.6) will decide the next direction. This section lists option
 | Phase 14a: Object Runtime Read Layer | Store business object instances through the contract. Read API with contract-driven validation. | business_v1 contract is type-stable and validated. |
 | Phase 14b: OSDK / Client Generation | Generate TypeScript/Java/Python typed clients from compiled manifest. | Compiled manifest structure is stable and consumer patterns are understood. |
 | Phase 14c: Contract Refinement | Add value_type constraints, enum types, parameter validation rules, or multi-profile support. | Phase 13 review finds gaps in type expressiveness or validation depth. |
-| Defer to Phase 11.5 UI | Start Kimi frontend refactor with modeling panel. | Contract backend is sufficiently stable for UI work to begin. |
+| Defer to Phase 11.5 UI | Start frontend refactor with modeling panel. **[2026-06-21]**: Frontend policy updated — available as candidate under `ui-ux-pro-max-skill` Minimalism & Swiss Style. | Contract backend is sufficiently stable for UI work to begin. |
 | Future MCP Read-only Gateway | Expose evidence and Ontology read models through a standard Agent-facing adapter. | Phase 13 contract is stable; identity mapping, server-side group authorization, invocation audit, output limits, and prompt-injection tests are designed. |
 
 **None of these options is decided in Phase 13.** The review will assess what Phase 13 proved and what the next highest-value increment is.

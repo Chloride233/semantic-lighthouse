@@ -51,6 +51,7 @@ If a task is Fast Lane, avoid reading the full roadmap, archived handoff, or eng
 - Do not let future work drift into generic RAG or generic Agent framing. If the work affects product direction, tie it back to the Ontology semantic operating layer.
 - MCP is a future Agent-facing adapter candidate, not current runtime and not the Ontology itself. Do not add an MCP server/client, SDK, dependency, resource, or tool. See `docs/mcp-agent-boundary-design.md` and `docs/project-status.toml` for current MCP status.
 - Frontend F2 is complete. See `docs/project-status.toml` for current project state. Full backend regression uses `--ignore=tests/e2e`.
+- **Frontend policy (updated 2026-06-21)**: Frontend is no longer frozen. Future UI work must use `ui-ux-pro-max-skill` with Minimalism & Swiss Style. Avoid uncontrolled redesign; lane-based verification and UI checks (`verify_ui`, Playwright) required when UI code is modified.
 - Update project memory after Safety Lane iterations; for Standard Lane, only when a meaningful decision was made.
 - **Every meaningful change must be committed to Git** (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`).
 - Before committing on Standard/Safety Lane: verify related `pytest` and `ruff check` pass. Fast Lane: `git diff --check` + minimal format check only.

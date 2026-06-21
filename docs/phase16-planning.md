@@ -1,6 +1,6 @@
 # Phase 16 Planning — Pilot Outcome & FDE Delivery Record v1
 
-Status: PHASE 16 BACKEND CLOSEOUT COMPLETE — 16.1–16.2–16.4 delivered, 16.3 UI deferred.
+Status: PHASE 16 BACKEND CLOSEOUT COMPLETE — 16.1–16.2–16.4 delivered. 16.3 UI available as candidate under updated frontend policy.
 
 ## Decision
 
