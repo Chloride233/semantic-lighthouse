@@ -304,7 +304,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 14.4 | Model Validation Gate | ✅ Migration `0021` (scope_key + project_id on packages), project-scoped quality/package/contract API, WARN override audit, FAIL blocks absolutely, stage model→validate, legacy isolation. 23 tests. |
 | 14.5 | Pilot Read Runtime + Unified Query Contract | ✅ Migration `0022` (OntologyDatasetBinding) + `0023` (OntologyRuntimeAudit), deterministic binding generation from accepted contract + dataset profiles, unified read-only query with typed filter conversion/streaming CSV/filter-before-offset-limit/compiled contract as truth, pilot activation with full smoke query, audit fail-closed, path safety, permissions, provenance sanitization. 94 runtime tests. No DSL, no MCP, no Graph RAG. |
 
-**Next**: Product closeout/review — verify full chain, refresh demo scripts, confirm all docs aligned.
+**Delivered**: Phase 14 delivered 2026-06-19. Full chain verified through Phase 15 (evidence feedback loop), Phase 16 (FDE outcome records + artifact), and Phase 17 (demo readiness smoke). See `docs/project-status.toml` for current state.
 
 ---
 
@@ -352,7 +352,7 @@ See `docs/phase16-planning.md`. Closeout review passed 2026-06-21: permissions c
 
 **Out of scope**: Graph RAG, MCP runtime, Agent auto-write, external KB write, autonomous publish, new framework/dependency, full PM system, full reporting engine.
 
-**Next**: Phase 16 backend closeout complete. Phase 17 planned — see `docs/phase17-planning.md`.
+**Next**: Phase 17 complete — FDE demo chain runnable, verifiable, interview-ready. See `docs/phase17-planning.md` and `docs/project-status.toml`.
 
 ---
 

@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 17 closeout complete"
-description = "Phase 17 closeout passed: smoke 11/11 PASS, artifact gate PASS (0 findings), interview script refreshed, docs aligned. Five slices delivered (17.1 seed contract + 17.2 smoke script + 17.3 quality gate + 17.4 interview refresh + 17.5 closeout)."
+current = "portfolio polish complete"
+description = "Portfolio entrypoint docs refreshed: README.md now highlights FDE demo chain and smoke script, PRODUCT.md lists Phase 15–17 deliveries, roadmap stale references cleaned. Phase 17 closeout complete. FDE demo chain: smoke 11/11 PASS, artifact gate PASS (0 findings), interview script ready."
 
 [next_decision_gate]
-name = "plan Phase 18 or portfolio polish"
-description = "Phase 17 complete. Next: plan Phase 18 (cloud deployment smoke, ontology operationalization, or 16.3 UI), or do a final portfolio/docs polish pass. See docs/agent-handoff.md and docs/project-roadmap.md."
+name = "plan Phase 18"
+description = "Candidates: cloud deployment smoke, ontology operationalization with real data, 16.3 outcome panel UI, or full test audit. Recommended: cloud deployment smoke. See docs/agent-handoff.md."
 
 [mcp]
 runtime_status = "not started"

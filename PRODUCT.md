@@ -57,6 +57,13 @@ The experience should feel like a professional semantic operating layer workspac
 - Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 — delivered.
 - Phase 14: Business Pilot Project main chain (goal→data→model→validate→pilot) — COMPLETE (backend + frontend F2).
 - Frontend F2: Guided Business Pilot workspace — F2 Complete (F2A+F2B+F2C delivered).
+- Phase 15 delivered: Evidence-to-Ontology Feedback Loop v1 — save RAG answer as project evidence, evidence review surface, evidence-backed modeling draft candidates. 22 evidence-draft tests.
+- Phase 16 delivered: Pilot Outcome & FDE Delivery Record v1 — immutable outcome records (CRUD), JSON outcome-summary aggregation, bounded markdown artifact export. 66 tests. 16.3 UI deferred.
+- Phase 17 delivered: FDE Demo Readiness & Operational Smoke v1 — seed scenario contract (manufacturing), 11-step smoke script (~0.8s, fake providers), inline artifact quality gate (PASS, 0 findings), refreshed interview/demo script with 5-min demo flow and FAQ.
+
+**Current strongest demo**: `.\.venv\Scripts\python scripts\smoke_fde_demo.py` — 11/11 PASS, artifact gate PASS (0 findings). Full chain: group → project → evidence → package → runtime → outcome → markdown artifact.
+
+The project has progressed from RAG/Agent foundations to **FDE demo readiness**. It is still not a complete SaaS, not production-deployed, and not an MCP runtime.
 
 ## Product Non-Goals For Now
 
@@ -91,4 +98,4 @@ A feature is not considered finished until:
 - production deployment must protect secrets and runtime storage
 - Agent workflow should remain controlled and auditable before adding framework complexity. The next product gap is not backend Agent capability, but making existing controlled Agent workflows visible and usable in the frontend.
 - deterministic backend rules should not be replaced by LLM decisions
-- Ontology direction must not be reduced to "more RAG". Phase 9 made the knowledge base governable as entities, relations, validation issues, graph, and entity detail. Phase 10 delivered governance operations: issue triage, curation demo, graph UX polish, evidence bridge. Phase 11/12 delivered modeling drafts, quality gates, and immutable model packages. Phase 13 delivered typed business ontology contracts and manufacturing pilot. Phase 14 delivered the business pilot five-stage main chain. See `docs/project-status.toml` for current state.
+- Ontology direction must not be reduced to "more RAG." Phase 9–10 made the knowledge base governable. Phase 11–13 delivered modeling drafts, quality-gated packages, and typed business contracts. Phase 14 delivered the five-stage business pilot chain. Phase 15 added evidence-to-ontology feedback. Phase 16 delivered FDE outcome records with bounded artifacts. Phase 17 delivered demo readiness with operational smoke. The full chain — from business goal to auditable markdown artifact — is demonstrable in under 1 second. See `docs/project-status.toml` for current state.

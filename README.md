@@ -118,6 +118,34 @@ Migration check:
 alembic upgrade head
 ```
 
+## Current Demo Path / 当前可演示链路
+
+**最强的当前 demo 是 FDE (Future Data Engineer) Delivery Chain**:
+
+```powershell
+.\.venv\Scripts\python scripts\smoke_fde_demo.py
+```
+
+结果：**11/11 PASS，artifact gate PASS (0 findings)，~0.8s**。
+
+完整链路：
+
+```text
+注册登录 → 创建 Demo Group → 创建 Pilot Project (制造业设备维护)
+→ 链接证据 (document + RAG run, user-confirmed)
+→ 建模草案 → 质量门 → 模型包 (immutable, quality-gated)
+→ Runtime binding → typed query → runtime audit
+→ PilotOutcomeRecord (immutable FDE snapshot)
+→ GET /outcome-summary (JSON 聚合)
+→ GET /outcome-artifact.md (bounded markdown)
+→ artifact quality gate → PASS
+```
+
+- Smoke script 零外部依赖（fake embedding + fake chat），临时 SQLite，不需要 API key
+- FDE 交付物：outcome record + outcome-summary JSON + markdown artifact
+- Markdown artifact 经过 7 个必选章节、11 个禁用词、5 个边界规则的质量门校验
+- 面试讲稿：`docs/interview-demo-questions.md`（含 5 分钟 demo script + 5 FAQ）
+
 ## Demo And Deployment
 
 - Cloud deployment guide: `docs/deployment-v3-cloud.md`
@@ -128,7 +156,6 @@ alembic upgrade head
 
 - Knowledge source and Ontology seed corpus: `F:\ontology-kb`
 - The current prototype intentionally does not implement MinIO/OSS, Elasticsearch, Kubernetes, full SaaS administration, or unrestricted autonomous Agent actions.
-- Chunked upload, hybrid retrieval, answer audit, conversations, and controlled Agent workflow now exist as prototype capabilities; verify current status in `docs/agent-handoff.md`.
-- Do not treat future work as generic RAG expansion. Phases 9–12 delivered group-scoped governance: entities, relations, validation issues, triage, curation demo, graph console, RAG evidence bridge, modeling drafts, quality gates, and immutable model packages. Phase 13–14 delivered. See `docs/project-status.toml` for current phase.
-- Do not immediately build a full modeling studio, Graph RAG, or Agent auto-write path for Ontology objects. Those come after the read-only governance and graph layer is reliable.
+- Phases 8–17 delivered: RAG → tasks → Agent/HITL → ontology governance → modeling drafts → quality-gated packages → business contracts → pilot projects → evidence feedback loop → FDE outcome records → demo readiness smoke. See `docs/project-status.toml` for current phase.
+- Not a full modeling studio, not Graph RAG, not MCP runtime, not Agent auto-write. These are intentionally deferred — see `docs/product-alignment-prd.md` for rationale.
 - Engineering lessons are tracked in `docs/engineering-memory/`.
