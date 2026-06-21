@@ -124,7 +124,7 @@ Design fields for a future outcome record:
 | Field | Source | Notes |
 |-------|--------|-------|
 | `project_id` | `BusinessProject.id` | FK, the pilot this record describes |
-| `business_goal_snapshot` | `BusinessProject.goal_statement` | Immutable copy at record creation time |
+| `business_goal_snapshot` | `BusinessProject.business_goal` | Immutable copy at record creation time |
 | `selected_evidence_refs` | `ProjectEvidenceLink` | Bounded provenance — no raw prompts, answers, paths |
 | `package_id` | `OntologyModelPackage.id` | The quality-gated model package produced |
 | `query_refs` | `OntologyRuntimeAudit` | Key query result summaries, not raw CSV |
