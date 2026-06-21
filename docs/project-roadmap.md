@@ -345,7 +345,7 @@ See `docs/phase16-planning.md`.
 
 | # | Task | Description |
 |---|------|-------------|
-| 16.1 | Outcome record design / schema boundary | Decide reuse vs. new table; define fields for outcome record (goal snapshot, evidence refs, package_id, query refs, decision_summary, risks, next_actions) |
+| 16.1 | Outcome record design / schema boundary | ✅ Delivered: PilotOutcomeRecord model, migration 0027, outcomes CR API, 40 tests. Evidences/packages validated; query_refs forbidden-key reject; bounded provenance. |
 | 16.2 | Read-only outcome summary endpoint | GET endpoint assembling outcome from existing project/evidence/package/runtime data; member+ read, owner/admin create/update |
 | 16.3 | Pilot delivery report UI | Outcome panel in Pilot workspace: goal, evidence, model package, validation, query results, risks, next actions |
 | 16.4 | Exportable interview/demo artifact | Concise delivery record for demo/interview; HTML/markdown first, no PDF dependency |

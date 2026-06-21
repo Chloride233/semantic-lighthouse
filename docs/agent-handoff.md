@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-21 (Phase 15 closeout)
+Last updated: 2026-06-21 (Phase 16.1 delivered)
 
 ## State Source
 
@@ -12,15 +12,13 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 | Item | Value |
 |------|-------|
-| Commit | `b52e037` |
-| Backend pytest (non-E2E) | 873 collected; Phase 15 related all pass |
-| ruff | clean |
-| Migration | `0026` at head |
-| verify_ui | 53/53 |
-| E2E | 18/18 |
-| Phase 15.3 evidence-draft tests | 22 pass |
-| Phase 15.3 evidence regression | 35 evidence + 29 drafts = 64 pass |
-| Phase 15.1–15.2 (existing) | no regressions in related suites |
+| Commit | `ce51ad9` |
+| Phase 16.1 delivery commit | *(pending commit)* |
+| Backend pytest (non-E2E) | 873 collected; Phase 16.1 40/40 pass |
+| ruff | clean (changed files only) |
+| Migration | `0027` at head |
+| Phase 16.1 outcome tests | 40 pass |
+| Phase 15.3 (unchanged) | 22 evidence-draft + 64 regression pass |
 
 ## Architecture Boundaries
 
@@ -50,23 +48,14 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 | Suite | Count | Notes |
 |-------|-------|-------|
-| Backend (non-E2E grouped) | 848 passed, 3 skipped | All 851 collected non-E2E tests covered by grouped runs after single-command timeout |
-| Project evidence | 38 passed | permissions, dual isolation, lifecycle, provenance, audit atomicity |
-| S2.3A related | 95 passed | Conversations, Tasks, Agent, project context; migration 0025 roundtrip |
-| S2.3B focused | 16 passed | Project-bound retrieval, tool scope, empty evidence, archive denial |
-| S2.3B related | 100 passed | Retrieval, Conversations, Agent, project work context |
-| S2.3B grouped non-E2E | Passed | One-shot full command timed out after about 10 minutes; grouped suites covered all 832 collected non-E2E tests and passed |
-| S2.4B focused | 65 passed | Project summary endpoint, permissions, active evidence, safe provenance, scoped counts |
-| S2.4C focused | 48 passed | Project-bounded RAG, RagRun.project_id, no fallback, no auto evidence link |
-| S2.4C related | 139 passed | RAG, retrieval, project evidence, project context, bounded retrieval |
-| S2.4C grouped non-E2E | 848 passed, 3 skipped | One-shot full command timed out after about 10 minutes; grouped suites covered all 851 collected non-E2E tests |
-| verify_ui | 47/47 | Real owner full chain F2A+F2B, all assertions pass |
-| E2E (Playwright) | 18/18 | F2A, F2B (owner/member/WARN/FAIL/isolation), F2C (responsive/a11y) |
-| Screenshots | 6 files | `.tmp/f2c/`, 32–97 KB, stage-verified, 0 console errors |
+| Phase 16.1 outcomes | 40 passed | Permissions, evidence/package validation, query_refs privacy, cross-group isolation, list/read. |
+| ruff (changed files) | clean | models.py, schemas.py, outcomes.py, main.py, test_pilot_outcomes.py |
+| Migration smoke | 0027 at head | SQLite upgrade: 0026 → 0027 successful |
+| doc alignment | PASS | 7 entry docs checked, no stale expressions |
 
 ## Next Decision Gate
 
-**Implement Phase 16.1 or review plan**: Phase 16 is planned — Pilot Outcome & FDE Delivery Record v1. See `docs/phase16-planning.md`. The plan defines four slices to turn the completed Pilot chain into a durable, auditable delivery record. Next decision: implement Slice 16.1 (outcome record design/schema), review the full plan with project owner, or adjust scope based on interview/portfolio feedback.
+**Implement Phase 16.2 or 16.3**: Phase 16.1 backend delivered. Next decision: implement 16.2 (read-only outcome summary endpoint), 16.3 (delivery report UI), or 16.4 (exportable interview artifact). See `docs/phase16-planning.md`.
 
 ## Phase 15 Delivery Summary
 

@@ -1,6 +1,6 @@
 # Phase 16 Planning — Pilot Outcome & FDE Delivery Record v1
 
-Status: PLANNING
+Status: 16.1 DELIVERED — slices 16.2–16.4 pending.
 
 ## Decision
 
@@ -112,34 +112,39 @@ This is the artifact a hiring manager or FDE reviewer actually wants to see.
 
 ## Suggested Slices
 
-### 16.1 — Outcome Record Design / Schema Boundary
+### 16.1 — Outcome Record Design / Schema Boundary ← DELIVERED 2026-06-21
 
-**Lane: Fast (design) → Standard (if migration needed)**
+**Lane: Safety (migration + model + API + tests).**
 
-Decide whether to reuse existing project/package/query audit data first.
-No migration unless implementation proves a durable table is required.
+**Delivered shape**:
 
-Design fields for a future outcome record:
+- New model: `PilotOutcomeRecord` in `models.py` (table `pilot_outcome_records`).
+- Migration: `0027_v27_pilot_outcome_records` — adds table with `id`, `group_id`, `project_id`, `title`, `business_goal_snapshot`, `selected_evidence_refs` (JSON), `package_refs` (JSON), `query_refs` (JSON), `decision_summary`, `risks` (JSON), `next_actions` (JSON), `created_by`, `created_at`.
+- Router: `routers/outcomes.py` — registered at `/groups/{gid}/projects/{pid}/outcomes`.
+- API:
+  - `POST /groups/{gid}/projects/{pid}/outcomes` — owner/admin create immutable record. Snapshots project's `business_goal`. Validates evidence links (active, same group/project), packages (same group, matching project if scoped), and query_refs (forbidden key rejection).
+  - `GET /groups/{gid}/projects/{pid}/outcomes` — member+ list, latest first, limit 1–100 default 20.
+  - `GET /groups/{gid}/projects/{pid}/outcomes/{outcome_id}` — member+ get single, 404 across group/project boundary.
+- No PATCH/DELETE. Multiple records per project allowed.
+- Evidence refs: bounded provenance via `_build_provenance` (no raw_content, answer, prompt, paths).
+- Package refs: id/version/content_hash/quality_status/draft_count only (no contract_json, source_draft_ids).
+- Query refs: validated recursively for forbidden keys (raw_content, answer, prompt, source_path, storage_path, secret, token, password, key, api_key, stack_trace, traceback, raw, csv_rows, raw_csv).
+- Schemas: `PilotOutcomeCreateRequest` (with `_validate_query_refs_safe` recursive validator), `PilotOutcomeResponse`, `PilotOutcomeListResponse`.
+- Tests: `tests/test_pilot_outcomes.py` — 40 tests:
+  - Create: owner/admin OK, member/outsider reject, cross-group 404, title validation, snapshot, multiple records.
+  - Evidence validation: valid accepted, nonexistent/other-project/removed/other-group rejected.
+  - Package validation: valid accepted, nonexistent/other-group/other-project reject.
+  - Query refs privacy: clean accepted, raw_answer/source_path/secret/stack_trace/nested/csv_rows rejected.
+  - Read: owner/member OK, outsider 403, cross-group 404, nonexistent 404.
+  - List: empty, latest-first, member OK, outsider 403, limit, per-project isolation.
+  - Privacy: create/get/list responses contain no forbidden terms.
+- **Design decisions resolved**:
+  - New `PilotOutcomeRecord` table (not extending BusinessProject).
+  - Immutable after creation (no PATCH/DELETE).
+  - Snapshots business_goal at creation time; evidence/package refs built from current state.
+  - Member+ read, owner/admin create.
 
-| Field | Source | Notes |
-|-------|--------|-------|
-| `project_id` | `BusinessProject.id` | FK, the pilot this record describes |
-| `business_goal_snapshot` | `BusinessProject.business_goal` | Immutable copy at record creation time |
-| `selected_evidence_refs` | `ProjectEvidenceLink` | Bounded provenance — no raw prompts, answers, paths |
-| `package_id` | `OntologyModelPackage.id` | The quality-gated model package produced |
-| `query_refs` | `OntologyRuntimeAudit` | Key query result summaries, not raw CSV |
-| `decision_summary` | User-authored | What the enterprise should conclude |
-| `risks` | User-authored | Known limitations, confidence gaps, data quality issues |
-| `next_actions` | User-authored | Recommended follow-up work |
-| `created_by` | `User.id` | Who authored the outcome record |
-| `created_at` | timestamp | Immutable creation time |
-
-Design decisions to resolve:
-- Reuse existing tables vs. new `PilotOutcomeRecord` table.
-- Whether the outcome record is immutable (recommended: yes, like packages).
-- Whether to snapshot referenced artifacts at record creation time.
-- Whether member can read, or only owner/admin can create (recommended:
-  member+ read, owner/admin create).
+**Status**: DELIVERED. 40 tests pass, ruff clean, migration 0027 at head.
 
 ### 16.2 — Read-Only Project Outcome Summary Endpoint
 

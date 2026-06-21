@@ -899,3 +899,84 @@ class ProjectSummaryResponse(BaseModel):
     conversation_count: int
     task_count: TaskCountsByStatus
     agent_run_count: int
+
+
+# ── Phase 16.1: Pilot Outcome Records ────────────────────────────────────
+
+# Forbidden keys in query_refs — never allow raw data, secrets, or paths
+_FORBIDDEN_QUERY_REF_KEYS = frozenset({
+    "raw_content", "raw_answer", "raw_prompt", "raw", "raw_csv", "csv_rows",
+    "answer", "prompt",
+    "source_path", "storage_path", "path",
+    "secret", "token", "password", "key", "api_key",
+    "stack_trace", "traceback",
+})
+
+
+def _validate_query_refs_safe(refs: list[dict]) -> None:
+    """Reject query_ref objects that contain forbidden keys (recursive check)."""
+    def _check(obj, path: str = "$") -> None:
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k in _FORBIDDEN_QUERY_REF_KEYS:
+                    raise ValueError(
+                        f"Forbidden key '{k}' in query_refs at {path}"
+                    )
+                _check(v, f"{path}.{k}")
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                _check(item, f"{path}[{i}]")
+    _check(refs)
+
+
+class PilotOutcomeCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=240)
+    selected_evidence_link_ids: list[str] = Field(
+        default_factory=list, max_length=50,
+    )
+    package_ids: list[str] = Field(
+        default_factory=list, max_length=20,
+    )
+    query_refs: list[dict] = Field(
+        default_factory=list, max_length=100,
+    )
+    decision_summary: str = Field(default="", max_length=5000)
+    risks: list[str] = Field(default_factory=list, max_length=50)
+    next_actions: list[str] = Field(default_factory=list, max_length=50)
+
+    @field_validator("title")
+    @classmethod
+    def _trim_title(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("title must not be empty after trimming")
+        return v
+
+    @model_validator(mode="after")
+    def _validate_query_refs(self) -> "PilotOutcomeCreateRequest":
+        try:
+            _validate_query_refs_safe(self.query_refs)
+        except ValueError as e:
+            raise ValueError(str(e)) from e
+        return self
+
+
+class PilotOutcomeResponse(BaseModel):
+    id: str
+    group_id: str
+    project_id: str
+    title: str
+    business_goal_snapshot: str
+    selected_evidence_refs: list = Field(default_factory=list)
+    package_refs: list = Field(default_factory=list)
+    query_refs: list = Field(default_factory=list)
+    decision_summary: str
+    risks: list = Field(default_factory=list)
+    next_actions: list = Field(default_factory=list)
+    created_by: str
+    created_at: datetime
+
+
+class PilotOutcomeListResponse(BaseModel):
+    outcomes: list[PilotOutcomeResponse]
+    total: int

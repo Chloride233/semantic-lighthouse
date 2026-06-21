@@ -738,6 +738,42 @@ class BusinessProject(Base):
         DateTime(timezone=True), default=utc_now, nullable=False
     )
 
+class PilotOutcomeRecord(Base):
+    """Phase 16.1 — immutable FDE delivery snapshot for a business pilot project.
+
+    Multiple records per project are allowed. Latest determined by created_at desc.
+    No PATCH/DELETE in v1. Never stores raw prompts, answers, secrets, or paths.
+
+    selected_evidence_refs: bounded provenance per evidence link (no raw content/paths).
+    package_refs: id/version/hash/quality_status/draft_count per package (no contract_json).
+    query_refs: client-provided objects validated for forbidden keys (no secrets/paths/raw data).
+    """
+
+    __tablename__ = "pilot_outcome_records"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    group_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("groups.id"), index=True, nullable=False
+    )
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("business_projects.id"), index=True, nullable=False
+    )
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    business_goal_snapshot: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    selected_evidence_refs: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    package_refs: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    query_refs: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    decision_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    risks: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    next_actions: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    created_by: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
 class ProjectEvidenceLink(Base):
     """S2.2 — explicit user-created link between a Pilot project and group evidence.
 
