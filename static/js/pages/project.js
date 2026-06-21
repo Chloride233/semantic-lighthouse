@@ -162,28 +162,46 @@ export async function render(container, params) {
 
   // ── Goal evidence summary ───────────────────────────────────────────
 
+  function evidenceDisplayTitle(ev) {
+    const prov = ev?.provenance || {};
+    if (ev?.evidence_type === 'rag_run') return prov.question || 'RAG 问答';
+    return prov.evidence_title || prov.file_name || '未命名';
+  }
+
   function renderEvidenceInGoal(recentEvidence, evidenceCount) {
     if (!recentEvidence.length) {
       return `
-        <div class="goalEvidenceSummary noEvidenceHint">
+        <div class="goalEvidenceSummary noEvidenceHint" id="goalEvidenceSummary">
           <span>该项目尚未关联任何证据文档。请先在知识库上传文档并添加为项目证据。</span>
           <a href="#/groups/${gid}/documents" class="supportLink" style="margin-left:8px">前往知识库</a>
         </div>`;
     }
     const items = recentEvidence.slice(0, 3).map(ev => `
       <li class="goalEvidenceItem">
-        <span class="goalEvidenceTitle">${esc(ev.title || '未命名')}</span>
+        <span class="goalEvidenceTitle">${esc(evidenceDisplayTitle(ev))}</span>
         <span class="badge badgeMuted" style="font-size:var(--text-xs)">${esc(ev.evidence_type || '')}</span>
         ${ev.created_at ? `<span class="muted" style="font-size:var(--text-xs)">${fmtDate(ev.created_at)}</span>` : ''}
       </li>
     `).join('');
     return `
-      <div class="goalEvidenceSummary">
+      <div class="goalEvidenceSummary" id="goalEvidenceSummary">
         <h4 class="goalEvidenceSummaryTitle">项目证据（${evidenceCount}）</h4>
         <ul class="goalEvidenceList">${items}</ul>
         ${evidenceCount > 3 ? `<p class="muted" style="font-size:var(--text-xs);margin:4px 0 0">还有 ${evidenceCount - 3} 条证据...</p>` : ''}
         <a href="#/groups/${gid}/documents" class="supportLink" style="margin-top:6px">管理证据</a>
       </div>`;
+  }
+
+  function refreshEvidenceSummary(summary) {
+    const stripEl = document.getElementById('projectSummaryStrip');
+    if (stripEl) stripEl.outerHTML = summaryStripHTML(summary);
+    const evidenceEl = document.getElementById('goalEvidenceSummary');
+    if (evidenceEl) {
+      evidenceEl.outerHTML = renderEvidenceInGoal(
+        summary?.recent_evidence || [],
+        summary?.evidence_count ?? 0,
+      );
+    }
   }
 
   // ── Goal scoped Ask panel ────────────────────────────────────────────
@@ -268,11 +286,17 @@ export async function render(container, params) {
             evidence_type: 'rag_run',
             evidence_id: data.run_id,
             role: 'decision',
-            note: 'Saved from Pilot scoped Ask',
+            note: '从 Pilot 项目问答保存',
           }),
         });
         btn.textContent = '已保存';
         statusEl.textContent = '已保存为项目证据。重复保存会复用已有证据链接。';
+        try {
+          const summary = await loadSummary();
+          refreshEvidenceSummary(summary);
+        } catch (_) {
+          showToast('证据已保存，摘要刷新失败', 'info');
+        }
       } catch (err) {
         btn.disabled = false;
         statusEl.textContent = err.humanMessage || err.message || '保存失败';
