@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-21 (Phase 17.4 interview refresh delivered)
+Last updated: 2026-06-21 (Phase 17 closeout complete)
 
 ## State Source
 
@@ -73,9 +73,23 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 | Test coverage | ✅ | 66 tests: 40 CRUD + 13 summary + 13 artifact. All pass. |
 | Doc alignment | ✅ | `check_doc_alignment.py` PASS. `project-status.toml` latest_commit = `d884813`. |
 
+## Phase 17 Closeout Review
+
+**Review date**: 2026-06-21. **Reviewer**: automated closeout pass.
+
+| Gate | Status | Detail |
+|------|--------|--------|
+| Smoke script | ✅ PASS | `scripts/smoke_fde_demo.py` — 11/11 steps, 0.84s, artifact gate PASS (0 findings) |
+| Seed scenario | ✅ Complete | Manufacturing equipment reliability, 4 object types, 12-column CSV spec, synthetic data only |
+| Artifact quality gate | ✅ PASS | 7 required sections, 11 forbidden terms, 5 boundedness rules — 0 violations on smoke output |
+| Interview script | ✅ Refreshed | `docs/interview-demo-questions.md` — FDE narrative, 5-min demo script, 5 FAQ items |
+| Docs aligned | ✅ PASS | `check_doc_alignment.py` PASS, 7 entry docs |
+| No code regressions | ✅ N/A | No product code changed in Phase 17 (scripts only) |
+| Migration drift | ✅ None | `migration_head` = `0027`, same as Phase 16 closeout |
+
 ## Next Decision Gate
 
-**Phase 17.5 closeout review**: Phase 17.1 seed contract + 17.2 smoke script + 17.3 artifact quality gate + 17.4 interview/demo script refresh all delivered. Smoke: 11/11 PASS, artifact gate PASS (0 findings). Next: 17.5 closeout review — verify smoke, artifact gate, docs aligned, no regressions.
+**Plan Phase 18 or portfolio polish**: Phase 17 complete — the FDE demo chain is runnable, verifiable, and interview-ready. Next: plan Phase 18 (candidates: cloud deployment smoke, ontology model operationalization with real data, or front-end outcome panel 16.3), or do a final portfolio/docs polish pass across all phases.
 
 ## Phase 15 Delivery Summary
 

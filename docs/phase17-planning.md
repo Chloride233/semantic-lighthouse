@@ -1,6 +1,6 @@
 # Phase 17 Planning — FDE Demo Readiness & Operational Smoke v1
 
-Status: 17.1–17.4 DELIVERED — 17.5 closeout review pending.
+Status: PHASE 17 CLOSEOUT COMPLETE — all five slices delivered.
 
 ## Decision
 

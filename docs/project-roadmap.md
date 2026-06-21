@@ -356,19 +356,19 @@ See `docs/phase16-planning.md`. Closeout review passed 2026-06-21: permissions c
 
 ---
 
-## Phase 17: FDE Demo Readiness & Operational Smoke v1 ← PLANNED
+## Phase 17: FDE Demo Readiness & Operational Smoke v1 ← COMPLETE
 
-**Goal**: Make the delivered Phase 14–16 backend chain (Pilot → Evidence → Model Package → Runtime → Outcome Artifact) demonstrable in 5 minutes without tribal knowledge.
+**Goal**: Make the delivered Phase 14–16 backend chain demonstrable in 5 minutes without tribal knowledge.
 
-See `docs/phase17-planning.md`.
+See `docs/phase17-planning.md`. Closeout review passed 2026-06-21: smoke 11/11 PASS, artifact gate PASS (0 findings), interview script refreshed, docs aligned.
 
 | # | Task | Description |
 |---|------|-------------|
 | 17.1 | Demo seed scenario contract | Define a manufacturing/generic business pilot seed (project, dataset shape, expected evidence/packages/outcome). Doc-only. |
 | 17.2 | Backend operational smoke script | `scripts/smoke_fde_demo.py` — full-chain API smoke from register to markdown artifact. Step-by-step pass/fail with timing. |
 | 17.3 | Artifact quality gate | Validation function that checks markdown artifact for required sections and forbidden terms. |
-| 17.4 | Interview/demo script refresh | Update `docs/interview-demo-questions.md` with Phase 16 FDE narrative and smoke demo flow. |
-| 17.5 | Phase 17 closeout review | Verify smoke passes, artifact gate passes, docs aligned, no regressions. |
+| 17.4 | Interview/demo script refresh | ✅ Delivered: `docs/interview-demo-questions.md` refreshed — FDE narrative, 5-min demo script, 5 FAQ items, risk boundaries, engineering value. |
+| 17.5 | Phase 17 closeout review | ✅ Complete: smoke 11/11 PASS, artifact gate PASS (0 findings), docs aligned, no regressions. |
 
 **Out of scope**: Frontend UI, PDF/HTML reports, MCP runtime, Graph RAG, Agent auto-write, external KB repair, production deployment overhaul.
 
