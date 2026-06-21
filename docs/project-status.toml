@@ -8,9 +8,9 @@
 version = 1
 
 [product]
-phase = "Phase 17"
-status = "portfolio polish complete"
-summary = "Phase 17 FDE Demo Readiness complete: seed scenario contract, 11-step smoke script, artifact quality gate, interview/demo script refresh, and portfolio entrypoint polish. Current strongest demo: smoke 11/11 PASS, artifact gate PASS (0 findings). Phase 16.3 UI remains deferred."
+phase = "Phase 18"
+status = "planned"
+summary = "Phase 18 Cloud Deployment Smoke v1 planned. Goal: prove the FDE demo chain works beyond local SQLite/TestClient through deployment config audit, PostgreSQL migration smoke, HTTP health/API smoke, optional FDE smoke adapter, and closeout. Current strongest completed demo remains Phase 17: smoke 11/11 PASS, artifact gate PASS (0 findings)."
 
 [frontend]
 status = "F2 complete"
