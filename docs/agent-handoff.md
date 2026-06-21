@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-21 (Phase 17 closeout complete)
+Last updated: 2026-06-21 (frontend visual baseline refreshed)
 
 ## State Source
 
@@ -111,9 +111,21 @@ The previous "frontend freeze" / "deferred to Kimi" policy has been **retired**.
 - No uncontrolled redesign or framework rewrite.
 - Historical "Kimi" / "frontend freeze" references in active docs have been updated with policy notes. Archive docs retain history.
 
+## Frontend Visual Baseline Refresh (2026-06-21)
+
+**Status**: first-pass visual refresh delivered.
+
+- Scope: `static/styles.css` visual override layer plus `static/console.html` title/skip-link cleanup.
+- Reference: Handhold-inspired typography, spacing, quiet cards, pill CTAs, and sparse Swiss layout.
+- Standard: `ui-ux-pro-max-skill` Minimalism & Swiss Style. Codex environment did not expose that skill directly, so this implementation followed the documented style manually.
+- Boundary: no backend/API/migration changes, no framework rewrite, no business JS rewrite.
+- Verification: `scripts/verify_ui.py` 53/53 PASS; `scripts/screenshots_f2b.py` PASS with 6 screenshots in `.tmp/f2c/`; `git diff --check` clean.
+- Follow-up for CC: polish remaining legacy pages and detailed component states from the new CSS override layer instead of starting a second visual system.
+
 ## Next Decision Gate
 
-**Plan Phase 19 or portfolio decision**: Phase 18 complete. Frontend policy realigned — UI candidates now available. Options:
+**Continue UI polish or plan Phase 19**: Phase 18 complete. Frontend visual baseline refreshed; UI candidates now available. Options:
+- CC polish pass on remaining pages under the new visual baseline
 - 16.3 Outcome Panel UI: candidate under `ui-ux-pro-max-skill` Minimalism & Swiss Style
 - Phase 19: ontology operationalization with real data
 - Portfolio wrap-up: final docs refresh, demo video, or cloud deployment
