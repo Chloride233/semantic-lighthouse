@@ -1,6 +1,6 @@
 # Phase 15 Planning — Evidence-to-Ontology Feedback Loop v1
 
-Status: 15.1 reviewed. 15.2 delivered. 15.3 not started.
+Status: 15.1 reviewed. 15.2 delivered. 15.3 DESIGN DELIVERED — see docs/phase15.3-design.md.
 
 ## Decision
 
@@ -95,19 +95,20 @@ Delivered shape:
 
 ### 15.3 — Evidence-Backed Modeling Draft Candidate Design
 
-Lane: Fast if design only; Safety if backend draft generation changes.
+Lane: Fast (design only). DESIGN DELIVERED 2026-06-21. See `docs/phase15.3-design.md`.
 
 Goal: Decide whether and how reviewed project evidence can feed modeling draft proposals.
 
-Rules:
+Decision: Existing schema supports it. Implementation requires a new evidence→draft candidate endpoint (`POST /projects/{pid}/evidence-draft`) that bridges `ProjectEvidenceLink` to `OntologyModelingDraft` with user-authored name/description/type, auto-derived `source_rag_run_id`/`project_id`/`evidence_refs`, and `payload.generator = "evidence_backed_v1"`. No new models or migrations needed. Three implementation slices (A: endpoint, B: frontend, C: filter) defined in the design doc.
 
-- no LLM-only draft generation
-- no auto-accept
-- no publish
+Rules enforced:
+
+- no LLM-only draft generation — user authors name, description, draft_type
+- no auto-accept — status always proposed
+- no publish — no external KB writes
 - no external KB write
-- generated proposals must carry `source_rag_run_id`, `project_id`, and bounded `evidence_refs`
-
-This slice should likely be design-first.
+- generated proposals carry `source_rag_run_id`, `project_id`, and bounded `evidence_refs`
+- evidence link validation: must exist, be active, belong to the same project/group
 
 ## First CC Prompt
 

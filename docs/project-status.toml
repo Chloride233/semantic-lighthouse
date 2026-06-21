@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 15.2 delivered"
-description = "Phase 15.2 delivered: Pilot project evidence summary now distinguishes saved RAG answers from document evidence, shows role, saved time, safe provenance, and unavailable state, and still does not expose raw prompts, raw answers, paths, secrets, or stack traces."
+current = "Phase 15.3 design delivered"
+description = "Phase 15.3 design delivered: evidence-backed modeling draft candidate design defines how reviewed project evidence feeds modeling draft proposals. Existing schema supports it — no new models or migrations needed. Implementation slices A (endpoint), B (frontend), C (filter) defined in docs/phase15.3-design.md."
 
 [next_decision_gate]
-name = "plan Phase 15.3"
-description = "Design how reviewed project evidence may feed modeling draft candidates without LLM-only generation, auto-accept, publish, external KB writes, MCP runtime, Graph RAG, or Agent auto-writing Ontology."
+name = "implement Phase 15.3 Slice A"
+description = "Implement POST /groups/{gid}/projects/{pid}/evidence-draft endpoint per docs/phase15.3-design.md. Standard Lane — backend endpoint with tests."
 
 [mcp]
 runtime_status = "not started"
