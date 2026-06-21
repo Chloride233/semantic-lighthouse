@@ -162,10 +162,33 @@ export async function render(container, params) {
 
   // ── Goal evidence summary ───────────────────────────────────────────
 
+  const EVIDENCE_TYPE_LABELS = {
+    document: '文档',
+    rag_run: 'RAG 问答',
+  };
+  const EVIDENCE_ROLE_LABELS = {
+    context: '背景',
+    requirement: '需求',
+    decision: '决策',
+    validation: '验证',
+  };
+
   function evidenceDisplayTitle(ev) {
     const prov = ev?.provenance || {};
     if (ev?.evidence_type === 'rag_run') return prov.question || 'RAG 问答';
     return prov.evidence_title || prov.file_name || '未命名';
+  }
+
+  function evidenceMetaText(ev) {
+    const prov = ev?.provenance || {};
+    if (ev?.evidence_type === 'rag_run') {
+      const parts = [];
+      if (prov.confidence) parts.push(`可信度 ${prov.confidence}`);
+      if (Number.isFinite(prov.citation_count)) parts.push(`${prov.citation_count} 条引用`);
+      if (prov.retrieval_method) parts.push(prov.retrieval_method);
+      return parts.join(' · ');
+    }
+    return prov.source_label || prov.file_name || '';
   }
 
   function renderEvidenceInGoal(recentEvidence, evidenceCount) {
@@ -176,18 +199,33 @@ export async function render(container, params) {
           <a href="#/groups/${gid}/documents" class="supportLink" style="margin-left:8px">前往知识库</a>
         </div>`;
     }
-    const items = recentEvidence.slice(0, 3).map(ev => `
+    const shown = recentEvidence.slice(0, 5);
+    const items = shown.map(ev => {
+      const prov = ev?.provenance || {};
+      const typeLabel = EVIDENCE_TYPE_LABELS[ev.evidence_type] || ev.evidence_type || '证据';
+      const roleLabel = EVIDENCE_ROLE_LABELS[ev.role] || ev.role || '未分类';
+      const unavailable = prov.unavailable || prov.evidence_status === 'gone';
+      const meta = evidenceMetaText(ev);
+      return `
       <li class="goalEvidenceItem">
-        <span class="goalEvidenceTitle">${esc(evidenceDisplayTitle(ev))}</span>
-        <span class="badge badgeMuted" style="font-size:var(--text-xs)">${esc(ev.evidence_type || '')}</span>
-        ${ev.created_at ? `<span class="muted" style="font-size:var(--text-xs)">${fmtDate(ev.created_at)}</span>` : ''}
-      </li>
-    `).join('');
+        <div class="goalEvidenceMain">
+          <span class="goalEvidenceTitle">${esc(evidenceDisplayTitle(ev))}</span>
+          ${meta ? `<span class="goalEvidenceMeta">${esc(meta)}</span>` : ''}
+        </div>
+        <div class="goalEvidenceBadges">
+          <span class="badge badgeMuted">${esc(typeLabel)}</span>
+          <span class="badge badgeMuted">${esc(roleLabel)}</span>
+          ${unavailable ? '<span class="badge badgeDanger">不可用</span>' : ''}
+          ${ev.created_at ? `<span class="muted goalEvidenceTime">${fmtDate(ev.created_at)}</span>` : ''}
+        </div>
+      </li>`;
+    }).join('');
+    const hiddenCount = Math.max((evidenceCount || 0) - shown.length, 0);
     return `
       <div class="goalEvidenceSummary" id="goalEvidenceSummary">
         <h4 class="goalEvidenceSummaryTitle">项目证据（${evidenceCount}）</h4>
         <ul class="goalEvidenceList">${items}</ul>
-        ${evidenceCount > 3 ? `<p class="muted" style="font-size:var(--text-xs);margin:4px 0 0">还有 ${evidenceCount - 3} 条证据...</p>` : ''}
+        ${hiddenCount > 0 ? `<p class="muted" style="font-size:var(--text-xs);margin:4px 0 0">还有 ${hiddenCount} 条证据...</p>` : ''}
         <a href="#/groups/${gid}/documents" class="supportLink" style="margin-top:6px">管理证据</a>
       </div>`;
   }

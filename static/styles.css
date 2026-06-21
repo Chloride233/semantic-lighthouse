@@ -1669,11 +1669,19 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
   font-weight: 600;
   color: var(--muted);
 }
-.goalEvidenceList { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.goalEvidenceList { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .goalEvidenceItem {
-  display: flex; align-items: center; gap: 8px; font-size: var(--text-xs);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--text-xs);
 }
-.goalEvidenceTitle { font-weight: 500; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goalEvidenceMain { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.goalEvidenceTitle { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goalEvidenceMeta { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goalEvidenceBadges { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 4px; flex-shrink: 0; }
+.goalEvidenceTime { white-space: nowrap; }
 
 /* ── Goal scoped Ask panel ──────────────────────────────────────── */
 .goalAskPanel {
