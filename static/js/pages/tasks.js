@@ -29,10 +29,10 @@ export async function render(container, params) {
   const activeStatus = urlParams.get('status') || '';
 
   container.innerHTML = `
-    <div class="taskPage">
+    <div class="legacyPage">
       <h1 class="pageTitle">轻量任务</h1>
       <p class="pageMeta">从问答确认的行动项，非全功能项目管理工具。</p>
-      <div class="taskFilters">
+      <div class="legacyFilters taskFilters">
         <button class="taskFilter ${activeStatus === '' ? 'active' : ''}" data-status="">全部</button>
         ${STATUSES.map(s => `
           <button class="taskFilter ${activeStatus === s ? 'active' : ''}" data-status="${s}">${STATUS_LABELS[s]}</button>

@@ -46,9 +46,11 @@ export async function render(container) {
   `);
 
   container.innerHTML = `
+    <div class="legacyPage">
     <h1 class="pageTitle">工作区</h1>
     <p class="pageMeta">管理团队空间、邀请加入和权限边界。</p>
     ${panelGrid([listPanel, createPanel, joinPanel])}
+    </div>
   `;
 
   document.getElementById('createGroupBtn').addEventListener('click', async () => {

@@ -54,7 +54,7 @@ export async function render(container, params) {
   const deepLinkEntityId = qp.get('entity_id') || '';
 
   container.innerHTML = `
-    <div class="ontoPage">
+    <div class="ontoPage legacyPage">
       <div class="ontoHeader"><div><h1 class="pageTitle">Ontology 治理</h1><p class="pageMeta">实体、关系、建模、审核与契约。</p></div><div id="ontoActions" class="ontoActions"></div></div>
       <div class="ontoMetrics" id="ontoMetrics"><span class="spinner"></span> 加载中…</div>
       <div class="tabs" id="ontoTabs">

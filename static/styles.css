@@ -2689,15 +2689,13 @@ textarea {
   background: var(--surface-soft);
 }
 
-/* ── Groups grid ───────────────────────────────────────────────── */
-.groupGrid {
-  display: grid;
+/* ── Groups / legacy panel grid ────────────────────────────────── */
+.legacyPage .grid {
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
 }
 
 @media (max-width: 500px) {
-  .groupGrid {
+  .legacyPage .grid {
     grid-template-columns: 1fr;
   }
 }

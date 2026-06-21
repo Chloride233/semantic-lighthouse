@@ -52,7 +52,7 @@ export async function render(container, params) {
 
 async function renderList(container, gid) {
   container.innerHTML = `
-    <div class="agentPage">
+    <div class="agentPage legacyPage">
       <h1 class="pageTitle">Agent 工作流</h1>
       <p class="pageMeta">可控的多步骤知识检索与文档管理工具。每次执行均记录审计轨迹，高风险操作需用户确认。</p>
       ${renderCreatePanel()}

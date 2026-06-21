@@ -113,7 +113,7 @@ The previous "frontend freeze" / "deferred to Kimi" policy has been **retired**.
 
 ## Legacy Console Page Polish (2026-06-21)
 
-**Status**: CSS-only polish applied to legacy console pages (Documents, Tasks, Ontology, Agent, Conversations, Groups). Added `.legacyPage`, `.legacyPanel`, `.legacyFilters`, `.legacyTable`, `.legacyCard`, `.groupGrid` classes plus 390px mobile safeguard. 53/53 verify_ui PASS, no `button:not(` selectors, all JS syntax checks pass.
+**Status**: DOM classes wired + verify_ui PASS. `.legacyPage` wrapper added to all 6 legacy pages (Documents, Tasks, Ontology, Agent, Conversations, Groups). `.legacyFilters` with `.taskFilter`/`.docFilters` compatibility on filter bars. `.legacyTable` added to Documents and Conversations tables. `.legacyPage .grid` auto-fill layout for Groups panel grid. 53/53 verify_ui PASS, no `button:not(` selectors, all JS syntax checks pass.
 
 ## Frontend Visual Baseline Refresh (2026-06-21)
 

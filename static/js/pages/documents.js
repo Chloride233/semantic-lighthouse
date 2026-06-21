@@ -24,14 +24,14 @@ export async function render(container, params) {
   const urlParams = new URLSearchParams(hash.split('?')[1] || '');
   const activeFilter = urlParams.get('status') || '';
 
-  container.innerHTML = '<h1 class="pageTitle">知识库</h1><p class="pageMeta">上传、导入和管理当前工作区的知识文档。</p><div class="loading"><span class="spinner"></span>正在加载文档...</div>';
+  container.innerHTML = '<div class="legacyPage"><h1 class="pageTitle">知识库</h1><p class="pageMeta">上传、导入和管理当前工作区的知识文档。</p><div class="loading"><span class="spinner"></span>正在加载文档...</div>';
 
   let docs = [];
   try {
     const qs = activeFilter ? `?status=${activeFilter}` : '';
     docs = await api(`/groups/${gid}/documents${qs}`) || [];
   } catch (err) {
-    container.innerHTML = `<h1 class="pageTitle">知识库</h1><div class="errorCard"><p class="errorTitle">加载失败</p><p class="errorDetail">${esc(err.detail)}</p><button onclick="location.reload()">重试</button></div>`;
+    container.innerHTML = `<div class="legacyPage"><h1 class="pageTitle">知识库</h1><div class="errorCard"><p class="errorTitle">加载失败</p><p class="errorDetail">${esc(err.detail)}</p><button onclick="location.reload()">重试</button></div></div>`;
     return;
   }
 
@@ -49,7 +49,7 @@ export async function render(container, params) {
   `) : '';
 
   const filterBar = `
-    <div class="docFilters">
+    <div class="legacyFilters docFilters">
       ${STATUS_FILTERS.map(f => `
         <button class="taskFilter ${activeFilter === f.key ? 'active' : ''}" data-status="${f.key}">${f.label}</button>
       `).join('')}
@@ -57,7 +57,7 @@ export async function render(container, params) {
 
   const docTable = docs.length === 0
     ? '<div class="emptyState"><div class="emptyIcon">文</div><p class="emptyTitle">还没有文档</p><p class="emptyHint">上传 Markdown、TXT、PDF 或 DOCX 文档，或者直接导入本地知识库。</p></div>'
-    : `<table class="dataTable">
+    : `<table class="dataTable legacyTable">
         <thead><tr><th>标题</th><th>类型</th><th>来源</th><th>成熟度</th><th>状态</th>${canManage ? '<th>操作</th>' : ''}</tr></thead>
         <tbody>
           ${docs.map((d) => {
@@ -106,7 +106,7 @@ export async function render(container, params) {
         </tbody>
       </table>`;
 
-  container.innerHTML = `${uploadForm}${filterBar}${docTable}`;
+  container.innerHTML = `<div class="legacyPage">${uploadForm}${filterBar}${docTable}</div>`;
 
   container.querySelectorAll('.docFilters .taskFilter').forEach(btn => {
     btn.addEventListener('click', () => {

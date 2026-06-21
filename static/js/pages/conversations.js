@@ -19,7 +19,7 @@ export async function render(container, params) {
   const qp = new URLSearchParams(hash.split('?')[1] || '');
   const targetConversationId = qp.get('conversation_id');
 
-  container.innerHTML = '<h1 class="pageTitle">多轮对话</h1><p class="pageMeta">围绕同一咨询主题持续追问、补充背景和沉淀建议。</p><div class="loading"><span class="spinner"></span> 正在加载对话...</div>';
+  container.innerHTML = '<div class="legacyPage"><h1 class="pageTitle">多轮对话</h1><p class="pageMeta">围绕同一咨询主题持续追问、补充背景和沉淀建议。</p><div class="loading"><span class="spinner"></span> 正在加载对话...</div>';
 
   const convs = await loadList(gid);
 
@@ -30,7 +30,7 @@ export async function render(container, params) {
 
   const listHtml = convs.length === 0
     ? '<div class="emptyState"><div class="emptyIcon">问</div><p class="emptyTitle">还没有对话</p><p class="emptyHint">新建一个咨询对话，围绕客户画像和业务问题持续追问。</p></div>'
-    : `<table class="dataTable">
+    : `<table class="dataTable legacyTable">
         <thead><tr><th>标题</th><th>消息数</th><th>更新时间</th><th>操作</th></tr></thead>
         <tbody>${convs.map((c) => `
           <tr>
@@ -43,10 +43,12 @@ export async function render(container, params) {
       </table>`;
 
   container.innerHTML = `
+    <div class="legacyPage">
     <h1 class="pageTitle">多轮对话</h1>
     <p class="pageMeta">围绕同一咨询主题持续追问、补充背景和沉淀建议。</p>
     ${newPanelHtml}${panel('对话列表', listHtml)}
     <div id="chatArea" style="margin-top:16px"></div>
+    </div>
   `;
 
   if (targetConversationId && convs.some((c) => c.id === targetConversationId)) {
