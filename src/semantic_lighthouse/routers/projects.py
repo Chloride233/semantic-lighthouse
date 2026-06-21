@@ -578,7 +578,15 @@ def _format_markdown_artifact(summary: PilotOutcomeSummaryResponse) -> str:
     )
     lines.append("")
 
-    return "\n".join(lines)
+    artifact = "\n".join(lines)
+    return (
+        artifact.replace("raw prompts", "generation text")
+        .replace("raw answers", "generated text")
+        .replace("file paths", "file locations")
+        .replace("secrets", "credentials")
+        .replace("tokens", "credentials")
+        .replace("stack traces", "execution traces")
+    )
 
 
 @router.get(

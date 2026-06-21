@@ -1053,15 +1053,12 @@ class TestOutcomeSummary:
 class TestOutcomeArtifact:
     """GET /groups/{gid}/projects/{pid}/outcome-artifact.md — markdown export."""
 
-    # "answer", "prompt", "secret", "token", "stack_trace" excluded because
-    # the provenance note legitimately mentions "raw answers", "raw prompts",
-    # "secrets", "tokens", and "stack traces" as things NOT included.
-    # Use underscored forms (raw_answer, raw_prompt) as they won't
-    # appear in the declarative provenance note.
     FORBIDDEN_TERMS = [
         "raw_content", "raw_answer", "raw_prompt",
+        "answer", "prompt",
         "source_path", "storage_path",
-        "password",
+        "secret", "token", "password",
+        "stack_trace",
     ]
 
     def _get_artifact(self, client, gid, pid, h):
