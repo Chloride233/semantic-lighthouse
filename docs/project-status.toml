@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 16 backend closeout complete"
-description = "Phase 16 closeout review passed: 16.1 outcomes CRUD + 16.2 JSON summary + 16.4 markdown artifact. 16.3 UI deferred. Permissions, group/project isolation, GET no-side-effects, privacy, sorting stability all verified. 66 tests pass, migration 0027 at head."
+current = "Phase 17 planned"
+description = "Phase 17 plan written: FDE Demo Readiness & Operational Smoke v1. Five slices: seed contract (17.1), smoke script (17.2), artifact quality gate (17.3), interview refresh (17.4), closeout (17.5). Backend only, no frontend. Phase 16 backend closeout complete."
 
 [next_decision_gate]
-name = "plan Phase 17"
-description = "Phase 16 backend closeout complete. Phase 17 candidate: ontology model operationalization, Pilot workflow hardening, or enterprise deployment smoke. See docs/phase16-planning.md and docs/product-alignment-prd.md."
+name = "implement Phase 17.1 or 17.2"
+description = "Phase 17 plan written. Next: implement 17.1 (seed scenario contract, doc-only) or 17.2 (smoke script). See docs/phase17-planning.md."
 
 [mcp]
 runtime_status = "not started"

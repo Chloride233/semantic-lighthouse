@@ -352,7 +352,25 @@ See `docs/phase16-planning.md`. Closeout review passed 2026-06-21: permissions c
 
 **Out of scope**: Graph RAG, MCP runtime, Agent auto-write, external KB write, autonomous publish, new framework/dependency, full PM system, full reporting engine.
 
-**Next**: Implement 16.1 or review plan with project owner.
+**Next**: Phase 16 backend closeout complete. Phase 17 planned — see `docs/phase17-planning.md`.
+
+---
+
+## Phase 17: FDE Demo Readiness & Operational Smoke v1 ← PLANNED
+
+**Goal**: Make the delivered Phase 14–16 backend chain (Pilot → Evidence → Model Package → Runtime → Outcome Artifact) demonstrable in 5 minutes without tribal knowledge.
+
+See `docs/phase17-planning.md`.
+
+| # | Task | Description |
+|---|------|-------------|
+| 17.1 | Demo seed scenario contract | Define a manufacturing/generic business pilot seed (project, dataset shape, expected evidence/packages/outcome). Doc-only. |
+| 17.2 | Backend operational smoke script | `scripts/smoke_fde_demo.py` — full-chain API smoke from register to markdown artifact. Step-by-step pass/fail with timing. |
+| 17.3 | Artifact quality gate | Validation function that checks markdown artifact for required sections and forbidden terms. |
+| 17.4 | Interview/demo script refresh | Update `docs/interview-demo-questions.md` with Phase 16 FDE narrative and smoke demo flow. |
+| 17.5 | Phase 17 closeout review | Verify smoke passes, artifact gate passes, docs aligned, no regressions. |
+
+**Out of scope**: Frontend UI, PDF/HTML reports, MCP runtime, Graph RAG, Agent auto-write, external KB repair, production deployment overhaul.
 
 ---
 
