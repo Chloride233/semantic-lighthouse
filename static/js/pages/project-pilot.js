@@ -7,18 +7,17 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
   const main = document.getElementById('projectMain');
   if (!main) return;
   main.innerHTML = '<div class="loading"><span class="spinner"></span>加载 Pilot 数据...</div>';
+  const canCreateTask = isOwnerAdmin && project.status !== 'archived';
 
   let bindings, contractInfo = null;
   try {
     bindings = await api(`/groups/${gid}/projects/${pid}/runtime/bindings`);
-    if (!Array.isArray(bindings) || bindings.length === 0) {
-      main.innerHTML = '<div class="stagePanel"><p class="muted">尚无数据绑定。请先在验证阶段生成绑定。</p></div>';
-      return;
-    }
-    const pkgsData = await api(`/groups/${gid}/projects/${pid}/model-drafts/packages?limit=1`);
-    const pkg = (pkgsData.packages || [])[0];
-    if (pkg) {
-      try { contractInfo = await api(`/groups/${gid}/projects/${pid}/model-drafts/packages/${pkg.id}/contract`); } catch (_) {}
+    if (Array.isArray(bindings) && bindings.length > 0) {
+      const pkgsData = await api(`/groups/${gid}/projects/${pid}/model-drafts/packages?limit=1`);
+      const pkg = (pkgsData.packages || [])[0];
+      if (pkg) {
+        try { contractInfo = await api(`/groups/${gid}/projects/${pid}/model-drafts/packages/${pkg.id}/contract`); } catch (_) {}
+      }
     }
   } catch (err) {
     main.innerHTML = `<div class="error"><p>${esc(err.humanMessage || err.message)}</p></div>`;
@@ -29,10 +28,10 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
   const propVT = {};
   for (const p of props) propVT[p.api_name] = p.value_type || 'string';
 
-  const bindingOpts = bindings.map((b, i) => ({ ...b, fields: Object.keys(b.property_mappings || {}), idx: i }));
-
-  main.innerHTML = `
-    <div class="stagePanel"><div class="stagePanelHead"><h2>Pilot — 查询工作台</h2></div>
+  const bindingOpts = Array.isArray(bindings) ? bindings.map((b, i) => ({ ...b, fields: Object.keys(b.property_mappings || {}), idx: i })) : [];
+  const queryPanel = bindingOpts.length === 0
+    ? '<div class="stagePanel"><p class="muted">尚无数据绑定。请先在验证阶段生成绑定。</p></div>'
+    : `<div class="stagePanel"><div class="stagePanelHead"><h2>Pilot — 查询工作台</h2></div>
       <div class="queryForm">
         <div class="queryRow">
           <label class="field"><span>对象类型</span><select id="qOT">${bindingOpts.map((b, i) => `<option value="${i}">${esc(b.object_type_api_name)}</option>`).join('')}</select></label>
@@ -43,7 +42,10 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
         <div class="queryActions"><button class="primary" id="qRunBtn">执行查询</button><button class="secondary" id="qExplainBtn">仅查看说明</button></div>
       </div>
       <div id="qResults"></div>
-    </div>
+    </div>`;
+
+  main.innerHTML = `
+    ${queryPanel}
     <div class="stagePanel" id="pilotTaskSummary">
       <div class="stagePanelHead">
         <h2>项目任务</h2>
@@ -58,6 +60,7 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
   const resultsEl = document.getElementById('qResults');
 
   function updateFields() {
+    if (!otSelect || !fieldEl || !filterEl) return;
     const bi = bindingOpts[parseInt(otSelect.value)];
     if (!bi) return;
     fieldEl.innerHTML = `<p class="muted">字段 (${bi.fields.length})</p><div class="fieldChecks">${bi.fields.map(f => {
@@ -90,8 +93,10 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
     }
   }
 
-  otSelect.addEventListener('change', updateFields);
-  updateFields();
+  if (otSelect) {
+    otSelect.addEventListener('change', updateFields);
+    updateFields();
+  }
 
   function getTypedFilterValue(vt) {
     const el = document.getElementById('qFilterVal');
@@ -140,7 +145,7 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
   document.getElementById('qRunBtn')?.addEventListener('click', () => doQuery(false));
   document.getElementById('qExplainBtn')?.addEventListener('click', () => doQuery(true));
 
-  loadTaskSummary(gid, pid, isOwnerAdmin);
+  loadTaskSummary(gid, pid, canCreateTask);
 }
 
 const STATUS_LABELS = { pending: '待处理', in_progress: '进行中', done: '已完成', cancelled: '已取消' };
@@ -161,7 +166,7 @@ async function loadTaskSummary(gid, pid, isOwnerAdmin) {
   }
 
   contentEl.innerHTML = renderTaskSummary(tasks, total, gid, pid, isOwnerAdmin);
-  if (isOwnerAdmin) bindCreateTask(gid, pid);
+  if (isOwnerAdmin) bindCreateTask(gid, pid, isOwnerAdmin);
 }
 
 function renderTaskSummary(tasks, total, gid, pid, isOwnerAdmin) {
@@ -202,7 +207,7 @@ function renderTaskSummary(tasks, total, gid, pid, isOwnerAdmin) {
   return html;
 }
 
-function bindCreateTask(gid, pid) {
+function bindCreateTask(gid, pid, canCreateTask) {
   const input = document.getElementById('pilotTaskInput');
   const btn = document.getElementById('pilotTaskCreateBtn');
   const errEl = document.getElementById('pilotTaskError');
@@ -227,7 +232,7 @@ function bindCreateTask(gid, pid) {
       });
       input.value = '';
       showToast('任务已创建', 'success');
-      loadTaskSummary(gid, pid, true);
+      loadTaskSummary(gid, pid, canCreateTask);
     } catch (err) {
       if (errEl) { errEl.textContent = err.humanMessage || err.message || '创建失败'; errEl.style.display = 'block'; }
     } finally {
