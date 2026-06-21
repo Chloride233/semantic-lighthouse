@@ -383,9 +383,9 @@ See `docs/phase18-planning.md`. Closeout review passed 2026-06-21: 28/28 Postgre
 | # | Task | Description |
 |---|------|-------------|
 | 18.1 | Deployment config audit | Review `.env.example`, docker-compose, Dockerfile, config.py, Alembic env.py. Document gaps; minor fixes only. |
-| 18.2 | Migration smoke on PostgreSQL | Run `alembic upgrade head` on temporary PostgreSQL + pgvector. Verify 0027 at head. |
-| 18.3 | HTTP health/API smoke | Health check + auth + FDE outcome endpoints via curl/HTTP against running Docker Compose stack. |
-| 18.4 | FDE smoke deployment adapter | Extend smoke script with `--base-url` mode (real HTTP). Defer to Phase 19 if complex. |
+| 18.2 | Migration smoke on PostgreSQL | ✅ Complete: fixed Alembic version table length (`version_num_length=64`, migration `0028`), then verified 28/28 migrations on temporary PostgreSQL + pgvector. |
+| 18.3 | HTTP health/API smoke | ✅ Complete: `scripts/smoke_http_api.py` local mode starts uvicorn, uses temp SQLite + fake providers, and verifies health/auth/group/project/outcome-summary/outcome-artifact; 9/9 PASS. |
+| 18.4 | FDE smoke deployment adapter | ✅ Complete: `scripts/smoke_http_api.py --base-url` mode targets an already-running API with real HTTP calls and unique smoke users. |
 | 18.5 | Closeout review | ✅ Complete: 8 gates PASS, smoke rerun confirmed, docs aligned. |
 
 **Out of scope**: Cloud resource creation, image push, real API keys, real data, frontend, MCP, Graph RAG, Kubernetes, HTTPS, CI/CD.
