@@ -13,7 +13,7 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 | Item | Value |
 |------|-------|
 | Commit | `58620bc` (16.1) |
-| Phase 16.2 delivery commit | *(pending commit)* |
+| Phase 16.2 delivery commit | `b5f6877` |
 | Backend pytest | Phase 16.1–16.2: 53/53 pass |
 | ruff | clean (changed files only) |
 | Migration | `0027` at head |

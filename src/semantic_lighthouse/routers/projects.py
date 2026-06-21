@@ -323,7 +323,7 @@ def get_outcome_summary(
             PilotOutcomeRecord.group_id == group_id,
             PilotOutcomeRecord.project_id == project_id,
         )
-        .order_by(PilotOutcomeRecord.created_at.desc())
+        .order_by(PilotOutcomeRecord.created_at.desc(), PilotOutcomeRecord.id.desc())
         .limit(1)
     ).first()
 
@@ -406,7 +406,7 @@ def get_outcome_summary(
             OntologyRuntimeAudit.group_id == group_id,
             OntologyRuntimeAudit.project_id == project_id,
         )
-        .order_by(OntologyRuntimeAudit.created_at.desc())
+        .order_by(OntologyRuntimeAudit.created_at.desc(), OntologyRuntimeAudit.id.desc())
         .limit(1)
     ).first()
 
