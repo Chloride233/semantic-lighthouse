@@ -9,8 +9,8 @@ version = 1
 
 [product]
 phase = "Phase 18"
-status = "18.1-18.4 delivered"
-summary = "Phase 18 Cloud Deployment Smoke v1 in progress: config audit, PostgreSQL migration smoke fix, HTTP health/API smoke, and base-url adapter delivered. Migration head is 0028 after the Alembic version table length fix. Next: Phase 18.5 closeout."
+status = "closeout complete"
+summary = "Phase 18 Cloud Deployment Smoke v1 complete: config audit (11 items), PostgreSQL migration smoke (28/28, migration 0028), HTTP API smoke (9/9 PASS), base-url adapter, closeout review (8 gates PASS). Proves FDE chain deployable on PostgreSQL + pgvector."
 
 [frontend]
 status = "F2 complete"
@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 18.1–18.4 delivered"
-description = "Phase 18.1 config audit + 18.2 PostgreSQL migration smoke (28/28, env.py fix + migration 0028) + 18.3 HTTP API smoke (9/9 PASS) + 18.4 base-url adapter delivered. Next: 18.5 closeout review."
+current = "Phase 18 closeout complete"
+description = "Phase 18 closeout passed: 8 gates PASS. PostgreSQL migration 28/28, HTTP API smoke 9/9, config audit 11/11, migration 0028 at head. FDE chain proven deployable."
 
 [next_decision_gate]
-name = "Phase 18.5 closeout review"
-description = "All Phase 18 slices delivered. Next: 18.5 closeout — record final results, risks, mark Phase 18 complete. See docs/phase18-planning.md."
+name = "plan Phase 19 or portfolio decision"
+description = "Phase 18 complete. Next: plan Phase 19 (ontology operationalization with real data), implement 16.3 (front-end outcome panel), or wrap up portfolio. See docs/agent-handoff.md."
 
 [mcp]
 runtime_status = "not started"

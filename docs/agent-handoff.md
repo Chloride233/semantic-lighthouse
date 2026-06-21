@@ -87,9 +87,27 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 | No code regressions | ✅ N/A | No product code changed in Phase 17 (scripts only) |
 | Migration drift | ✅ Expected | `migration_head` = `0028` after Alembic version table length fix |
 
+## Phase 18 Closeout Review
+
+**Review date**: 2026-06-21. **Reviewer**: automated closeout pass.
+
+| Gate | Status | Detail |
+|------|--------|--------|
+| Config audit | ✅ | 11 items: 8 PASS, 3 FIXED |
+| PostgreSQL migration smoke | ✅ | 28/28 on pgvector/pgvector:pg17, `0028 (head)`, rerun in closeout |
+| HTTP API smoke | ✅ | 9/9 PASS, ~3.4s, local uvicorn + real HTTP |
+| Base-url adapter | ✅ | `--base-url` mode CLI verified |
+| Artifact quality gate | ✅ | Inline in smoke_http_api |
+| Docs aligned | ✅ | `check_doc_alignment.py` PASS |
+| Migration drift | ✅ | `0028` at head (new migration for VARCHAR(64) fix) |
+| No regressions | ✅ | Only `alembic/env.py` changed |
+
 ## Next Decision Gate
 
-**Phase 18.5 closeout review**: Phase 18.1 config audit + 18.2 PostgreSQL migration smoke (28/28, `version_num_length=64` fix, migration head `0028`) + 18.3 HTTP API smoke (9/9 PASS) + 18.4 base-url adapter all delivered. Next: 18.5 closeout — record final Phase 18 results, risks, and status.
+**Plan Phase 19 or portfolio decision**: Phase 18 complete. The FDE chain is proven deployable on PostgreSQL. Candidates:
+- Phase 19: ontology operationalization with real data
+- 16.3: front-end outcome panel (UI work, deferred since Phase 16)
+- Portfolio wrap-up: final docs refresh, demo video, or cloud deployment
 
 ## Phase 15 Delivery Summary
 

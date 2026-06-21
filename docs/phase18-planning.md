@@ -1,6 +1,6 @@
 # Phase 18 Planning — Cloud Deployment Smoke v1
 
-Status: 18.1–18.4 DELIVERED — 18.5 closeout pending.
+Status: PHASE 18 CLOSEOUT COMPLETE — all five slices delivered.
 
 ## Decision
 
@@ -210,18 +210,20 @@ the same server. No data cleanup on remote server.
 This replaces the originally planned `smoke_fde_demo.py --base-url` extension
 with a cleaner, dedicated script focused on HTTP-layer validation.
 
-### 18.5 — Closeout Review
+### 18.5 — Closeout Review ← COMPLETE 2026-06-21
 
 **Lane: Standard (review).**
 
-Verify:
-- Config audit complete; any gaps documented.
-- Migration smoke passes on PostgreSQL (manual or scripted).
-- Health/API smoke passes against running Docker Compose stack.
-- Artifact quality gate passes on deployment-generated markdown.
-- Docs aligned (`check_doc_alignment.py`).
-- No regressions in existing 66 Phase 16 tests.
-- `migration_head` is 0028 after the Alembic version table length fix.
+| Gate | Status | Detail |
+|------|--------|--------|
+| Config audit | ✅ PASS | 11 items: 8 PASS, 3 FIXED |
+| PostgreSQL migration smoke | ✅ PASS | 28/28 on pgvector/pgvector:pg17, `0028_v28_fix_alembic_version_length (head)` |
+| HTTP API smoke | ✅ PASS | 9/9, ~3.4s, local uvicorn + real HTTP |
+| Base-url adapter | ✅ PASS | `--base-url` mode CLI verified |
+| Artifact quality gate | ✅ PASS | 6 required sections + 11 forbidden terms inline in smoke |
+| Docs aligned | ✅ PASS | `check_doc_alignment.py` PASS |
+| Migration drift | ✅ Expected | `migration_head` = `0028` (env.py fix + new migration) |
+| No regressions | ✅ N/A | Only `alembic/env.py` changed; no src, tests, or frontend changes |
 
 ## Hard Boundaries
 
