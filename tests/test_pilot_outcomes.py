@@ -1,9 +1,12 @@
-"""Tests for Phase 16.1 — Pilot Outcome Records.
+"""Tests for Phase 16.1 + 16.2 — Pilot Outcome Records and Summary.
 
-Permissions: owner/admin create, member+ read/list. Outsider 403.
+16.1: owner/admin create, member+ read/list. Outsider 403.
 Cross-group/project: 404. Immutable: no PATCH/DELETE.
 Evidence/package validation: active, same group/project.
 Privacy: no raw_content, answer, prompt, source_path, storage_path, secrets.
+
+16.2: GET outcome-summary (member+). Aggregates project, latest outcome,
+evidence/package/runtime summaries. No side effects. No forbidden keys.
 """
 
 from fastapi.testclient import TestClient
@@ -763,3 +766,282 @@ class TestOutcomePrivacy:
         body = str(r.json())
         for term in self.FORBIDDEN_TERMS:
             assert term not in body, f"Forbidden term '{term}' found in response"
+
+
+# ── Phase 16.2: Outcome Summary ──────────────────────────────────────────
+
+
+class TestOutcomeSummary:
+    """GET /groups/{gid}/projects/{pid}/outcome-summary — read-only aggregation."""
+
+    FORBIDDEN_TERMS = [
+        "raw_content", "raw_answer", "raw_prompt",
+        "source_path", "storage_path",
+        "answer", "prompt",
+        "secret", "token", "password",
+        "stack_trace",
+    ]
+
+    def _get_summary(self, client, gid, pid, h):
+        r = client.get(
+            f"/groups/{gid}/projects/{pid}/outcome-summary", headers=h
+        )
+        return r
+
+    def test_member_can_read_summary(self, client):
+        _, _, owner_h = register_and_login(client, "os-mem-own@test.com")
+        _, _, member_h = register_and_login(client, "os-mem@test.com")
+        gid = _create_group(client, owner_h)
+        _join_group(client, gid, owner_h, member_h)
+        pid = _create_project(client, gid, owner_h)["id"]
+        r = self._get_summary(client, gid, pid, member_h)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["project"]["name"] == "Outcome Project"
+        assert data["latest_outcome"] is None
+        assert data["evidence_summary"]["total_active"] == 0
+        assert data["package_summary"]["count"] == 0
+        assert data["runtime_summary"]["total_operations"] == 0
+        assert data["decision_summary"] == ""
+        assert data["risks"] == []
+        assert data["next_actions"] == []
+
+    def test_outsider_cannot_read_summary(self, client):
+        _, _, owner_h = register_and_login(client, "os-out-own@test.com")
+        _, _, outsider_h = register_and_login(client, "os-out@test.com")
+        gid = _create_group(client, owner_h)
+        pid = _create_project(client, gid, owner_h)["id"]
+        r = self._get_summary(client, gid, pid, outsider_h)
+        assert r.status_code == 403
+
+    def test_cross_group_project_404(self, client):
+        _, _, ha = register_and_login(client, "os-cg-a@test.com")
+        _, _, hb = register_and_login(client, "os-cg-b@test.com")
+        ga = _create_group(client, ha, "GA")
+        gb = _create_group(client, hb, "GB")
+        pid = _create_project(client, ga, ha)["id"]
+        r = self._get_summary(client, gb, pid, hb)
+        assert r.status_code == 404
+
+    def test_no_outcome_record_null_latest(self, client):
+        """When no PilotOutcomeRecord exists, latest_outcome is null
+        but project/evidence/package summary is still populated."""
+        _, _, h = register_and_login(client, "os-null@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        r = self._get_summary(client, gid, pid, h)
+        assert r.status_code == 200
+        assert r.json()["latest_outcome"] is None
+        assert r.json()["project"]["name"] == "Outcome Project"
+        assert r.json()["decision_summary"] == ""
+
+    def test_uses_latest_outcome_record(self, client):
+        _, _, h = register_and_login(client, "os-latest@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        r1 = _create_outcome(
+            client, gid, pid, h,
+            title="First Outcome",
+            decision_summary="Old decision",
+            risks=["Old risk"],
+            next_actions=["Old action"],
+        )
+        assert r1.status_code == 201
+        r2 = _create_outcome(
+            client, gid, pid, h,
+            title="Second Outcome",
+            decision_summary="New decision",
+            risks=["New risk A", "New risk B"],
+            next_actions=["New action"],
+        )
+        assert r2.status_code == 201
+
+        r = self._get_summary(client, gid, pid, h)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["latest_outcome"]["title"] == "Second Outcome"
+        assert data["decision_summary"] == "New decision"
+        assert data["risks"] == ["New risk A", "New risk B"]
+        assert data["next_actions"] == ["New action"]
+
+    def test_evidence_counts_by_type_and_role(
+        self, client, db_session: Session
+    ):
+        _, _, h = register_and_login(client, "os-ev@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        owner_id = client.get("/auth/me", headers=h).json()["id"]
+
+        # Add 3 document evidence links
+        for i in range(3):
+            doc_id = _add_document(db_session, gid, owner_id, f"d{i}")
+            _add_evidence_link(
+                db_session, gid, pid, doc_id, owner_id,
+                evidence_type="document", role="context",
+            )
+        # Add 2 RAG run evidence links
+        for i in range(2):
+            rag_id = _add_rag_run(db_session, gid, owner_id)
+            _add_evidence_link(
+                db_session, gid, pid, rag_id, owner_id,
+                evidence_type="rag_run", role="decision",
+            )
+        # Add 1 removed link (should not count)
+        doc_id = _add_document(db_session, gid, owner_id, "removed")
+        link = ProjectEvidenceLink(
+            id=new_id(),
+            group_id=gid,
+            project_id=pid,
+            evidence_type="document",
+            evidence_id=doc_id,
+            role="validation",
+            status="removed",
+            created_by=owner_id,
+        )
+        db_session.add(link)
+        db_session.commit()
+
+        r = self._get_summary(client, gid, pid, h)
+        assert r.status_code == 200
+        ev = r.json()["evidence_summary"]
+        assert ev["total_active"] == 5
+        assert ev["by_type"] == {"document": 3, "rag_run": 2}
+        assert ev["by_role"] == {"context": 3, "decision": 2}
+
+    def test_package_summary(self, client, db_session: Session):
+        _, _, h = register_and_login(client, "os-pkg@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        owner_id = client.get("/auth/me", headers=h).json()["id"]
+
+        _add_package(db_session, gid, pid, owner_id, version=1, quality_status="WARN")
+        pkg2 = _add_package(db_session, gid, pid, owner_id, version=2, quality_status="PASS")
+        db_session.commit()
+
+        r = self._get_summary(client, gid, pid, h)
+        assert r.status_code == 200
+        ps = r.json()["package_summary"]
+        assert ps["count"] == 2
+        assert ps["latest"]["package_id"] == pkg2
+        assert ps["latest"]["version"] == 2
+        assert ps["latest"]["quality_status"] == "PASS"
+        assert "contract_json" not in ps["latest"]
+        assert "source_draft_ids" not in ps["latest"]
+
+    def test_package_summary_empty_when_no_packages(self, client):
+        _, _, h = register_and_login(client, "os-nopkg@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        r = self._get_summary(client, gid, pid, h)
+        assert r.status_code == 200
+        assert r.json()["package_summary"]["count"] == 0
+        assert r.json()["package_summary"]["latest"] is None
+
+    def test_runtime_summary_minimal(self, client, db_session: Session):
+        _, _, h = register_and_login(client, "os-rt@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        owner_id = client.get("/auth/me", headers=h).json()["id"]
+
+        from semantic_lighthouse.models import OntologyRuntimeAudit
+        db_session.add_all([
+            OntologyRuntimeAudit(
+                id=new_id(), user_id=owner_id,
+                group_id=gid, project_id=pid,
+                operation="query", outcome="success", row_count=42,
+            ),
+            OntologyRuntimeAudit(
+                id=new_id(), user_id=owner_id,
+                group_id=gid, project_id=pid,
+                operation="generate_bindings", outcome="success",
+            ),
+        ])
+        db_session.commit()
+
+        r = self._get_summary(client, gid, pid, h)
+        assert r.status_code == 200
+        rs = r.json()["runtime_summary"]
+        assert rs["total_operations"] == 2
+        assert rs["last_operation"]["operation"] == "generate_bindings"
+        assert rs["last_operation"]["outcome"] == "success"
+        assert "note" in rs
+
+    def test_summary_no_forbidden_keys(self, client, db_session: Session):
+        """Response must never contain raw_content, answer, prompt, paths, secrets."""
+        _, _, h = register_and_login(client, "os-priv@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+        owner_id = client.get("/auth/me", headers=h).json()["id"]
+
+        doc_id = _add_document(db_session, gid, owner_id, "priv-sum")
+        _add_evidence_link(db_session, gid, pid, doc_id, owner_id)
+        _add_package(db_session, gid, pid, owner_id)
+        db_session.commit()
+
+        _create_outcome(
+            client, gid, pid, h,
+            selected_evidence_link_ids=[],
+            package_ids=[],
+        )
+
+        r = self._get_summary(client, gid, pid, h)
+        assert r.status_code == 200
+        body = str(r.json())
+        for term in self.FORBIDDEN_TERMS:
+            assert term not in body, (
+                f"Forbidden term '{term}' found in outcome-summary response"
+            )
+
+    def test_summary_does_not_create_or_modify_outcomes(self, client):
+        """GET outcome-summary must have no side effects on outcome records."""
+        _, _, h = register_and_login(client, "os-side@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)["id"]
+
+        # List outcomes before
+        r_before = client.get(
+            f"/groups/{gid}/projects/{pid}/outcomes", headers=h
+        )
+        assert r_before.json()["total"] == 0
+
+        # Call summary
+        r = self._get_summary(client, gid, pid, h)
+        assert r.status_code == 200
+
+        # List outcomes after — still 0
+        r_after = client.get(
+            f"/groups/{gid}/projects/{pid}/outcomes", headers=h
+        )
+        assert r_after.json()["total"] == 0
+
+    def test_summary_isolated_per_project(self, client):
+        """Each project sees only its own outcome, evidence, packages."""
+        _, _, h = register_and_login(client, "os-iso2@test.com")
+        gid = _create_group(client, h)
+        pid1 = _create_project(client, gid, h, name="P1")["id"]
+        pid2 = _create_project(client, gid, h, name="P2")["id"]
+
+        _create_outcome(client, gid, pid1, h, title="P1 Outcome")
+        _create_outcome(client, gid, pid2, h, title="P2 Outcome")
+
+        r1 = self._get_summary(client, gid, pid1, h)
+        assert r1.json()["latest_outcome"]["title"] == "P1 Outcome"
+
+        r2 = self._get_summary(client, gid, pid2, h)
+        assert r2.json()["latest_outcome"]["title"] == "P2 Outcome"
+
+    def test_project_fields_in_summary(self, client):
+        _, _, h = register_and_login(client, "os-proj@test.com")
+        gid = _create_group(client, h)
+        pid = _create_project(
+            client, gid, h,
+            name="FDE Pilot",
+            business_goal="Prove ontology value",
+        )["id"]
+        r = self._get_summary(client, gid, pid, h)
+        assert r.status_code == 200
+        p = r.json()["project"]
+        assert p["name"] == "FDE Pilot"
+        assert p["business_goal"] == "Prove ontology value"
+        assert p["stage"] == "goal"
+        assert p["status"] == "active"

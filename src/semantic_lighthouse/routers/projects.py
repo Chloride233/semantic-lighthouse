@@ -21,6 +21,9 @@ from semantic_lighthouse.models import (
     AgentRun,
     BusinessProject,
     Conversation,
+    OntologyModelPackage,
+    OntologyRuntimeAudit,
+    PilotOutcomeRecord,
     ProjectEvidenceLink,
     Task,
     User,
@@ -32,6 +35,12 @@ from semantic_lighthouse.schemas import (
     BusinessProjectListResponse,
     BusinessProjectResponse,
     BusinessProjectUpdateRequest,
+    OutcomeEvidenceCounts,
+    OutcomeLatestInfo,
+    OutcomePackageInfo,
+    OutcomePackageSummary,
+    OutcomeRuntimeSummary,
+    PilotOutcomeSummaryResponse,
     ProjectSummaryResponse,
     TaskCountsByStatus,
 )
@@ -276,4 +285,158 @@ def get_project_summary(
         conversation_count=conversation_count,
         task_count=TaskCountsByStatus(**task_counts),
         agent_run_count=agent_run_count,
+    )
+
+
+# ── Phase 16.2: Pilot Outcome Summary ───────────────────────────────────────
+
+
+@router.get(
+    "/{project_id}/outcome-summary",
+    response_model=PilotOutcomeSummaryResponse,
+)
+def get_outcome_summary(
+    group_id: str,
+    project_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> PilotOutcomeSummaryResponse:
+    """Read-only FDE delivery summary (member+).
+
+    Aggregates project metadata, latest PilotOutcomeRecord, active evidence
+    counts by type/role, package summary, and minimal runtime operation counts.
+    Never exposes raw prompts, answers, paths, secrets, or stack traces.
+    Does not create, update, or delete any records.
+    """
+    get_membership_or_404(db, user.id, group_id)
+
+    project = db.get(BusinessProject, project_id)
+    if project is None or project.group_id != group_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
+
+    # ── Latest outcome record ──────────────────────────────────────────
+    latest = db.scalars(
+        select(PilotOutcomeRecord)
+        .where(
+            PilotOutcomeRecord.group_id == group_id,
+            PilotOutcomeRecord.project_id == project_id,
+        )
+        .order_by(PilotOutcomeRecord.created_at.desc())
+        .limit(1)
+    ).first()
+
+    latest_outcome = None
+    decision_summary = ""
+    risks: list[str] = []
+    next_actions: list[str] = []
+    if latest is not None:
+        latest_outcome = OutcomeLatestInfo(
+            id=latest.id,
+            title=latest.title,
+            created_at=latest.created_at,
+            decision_summary=latest.decision_summary,
+            risks=latest.risks if isinstance(latest.risks, list) else [],
+            next_actions=latest.next_actions if isinstance(latest.next_actions, list) else [],
+        )
+        decision_summary = latest.decision_summary
+        risks = latest.risks if isinstance(latest.risks, list) else []
+        next_actions = latest.next_actions if isinstance(latest.next_actions, list) else []
+
+    # ── Evidence summary (active links only, bounded counts) ────────────
+    active_links = db.scalars(
+        select(ProjectEvidenceLink).where(
+            ProjectEvidenceLink.group_id == group_id,
+            ProjectEvidenceLink.project_id == project_id,
+            ProjectEvidenceLink.status == "active",
+        )
+    ).all()
+
+    by_type: dict[str, int] = {}
+    by_role: dict[str, int] = {}
+    for link in active_links:
+        by_type[link.evidence_type] = by_type.get(link.evidence_type, 0) + 1
+        by_role[link.role] = by_role.get(link.role, 0) + 1
+
+    evidence_summary = OutcomeEvidenceCounts(
+        total_active=len(active_links),
+        by_type=by_type,
+        by_role=by_role,
+    )
+
+    # ── Package summary (project-scoped packages) ───────────────────────
+    packages = db.scalars(
+        select(OntologyModelPackage)
+        .where(
+            OntologyModelPackage.group_id == group_id,
+            OntologyModelPackage.project_id == project_id,
+        )
+        .order_by(OntologyModelPackage.created_at.desc())
+    ).all()
+
+    latest_pkg = None
+    if packages:
+        p = packages[0]
+        latest_pkg = OutcomePackageInfo(
+            package_id=p.id,
+            version=p.version,
+            content_hash=p.content_hash,
+            quality_status=p.quality_status,
+            draft_count=p.draft_count,
+            created_at=p.created_at,
+        )
+
+    package_summary = OutcomePackageSummary(
+        count=len(packages),
+        latest=latest_pkg,
+    )
+
+    # ── Runtime summary (minimal, from OntologyRuntimeAudit) ────────────
+    runtime_count = db.scalar(
+        select(func.count()).select_from(OntologyRuntimeAudit).where(
+            OntologyRuntimeAudit.group_id == group_id,
+            OntologyRuntimeAudit.project_id == project_id,
+        )
+    ) or 0
+
+    last_runtime = db.scalars(
+        select(OntologyRuntimeAudit)
+        .where(
+            OntologyRuntimeAudit.group_id == group_id,
+            OntologyRuntimeAudit.project_id == project_id,
+        )
+        .order_by(OntologyRuntimeAudit.created_at.desc())
+        .limit(1)
+    ).first()
+
+    last_op = None
+    if last_runtime is not None:
+        last_op = {
+            "operation": last_runtime.operation,
+            "outcome": last_runtime.outcome,
+            "created_at": last_runtime.created_at.isoformat()
+            if last_runtime.created_at else None,
+        }
+
+    runtime_summary = OutcomeRuntimeSummary(
+        total_operations=runtime_count,
+        last_operation=last_op,
+    )
+
+    return PilotOutcomeSummaryResponse(
+        project={
+            "id": project.id,
+            "name": project.name,
+            "business_goal": project.business_goal,
+            "stage": project.stage,
+            "status": project.status,
+        },
+        latest_outcome=latest_outcome,
+        evidence_summary=evidence_summary,
+        package_summary=package_summary,
+        runtime_summary=runtime_summary,
+        decision_summary=decision_summary,
+        risks=risks,
+        next_actions=next_actions,
     )

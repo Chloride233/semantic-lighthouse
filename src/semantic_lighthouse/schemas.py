@@ -980,3 +980,55 @@ class PilotOutcomeResponse(BaseModel):
 class PilotOutcomeListResponse(BaseModel):
     outcomes: list[PilotOutcomeResponse]
     total: int
+
+
+# ── Phase 16.2: Pilot Outcome Summary (read-only aggregation) ────────────
+
+
+class OutcomeEvidenceCounts(BaseModel):
+    total_active: int = 0
+    by_type: dict[str, int] = Field(default_factory=dict)
+    by_role: dict[str, int] = Field(default_factory=dict)
+
+
+class OutcomePackageInfo(BaseModel):
+    package_id: str
+    version: int
+    content_hash: str
+    quality_status: str
+    draft_count: int
+    created_at: datetime | None = None
+
+
+class OutcomePackageSummary(BaseModel):
+    count: int = 0
+    latest: OutcomePackageInfo | None = None
+
+
+class OutcomeRuntimeSummary(BaseModel):
+    total_operations: int = 0
+    last_operation: dict | None = None
+    note: str = (
+        "v1: operation counts only from OntologyRuntimeAudit; "
+        "detailed query result aggregation deferred."
+    )
+
+
+class OutcomeLatestInfo(BaseModel):
+    id: str
+    title: str
+    created_at: datetime | None = None
+    decision_summary: str = ""
+    risks: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+
+
+class PilotOutcomeSummaryResponse(BaseModel):
+    project: dict
+    latest_outcome: OutcomeLatestInfo | None = None
+    evidence_summary: OutcomeEvidenceCounts
+    package_summary: OutcomePackageSummary
+    runtime_summary: OutcomeRuntimeSummary
+    decision_summary: str = ""
+    risks: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)

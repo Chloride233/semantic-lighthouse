@@ -8,9 +8,9 @@
 version = 1
 
 [product]
-phase = "Phase 16.1"
+phase = "Phase 16.2"
 status = "delivered"
-summary = "Pilot Outcome & FDE Delivery Record v1 — Phase 16.1 backend foundation delivered: PilotOutcomeRecord model, migration 0027, CR API (no PATCH/DELETE), evidence/package/query_refs validation with bounded provenance, forbidden key rejection. 40 tests pass, ruff clean. Slices 16.2–16.4 pending."
+summary = "Pilot Outcome & FDE Delivery Record v1 — Phase 16.1 (PilotOutcomeRecord model + outcomes CR API) + 16.2 (outcome-summary aggregation endpoint) delivered. 53 tests pass, ruff clean, migration 0027 at head. Slices 16.3–16.4 pending."
 
 [frontend]
 status = "F2 complete"
@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 16.1 delivered"
-description = "Phase 16.1 PilotOutcomeRecord backend delivered: model + migration 0027 + outcomes router + 40 tests. Owner/admin create immutable delivery records; member+ read/list. Evidence/package refs validated with bounded provenance. query_refs validated for forbidden keys. No frontend, no PATCH/DELETE."
+current = "Phase 16.2 delivered"
+description = "Phase 16.2 outcome-summary endpoint delivered: GET /groups/{gid}/projects/{pid}/outcome-summary aggregates project, latest outcome, evidence/package/runtime summaries. Member+ read, no side effects, no forbidden keys. 13 new tests (53 total pass). No new tables/migrations."
 
 [next_decision_gate]
-name = "implement Phase 16.2 or 16.3"
-description = "Phase 16.1 delivered. Next decision: implement 16.2 (read-only outcome summary endpoint), 16.3 (delivery report UI), or 16.4 (exportable interview artifact). See docs/phase16-planning.md."
+name = "implement Phase 16.3 or 16.4"
+description = "Phase 16.1–16.2 delivered. Next decision: implement 16.3 (delivery report UI), 16.4 (exportable artifact), or review with project owner. See docs/phase16-planning.md."
 
 [mcp]
 runtime_status = "not started"

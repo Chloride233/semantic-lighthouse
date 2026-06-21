@@ -1,6 +1,6 @@
 # Phase 16 Planning — Pilot Outcome & FDE Delivery Record v1
 
-Status: 16.1 DELIVERED — slices 16.2–16.4 pending.
+Status: 16.1–16.2 DELIVERED — slices 16.3–16.4 pending.
 
 ## Decision
 
@@ -146,29 +146,29 @@ This is the artifact a hiring manager or FDE reviewer actually wants to see.
 
 **Status**: DELIVERED. 40 tests pass, ruff clean, migration 0027 at head.
 
-### 16.2 — Read-Only Project Outcome Summary Endpoint
+### 16.2 — Read-Only Project Outcome Summary Endpoint ← DELIVERED 2026-06-21
 
-**Lane: Standard**
+**Lane: Standard (backend read-only aggregation).**
 
-Reuse existing `ProjectSummary`, packages, runtime audit/query outputs where
-possible. Build a single endpoint that assembles the outcome view from existing
-data without duplicating business logic.
+**Delivered shape**:
 
-Expected shape:
-- `GET /groups/{gid}/projects/{pid}/outcome` — member+ read.
-- If write is needed: `POST /groups/{gid}/projects/{pid}/outcome` — owner/admin
-  create or update (idempotent: one outcome per project).
-- Response assembles: goal snapshot, evidence summary (type, role, count),
-  package summary (status, hash, draft counts), latest runtime query summary
-  (binding status, sample row count, query timestamp), decision/risks/next_actions
-  (if authored).
-- No raw dataset paths, raw prompts, raw answers, secrets, or stack traces.
-
-Design decisions to resolve:
-- Whether to reuse `GET /projects/{pid}/summary` vs. a new endpoint.
-- Whether to auto-derive sections from existing data (evidence, packages, queries)
-  or require explicit user-authored fields.
-- Whether the outcome is a separate resource or an extended project summary.
+- Endpoint: `GET /groups/{gid}/projects/{pid}/outcome-summary` in `routers/projects.py`.
+- Permission: member+ read via `get_membership_or_404`.
+- Response (`PilotOutcomeSummaryResponse`):
+  - `project`: id, name, business_goal, stage, status.
+  - `latest_outcome`: latest `PilotOutcomeRecord` (id, title, created_at, decision_summary, risks, next_actions) or null.
+  - `evidence_summary`: `OutcomeEvidenceCounts` — total_active, by_type dict, by_role dict from active `ProjectEvidenceLink` records.
+  - `package_summary`: `OutcomePackageSummary` — count + latest `OutcomePackageInfo` (id, version, content_hash, quality_status, draft_count, created_at). No contract_json or source_draft_ids.
+  - `runtime_summary`: `OutcomeRuntimeSummary` — total_operations from `OntologyRuntimeAudit`, last_operation dict (operation, outcome, created_at), note about v1 aggregation limits.
+  - `decision_summary`/`risks`/`next_actions`: from latest_outcome, or empty string/empty arrays.
+- No raw data exposure: no raw_answer, raw_prompt, source_path, storage_path, secret, token, password, stack_trace in any response field.
+- No new tables, no migration. No POST/PATCH/DELETE — read-only.
+- Existing `GET /projects/{pid}/summary` unchanged.
+- Tests: 13 new tests in `TestOutcomeSummary` (member read, outsider 403, cross-group 404, null latest, uses latest, evidence counts by type/role, package summary, empty packages, runtime summary, forbidden keys, no side effects, per-project isolation, project fields). Combined 53/53 pass (40 from 16.1 + 13 from 16.2).
+- **Design decisions resolved**:
+  - New endpoint `/outcome-summary` on the projects router (not on outcomes router).
+  - Auto-derives evidence/package/runtime sections from existing data; user-authored fields from latest_outcome.
+  - Separate from `ProjectSummary` — outcome-summary is an FDE delivery view, not an operational summary.
 
 ### 16.3 — Pilot Delivery Report UI
 

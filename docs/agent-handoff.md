@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-21 (Phase 16.1 delivered)
+Last updated: 2026-06-21 (Phase 16.2 delivered)
 
 ## State Source
 
@@ -12,13 +12,13 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 | Item | Value |
 |------|-------|
-| Commit | `ce51ad9` |
-| Phase 16.1 delivery commit | *(pending commit)* |
-| Backend pytest (non-E2E) | 873 collected; Phase 16.1 40/40 pass |
+| Commit | `58620bc` (16.1) |
+| Phase 16.2 delivery commit | *(pending commit)* |
+| Backend pytest | Phase 16.1–16.2: 53/53 pass |
 | ruff | clean (changed files only) |
 | Migration | `0027` at head |
-| Phase 16.1 outcome tests | 40 pass |
-| Phase 15.3 (unchanged) | 22 evidence-draft + 64 regression pass |
+| Phase 16.1 outcome CRUD tests | 40 pass |
+| Phase 16.2 outcome-summary tests | 13 pass (53 total) |
 
 ## Architecture Boundaries
 
@@ -48,14 +48,15 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 | Suite | Count | Notes |
 |-------|-------|-------|
-| Phase 16.1 outcomes | 40 passed | Permissions, evidence/package validation, query_refs privacy, cross-group isolation, list/read. |
-| ruff (changed files) | clean | models.py, schemas.py, outcomes.py, main.py, test_pilot_outcomes.py |
-| Migration smoke | 0027 at head | SQLite upgrade: 0026 → 0027 successful |
-| doc alignment | PASS | 7 entry docs checked, no stale expressions |
+| Phase 16.1 outcomes CRUD | 40 passed | Permissions, evidence/package validation, query_refs privacy, cross-group isolation, list/read. |
+| Phase 16.2 outcome-summary | 13 passed | Member read, outsider 403, cross-group 404, null-latest, uses-latest, evidence counts, package summary, runtime summary, no forbidden keys, no side effects, isolation. |
+| Ruff (changed files) | clean | schemas.py, projects.py, test_pilot_outcomes.py |
+| Migration smoke | 0027 at head | No new migration for 16.2; 0027 still at head. |
+| Doc alignment | PASS | 7 entry docs checked, no stale expressions |
 
 ## Next Decision Gate
 
-**Implement Phase 16.2 or 16.3**: Phase 16.1 backend delivered. Next decision: implement 16.2 (read-only outcome summary endpoint), 16.3 (delivery report UI), or 16.4 (exportable interview artifact). See `docs/phase16-planning.md`.
+**Implement Phase 16.3 or 16.4**: Phase 16.1–16.2 backend delivered (outcome records + outcome-summary). Next decision: implement 16.3 (delivery report UI), 16.4 (exportable artifact), or review with project owner. See `docs/phase16-planning.md`.
 
 ## Phase 15 Delivery Summary
 
@@ -89,6 +90,8 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 - `POST /groups/{gid}/ontology/packages`, `GET /packages`, `GET /packages/{pid}/contract`
 - `POST /groups/{gid}/projects`, `GET /projects`, `GET /projects/{pid}`
 - `GET /groups/{gid}/projects/{pid}/summary`
+- `GET /groups/{gid}/projects/{pid}/outcome-summary`
+- `POST|GET /groups/{gid}/projects/{pid}/outcomes`, `GET /groups/{gid}/projects/{pid}/outcomes/{outcome_id}`
 - `POST|GET /groups/{gid}/projects/{pid}/evidence-links`, `DELETE /groups/{gid}/projects/{pid}/evidence-links/{link_id}`
 - `POST /projects/{pid}/datasets`, `GET /datasets`
 - `POST /projects/{pid}/model-drafts/generate`, `GET /model-drafts/quality`
