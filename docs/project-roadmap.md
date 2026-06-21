@@ -322,7 +322,7 @@ See `docs/frontend-f2-planning.md`.
 
 **Out of scope**: delete/recover, Object Runtime, SDK, MCP, Graph RAG, old feature removal, Pilot outcome/KPI dashboard, relation joins, Action execution, data write-back, custom query language.
 
-## Phase 15: Evidence-to-Ontology Feedback Loop v1 ← PLANNED
+## Phase 15: Evidence-to-Ontology Feedback Loop v1 ← COMPLETE
 
 **Goal**: Turn useful project-scoped evidence into deliberate, auditable inputs for the Ontology semantic operating layer without automatic writes.
 
