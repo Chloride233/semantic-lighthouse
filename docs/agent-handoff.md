@@ -66,7 +66,7 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 ## Next Decision Gate
 
-**Plan Phase 16**: Phase 15 is complete. The evidence-to-ontology feedback loop v1 is delivered: user-confirmed project evidence (RAG answers + documents) can feed ontology modeling draft proposals with full human review and no auto-accept/auto-publish. Next direction: enterprise Ontology semantic layer governance, ontology model operationalization, or Pilot workflow improvements. Decide based on `docs/product-alignment-prd.md` and interview/portfolio priorities.
+**Implement Phase 16.1 or review plan**: Phase 16 is planned — Pilot Outcome & FDE Delivery Record v1. See `docs/phase16-planning.md`. The plan defines four slices to turn the completed Pilot chain into a durable, auditable delivery record. Next decision: implement Slice 16.1 (outcome record design/schema), review the full plan with project owner, or adjust scope based on interview/portfolio feedback.
 
 ## Phase 15 Delivery Summary
 

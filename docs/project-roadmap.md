@@ -337,6 +337,25 @@ See `docs/phase15-planning.md`.
 **Out of scope**: MCP runtime, Graph RAG, Agent auto-writing Ontology, external KB modification, full modeling studio, page hiding, LLM-only draft generation, auto-accept/publish.
 
 
+## Phase 16: Pilot Outcome & FDE Delivery Record v1 ← PLANNED
+
+**Goal**: Turn the completed Pilot workflow chain into a durable, auditable delivery record suitable for FDE handoff, interview demonstration, and portfolio evidence.
+
+See `docs/phase16-planning.md`.
+
+| # | Task | Description |
+|---|------|-------------|
+| 16.1 | Outcome record design / schema boundary | Decide reuse vs. new table; define fields for outcome record (goal snapshot, evidence refs, package_id, query refs, decision_summary, risks, next_actions) |
+| 16.2 | Read-only outcome summary endpoint | GET endpoint assembling outcome from existing project/evidence/package/runtime data; member+ read, owner/admin create/update |
+| 16.3 | Pilot delivery report UI | Outcome panel in Pilot workspace: goal, evidence, model package, validation, query results, risks, next actions |
+| 16.4 | Exportable interview/demo artifact | Concise delivery record for demo/interview; HTML/markdown first, no PDF dependency |
+
+**Out of scope**: Graph RAG, MCP runtime, Agent auto-write, external KB write, autonomous publish, new framework/dependency, full PM system, full reporting engine.
+
+**Next**: Implement 16.1 or review plan with project owner.
+
+---
+
 ## Future Candidate: MCP Read-only Gateway v1 ← NOT STARTED
 
 **Timing**: Candidate after Phase 13 review. The originally proposed Phase 12
