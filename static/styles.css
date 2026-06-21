@@ -2023,14 +2023,22 @@ button {
 }
 
 button.primary,
-button:not(.secondary):not(.ghost):not(.danger):not(.linkBtn) {
+.authSubmit,
+.askInput button,
+.chatInput button,
+.goalAskInput button,
+.pilotConvForm button {
   background: #050505;
   border-color: #050505;
   color: #fff;
 }
 
 button.primary:hover,
-button:not(.secondary):not(.ghost):not(.danger):not(.linkBtn):hover {
+.authSubmit:hover,
+.askInput button:hover,
+.chatInput button:hover,
+.goalAskInput button:hover,
+.pilotConvForm button:hover {
   background: #2c2c2a;
   border-color: #2c2c2a;
 }
