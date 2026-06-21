@@ -95,7 +95,7 @@ Delivered shape:
 
 ### 15.3 — Evidence-Backed Modeling Draft Candidate Design
 
-Lane: Fast (design only). DESIGN DELIVERED 2026-06-21. See `docs/phase15.3-design.md`.
+Lane: Fast (design) → Standard (Slice A). DESIGN DELIVERED + SLICE A DELIVERED 2026-06-21. See `docs/phase15.3-design.md`.
 
 Goal: Decide whether and how reviewed project evidence can feed modeling draft proposals.
 
@@ -109,3 +109,13 @@ Rules enforced:
 - no external KB write
 - generated proposals carry `source_rag_run_id`, `project_id`, and bounded `evidence_refs`
 - evidence link validation: must exist, be active, belong to the same project/group
+
+Slice A delivered shape:
+
+- New endpoint: `POST /groups/{gid}/projects/{pid}/evidence-draft` (in `ontology.py` as `evidence_draft_router`).
+- Request: `EvidenceDraftCreateRequest` — draft_type, name, description, evidence_link_ids (non-empty, max 20), optional source_entity_id/source_issue_id.
+- Server derives source_rag_run_id (first rag_run-typed link), evidence_refs (bounded provenance snapshot per link), payload.generator="evidence_backed_v1", payload.evidence_link_ids.
+- Idempotency: same group, project, sorted link IDs, draft_type, normalized name → 200 with existing proposed draft.
+- Bounded provenance in evidence_refs: never includes raw prompt, raw answer, raw_content, source_path, storage_path, secrets, tokens, or stack traces.
+- 22 tests: permissions (owner/admin/member/outsider), isolation (cross-group project/link, cross-project link), validation (removed link, empty links, invalid type, nonexistent link), source_rag_run_id derivation (rag_run, document-only, mixed), idempotency (duplicate, different name, different links), evidence_refs privacy (no raw answer, no raw_content/path, no secrets), draft lifecycle (visible in list, status always proposed).
+- Zero regressions: 35 existing evidence tests + 29 existing ontology draft tests pass unchanged.

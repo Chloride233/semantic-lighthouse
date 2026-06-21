@@ -858,6 +858,31 @@ class EvidenceLinkListResponse(BaseModel):
     offset: int
 
 
+# ── Phase 15.3 Evidence-Backed Draft Candidate ──────────────────────────────
+
+MAX_EVIDENCE_LINKS_PER_DRAFT = 20
+
+
+class EvidenceDraftCreateRequest(BaseModel):
+    """Create a proposed modeling draft from one or more project evidence links.
+
+    Evidence link IDs must be active, belong to the same group/project,
+    and reference valid evidence sources. Server derives source_rag_run_id
+    and evidence_refs from the evidence links; user authors name/description/type.
+    """
+
+    draft_type: str = Field(min_length=1, max_length=20)
+    name: str = Field(min_length=1, max_length=240)
+    description: str = ""
+    evidence_link_ids: list[str] = Field(
+        min_length=1,
+        max_length=MAX_EVIDENCE_LINKS_PER_DRAFT,
+        description="Non-empty list of active ProjectEvidenceLink IDs.",
+    )
+    source_entity_id: str | None = None
+    source_issue_id: str | None = None
+
+
 # ── S2.4B Project Summary ──────────────────────────────────────────────────
 
 class TaskCountsByStatus(BaseModel):

@@ -6,7 +6,7 @@ Phase 11.1–11.2: modeling drafts read model — group-scoped, permission-aware
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -19,11 +19,13 @@ from semantic_lighthouse.dependencies import (
 from semantic_lighthouse.models import (
     BusinessProject,
     DatasetAsset,
+    Document,
     OntologyEntity,
     OntologyModelingDraft,
     OntologyModelPackage,
     OntologyRelation,
     OntologyValidationIssue,
+    ProjectEvidenceLink,
     RagRun,
     User,
     utc_now,
@@ -33,6 +35,8 @@ from semantic_lighthouse.schemas import (
     DRAFT_TYPES,
     DatasetModelingResponse,
     DraftGenerationResponse,
+    EvidenceDraftCreateRequest,
+    MAX_EVIDENCE_LINKS_PER_DRAFT,
     ProjectPackageBuildRequest,
     OntologyEntityListResponse,
     OntologyEntityResponse,
@@ -825,6 +829,13 @@ project_model_router = APIRouter(
     tags=["dataset-modeling"],
 )
 
+# ── Phase 15.3: Evidence-Backed Draft Candidate ─────────────────────────────
+
+evidence_draft_router = APIRouter(
+    prefix="/groups/{group_id}/projects/{project_id}/evidence-draft",
+    tags=["evidence-draft"],
+)
+
 
 def _get_project_or_404(
     db: Session, project_id: str, group_id: str
@@ -1131,3 +1142,174 @@ def get_project_contract(
         ) from e
 
     return BusinessContractManifestResponse(**compiled)
+
+
+# ── Phase 15.3: Evidence-Backed Draft Candidate ─────────────────────────────
+
+
+def _safe_evidence_snapshot(db: Session, evidence_type: str, evidence_id: str) -> dict:
+    """Return bounded provenance dict for evidence_refs. Never exposes paths, content, or secrets."""
+    snap: dict = {}
+    if evidence_type == "document":
+        doc = db.get(Document, evidence_id)
+        if doc is None:
+            return {"unavailable": True}
+        snap["title"] = doc.title
+        snap["status"] = doc.status
+        snap["file_name"] = doc.file_name
+        if doc.created_at:
+            snap["created_at"] = doc.created_at.isoformat()
+    elif evidence_type == "rag_run":
+        run = db.get(RagRun, evidence_id)
+        if run is None:
+            return {"unavailable": True}
+        snap["status"] = run.status
+        snap["question"] = (run.question or "")[:120]
+        snap["confidence"] = run.confidence
+        snap["retrieval_method"] = run.retrieval_method
+        snap["citation_count"] = len(run.citations) if isinstance(run.citations, list) else None
+        if run.created_at:
+            snap["created_at"] = run.created_at.isoformat()
+    return snap
+
+
+@evidence_draft_router.post(
+    "",
+    response_model=OntologyModelingDraftResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_evidence_draft(
+    group_id: str,
+    project_id: str,
+    body: EvidenceDraftCreateRequest,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a proposed modeling draft from active project evidence links.
+
+    Owner/admin only. Server derives source_rag_run_id and evidence_refs from the
+    linked evidence; user authors name, description, and draft_type. Status is
+    always proposed — never auto-accepted. Idempotent: same group/project,
+    sorted evidence link IDs, draft_type, and normalized name returns the
+    existing proposed draft instead of creating a duplicate.
+    """
+    # ── Permission + project validation ──
+    require_group_role(db, current_user.id, group_id, {"owner", "admin"})
+    _get_project_or_404(db, project_id, group_id)
+
+    # ── Validate draft_type ──
+    if body.draft_type not in DRAFT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid draft_type: {body.draft_type}. Allowed: {sorted(DRAFT_TYPES)}",
+        )
+
+    if len(body.evidence_link_ids) > MAX_EVIDENCE_LINKS_PER_DRAFT:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"At most {MAX_EVIDENCE_LINKS_PER_DRAFT} evidence links per draft",
+        )
+
+    # ── Validate optional source pointers ──
+    _validate_source_in_group(
+        db, group_id, OntologyEntity, body.source_entity_id, "source_entity_id"
+    )
+    _validate_source_in_group(
+        db, group_id, OntologyValidationIssue, body.source_issue_id, "source_issue_id"
+    )
+
+    # ── Validate evidence links and build evidence_refs ──
+    evidence_links: list[ProjectEvidenceLink] = []
+    evidence_refs_list: list[dict] = []
+    first_rag_run_id: str | None = None
+
+    for link_id in body.evidence_link_ids:
+        link = db.get(ProjectEvidenceLink, link_id)
+        if link is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Evidence link {link_id} not found",
+            )
+        if link.group_id != group_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Evidence link {link_id} not found in this group",
+            )
+        if link.project_id != project_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Evidence link {link_id} belongs to project {link.project_id}, not {project_id}",
+            )
+        if link.status != "active":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Evidence link {link_id} is {link.status}, not active",
+            )
+
+        evidence_links.append(link)
+
+        # Build bounded evidence_refs entry
+        provenance_snapshot = _safe_evidence_snapshot(db, link.evidence_type, link.evidence_id)
+        ref_entry: dict = {
+            "evidence_link_id": link.id,
+            "evidence_type": link.evidence_type,
+            "evidence_id": link.evidence_id,
+            "role": link.role,
+            "linked_at": link.created_at.isoformat() if link.created_at else "",
+            "provenance_snapshot": provenance_snapshot,
+        }
+        evidence_refs_list.append(ref_entry)
+
+        # Capture first rag_run evidence_id as source_rag_run_id
+        if first_rag_run_id is None and link.evidence_type == "rag_run":
+            first_rag_run_id = link.evidence_id
+
+    # ── Idempotency check ──
+    sorted_link_ids = sorted(body.evidence_link_ids)
+    normalized_name = body.name.strip()
+
+    existing = db.scalars(
+        select(OntologyModelingDraft).where(
+            OntologyModelingDraft.group_id == group_id,
+            OntologyModelingDraft.project_id == project_id,
+            OntologyModelingDraft.draft_type == body.draft_type,
+            OntologyModelingDraft.name == normalized_name,
+            OntologyModelingDraft.status == "proposed",
+        )
+    ).all()
+
+    for draft in existing:
+        pl = draft.payload if isinstance(draft.payload, dict) else {}
+        if pl.get("generator") == "evidence_backed_v1" and sorted(
+            pl.get("evidence_link_ids", [])
+        ) == sorted_link_ids:
+            response.status_code = status.HTTP_200_OK
+            return _draft_response(draft)
+
+    # ── Create draft (always proposed, never auto-accepted) ──
+    payload: dict = {
+        "generator": "evidence_backed_v1",
+        "evidence_link_ids": sorted_link_ids,
+    }
+
+    draft = OntologyModelingDraft(
+        group_id=group_id,
+        draft_type=body.draft_type,
+        name=normalized_name,
+        description=body.description or "",
+        status="proposed",
+        source_entity_id=body.source_entity_id,
+        source_relation_id=None,
+        source_issue_id=body.source_issue_id,
+        source_rag_run_id=first_rag_run_id,
+        project_id=project_id,
+        source_dataset_id=None,
+        evidence_refs=evidence_refs_list,
+        payload=payload,
+        created_by=current_user.id,
+    )
+    db.add(draft)
+    db.commit()
+    db.refresh(draft)
+    return _draft_response(draft)
