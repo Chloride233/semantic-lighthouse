@@ -332,9 +332,9 @@ See `docs/phase15-planning.md`.
 |---|------|-------------|
 | 15.1 | Save scoped RAG answer as project evidence | ✅ Delivered. User-confirmed save from Pilot scoped Ask into `ProjectEvidenceLink` with `evidence_type=rag_run` and `role=decision`. Owner/admin-only write action. No auto-linking. |
 | 15.2 | Project evidence review surface | ✅ Delivered. Pilot evidence summary distinguishes saved RAG answers from document evidence and shows type, role, saved time, safe provenance, and unavailable state without raw prompts/answers or path leaks. |
-| 15.3 | Evidence-backed modeling draft candidate design | ✅ Design delivered. Reviewed `ProjectEvidenceLink` becomes the human-confirmed boundary for future evidence-backed draft candidates; generated proposals must remain proposed, project-scoped, evidence-referenced, and free of LLM-only generation, auto-accept, publish, or KB writes. |
+| 15.3 | Evidence-backed modeling draft candidate endpoint + UI | ✅ Delivered. Slice A: `POST /groups/{gid}/projects/{pid}/evidence-draft` creates proposed `OntologyModelingDraft` from active `ProjectEvidenceLink` records with bounded evidence_refs, safe provenance, idempotency. Slice B: frontend checkbox selection + proposal dialog in Pilot goal stage, owner/admin only. 22 backend tests + 53 UI tests pass. Design: `docs/phase15.3-design.md`. |
 
-**Out of scope**: MCP runtime, Graph RAG, Agent auto-writing Ontology, external KB modification, full modeling studio, page hiding.
+**Out of scope**: MCP runtime, Graph RAG, Agent auto-writing Ontology, external KB modification, full modeling studio, page hiding, LLM-only draft generation, auto-accept/publish.
 
 
 ## Future Candidate: MCP Read-only Gateway v1 ← NOT STARTED

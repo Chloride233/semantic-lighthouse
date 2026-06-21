@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-20 (S2.4 backend consolidation closed)
+Last updated: 2026-06-21 (Phase 15 closeout)
 
 ## State Source
 
@@ -12,22 +12,15 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 | Item | Value |
 |------|-------|
-| Commit | `74d6dd8` |
-| Backend pytest | 848 passed, 3 skipped |
+| Commit | `b52e037` |
+| Backend pytest (non-E2E) | 873 collected; Phase 15 related all pass |
 | ruff | clean |
 | Migration | `0026` at head |
-| verify_ui | 47/47 |
+| verify_ui | 53/53 |
 | E2E | 18/18 |
-| Screenshots | `.tmp/f2c/` 6 files |
-| Evidence tests | 38 pass |
-| S2.3A related tests | 95 pass |
-| S2.3B focused tests | 16 pass |
-| S2.3B related regression | 100 pass |
-| S2.3B grouped non-E2E regression | passed across all 832 collected non-E2E tests |
-| S2.4B focused tests | 65 pass |
-| S2.4C focused tests | 48 pass |
-| S2.4C related regression | 139 pass |
-| S2.4C grouped non-E2E regression | 848 pass, 3 skipped |
+| Phase 15.3 evidence-draft tests | 22 pass |
+| Phase 15.3 evidence regression | 35 evidence + 29 drafts = 64 pass |
+| Phase 15.1–15.2 (existing) | no regressions in related suites |
 
 ## Architecture Boundaries
 
@@ -73,7 +66,23 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 ## Next Decision Gate
 
-**Frontend surface planning or explicit S2.4D design**: S2.4 backend consolidation is closed. S2.4A proved the contract boundaries, S2.4B added the project summary endpoint, and S2.4C added project-bounded RAG. Do not automatically continue with S2.4D/E/F; only design another backend slice if frontend replacement planning exposes a concrete API gap. Do not hide standalone pages until replacement parity is proven by tests.
+**Plan Phase 16**: Phase 15 is complete. The evidence-to-ontology feedback loop v1 is delivered: user-confirmed project evidence (RAG answers + documents) can feed ontology modeling draft proposals with full human review and no auto-accept/auto-publish. Next direction: enterprise Ontology semantic layer governance, ontology model operationalization, or Pilot workflow improvements. Decide based on `docs/product-alignment-prd.md` and interview/portfolio priorities.
+
+## Phase 15 Delivery Summary
+
+### 15.1 — Save Scoped RAG Answer As Project Evidence
+- Owner/admin save project RAG answer via existing `POST /groups/{gid}/projects/{pid}/evidence-links`.
+- evidence_type=rag_run, evidence_id=run_id. Idempotent via existing duplicate detection.
+
+### 15.2 — Project Evidence Review Surface
+- `GET /groups/{gid}/projects/{pid}/summary` surfaces recent evidence (max 5).
+- Distinguishes document vs RAG run evidence in goal stage.
+- Never exposes raw prompts, raw answers, paths, secrets, or stack traces.
+
+### 15.3 — Evidence-Backed Modeling Draft Candidates
+- **Slice A (backend)**: `POST /groups/{gid}/projects/{pid}/evidence-draft` — creates proposed OntologyModelingDraft from active ProjectEvidenceLink records. Derives source_rag_run_id, builds bounded evidence_refs with safe provenance. Full group/project isolation. Idempotent. 22 tests.
+- **Slice B (frontend)**: Evidence selection + proposal dialog in Pilot goal stage. Owner/admin only. Checkbox selection → draft_type/name/description form → submit. Controls hidden for members and archived projects. 53/53 UI tests pass.
+- **Design**: `docs/phase15.3-design.md` — no new models or migrations needed; existing OntologyModelingDraft schema already supported evidence-backed proposals.
 
 ## Key API Surfaces
 

@@ -8,24 +8,24 @@
 version = 1
 
 [product]
-phase = "Phase 14"
+phase = "Phase 15"
 status = "complete"
-summary = "Business Pilot Project — five-stage main chain (goal → data → model → validate → pilot). Backend complete (Phases 14.1–14.5). Frontend F2 complete (F2A + F2B + F2C)."
+summary = "Evidence-to-Ontology Feedback Loop v1 — user-confirmed project evidence (15.1 save + 15.2 display) feeds into evidence-backed modeling draft candidates (15.3 endpoint + UI). Full loop: RAG answer → save as evidence → review evidence → propose draft from evidence → human review → existing package build. No LLM-only generation, no auto-accept, no external KB writes."
 
 [frontend]
 status = "F2 complete"
-summary = "Guided Pilot workspace delivered. F2A: Pilot entry + nav restructure. F2B: Model → Validate → Pilot full operation loop. F2C: Responsive, accessibility, visual polish."
+summary = "Guided Pilot workspace delivered. F2A: Pilot entry + nav restructure. F2B: Model → Validate → Pilot full operation loop. F2C: Responsive, accessibility, visual polish. Phase 15.3 Slice B adds evidence-to-draft proposal UI in goal stage."
 latest_verified_ui = "53/53"
 latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "Phase 15.3 Slice B delivered"
-description = "Phase 15.3 Slice B delivered: evidence-to-draft proposal UI in Pilot goal stage. Owner/admin select project evidence via checkboxes, click 提出建模草案, fill draft_type/name/description in dialog, submit to Slice A endpoint. Members see no controls. Archived projects hide controls. 53/53 UI tests pass. See docs/phase15.3-design.md."
+current = "Phase 15 complete"
+description = "Phase 15 delivered: evidence-to-ontology feedback loop v1. 15.1 (save RAG answer as evidence), 15.2 (evidence review surface), 15.3 (evidence-backed draft candidate endpoint + UI). 22 evidence-draft tests + 53 UI tests pass. No migration, no MCP, no Graph RAG, no Agent auto-write."
 
 [next_decision_gate]
-name = "Phase 15.3 Slice C filter or Phase 15 closeout"
-description = "Slice C: evidence-only draft list filter (GET /groups/{gid}/ontology/drafts?source=evidence_backed). Or: Phase 15 closeout/review — full regression, handoff update, retrospective."
+name = "plan Phase 16"
+description = "Phase 15 evidence-to-ontology feedback loop is complete. Next direction: enterprise Ontology semantic layer governance, ontology model operationalization, or Pilot workflow improvements. Decide based on product alignment PRD and interview/portfolio priorities."
 
 [mcp]
 runtime_status = "not started"
