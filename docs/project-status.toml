@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/f2c/"
 
 [focus]
-current = "S2.5C complete and reviewed"
-description = "S2.5C delivered and reviewed: scoped conversation starter from Pilot stage. Creates a project-scoped conversation via POST /groups/{gid}/conversations with project_id, then navigates to standalone Conversations page with the new conversation opened. Codex review hides creation for archived projects. S2.5A and S2.5B also complete. Next: S2.5D Navigation Parity Review."
+current = "S2.5 complete"
+description = "S2.5 Pilot surface closed: S2.5A (Project Overview + scoped Ask), S2.5B (task summary), S2.5C (conversation starter), S2.5D (navigation parity review — no hiding). All standalone tools remain in More Tools; Pilot bridges provide project-scoped entry points without replacing full standalone functionality. Next: Phase 15 or next product decision gate."
 
 [next_decision_gate]
-name = "proceed to S2.5D or close S2.5"
-description = "S2.5D is navigation parity review (Fast/Standard) — compare Pilot replacement coverage against standalone pages, decide whether More Tools can be reduced. After S2.5D, S2.5 surface is complete."
+name = "Phase 15 or next capability"
+description = "Phase 15 scope TBD. Options include: Ontology semantic operating layer, Agent workflow hardening, evidence-to-ontology linkage, MCP adapter evaluation (Safety Lane only), or production deployment hardening."
 
 [mcp]
 runtime_status = "not started"

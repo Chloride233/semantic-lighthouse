@@ -162,14 +162,36 @@ This is a bridge, not a full chat rewrite.
 
 ### S2.5D — Navigation Parity Review
 
-Lane: Fast for docs, Standard if code changes.
+Lane: Fast. Delivered: 2026-06-21.
 
-Scope:
+**Decision: More Tools remain unchanged.** No standalone page is hidden or removed.
 
-- Compare Pilot replacement coverage against standalone pages.
-- Decide whether More Tools can be reduced.
+Parity assessment:
 
-No hiding unless tests prove the replacement workflow.
+| Standalone Tool | Pilot Coverage | Reason for not hiding |
+|---|---|---|
+| 问答 | S2.5A project-scoped Ask (project evidence only) | Group-scoped Ask covers all group documents; project Ask is an evidence-scoped subset |
+| 知识库 | S2.5A evidence summary + links | Upload, archive, import are group-level operations; Pilot links are navigation-only |
+| 对话 | S2.5C create + redirect (no embedded chat) | Full multi-turn chat UI, message sending, and citation display only in standalone |
+| 任务 | S2.5B compact list + manual create | Status transitions, source filtering, and full task board only in standalone |
+| Agent | None (explicitly excluded) | HITL confirmation flow requires standalone Agent console |
+
+Every Pilot integration is a bridge or supplement, not a replacement. Hiding any standalone page before replacement parity is proven would break the only working UI for that capability.
+
+## S2.5 Closeout
+
+S2.5 Pilot surface delivered across four slices:
+
+| Slice | Lane | Scope | Commit |
+|-------|------|-------|--------|
+| S2.5A | Standard | Project Overview summary strip + scoped Ask in Goal stage | `48eadcf` |
+| S2.5B | Standard | Pilot-stage task summary + manual create-task | `b27f0ea` |
+| S2.5C | Standard | Scoped conversation starter from Pilot | `e19500c` |
+| S2.5D | Fast | Navigation parity review — confirmed no hiding | (this review) |
+
+The Pilot workspace now provides project-scoped entry points for Ask, Tasks, and Conversations as bridges to their standalone counterparts. The five standalone tools (问答, 知识库, 对话, 任务, Agent) all retain their "更多工具" nav entries and full functionality.
+
+No backend, DB, migration, route, auth, navigation, or page-hiding changes were made in S2.5.
 
 ## First CC Implementation Prompt Shape
 

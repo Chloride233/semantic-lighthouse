@@ -959,3 +959,43 @@ S2.4 backend consolidation is complete enough for the next frontend surface plan
 Do not keep expanding the backend merely because more Pilot embedding is possible. Tasks, Conversations, and Agent runs already have project-scoped backend APIs from S2.3, and RAG now has the missing project-scoped answer path. S2.4D/E/F should be reopened only if frontend replacement planning discovers a concrete API gap.
 
 Standalone pages remain accessible. Navigation hiding belongs to a frontend parity pass, not to backend closeout.
+
+---
+
+## 13. S2.5 Pilot Surface Closeout
+
+Date: 2026-06-21. Status: Delivered across four slices.
+
+### S2.5A — Project Overview + Scoped Ask
+
+Lane: Standard. Added compact summary strip (evidence/conversation/task/Agent counts from `GET /groups/{gid}/projects/{pid}/summary`) and project-scoped Ask panel in Pilot Goal stage using `POST /groups/{gid}/projects/{pid}/rag/answer`. Renders answer, confidence, citations, knowledge gaps, and no-evidence state. No confirm-task or Agent embedding. No auto evidence linking.
+
+### S2.5B — Project Actions Summary
+
+Lane: Standard. Added task summary panel to Pilot stage using `GET /groups/{gid}/tasks?project_id={pid}`. Shows compact task list with status badges and inline manual create-task action via `POST /groups/{gid}/tasks` with `project_id`. Standalone Tasks page unchanged.
+
+### S2.5C — Scoped Conversation Starter
+
+Lane: Standard. Added conversation starter panel to Pilot stage. Creates project-scoped conversation via `POST /groups/{gid}/conversations` with `project_id`, then navigates to standalone Conversations page. Full chat UI remains in standalone. Bridge pattern — not a chat rewrite.
+
+### S2.5D — Navigation Parity Review
+
+Lane: Fast. Confirmed that no standalone page reaches replacement parity:
+
+| Tool | Pilot Coverage | Parity? |
+|------|---------------|---------|
+| 问答 | Project-scoped Ask (project evidence only) | ❌ Group Ask covers all documents |
+| 知识库 | Evidence summary + nav links | ❌ Upload/archive/import are group-level |
+| 对话 | Create + redirect (no embedded chat) | ❌ Full multi-turn chat in standalone |
+| 任务 | Compact list + manual create | ❌ Status transitions/filters in standalone |
+| Agent | None (explicitly excluded) | ❌ HITL in standalone only |
+
+**Decision**: More Tools (5 entries) remain unchanged. No page is hidden. Every Pilot integration is a bridge or supplement, not a replacement.
+
+### S2.5 Boundaries Preserved
+
+- No backend, DB, migration, route, auth, or navigation changes.
+- No page hiding or nav restructuring.
+- No Agent/Task/Conversation embedding in Pilot (bridges only).
+- No auto evidence linking.
+- All standalone pages retain full functionality and direct nav access.
