@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-21 (Phase 16 closeout complete; Phase 17 planned)
+Last updated: 2026-06-21 (Phase 17.1/17.3 specs detailed)
 
 ## State Source
 
@@ -75,7 +75,7 @@ This handoff is operational context, not the canonical phase tracker. If the bas
 
 ## Next Decision Gate
 
-**Implement Phase 17.1 or 17.2**: Phase 17 planned — FDE Demo Readiness & Operational Smoke v1. See `docs/phase17-planning.md`. Five slices: seed scenario contract (17.1), smoke script (17.2), artifact quality gate (17.3), interview refresh (17.4), closeout (17.5). Backend only; no frontend. Candidate first slice: 17.1 (seed contract, doc-only) or 17.2 (smoke script).
+**Implement Phase 17.2 (smoke script)**: Phase 17.1 seed scenario and 17.3 artifact quality gate specs are detailed in `docs/phase17-planning.md`. Next: implement 17.2 `scripts/smoke_fde_demo.py` — full-chain API smoke from register to markdown artifact, calling the quality gate validator at step 13. Manufacturing equipment maintenance seed scenario (Plant 3, 8 synthetic work orders, 4 object types).
 
 ## Phase 15 Delivery Summary
 

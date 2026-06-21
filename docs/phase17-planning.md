@@ -1,6 +1,6 @@
 # Phase 17 Planning — FDE Demo Readiness & Operational Smoke v1
 
-Status: PLANNING
+Status: 17.1 & 17.3 SPECS DETAILED — 17.2/17.4/17.5 pending.
 
 ## Decision
 
@@ -122,29 +122,152 @@ next step for a portfolio project.
 
 ## Suggested Slices
 
-### 17.1 — Demo Seed Scenario Contract
+### 17.1 — Demo Seed Scenario Contract ← SPEC DETAILED 2026-06-21
 
-**Lane: Fast (design doc only).**
+**Lane: Fast (design doc only). Implementation pending.**
 
-Define the demo scenario:
+This section is the authoritative spec for the Phase 17 seed demo. It defines
+exactly what the smoke script (17.2) must create and what the artifact gate
+(17.3) must verify. No real data — all values are synthetic and non-sensitive.
+
+#### 17.1.1 — Demo Identity
 
 | Field | Value |
 |-------|-------|
-| Project name | "FDE Demo — Equipment Monitoring Pilot" |
-| Business goal | "Build an ontology for manufacturing equipment monitoring to reduce unplanned downtime." |
+| Domain | **Manufacturing — maintenance workflow & equipment reliability** |
+| Rationale | Manufacturing has clear business objects (Equipment, WorkOrder, Site, Team), structured datasets with timestamps, and a defensible "reduce downtime" business goal. More convincing than ecommerce for an enterprise FDE demo. |
+| Demo user email | `demo-operator@fde.local` |
+| Demo user display_name | `Demo Operator` |
+| Demo group name | `FDE Demo — Manufacturing` |
+| Project name | `Equipment Reliability Pilot — Plant 3` |
 | Entry mode | `problem_first` |
 | Industry template | `manufacturing` |
-| Dataset | Small CSV: 5–10 rows of equipment records with columns like equipment_id, name, type, status, last_maintenance_date, sensor_count. No PII, no real production data. |
-| Expected evidence | 2–3 RAG answers saved as project evidence; 1–2 document evidence links. |
-| Expected modeling drafts | 2–4 drafts (object_type: Equipment, properties: name/type/status/sensor_count). |
-| Expected package quality | PASS or WARN (no FAIL). |
-| Expected runtime query | 1 binding, 1 query returning 5–10 rows. |
-| Expected outcome | 1 PilotOutcomeRecord with decision "Proceed to production pilot with expanded dataset." |
-| Expected artifact | Contains all required sections, no forbidden terms. |
 
-The contract is a markdown doc (`docs/phase17-seed-contract.md`) or a section
-in the planning doc. It serves as the spec for 17.2 (smoke script) and 17.3
-(artifact gate).
+#### 17.1.2 — Business Goal
+
+```
+Build a governed ontology for manufacturing equipment and work-order management
+at Plant 3 to reduce unplanned downtime by improving failure-code traceability
+and maintenance-team assignment accuracy.
+```
+
+This goal is specific enough to produce named business objects, has measurable
+intent ("reduce downtime"), and ties to a real enterprise problem domain.
+
+#### 17.1.3 — Seed Dataset: `plant3_work_orders.csv`
+
+Minimum 8 rows, 12 columns. All values synthetic. No PII, no real production
+data, no real equipment serial numbers.
+
+| Column | Type | Example | Notes |
+|--------|------|---------|-------|
+| `equipment_id` | string | `EQ-301`, `EQ-302` | FK to Equipment object type |
+| `work_order_id` | string | `WO-1001`, `WO-1002` | Primary record key |
+| `asset_type` | string | `CNC Lathe`, `Injection Molder`, `Conveyor` | Controlled vocabulary, 4–5 values |
+| `site` | string | `Plant 3` | All rows same site for pilot scope |
+| `priority` | string | `Critical`, `High`, `Medium`, `Low` | Controlled vocabulary |
+| `status` | string | `Open`, `In Progress`, `Closed` | Workflow state |
+| `opened_at` | ISO 8601 datetime | `2026-05-01T08:30:00` | |
+| `closed_at` | ISO 8601 datetime or empty | `2026-05-03T14:00:00` | Empty if status != Closed |
+| `downtime_hours` | float | `2.5`, `18.0` | Derived: closed_at - opened_at |
+| `owner_team` | string | `Mech Maintenance`, `Elec Maintenance`, `Ops` | FK to Team object type |
+| `failure_code` | string | `BRG-01`, `MTR-03`, `CTL-07` | Categorical with 6–8 codes |
+| `resolution_note` | string, max 200 chars | `Replaced bearing assembly.` | Short free-text |
+
+No column contains: real names, real serial numbers, real locations, PII, PHI,
+financial data, passwords, secrets, or API keys.
+
+#### 17.1.4 — Ontology Business Objects
+
+##### Object Types
+
+| API Name | Display Name | Description | Key Properties |
+|----------|-------------|-------------|----------------|
+| `equipment` | Equipment | A physical asset at Plant 3 monitored by the ontology | equipment_id (PK), asset_type, site, status, sensor_count, installed_date |
+| `work_order` | Work Order | A maintenance or repair work order against equipment | work_order_id (PK), priority, status, opened_at, closed_at, downtime_hours, failure_code, resolution_note |
+| `site` | Site | A manufacturing facility | site_code (PK), site_name, location_city, active |
+| `team` | Maintenance Team | A team responsible for equipment maintenance | team_code (PK), team_name, specialty, shift |
+
+##### Properties (minimum set)
+
+**Equipment**: `equipment_id` (string, PK), `asset_type` (string, enum), `site` (string), `status` (string, enum: Active/Maintenance/Retired), `sensor_count` (int), `installed_date` (date).
+
+**WorkOrder**: `work_order_id` (string, PK), `priority` (string, enum), `status` (string, enum), `opened_at` (datetime), `closed_at` (datetime, nullable), `downtime_hours` (float), `failure_code` (string), `resolution_note` (string).
+
+**Site**: `site_code` (string, PK), `site_name` (string), `location_city` (string), `active` (bool).
+
+**Team**: `team_code` (string, PK), `team_name` (string), `specialty` (string, enum: Mechanical/Electrical/Operations), `shift` (string).
+
+##### Link Types
+
+| Source | Target | Relationship | Cardinality |
+|--------|--------|-------------|-------------|
+| `work_order` | `equipment` | `work_order_targets_equipment` | many-to-one |
+| `work_order` | `team` | `work_order_assigned_to_team` | many-to-one |
+| `equipment` | `site` | `equipment_located_at_site` | many-to-one |
+| `team` | `site` | `team_based_at_site` | many-to-one |
+
+##### Action Types (if implemented)
+
+| API Name | Display Name | Required Role | Description |
+|----------|-------------|---------------|-------------|
+| `reassign_work_order` | Reassign Work Order | admin | Change the owner_team on an open work order |
+
+#### 17.1.5 — Evidence Plan
+
+| # | Evidence Type | Role | Description |
+|---|--------------|------|-------------|
+| 1 | `document` | `context` | KB document describing Plant 3 equipment taxonomy and failure-code catalog. Simulates an existing enterprise knowledge asset. |
+| 2 | `document` | `requirement` | KB document with maintenance SLA policy (response-time targets by priority). |
+| 3 | `rag_run` | `decision` | User asks: "What failure codes are most correlated with downtime over 8 hours?" System returns RAG answer citing the taxonomy doc. User saves as evidence. |
+
+Evidence links must all be `active` status. No raw answers, prompts, or file
+paths exposed in evidence provenance.
+
+#### 17.1.6 — Expected Modeling Output
+
+| Item | Expected Value | Notes |
+|------|---------------|-------|
+| Object Type drafts | 4 (Equipment, WorkOrder, Site, Team) | Generated from dataset profiling + KB documents |
+| Property drafts | 12–16 across all object types | 3–5 per object type |
+| Link Type drafts | 3–4 | equipment↔site, work_order↔equipment, work_order↔team, team↔site |
+| Action Type drafts | 0–1 (optional) | `reassign_work_order` if scaffolded |
+| Accepted drafts | All proposed drafts | Via batch review |
+| Package build | 1 package | `quality_status` must be PASS or WARN (FAIL blocks demo) |
+| Runtime bindings | 1 binding per object type with matching dataset columns (min 2) | equipment↔dataset, work_order↔dataset |
+| Runtime query | 1 query returning ≥5 rows | Example: "All work orders with priority=Critical and status=Open" |
+
+#### 17.1.7 — Outcome Record
+
+| Field | Value |
+|-------|-------|
+| `title` | `Plant 3 Equipment Reliability — FDE Delivery v1` |
+| `decision_summary` | `The Plant 3 equipment ontology pilot identified bearing-related failure codes (BRG-01, BRG-03) as the top contributors to unplanned downtime, accounting for 62% of critical work orders. Proceed to production pilot with expanded dataset covering Plants 1–4 and integrate real-time sensor feeds.` |
+| `risks` | `["Seed dataset limited to 8 synthetic rows — production distribution may differ", "Failure code taxonomy may be incomplete for electrical failures", "Sensor-count property not yet validated against real SCADA data"]` |
+| `next_actions` | `["Expand dataset to Plants 1–4 with real equipment registries", "Validate failure-code catalog against 12 months of CMMS history", "Integrate real-time sensor feed for predictive maintenance modeling", "Present findings to Plant 3 operations director"]` |
+| `selected_evidence_refs` | 3 evidence links (2 document + 1 rag_run) |
+| `package_refs` | 1 package reference |
+
+#### 17.1.8 — Expected Markdown Artifact
+
+The artifact must:
+- Contain all 7 required sections per 17.3 spec.
+- Show `Total Active Evidence Links: 3` (or matching evidence plan count).
+- Show `Total Packages: 1` with PASS or WARN quality status.
+- Show `Total Operations` ≥ 2 (bindings + query).
+- Include the decision summary, risks, and next actions from the outcome record.
+- Pass all 17.3 quality gate checks with zero violations.
+- Be ≤ 5 KB in size (well under the 20 KB max).
+
+#### 17.1.9 — Data Safety Notes
+
+- **All dataset values are synthetic.** No real equipment IDs, no real plant
+  names, no real failure codes, no real CMMS data.
+- No PII, PHI, financial data, credentials, secrets, or API keys in any seed
+  data.
+- The demo group is fully isolated — no cross-group data leakage possible.
+- The smoke script (17.2) may optionally tear down the demo group after
+  completion, or leave it for inspection.
 
 ### 17.2 — Backend Operational Smoke Script
 
@@ -181,34 +304,144 @@ Steps:
 14. Print summary: PASS/FAIL with per-step results
 ```
 
-### 17.3 — Artifact Quality Gate
+### 17.3 — Artifact Quality Gate ← SPEC DETAILED 2026-06-21
 
-**Lane: Standard (validation function + tests).**
+**Lane: Standard (implementation pending — spec only this round).**
 
-A pure function or small class that validates a markdown artifact string.
+This section defines the exact validation contract for a generated markdown
+artifact. This spec is input to the smoke script (17.2 step 13) and may be
+implemented as a standalone Python function or pytest helper. No implementation
+this round.
 
-Input: the markdown string from `GET /outcome-artifact.md`.
+#### 17.3.1 — Function Signature (Recommended)
 
-Checks:
-1. Contains `# ` heading with project name.
-2. Contains `## Business Goal` section with non-empty content.
-3. Contains `## Evidence Summary` section.
-4. Contains `## Ontology Package Summary` section.
-5. Contains `## Runtime Summary` section.
-6. Contains `## Provenance` section.
-7. Does NOT contain forbidden substrings: `raw_content`, `raw_answer`,
-   `source_path`, `storage_path`, `secret` (as standalone word in
-   non-provenance context), `stack_trace` (as standalone word in
-   non-provenance context), `password`.
-8. If outcome record exists, `## Latest Outcome` section has decision/risks/actions.
-9. If no outcome record, `Not recorded yet` appears in Latest Outcome section.
+```python
+def validate_artifact(artifact_md: str) -> tuple[bool, str, list[str]]:
+    """Validate a Pilot Outcome markdown artifact.
 
-Returns: `(passed: bool, violations: list[str])`.
+    Returns:
+        (passed, status, findings)
+        passed: bool — True if no FAIL-level violations.
+        status: str — "PASS" | "WARN" | "FAIL".
+        findings: list[str] — human-readable violation messages.
+    """
+```
 
-Location: `src/semantic_lighthouse/services/artifact_quality.py` or
-`scripts/check_artifact_quality.py` depending on whether it's backend
-or standalone. Prefer backend service if it fits the existing pattern;
-otherwise standalone script.
+Alternative location for smoke script use: `scripts/check_artifact_quality.py`
+with the same signature, called as a subprocess or imported.
+
+#### 17.3.2 — Required Sections
+
+The artifact must contain all seven of these markdown headings. Missing
+section → **FAIL**.
+
+| # | Required Heading | Notes |
+|---|-----------------|-------|
+| 1 | `# <project_name> — Pilot Outcome / FDE Delivery Record` | Level-1 heading with project name. |
+| 2 | `## Business Goal` | Must be followed by non-whitespace content. |
+| 3 | `## Latest Outcome` | Must exist even if content is "Not recorded yet." |
+| 4 | `## Evidence Summary` | Must contain `Total Active Evidence Links`. |
+| 5 | `## Ontology Package Summary` | Must contain `Total Packages`. |
+| 6 | `## Runtime Summary` | Must contain `Total Operations`. |
+| 7 | `## Provenance` | Must contain "group-scoped project summary" or equivalent. |
+
+#### 17.3.3 — Required Business Signals
+
+Beyond section existence, the artifact must carry minimum business meaning.
+Failure → **WARN** (not FAIL — a demo with small data may still be valid).
+
+| # | Signal | Threshold | Severity |
+|---|--------|-----------|----------|
+| 1 | `business_goal` non-empty | Text length > 10 chars after stripping | WARN |
+| 2 | `total_active` evidence > 0 | ≥ 1 evidence link | WARN |
+| 3 | `count` packages > 0 | ≥ 1 ontology package | WARN |
+| 4 | `total_operations` runtime > 0 | ≥ 1 runtime operation | WARN |
+| 5 | `decision_summary` non-empty (when outcome exists) | Text length > 20 chars after stripping | WARN |
+| 6 | `risks` non-empty list (when outcome exists) | ≥ 1 risk entry | WARN |
+| 7 | `next_actions` non-empty list (when outcome exists) | ≥ 1 next action entry | WARN |
+| 8 | `latest_outcome` not null | Outcome record exists | WARN |
+
+A WARN result means "artifact exists and is structurally valid, but some
+business signals are weak or absent." This is acceptable for a pilot with
+minimal seed data. The smoke script may report WARN as a soft pass.
+
+#### 17.3.4 — Forbidden Terms
+
+Any occurrence of these substrings (case-insensitive) in the artifact body →
+**FAIL**. This is a hard security boundary.
+
+| # | Forbidden Term | Rationale |
+|---|---------------|-----------|
+| 1 | `raw_content` | Raw document text must never leak into artifact |
+| 2 | `raw_answer` | Raw LLM answer text must never leak |
+| 3 | `raw_prompt` | Raw LLM prompt must never leak |
+| 4 | `answer` | Standalone "answer" key from RAG response JSON — must not appear outside provenance context |
+| 5 | `prompt` | Standalone "prompt" key — must not appear outside provenance context |
+| 6 | `source_path` | File paths to source documents must never leak |
+| 7 | `storage_path` | File paths to stored datasets must never leak |
+| 8 | `secret` | Any credential or secret string |
+| 9 | `token` | JWT or API token |
+| 10 | `password` | Any password field |
+| 11 | `stack_trace` | Python traceback or error stack |
+
+**Provenance section exemption**: The provenance section may legitimately
+declare what the artifact does NOT contain (e.g., "does not contain raw
+prompts, raw answers, file paths, secrets, tokens, or stack traces").
+The validator should either:
+- Skip the Provenance section when checking forbidden terms, OR
+- Check that forbidden terms only appear in negated/declarative context
+  within the Provenance section.
+
+Recommended approach: skip the `## Provenance` section when scanning for
+forbidden terms. Simpler and less error-prone.
+
+#### 17.3.5 — Boundedness Rules
+
+| # | Rule | Threshold | Severity |
+|---|------|-----------|----------|
+| 1 | Max artifact size | ≤ 20,000 bytes (≈20 KB) | FAIL |
+| 2 | No raw dataset rows | Must not contain comma-separated values matching the seed dataset pattern (e.g., lines with ≥10 comma-separated fields) | FAIL |
+| 3 | No local file paths | Must not contain patterns like `/data/`, `C:\`, `\\\\`, `/tmp/`, `/home/`, `/Users/` | FAIL |
+| 4 | No JSON object blobs | Must not contain `{` ... `}` with keys matching `answer`, `raw_content`, `source_path` | FAIL |
+| 5 | No stack-like text | Must not contain `File "`, `line `, `Traceback (most recent call last)` | FAIL |
+
+The 20 KB limit is generous — a well-formed artifact with the 17.1 seed
+scenario should be under 5 KB. The limit exists to catch catastrophic
+leakage (e.g., raw CSV output dumped into the artifact).
+
+#### 17.3.6 — Output Format
+
+The validation function returns a three-tuple:
+
+```python
+(passed: bool, status: str, findings: list[str])
+```
+
+| status | Meaning | Exit Code (if CLI) |
+|--------|---------|-------------------|
+| `PASS` | All required sections present, no forbidden terms, all boundedness rules pass, business signals ≥ minimum thresholds. | 0 |
+| `WARN` | All FAIL-level checks pass, but one or more WARN-level business signals are below threshold. | 0 (soft pass for smoke) |
+| `FAIL` | One or more FAIL-level checks violated: missing section, forbidden term found, boundedness rule broken. | 1 |
+
+Each finding string follows the format: `[{severity}] {section}: {message}`.
+Examples:
+- `[FAIL] forbidden_terms: found 'source_path' outside Provenance section`
+- `[WARN] business_signals: evidence total_active is 0`
+- `[FAIL] boundedness: artifact size 28431 bytes exceeds 20000 byte limit`
+- `[FAIL] required_sections: missing '## Runtime Summary'`
+
+#### 17.3.7 — Implementation Notes (For 17.2 Reference)
+
+- This spec is designed to be implementable as a single-file Python module
+  with zero dependencies beyond the standard library.
+- The validator should NOT import from `semantic_lighthouse.*` to avoid
+  coupling to the backend. It operates on raw markdown strings.
+- Location preference: `scripts/check_artifact_quality.py` (standalone,
+  callable by smoke script or manually on any `.md` file).
+- The smoke script (17.2 step 13) will call this validator on the
+  `GET /outcome-artifact.md` response text and report PASS/WARN/FAIL.
+- A follow-up task may add pytest coverage for the validator itself, but
+  the validator is a script, not a backend service — no FastAPI dependency.
 
 ### 17.4 — Interview/Demo Script Refresh
 
@@ -256,10 +489,15 @@ Verify:
 - `git status --short` — only planning docs changed.
 - No pytest, ruff, verify_ui, or e2e (no code changed).
 
-## Open Decisions (resolved during implementation)
+## Open Decisions
 
-1. Seed scenario: manufacturing equipment vs. generic ecommerce vs. other domain.
-2. Smoke script: fake provider vs. real LLM calls (fake preferred for speed).
-3. Artifact quality gate: backend service vs. standalone script.
-4. Whether to add a convenience `POST /demo/seed` endpoint or keep seeding manual.
-5. Whether 17.3 artifact gate runs as part of smoke script or as a pytest.
+1. Seed scenario: **RESOLVED** — manufacturing equipment maintenance & work-order
+   reliability (see 17.1.1). Not ecommerce.
+2. Smoke script: fake provider vs. real LLM calls — **open**. Fake preferred for
+   speed and offline demo; real provider fallback if configured.
+3. Artifact quality gate: **RESOLVED** — standalone script at
+   `scripts/check_artifact_quality.py` with zero backend coupling.
+4. Convenience `POST /demo/seed` endpoint — **deferred** to post-17.2 decision.
+   Smoke script will call existing endpoints directly.
+5. 17.3 artifact gate integration: **RESOLVED** — called as a subprocess or
+   import by smoke script step 13. May also have pytest coverage added later.
