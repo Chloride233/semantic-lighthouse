@@ -15,17 +15,17 @@ summary = "Phase 19 Ontology Operationalization complete (19.1–19.6). Delivere
 [frontend]
 status = "F2 complete + visual baseline closeout accepted"
 summary = "Guided Pilot workspace delivered. F2A: Pilot entry + nav restructure. F2B: Model -> Validate -> Pilot full operation loop. F2C: Responsive, accessibility, visual polish. Phase 15.3 Slice B adds evidence-to-draft proposal UI in goal stage. 2026-06-21/22 visual baseline refresh applies Handhold-inspired typography, spacing, pill CTAs, quiet cards, and Minimalism & Swiss Style while preserving Semantic Lighthouse color semantics. Legacy console pages now have screenshot QA coverage across desktop and mobile."
-latest_verified_ui = "54/54"
+latest_verified_ui = "59/59"
 latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "P1.2 demo dataset onboarding delivered"
-description = "POST datasets/demo-data endpoint generates tiny manufacturing pack via subprocess and imports 13 CSVs as project datasets. Frontend button is visible only at the no-dataset goal stage to avoid mixing demo data into an existing real Pilot. 6 tests (owner/admin success, member/outsider 403, idempotent, archived 409). 54/54 verify_ui."
+current = "P1.3A demo onboarding first-use path verified"
+description = "verify_ui.py now covers the full demo onboarding flow: create Pilot -> click loadDemoBtn -> wait for import -> assert 13 datasets -> assert genFromDataBtn visible. 59/59 verify_ui tests pass. P1.2 demo data endpoint + P1.1 guidance + P1.3A smoke = complete first-use path."
 
 [next_decision_gate]
-name = "P1.3 product workflow review or R1 runtime boundary planning"
-description = "Options: (1) end-to-end product workflow review with screenshots, (2) R1 runtime boundary audit/cleanup, (3) AdventureWorks benchmark implementation, (4) Safety Lane DB-backed governance feedback."
+name = "R1 runtime boundary planning or portfolio wrap-up"
+description = "Options: (1) R1 runtime boundary audit/cleanup, (2) AdventureWorks benchmark implementation, (3) Safety Lane DB-backed governance feedback, (4) Portfolio/demo video capture."
 
 [mcp]
 runtime_status = "not started"

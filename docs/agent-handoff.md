@@ -404,11 +404,26 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 - Added `verify_ui.py` coverage for the P1.2 demo data button at goal stage.
 - Verification: `node --check static/js/pages/project.js`, `scripts/verify_ui.py` 54/54, `git diff --check`.
 
+## P1.3A — First-Use Demo Data Path Smoke
+
+**Status**: Delivered (2026-06-22). **Lane**: Standard.
+
+### Changes
+
+- `scripts/verify_ui.py`: Added 5 new checks (P1.3A section). Creates a separate
+  Pilot, clicks loadDemoBtn, waits for import, asserts stage=数据, asserts
+  ≥13 datasets, asserts genFromDataBtn visible. Uses `wait_for_selector` for
+  robust timing (generator+profiling takes 5-10s).
+
+### Verification: 59/59 verify_ui (5 new P1.3A + 54 existing), doc alignment PASS.
+
+### No product blockers found. Demo data import works end-to-end via UI.
+
 ## Next Decision Gate
 
-**P1.2 delivered**: Next: P1.3 product workflow review, R1 runtime boundary
-planning, AdventureWorks implementation, or Safety Lane DB-backed governance
-feedback.
+**P1.1-P1.3A complete**: Full first-use path smoke-covered. Next: R1 runtime
+boundary planning, AdventureWorks implementation, Safety Lane DB-backed
+governance feedback, or portfolio/demo video capture.
 
 ## Phase 15 Delivery Summary
 

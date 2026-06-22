@@ -484,6 +484,61 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         has_list = page.locator(".pageTitle").count() > 0 or page.locator(".projectCard").count() > 0
         results.append(("F2B In-app navigation preserves state", has_list))
 
+        # ══════════════════════════════════════════════════════════════
+        #  P1.3A: Demo data onboarding first-use path
+        # ══════════════════════════════════════════════════════════════
+        # Create a separate Pilot so demo onboarding doesn't
+        # interfere with the F2A/F2B CSV-upload flow above.
+        page.goto(f"{base}/console#/groups/{gid}/projects")
+        page.wait_for_timeout(800)
+
+        # Create second Pilot for demo onboarding
+        if page.locator("#createProjectBtn").count() > 0:
+            page.click("#createProjectBtn")
+        elif page.locator("#createFirstBtn").count() > 0:
+            page.click("#createFirstBtn")
+        page.wait_for_timeout(400)
+        page.fill("#npName", "DemoOnboardTest")
+        page.fill("#npGoal", "Demo data smoke test")
+        page.click("#npSubmit")
+        page.wait_for_timeout(3000)
+
+        is_demo_detail = page.locator(".projectDetail").count() > 0
+        results.append(("P1.3A Demo Pilot created", is_demo_detail))
+        assert is_demo_detail, "Demo Pilot must render after creation"
+
+        # Wait for goal stage to fully render (includes async API calls)
+        try:
+            page.wait_for_selector("#loadDemoBtn", state="visible", timeout=10000)
+        except Exception:
+            pass
+        has_demo_btn = page.locator("#loadDemoBtn").count() > 0
+        results.append(("P1.3A Demo data button visible", has_demo_btn))
+        assert has_demo_btn, f"loadDemoBtn must be visible at goal stage. " \
+            f"URL: {page.url}"
+
+        page.click("#loadDemoBtn")
+        # Wait for import (generator + profiling ~5-10s), poll for result
+        page.wait_for_timeout(6000)
+        # Poll: wait for datasets to appear, up to 20s
+        try:
+            page.wait_for_selector(".datasetItem", state="attached", timeout=15000)
+        except Exception:
+            pass
+        page.wait_for_timeout(1000)
+
+        # After import: stage must advance to data, datasets visible
+        stage_data_ok = page.locator("text=数据集已就绪").count() > 0
+        dataset_count = page.locator(".datasetItem").count()
+        results.append(("P1.3A Stage advanced to data after demo import", stage_data_ok))
+        results.append(("P1.3A Datasets visible (>=13)", dataset_count >= 13))
+        assert dataset_count >= 13, f"Expected >=13 datasets, got {dataset_count}"
+
+        # Generate drafts button must be visible
+        gen_visible = page.locator("#genFromDataBtn").count() > 0
+        results.append(("P1.3A Generate drafts button visible", gen_visible))
+        assert gen_visible, "genFromDataBtn must be visible after demo import"
+
     # 11. Logout
     page.goto(f"{base}/console#/login")
     page.wait_for_timeout(800)
