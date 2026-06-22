@@ -419,11 +419,32 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 
 ### No product blockers found. Demo data import works end-to-end via UI.
 
+## R1A — Runtime Boundary Audit
+
+**Status**: Delivered (2026-06-22). **Lane**: Standard, docs/planning only.
+
+### Changes
+
+- `docs/r1-runtime-boundary-audit.md` documents the current runtime boundary,
+  ownership pressure in `services/runtime.py`, and the behavior-preserving
+  extraction plan.
+- Current decision: runtime correctness is not the blocker; maintainability and
+  review risk are. Do not rewrite runtime or expand query behavior.
+- Recommended next slice: R1B contract and audit extraction only.
+
+### Boundaries
+
+- No code changes.
+- No migrations.
+- No API/request/response changes.
+- No query language, joins, Graph RAG, MCP runtime, Agent writes, external
+  connectors, or frontend redesign.
+
 ## Next Decision Gate
 
-**P1.1-P1.3A complete**: Full first-use path smoke-covered. Next: R1 runtime
-boundary planning, AdventureWorks implementation, Safety Lane DB-backed
-governance feedback, or portfolio/demo video capture.
+**R1A complete**: Next: R1B contract and audit extraction, AdventureWorks
+benchmark, Safety Lane DB-backed governance feedback, or portfolio/demo video
+capture.
 
 ## Phase 15 Delivery Summary
 

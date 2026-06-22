@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "P1.3A demo onboarding first-use path verified"
-description = "verify_ui.py now covers the full demo onboarding flow: create Pilot -> click loadDemoBtn -> wait for import -> assert 13 datasets -> assert genFromDataBtn visible. 59/59 verify_ui tests pass. P1.2 demo data endpoint + P1.1 guidance + P1.3A smoke = complete first-use path."
+current = "R1A runtime boundary audit delivered"
+description = "Runtime boundary audit documented in docs/r1-runtime-boundary-audit.md. Current runtime is correct but dense: services/runtime.py owns contract lookup, binding generation, dataset IO, query execution, audit, and activation. R1 should proceed as behavior-preserving extraction slices only, starting with contract/audit helpers."
 
 [next_decision_gate]
-name = "R1 runtime boundary planning or portfolio wrap-up"
-description = "Options: (1) R1 runtime boundary audit/cleanup, (2) AdventureWorks benchmark implementation, (3) Safety Lane DB-backed governance feedback, (4) Portfolio/demo video capture."
+name = "R1B contract and audit extraction"
+description = "Behavior-preserving refactor candidate: extract latest package/contract context and runtime audit helpers from services/runtime.py without API, migration, permission, query, or frontend changes. Alternative gates: AdventureWorks benchmark, DB-backed governance feedback, or portfolio/demo video capture."
 
 [mcp]
 runtime_status = "not started"
