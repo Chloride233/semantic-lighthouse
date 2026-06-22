@@ -83,50 +83,16 @@ Documents/Data → Dataset Profiling → Modeling Drafts → Human Review (accep
 - **Unified read-only query runtime (equality filters, type conversion, provenance)**
 - **Pilot activation gate (binding validation + smoke query)**
 
-## Future ECC Prompt
+## Current Portfolio Workflow
 
-```text
-/ecc plan
+ECC has been removed from the local workflow. Future portfolio work should use
+the normal CC/Codex handoff pattern:
 
-你正在 F:\semantic-lighthouse 项目中工作。本轮目标是推进【未来阶段：求职展示与项目叙事】。请先不要写代码。
+1. Read `docs/project-status.toml`, `docs/agent-handoff.md`, and the target
+   portfolio document.
+2. Keep the lane Fast unless code or screenshots are changed.
+3. Update only the relevant portfolio docs.
+4. Validate with `scripts/check_doc_alignment.py`, `git diff --check`, and
+   `git status --short`.
 
-请先阅读：
-1. CLAUDE.md
-2. README.md
-3. docs/agent-handoff.md
-4. docs/project-roadmap.md
-5. docs/engineering-memory/interview-stories.md
-6. docs/engineering-memory/highlight-log.md
-7. docs/engineering-memory/pitfall-log.md
-8. docs/engineering-memory/portfolio-backlog.md
-
-本阶段目标：
-把语义灯塔整理成一个能用于实习求职展示的工程项目，而不是只停留在代码仓库。
-
-启动前请先判断：
-1. 当前项目是否已经达到可以展示的完整度。
-2. 哪些能力已经真实跑通并测试过。
-3. 哪些能力还不能写进简历。
-4. 是否存在夸大项目能力的风险。
-
-请围绕以下方向做计划：
-1. README 升级：项目定位、架构图、核心链路、本地运行、测试、云端部署。
-2. Demo 脚本：权限隔离、文档入库检索、RAG 咨询回答。
-3. 简历材料：只写真实跑通并测试过的能力。
-4. 面试叙事：每个亮点都对应真实工程问题、风险、方案、指标和结果。
-
-请输出最小可交付计划，必须包含：
-- README 应该怎么改
-- Demo 应该准备哪些输入和输出
-- 哪些能力可以写进简历
-- 哪些能力暂时不能写进简历
-- 需要补哪些截图、命令、示例
-- 学习复盘如何安排
-- 验收标准
-
-要求：
-- 不夸大项目能力
-- 不写未实践技术栈
-- 不把“用了很多框架”当亮点
-- 重点突出权限隔离、检索质量、RAG 可信度、工程判断力
-```
+The current portfolio entry point is `docs/portfolio-demo-narrative.md`.
