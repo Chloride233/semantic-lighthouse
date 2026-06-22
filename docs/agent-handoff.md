@@ -250,13 +250,60 @@ The previous "frontend freeze" / "deferred to Kimi" policy has been **retired**.
 - Enum vocab hardcoded from generator schema — no runtime resolution.
 - Derived class findings are INFO only — never cause exit 1.
 
-### Next: Phase 19.5
+## Phase 19.5 — Governance Feedback v1
 
-Governance Feedback v1 — wire rule validation findings into governance issues or evidence-backed modeling drafts. Close the loop: rule violations → human-reviewable governance artifact. AdventureWorks remains a candidate for a future external benchmark slice, not in 19.5.
+**Status**: Delivered (2026-06-22). **Lane**: Standard.
+
+### Changes
+
+- `scripts/generate_governance_feedback.py` (new): Transforms rule_validation_report.json findings into governance_feedback.json — human-reviewable governance candidates grouped by type, severity, and table. 3 candidate types, 4 severity levels, specific suggested actions per rule. No DB writes.
+- `tests/test_governance_feedback.py` (new): 6 tests — schema, grouping by type/severity, missing report, boundaries enforcement, --fail-on-critical, clean-data stability.
+
+### Candidate Types
+
+| Type | Trigger Rules | Description |
+|------|--------------|-------------|
+| `data_quality_issue` | required_field, pk_unique, fk_integrity, enum_allowed, numeric_range, date_order, row_count_range | Data quality problem in source CSV |
+| `mapping_review` | enum_allowed, required_field, date_order | Mapping contract may need revision |
+| `ontology_modeling_opportunity` | derived_class | Pattern that may warrant explicit Ontology modeling |
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Governance generator (clean data) | 103 candidates, 99 high / 4 info |
+| --fail-on-critical (clean) | exit 0 (no critical) |
+| --fail-on-critical (FK broken) | exit 1 (critical candidates) |
+| Pytest (6 new tests) | 6 passed, 2.44s |
+| All Phase 19 tests (29) | 29 passed, 15.00s |
+| Ruff (changed files) | clean |
+| Doc alignment | PASS |
+| git diff --check | clean |
+
+### Closed Loop Proven
+
+```text
+CSV data → manifest.json → mapping_contract.json
+→ validate_business_rules.py → rule_validation_report.json
+→ generate_governance_feedback.py → governance_feedback.json
+→ (future: human review → DB governance issues / modeling drafts)
+```
+
+### Boundaries Preserved
+
+- No UI, no backend API, no migrations, no frontend.
+- No database writes — governance_feedback.json is offline-only.
+- No real governance_issues or modeling_drafts created.
+- Human review explicitly required before any DB-level action.
+- No external data downloaded (AdventureWorks deferred).
+
+### Next: Phase 19.6
+
+Phase 19 Closeout — final review, documentation refresh, verification gates, and portfolio handoff readiness. AdventureWorks remains a candidate for a future external benchmark slice.
 
 ## Next Decision Gate
 
-**Phase 19 in progress (19.1–19.4 delivered)**: Next is 19.5 Governance Feedback v1. AdventureWorks is a recognised external benchmark candidate for a future slice — not to be wired in 19.5 without explicit planning.
+**Phase 19 in progress (19.1–19.5 delivered)**: Next is 19.6 Phase 19 Closeout.
 
 ## Phase 15 Delivery Summary
 

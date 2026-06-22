@@ -1,6 +1,6 @@
 # Phase 19 — Ontology Operationalization with Realistic Business Data
 
-**Status**: In progress (19.1–19.4 delivered)
+**Status**: In progress (19.1–19.5 delivered)
 
 ## Goal
 
@@ -21,7 +21,8 @@ validators, tests, and demo consumers can rely on.
 - **No new database dependencies** (no Neo4j, OWL, LangGraph, MCP runtime, OSDK).
 - **Mapping Contract v1**: delivered as offline JSON artifact in 19.3.
 - **Rule Validation v1**: delivered as offline deterministic report in 19.4.
-- **Governance Feedback v1**: deferred to 19.5.
+- **Governance Feedback v1**: delivered as offline candidate generation in 19.5.
+- **Phase 19 Closeout**: deferred to 19.6.
 
 ## Slices
 
@@ -31,7 +32,7 @@ validators, tests, and demo consumers can rely on.
 | 19.2 | FDE Demo Smoke Reads Data Pack Contract | Delivered |
 | 19.3 | Mapping Contract v1 (offline/script-level) | Delivered |
 | 19.4 | Rule Validation v1 (offline/script-level) | Delivered |
-| 19.5 | Governance Feedback v1 | Planned |
+| 19.5 | Governance Feedback v1 | Delivered |
 | 19.6 | Phase 19 Closeout | Planned |
 
 ## 19.1 Delivered
@@ -95,6 +96,24 @@ validators, tests, and demo consumers can rely on.
 - Tests (`tests/test_business_rule_validation.py`): 7 tests — report schema,
   required_field, pk_unique, fk_integrity, enum_allowed, date_order, derived_class.
 - Total test count: 23 (16 from 19.1–19.3 + 7 from 19.4).
+
+## 19.5 Delivered
+
+- `scripts/generate_governance_feedback.py` (new): Reads rule_validation_report.json
+  and produces governance_feedback.json — groups rule findings into human-reviewable
+  governance candidates. No DB writes, no real issue creation.
+- Candidate types: data_quality_issue (FAIL findings), mapping_review (enum/schema
+  issues), ontology_modeling_opportunity (derived_class INFO).
+- Severity: critical (pk_unique, fk_integrity), high (required_field, date_order),
+  medium (enum_allowed, numeric_range, row_count_range), info (derived_class).
+- Each candidate: candidate_id, finding_ref, candidate_types[], severity,
+  suggested_action, status=open, evidence (bounded — no raw data rows).
+- CLI: --data-pack, --report, --output, --fail-on-critical.
+- Boundaries: offline_only=true, writes_to_database=false,
+  creates_real_governance_issues=false, replaces_human_review=false.
+- Tests (`tests/test_governance_feedback.py`): 6 tests — schema, grouping,
+  missing report, boundaries, --fail-on-critical, clean-data stability.
+- Total test count: 29 (23 from 19.1–19.4 + 6 from 19.5).
 
 ## AdventureWorks Note
 

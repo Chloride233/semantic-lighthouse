@@ -8,9 +8,9 @@
 version = 1
 
 [product]
-phase = "Phase 19.4"
+phase = "Phase 19.5"
 status = "delivered"
-summary = "Phase 19.4 Rule Validation v1 delivered: validate_business_rules.py with 8 rule categories (required_field, pk_unique, fk_integrity, enum_allowed, numeric_range, date_order, derived_class, row_count_range), rule_validation_report.json offline output, 23 tests total across 19.1–19.4. No DB writes, no governance issues yet."
+summary = "Phase 19.5 Governance Feedback v1 delivered: generate_governance_feedback.py transforms rule findings into human-reviewable governance candidates (3 types, 4 severity levels), governance_feedback.json offline output. 29 tests total. Proves closed loop: CSV → manifest → mapping_contract → rule validation → governance feedback."
 
 [frontend]
 status = "F2 complete + visual baseline closeout accepted"
@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Phase 19.4 delivered — rule validation v1"
-description = "8 rule categories validate business data against manifest + mapping_contract + CSV. rule_validation_report.json is offline-only. Next: Phase 19.5 Governance Feedback v1."
+current = "Phase 19.5 delivered — governance feedback v1"
+description = "Rule validation findings transformed into governance candidates (3 types, 4 severity levels). Closed loop: CSV → manifest → mapping_contract → rule validation → governance feedback. Next: Phase 19.6 Closeout."
 
 [next_decision_gate]
-name = "Phase 19.5: Governance Feedback v1"
-description = "Wire rule validation findings into governance issues or evidence-backed modeling drafts. Close the loop: rule violations → human-reviewable governance artifact. AdventureWorks remains a candidate for a future external benchmark slice."
+name = "Phase 19.6: Phase 19 Closeout"
+description = "Final review, documentation refresh, verification gates, portfolio handoff readiness. 29 tests across 19.1–19.5. AdventureWorks remains a candidate for a future external benchmark slice."
 
 [mcp]
 runtime_status = "not started"

@@ -83,7 +83,29 @@ business rule validation：
 - 枚举词表硬编码自 generator schema（18 个 table.column 条目）
 - 派生类（critical_work_order, at_risk_equipment, high_value_material,
   high_scrap_work_order）为 INFO 级别，不导致失败
-- Rule violations 尚未进入 governance issue（19.5 待实现）
+- Rule violations 已通过 19.5 governance feedback 生成离线治理候选（尚不写入 DB）
+
+### 4. 治理反馈闭环（19.5 已交付）
+
+Phase 19.5 已将规则验证异常转成离线治理候选：
+
+- `scripts/generate_governance_feedback.py`：读取 rule_validation_report.json，
+  生成 governance_feedback.json
+- 3 种候选类型：data_quality_issue, mapping_review, ontology_modeling_opportunity
+- 4 个严重级别：critical, high, medium, info
+- 每个候选包含具体 suggested_action，来源为确定性规则映射
+- boundaries: offline_only=true, writes_to_database=false,
+  creates_real_governance_issues=false, replaces_human_review=false
+- 不创建真实 governance_issues 或 modeling_drafts（那是后续 Safety Lane 的工作）
+
+这证明了完整离线闭环：
+
+```text
+CSV data → manifest → mapping_contract → rule validation → governance feedback
+```
+
+下一步（19.6+）可在人审确认后，将治理候选写入数据库成为 governance_issue
+或 evidence-backed modeling draft。
 
 这样可以证明 Ontology 不只是”能查数据”，而是能解释、验证和治理业务数据。
 
