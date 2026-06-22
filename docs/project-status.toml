@@ -8,9 +8,9 @@
 version = 1
 
 [product]
-phase = "Phase 19.2"
+phase = "Phase 19.3"
 status = "delivered"
-summary = "Phase 19.2 FDE Smoke Reads Manufacturing Data Pack Contract delivered: smoke_fde_demo.py accepts --data-pack flag, validates manifest (13 tables, core_pilot, PK/FK, row_count), prints manifest summary in recap. Auto-generates default tiny pack when flag omitted. 10 tests total (6 from 19.1 + 4 smoke data-pack tests). AdventureWorks remains a future external benchmark candidate, not in 19.1/19.2."
+summary = "Phase 19.3 Mapping Contract v1 delivered: generate_mapping_contract.py (13 object types, 15 relationships, deterministic column schemas), validate_mapping_contract.py (controlled vocab, CSV header cross-check, PK/FK manifest consistency), 16 tests total. Mapping contract is offline JSON artifact only — no DB migration, no API changes."
 
 [frontend]
 status = "F2 complete + visual baseline closeout accepted"
@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Phase 19.2 delivered — FDE smoke reads data pack contract"
-description = "smoke_fde_demo.py now validates and displays manufacturing data pack manifest as its input asset contract. Next: Phase 19.3 Mapping Contract v1 (offline/script-level, no database migration)."
+current = "Phase 19.3 delivered — mapping contract v1"
+description = "mapping_contract.json produced deterministically from manifest + TABLE_SCHEMAS. Validator cross-checks against manifest PK/FK and CSV headers. Next: Phase 19.4 Rule Validation v1 (offline/script-level)."
 
 [next_decision_gate]
-name = "Phase 19.3: Mapping Contract v1"
-description = "Implement Mapping Contract as a first-class offline/script-level validation artifact. Map source fields to business properties with value types, null strategies, and evidence sources. No database migration at this stage. AdventureWorks remains a candidate for a future external benchmark slice, not in 19.3."
+name = "Phase 19.4: Rule Validation v1"
+description = "Implement offline business rule validation against mapping contract + data pack. Required fields, uniqueness, enum ranges, type ranges, derived classes. No database migration. AdventureWorks remains a candidate for a future external benchmark slice."
 
 [mcp]
 runtime_status = "not started"

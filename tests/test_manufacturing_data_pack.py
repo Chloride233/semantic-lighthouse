@@ -361,3 +361,217 @@ class TestFDESmokeDataPack:
                 f"got {exit_code}\n{output}"
             )
             assert "Missing CSV" in output or "FAIL" in output
+
+
+# ── Mapping contract helpers ─────────────────────────────────────────────
+
+MAPPING_GEN = REPO_ROOT / "scripts" / "generate_mapping_contract.py"
+MAPPING_VAL = REPO_ROOT / "scripts" / "validate_mapping_contract.py"
+
+
+def run_mapping_generator(data_dir: Path) -> tuple[int, str]:
+    """Run mapping contract generator. Returns (exit_code, output)."""
+    import subprocess
+    import sys
+    result = subprocess.run(
+        [sys.executable, str(MAPPING_GEN), "--data-pack", str(data_dir)],
+        capture_output=True, text=True, timeout=15,
+    )
+    return result.returncode, result.stdout
+
+
+def run_mapping_validator(
+    contract_path: Path,
+    data_dir: Path | None = None,
+) -> tuple[int, str]:
+    """Run mapping contract validator. Returns (exit_code, output)."""
+    import subprocess
+    import sys
+    cmd = [sys.executable, str(MAPPING_VAL), str(contract_path)]
+    if data_dir is not None:
+        cmd.extend(["--data-pack", str(data_dir)])
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, timeout=15,
+    )
+    return result.returncode, result.stdout
+
+
+def load_mapping_contract(data_dir: Path) -> dict:
+    """Load mapping_contract.json from a data pack directory."""
+    return json.loads(
+        (data_dir / "mapping_contract.json").read_text(encoding="utf-8")
+    )
+
+
+class TestMappingContract:
+    """Verify mapping contract generation and validation (Phase 19.3)."""
+
+    def test_mapping_contract_generates_and_validates(self):
+        """Tiny data pack → mapping_contract.json → validator PASS."""
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "data"
+            run_generator(out, preset="tiny", seed=42)
+
+            # Generate contract
+            exit_code, output = run_mapping_generator(out)
+            assert exit_code == 0, (
+                f"Generator should exit 0, got {exit_code}\n{output}"
+            )
+            assert (out / "mapping_contract.json").is_file()
+
+            # Validate with cross-validation
+            exit_code, output = run_mapping_validator(
+                out / "mapping_contract.json", data_dir=out,
+            )
+            assert exit_code == 0, (
+                f"Validator should PASS (exit 0), got {exit_code}\n{output}"
+            )
+            assert "Result: PASS" in output
+
+            # Check contract structure
+            contract = load_mapping_contract(out)
+            assert contract["contract_version"] == "1.0"
+            assert contract["data_pack"] == "manufacturing"
+            assert contract["object_type_count"] == 13
+            assert contract["core_pilot_object_type_count"] == 8
+            assert len(contract["object_type_mappings"]) == 13
+            assert len(contract["relationship_mappings"]) == 15
+
+            # Each core_pilot object type has column_mappings
+            for ot in contract["object_type_mappings"]:
+                assert len(ot["column_mappings"]) > 0, (
+                    f"Object type '{ot['object_type']}' has no column_mappings"
+                )
+                assert ot["primary_key"], (
+                    f"Object type '{ot['object_type']}' has no primary_key"
+                )
+
+    def test_missing_source_column_fails(self):
+        """Validator FAILs when a source_column is not in CSV headers."""
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "data"
+            run_generator(out, preset="tiny", seed=42)
+            run_mapping_generator(out)
+
+            # Corrupt: change a source_column to a nonexistent name
+            contract = load_mapping_contract(out)
+            contract["object_type_mappings"][0]["column_mappings"][0][
+                "source_column"
+            ] = "nonexistent_column_xyz"
+            with open(out / "mapping_contract.json", "w", encoding="utf-8") as f:
+                json.dump(contract, f)
+
+            exit_code, output = run_mapping_validator(
+                out / "mapping_contract.json", data_dir=out,
+            )
+            assert exit_code == 1, (
+                f"Validator should FAIL (exit 1) for missing column, "
+                f"got {exit_code}\n{output}"
+            )
+            assert "Result: FAIL" in output
+            assert "not found" in output or "column" in output.lower()
+
+    def test_pk_mismatch_with_manifest_fails(self):
+        """Validator FAILs when contract primary_key != manifest primary_key."""
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "data"
+            run_generator(out, preset="tiny", seed=42)
+            run_mapping_generator(out)
+
+            # Corrupt: change PK on one object type
+            contract = load_mapping_contract(out)
+            contract["object_type_mappings"][0]["primary_key"] = ["wrong_pk"]
+            with open(out / "mapping_contract.json", "w", encoding="utf-8") as f:
+                json.dump(contract, f)
+
+            exit_code, output = run_mapping_validator(
+                out / "mapping_contract.json", data_dir=out,
+            )
+            assert exit_code == 1, (
+                f"Validator should FAIL (exit 1) for PK mismatch, "
+                f"got {exit_code}\n{output}"
+            )
+            assert "Result: FAIL" in output
+            assert "primary_key" in output and "manifest" in output
+
+    def test_fk_relationship_mismatch_fails(self):
+        """Validator FAILs when a relationship FK is not in manifest."""
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "data"
+            run_generator(out, preset="tiny", seed=42)
+            run_mapping_generator(out)
+
+            # Corrupt: add a bogus relationship
+            contract = load_mapping_contract(out)
+            contract["relationship_mappings"].append({
+                "relationship_name": "fake_relationship",
+                "source_table": "suppliers",
+                "source_columns": ["supplier_id"],
+                "target_table": "nonexistent_table",
+                "target_columns": ["fake_col"],
+                "cardinality": "many_to_one",
+                "core_pilot": False,
+                "evidence_source": "test corruption",
+            })
+            with open(out / "mapping_contract.json", "w", encoding="utf-8") as f:
+                json.dump(contract, f)
+
+            exit_code, output = run_mapping_validator(
+                out / "mapping_contract.json", data_dir=out,
+            )
+            assert exit_code == 1, (
+                f"Validator should FAIL (exit 1) for FK mismatch, "
+                f"got {exit_code}\n{output}"
+            )
+            assert "Result: FAIL" in output
+            assert "fake_relationship" in output
+
+    def test_invalid_value_type_fails(self):
+        """Validator FAILs when value_type is not in controlled vocab."""
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "data"
+            run_generator(out, preset="tiny", seed=42)
+            run_mapping_generator(out)
+
+            # Corrupt: change value_type to invalid
+            contract = load_mapping_contract(out)
+            contract["object_type_mappings"][0]["column_mappings"][0][
+                "value_type"
+            ] = "bogus_type"
+            with open(out / "mapping_contract.json", "w", encoding="utf-8") as f:
+                json.dump(contract, f)
+
+            exit_code, output = run_mapping_validator(
+                out / "mapping_contract.json", data_dir=out,
+            )
+            assert exit_code == 1, (
+                f"Validator should FAIL (exit 1) for invalid value_type, "
+                f"got {exit_code}\n{output}"
+            )
+            assert "Result: FAIL" in output
+            assert "value_type" in output and "bogus_type" in output
+
+    def test_invalid_semantic_role_fails(self):
+        """Validator FAILs when semantic_role is not in controlled vocab."""
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "data"
+            run_generator(out, preset="tiny", seed=42)
+            run_mapping_generator(out)
+
+            # Corrupt: change semantic_role to invalid
+            contract = load_mapping_contract(out)
+            contract["object_type_mappings"][1]["column_mappings"][2][
+                "semantic_role"
+            ] = "invalid_role"
+            with open(out / "mapping_contract.json", "w", encoding="utf-8") as f:
+                json.dump(contract, f)
+
+            exit_code, output = run_mapping_validator(
+                out / "mapping_contract.json", data_dir=out,
+            )
+            assert exit_code == 1, (
+                f"Validator should FAIL (exit 1) for invalid semantic_role, "
+                f"got {exit_code}\n{output}"
+            )
+            assert "Result: FAIL" in output
+            assert "semantic_role" in output and "invalid_role" in output

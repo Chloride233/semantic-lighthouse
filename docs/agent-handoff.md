@@ -173,13 +173,48 @@ The previous "frontend freeze" / "deferred to Kimi" policy has been **retired**.
 - Existing smoke steps unchanged; data pack is a read-only input asset.
 - Mapping Contract and Rule Validation deferred to later slices (19.3, 19.4).
 
-### Next: Phase 19.3
+## Phase 19.3 — Mapping Contract v1
 
-Mapping Contract v1 as an offline/script-level validation artifact. Map source fields to business properties with value types, null strategies, and evidence sources. No database migration. AdventureWorks remains a candidate for a future external benchmark slice, not in 19.3.
+**Status**: Delivered (2026-06-22). **Lane**: Standard.
+
+### Changes
+
+- `scripts/generate_mapping_contract.py` (new): Reads `manifest.json` and deterministic column schemas to produce `mapping_contract.json`. 13 object type mappings (8 core_pilot), 15 relationship mappings (7 core_pilot). No LLM, no human interaction — purely deterministic from generator metadata.
+- `scripts/validate_mapping_contract.py` (new): Validates mapping contract structure, controlled vocabularies (value_type, semantic_role, null_strategy), CSV header membership, PK/FK consistency with manifest. 32 OK / 0 FAIL on clean data.
+- `tests/test_manufacturing_data_pack.py`: 6 new mapping contract tests — generate+validate PASS, missing source_column FAIL, PK mismatch FAIL, FK mismatch FAIL, invalid value_type FAIL, invalid semantic_role FAIL. Total: 16 tests.
+
+### Mapping Contract Fields
+
+- Per object type: `object_type`, `source_table`, `description`, `core_pilot`, `primary_key`, `column_mappings[]` (each with `source_column`, `target_property`, `value_type`, `semantic_role`, `null_strategy`, `evidence_source`).
+- Per relationship: `relationship_name`, `source_table`/`source_columns`, `target_table`/`target_columns`, `cardinality`, `core_pilot`, `evidence_source`.
+- Controlled vocabularies: value_type (7: string/int/float/date/datetime/bool/enum), semantic_role (11: primary_key/foreign_key/identifier/label/measure/status_flag/date_field/category/enumeration/description/reference), null_strategy (4: allow/forbid/default/unknown).
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Contract generator | 13 object_types, 15 relationships, contract_version 1.0 |
+| Contract validator (cross-validate) | 32 OK, 0 FAIL, 0 WARN — PASS |
+| Pytest (16 tests) | 16 passed, 10.70s |
+| Ruff (changed files) | clean |
+| Doc alignment | PASS |
+| git diff --check | clean |
+
+### Boundaries Preserved
+
+- No UI, no backend API, no migrations, no frontend.
+- No database tables added — mapping_contract.json is offline-only.
+- No LLM, no human interaction required for generation.
+- No external data downloaded (AdventureWorks deferred).
+- All mappings derived deterministically from generator metadata + TABLE_SCHEMAS.
+
+### Next: Phase 19.4
+
+Rule Validation v1 as offline/script-level validation. Apply business rules (required fields, uniqueness, enum ranges, type ranges, derived classes) against the mapping contract + data pack CSV content. AdventureWorks remains a candidate for a future external benchmark slice, not in 19.4.
 
 ## Next Decision Gate
 
-**Phase 19 in progress (19.1 + 19.2 delivered)**: Next is 19.3 Mapping Contract v1. AdventureWorks is a recognised external benchmark candidate for a future slice — not to be wired in 19.3 without explicit planning.
+**Phase 19 in progress (19.1 + 19.2 + 19.3 delivered)**: Next is 19.4 Rule Validation v1. AdventureWorks is a recognised external benchmark candidate for a future slice — not to be wired in 19.4 without explicit planning.
 
 ## Phase 15 Delivery Summary
 

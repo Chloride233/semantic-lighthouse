@@ -1,6 +1,6 @@
 # Phase 19 — Ontology Operationalization with Realistic Business Data
 
-**Status**: In progress (19.1 delivered, 19.2 delivered)
+**Status**: In progress (19.1 delivered, 19.2 delivered, 19.3 delivered)
 
 ## Goal
 
@@ -19,8 +19,8 @@ validators, tests, and demo consumers can rely on.
   Candidate for a future external benchmark slice.
 - **No UI, no backend API changes, no migrations, no frontend.**
 - **No new database dependencies** (no Neo4j, OWL, LangGraph, MCP runtime, OSDK).
-- **Mapping Contract and Rule Validation** are deferred to later slices (19.3, 19.4)
-  as script-level / offline validation — no database migrations for now.
+- **Mapping Contract v1**: delivered as offline JSON artifact in 19.3.
+- **Rule Validation v1**: deferred to 19.4 as script-level / offline validation.
 
 ## Slices
 
@@ -28,7 +28,7 @@ validators, tests, and demo consumers can rely on.
 |-------|------|--------|
 | 19.1 | Manufacturing Data Pack Contract & Validation | Delivered |
 | 19.2 | FDE Demo Smoke Reads Data Pack Contract | Delivered |
-| 19.3 | Mapping Contract v1 (offline/script-level) | Planned |
+| 19.3 | Mapping Contract v1 (offline/script-level) | Delivered |
 | 19.4 | Rule Validation v1 (offline/script-level) | Planned |
 | 19.5 | Governance Feedback v1 | Planned |
 | 19.6 | Phase 19 Closeout | Planned |
@@ -52,6 +52,26 @@ validators, tests, and demo consumers can rely on.
 - 4 new tests: smoke reads manifest, missing manifest fails, corrupt manifest
   fails, no-flag auto-generate stable.
 - Total test count: 10 (6 from 19.1 + 4 from 19.2).
+
+## 19.3 Delivered
+
+- `scripts/generate_mapping_contract.py` (new): Reads manifest.json and
+  deterministic column schemas to produce `mapping_contract.json`.
+- `scripts/validate_mapping_contract.py` (new): Validates mapping contract
+  against controlled vocabularies, CSV headers, manifest PK/FK consistency.
+- Contract fields per object type: `object_type`, `source_table`, `description`,
+  `core_pilot`, `primary_key`, `column_mappings` (each with `source_column`,
+  `target_property`, `value_type`, `semantic_role`, `null_strategy`,
+  `evidence_source`).
+- Relationship mappings: `relationship_name`, `source_table`/`columns`,
+  `target_table`/`columns`, `cardinality`, `core_pilot`, `evidence_source`.
+- Controlled vocabularies: value_type (7), semantic_role (11), null_strategy (4).
+- Validator checks: contract_version, core_pilot >= 4 object_types, per-column
+  controlled vocab, CSV header membership, PK/manifest consistency, FK/manifest
+  consistency, evidence_source non-empty.
+- 6 new tests: generate+validate PASS, missing source_column FAIL, PK mismatch
+  FAIL, FK mismatch FAIL, invalid value_type FAIL, invalid semantic_role FAIL.
+- Total test count: 16 (6 from 19.1 + 4 from 19.2 + 6 from 19.3).
 
 ## AdventureWorks Note
 

@@ -47,20 +47,26 @@ Semantic Lighthouse 当前的优势不是技术栈复杂，而是边界清楚：
 
 目标不是重构炫技，而是防止 runtime 继续膨胀成难以解释的“大服务”。
 
-### 2. 把 Mapping Contract 升级为核心语义资产
+### 2. 把 Mapping Contract 升级为核心语义资产（19.3 已交付）
 
-当前 `OntologyDatasetBinding` 已经证明业务对象可以绑定到数据集。但下一步应让“字段如何变成业务属性”成为一等对象。
+当前 `OntologyDatasetBinding` 已经证明业务对象可以绑定到数据集。Phase 19.3
+已将 Mapping Contract v1 实现为离线 JSON artifact：
 
-Mapping contract 应表达：
+- `scripts/generate_mapping_contract.py`：从 manifest + 确定性列 schema 生成 `mapping_contract.json`
+- `scripts/validate_mapping_contract.py`：受控词表验证、CSV header 交叉检查、PK/FK manifest 一致性
+- 不上数据库，不依赖 `OntologyDatasetBinding` runtime
+- 完全 deterministic，无需 LLM 或人工交互
 
-- 源字段
-- 目标业务属性
-- value type
-- NULL 策略
-- 枚举语义
-- 证据来源
-- 人工确认人
-- 版本 hash / semantic hash
+Mapping contract 表达：
+
+- 源字段 (source_column)
+- 目标业务属性 (target_property)
+- value type (string/int/float/date/datetime/bool/enum)
+- NULL 策略 (allow/forbid/default/unknown)
+- semantic role (primary_key/foreign_key/identifier/label/measure/…)
+- 证据来源 (evidence_source)
+
+下一步（19.4+）可将此 contract 用于 rule validation 和 governance feedback。
 
 这比直接引入 OWL 更实际，也更符合项目当前链路。
 
