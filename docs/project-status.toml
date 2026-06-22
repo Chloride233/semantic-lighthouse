@@ -8,9 +8,9 @@
 version = 1
 
 [product]
-phase = "Phase 19.1"
+phase = "Phase 19.2"
 status = "delivered"
-summary = "Phase 19.1 Manufacturing Data Pack Contract & Validation delivered: manifest.json with 13 tables, PK/FK/row_count/core_pilot/business_meaning; validator with 7 check categories; 6 tests (generation + defect detection). AdventureWorks deferred to 19.2/19.3 as external benchmark candidate."
+summary = "Phase 19.2 FDE Smoke Reads Manufacturing Data Pack Contract delivered: smoke_fde_demo.py accepts --data-pack flag, validates manifest (13 tables, core_pilot, PK/FK, row_count), prints manifest summary in recap. Auto-generates default tiny pack when flag omitted. 10 tests total (6 from 19.1 + 4 smoke data-pack tests). AdventureWorks remains a future external benchmark candidate, not in 19.1/19.2."
 
 [frontend]
 status = "F2 complete + visual baseline closeout accepted"
@@ -20,19 +20,19 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Phase 19.1 delivered — data pack contract"
-description = "Manufacturing data pack contract and validation delivered. 13-table synthetic dataset now has manifest.json, validator script, and 6 tests. Next: Phase 19.2 (FDE demo smoke reads data pack contract). AdventureWorks is a future external benchmark candidate, not in 19.1."
+current = "Phase 19.2 delivered — FDE smoke reads data pack contract"
+description = "smoke_fde_demo.py now validates and displays manufacturing data pack manifest as its input asset contract. Next: Phase 19.3 Mapping Contract v1 (offline/script-level, no database migration)."
 
 [next_decision_gate]
-name = "Phase 19.2: FDE demo reads data pack contract"
-description = "Update smoke_fde_demo.py to explicitly consume manifest.json as its input asset contract. AdventureWorks remains a candidate for separate 19.3 evaluation — do not insert into 19.2 without explicit planning."
+name = "Phase 19.3: Mapping Contract v1"
+description = "Implement Mapping Contract as a first-class offline/script-level validation artifact. Map source fields to business properties with value types, null strategies, and evidence sources. No database migration at this stage. AdventureWorks remains a candidate for a future external benchmark slice, not in 19.3."
 
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "622d9de"
+latest_commit = "3b6f776"
 backend_pytest = 848
 ruff = "clean"
 migration_head = "0028"

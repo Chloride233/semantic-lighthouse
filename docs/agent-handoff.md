@@ -136,21 +136,31 @@ The previous "frontend freeze" / "deferred to Kimi" policy has been **retired**.
 
 ## Phase 19.1 — Manufacturing Data Pack Contract & Validation
 
-**Status**: Delivered (2026-06-22). **Lane**: Standard.
+**Status**: Delivered (2026-06-22). **Lane**: Standard. **Commit**: `3b6f776`.
 
 ### Changes
 
 - `scripts/generate_manufacturing_dataset.py`: Added `manifest.json` generation alongside existing `metadata.json`. Manifest includes generator metadata, preset/seed, per-table row_count, primary_key, foreign_keys, core_pilot flag (8 of 13 tables), and business_meaning descriptions.
-- `scripts/validate_manufacturing_data_pack.py` (new): Validates a data pack directory against the 19.1 contract. 7 check categories: manifest completeness, 13 table presence, row_count vs CSV, PK uniqueness, FK referential integrity, core_pilot >= 4 tables, future date / negative value anomalies.
+- `scripts/validate_manufacturing_data_pack.py` (new): Validates a data pack directory against the 19.1 contract. 7 check categories.
 - `tests/test_manufacturing_data_pack.py` (new): 6 tests — generator produces 13 tables + manifest, seed reproducibility, validator PASS on clean data, validator detects missing table, PK duplicate, and broken FK.
+
+## Phase 19.2 — FDE Smoke Reads Manufacturing Data Pack Contract
+
+**Status**: Delivered (2026-06-22). **Lane**: Standard.
+
+### Changes
+
+- `scripts/smoke_fde_demo.py`: Accepts `--data-pack <dir>` to read a manufacturing data pack manifest as its input asset contract. When omitted, auto-generates a default tiny pack. Prints manifest summary (table_count, core_pilot_count, total_rows, preset/seed, data_pack) in smoke recap. Validates manifest completeness, table count >= 13, core_pilot >= 4, row_count vs CSV, PK uniqueness.
+- `tests/test_manufacturing_data_pack.py`: 4 new smoke tests — manifest summary in output, missing manifest fails, corrupt manifest fails, no-flag auto-generate stable. Total: 10 tests.
 
 ### Verification
 
 | Check | Result |
 |-------|--------|
-| Generator (tiny preset) | 13 tables, 279 rows, manifest + metadata |
-| Validator on clean data | 57 OK, 0 FAIL, 0 WARN — PASS |
-| Pytest (6 tests) | 6 passed, 1.20s |
+| Smoke with --data-pack | 11/11 PASS, 0.90s, manifest summary printed |
+| Smoke without --data-pack | 11/11 PASS, 0.88s, auto-generate note |
+| Smoke with missing dir | exit 1, clear error message |
+| Pytest (10 tests) | 10 passed, 10.07s |
 | Ruff (changed files) | clean |
 | Doc alignment | PASS (7 entry docs) |
 | git diff --check | clean |
@@ -158,18 +168,18 @@ The previous "frontend freeze" / "deferred to Kimi" policy has been **retired**.
 ### Boundaries Preserved
 
 - No UI, no backend API, no migrations, no frontend.
-- No external data downloaded (AdventureWorks deferred to 19.2/19.3).
-- No Graph RAG, MCP runtime, Agent write.
-- Existing `metadata.json` preserved for backward compatibility.
-- 13-table schema unchanged.
+- No external data downloaded (AdventureWorks deferred).
+- No new database dependencies (no Neo4j, OWL, LangGraph, MCP runtime, OSDK).
+- Existing smoke steps unchanged; data pack is a read-only input asset.
+- Mapping Contract and Rule Validation deferred to later slices (19.3, 19.4).
 
-### Next: Phase 19.2
+### Next: Phase 19.3
 
-FDE demo smoke (`scripts/smoke_fde_demo.py`) should be updated to explicitly read the manufacturing data pack contract (manifest.json) as its input asset, replacing the current hardcoded seed scenario. AdventureWorks remains a candidate for separate 19.3 evaluation — do not insert it into 19.2 without explicit planning.
+Mapping Contract v1 as an offline/script-level validation artifact. Map source fields to business properties with value types, null strategies, and evidence sources. No database migration. AdventureWorks remains a candidate for a future external benchmark slice, not in 19.3.
 
 ## Next Decision Gate
 
-**Phase 19 in progress (19.1 delivered)**: Next is 19.2 (FDE demo reads data pack contract). AdventureWorks is a recognised external benchmark candidate for 19.3 — not to be wired in 19.2 without explicit planning.
+**Phase 19 in progress (19.1 + 19.2 delivered)**: Next is 19.3 Mapping Contract v1. AdventureWorks is a recognised external benchmark candidate for a future slice — not to be wired in 19.3 without explicit planning.
 
 ## Phase 15 Delivery Summary
 

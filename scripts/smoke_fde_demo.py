@@ -1,23 +1,34 @@
 #!/usr/bin/env python3
 """FDE Demo Smoke Script — validates the full Pilot Outcome delivery chain.
 
-Usage: .venv/Scripts/python scripts/smoke_fde_demo.py
+Usage:
+  .venv/Scripts/python scripts/smoke_fde_demo.py
+  .venv/Scripts/python scripts/smoke_fde_demo.py --data-pack .tmp/phase19-manufacturing
 
 Runs on a temporary SQLite database. Does NOT require:
 - Real LLM/embedding API keys (uses fake providers)
 - Running server (uses FastAPI TestClient in-process)
 - External KB or real data
 
+With --data-pack, the smoke reads the Phase 19.1 manufacturing data pack
+manifest.json as its input asset contract — this proves the FDE demo chain
+can consume a contracted, validated data asset rather than relying solely on
+implicit in-script seeds.
+
 Exit 0 = all smoke checks PASS. Exit 1 = one or more steps FAIL.
-Phase 17.2 — 2026-06-21.
+Phase 17.2 — 2026-06-21. Phase 19.2 data-pack integration — 2026-06-22.
 """
 
 from __future__ import annotations
 
+import argparse
+import json
 import os
 import re
+import subprocess
 import sys
 import time
+from pathlib import Path
 from unittest import mock
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -208,12 +219,230 @@ def validate_artifact(artifact_md: str) -> tuple[bool, str, list[str]]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Data Pack Manifest (Phase 19.2)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_PRESET = "tiny"
+MIN_TABLES = 13
+MIN_CORE_PILOT = 4
+
+
+def validate_and_summarize_manifest(data_dir: Path) -> dict:
+    """Validate a manufacturing data pack manifest and return a summary dict.
+
+    Returns a dict with keys:
+      - valid: bool
+      - error: str (if invalid)
+      - table_count, core_pilot_count, total_rows, seed, preset (if valid)
+    """
+    manifest_path = data_dir / "manifest.json"
+    if not manifest_path.is_file():
+        return {
+            "valid": False,
+            "error": (
+                f"manifest.json not found in {data_dir}. "
+                f"Run: python scripts/generate_manufacturing_dataset.py "
+                f"--preset {DEFAULT_PRESET} --output-dir {data_dir}"
+            ),
+        }
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        return {"valid": False, "error": f"manifest.json is not valid JSON: {e}"}
+
+    # Required top-level fields
+    for field in ("manifest_version", "data_pack", "tables", "seed"):
+        if field not in manifest:
+            return {
+                "valid": False,
+                "error": f"manifest.json missing required field: {field}",
+            }
+
+    tables = manifest.get("tables", [])
+    if not isinstance(tables, list) or len(tables) < MIN_TABLES:
+        return {
+            "valid": False,
+            "error": (
+                f"Expected at least {MIN_TABLES} tables in manifest, "
+                f"found {len(tables) if isinstance(tables, list) else 'non-list'}"
+            ),
+        }
+
+    # Per-table required fields
+    required_table_fields = [
+        "table_name", "csv_file", "row_count", "primary_key",
+        "foreign_keys", "core_pilot", "business_meaning",
+    ]
+    for t in tables:
+        for rf in required_table_fields:
+            if rf not in t:
+                return {
+                    "valid": False,
+                    "error": (
+                        f"Table '{t.get('table_name', '?')}' missing "
+                        f"field '{rf}' in manifest"
+                    ),
+                }
+
+    # Core pilot subset
+    core_tables = [t for t in tables if t.get("core_pilot")]
+    if len(core_tables) < MIN_CORE_PILOT:
+        return {
+            "valid": False,
+            "error": (
+                f"core_pilot subset has only {len(core_tables)} tables, "
+                f"minimum {MIN_CORE_PILOT} required"
+            ),
+        }
+
+    # CSV files must exist alongside manifest
+    missing_csvs = []
+    for t in tables:
+        csv_path = data_dir / t["csv_file"]
+        if not csv_path.is_file():
+            missing_csvs.append(t["csv_file"])
+    if missing_csvs:
+        return {
+            "valid": False,
+            "error": (
+                f"Missing CSV files: {', '.join(missing_csvs[:5])}"
+                + (f" ... and {len(missing_csvs) - 5} more"
+                   if len(missing_csvs) > 5 else "")
+            ),
+        }
+
+    # Row count sanity check
+    for t in tables:
+        csv_path = data_dir / t["csv_file"]
+        with open(csv_path, "r", newline="", encoding="utf-8") as f:
+            actual_rows = sum(1 for _ in f) - 1  # exclude header
+        if actual_rows != t["row_count"]:
+            return {
+                "valid": False,
+                "error": (
+                    f"Table '{t['table_name']}': manifest row_count="
+                    f"{t['row_count']} but CSV has {actual_rows} rows"
+                ),
+            }
+
+    # PK uniqueness quick check on a sample of tables
+    for t in tables:
+        csv_path = data_dir / t["csv_file"]
+        pk_cols = t.get("primary_key", [])
+        if not pk_cols:
+            continue
+        import csv as csv_mod
+        with open(csv_path, "r", newline="", encoding="utf-8") as f:
+            reader = csv_mod.DictReader(f)
+            seen = set()
+            for row in reader:
+                pk_val = tuple(row.get(c) for c in pk_cols)
+                if any(v is None or v.strip() == "" for v in pk_val):
+                    return {
+                        "valid": False,
+                        "error": (
+                            f"Table '{t['table_name']}': null PK value "
+                            f"in column(s) {pk_cols}"
+                        ),
+                    }
+                if pk_val in seen:
+                    return {
+                        "valid": False,
+                        "error": (
+                            f"Table '{t['table_name']}': duplicate PK "
+                            f"value {pk_val}"
+                        ),
+                    }
+                seen.add(pk_val)
+
+    total_rows = sum(t["row_count"] for t in tables)
+    preset = manifest.get("preset", "unknown")
+
+    return {
+        "valid": True,
+        "error": "",
+        "table_count": len(tables),
+        "core_pilot_count": len(core_tables),
+        "core_pilot_tables": [t["table_name"] for t in core_tables],
+        "total_rows": total_rows,
+        "seed": manifest["seed"],
+        "preset": preset,
+        "data_pack": manifest.get("data_pack", "unknown"),
+        "manifest_version": manifest.get("manifest_version", "unknown"),
+    }
+
+
+def _auto_generate_data_pack(output_dir: Path) -> dict:
+    """Generate a default tiny data pack and return manifest summary."""
+    gen_script = REPO_ROOT / "scripts" / "generate_manufacturing_dataset.py"
+    result = subprocess.run(
+        [
+            sys.executable, str(gen_script),
+            "--preset", DEFAULT_PRESET,
+            "--seed", "42",
+            "--output-dir", str(output_dir),
+        ],
+        capture_output=True, text=True, timeout=30,
+    )
+    if result.returncode != 0:
+        return {
+            "valid": False,
+            "error": (
+                f"Auto-generate data pack failed (exit {result.returncode}): "
+                f"{result.stderr[:300]}"
+            ),
+        }
+    return validate_and_summarize_manifest(output_dir)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 def main() -> int:
-    print("=== FDE Demo Smoke (Phase 17.2) ===\n")
+    parser = argparse.ArgumentParser(
+        description="FDE Demo Smoke — validate the Pilot Outcome delivery chain",
+    )
+    parser.add_argument(
+        "--data-pack",
+        type=Path,
+        default=None,
+        help=(
+            "Path to a manufacturing data pack directory containing "
+            "manifest.json and CSV files. If not provided, a default "
+            "tiny data pack is auto-generated."
+        ),
+    )
+    args = parser.parse_args()
+
+    # ── Data pack manifest validation ─────────────────────────────────
+    if args.data_pack:
+        manifest_summary = validate_and_summarize_manifest(args.data_pack)
+        pack_source = f"provided: {args.data_pack}"
+    else:
+        auto_dir = Path(".tmp/smoke-fde-auto-pack")
+        print("(no --data-pack provided; auto-generating default tiny pack)\n")
+        manifest_summary = _auto_generate_data_pack(auto_dir)
+        pack_source = "auto-generated default (tiny preset)"
+
+    if not manifest_summary["valid"]:
+        print(f"  [FAIL] Data pack manifest: {manifest_summary['error']}")
+        return 1
+
+    ms = manifest_summary
+    print("=== FDE Demo Smoke (Phase 19.2) ===\n")
+    print(f"Data pack: {pack_source}")
+    print(f"  manifest_version: {ms['manifest_version']}")
+    print(f"  data_pack:        {ms['data_pack']}")
+    print(f"  preset/seed:      {ms['preset']} / seed={ms['seed']}")
+    print(f"  table_count:      {ms['table_count']}")
+    print(f"  core_pilot_count: {ms['core_pilot_count']}")
+    print(f"  core_pilot:       {', '.join(ms['core_pilot_tables'])}")
+    print(f"  total_rows:       {ms['total_rows']:,}")
+    print()
 
     # ── Step 0: Setup temp database ─────────────────────────────────────
     os.makedirs(".tmp", exist_ok=True)

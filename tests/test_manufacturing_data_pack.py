@@ -269,3 +269,95 @@ class TestManufacturingDataPackValidator:
             )
             assert "Result: FAIL" in output
             assert "FK" in output
+
+
+# ── Smoke helpers ───────────────────────────────────────────────────────
+
+SMOKE_SCRIPT = REPO_ROOT / "scripts" / "smoke_fde_demo.py"
+
+
+def run_smoke(data_pack: Path | None = None) -> tuple[int, str]:
+    """Run the FDE smoke script as a subprocess. Returns (exit_code, stdout)."""
+    import subprocess
+    import sys
+    cmd = [sys.executable, str(SMOKE_SCRIPT)]
+    if data_pack is not None:
+        cmd.extend(["--data-pack", str(data_pack)])
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, timeout=60,
+        env={**__import__("os").environ,
+             "EMBEDDING_PROVIDER": "fake",
+             "CHAT_PROVIDER": "fake"},
+    )
+    return result.returncode, result.stdout
+
+
+class TestFDESmokeDataPack:
+    """Verify the FDE smoke script correctly reads the data pack manifest."""
+
+    def test_smoke_reads_manifest_and_shows_summary(self):
+        """Smoke with --data-pack prints manifest summary and PASSes."""
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "data"
+            run_generator(out, preset="tiny", seed=42)
+
+            exit_code, output = run_smoke(out)
+            assert exit_code == 0, (
+                f"Smoke should PASS (exit 0), got {exit_code}\n{output}"
+            )
+            # Manifest summary must appear
+            assert "Data pack: provided:" in output, (
+                f"Expected 'Data pack: provided:' in output:\n{output}"
+            )
+            assert "manifest_version:" in output
+            assert "data_pack:" in output
+            assert "preset/seed:" in output
+            assert "table_count:" in output
+            assert "core_pilot_count:" in output
+            assert "total_rows:" in output
+            assert "core_pilot:" in output
+            # Specific values
+            assert "table_count:      13" in output
+            assert "core_pilot_count: 8" in output
+            assert "total_rows:       279" in output
+            assert "seed=42" in output
+            # Smoke steps still pass
+            assert "FDE Demo Smoke: PASS" in output
+            assert "Steps: 11  Passed: 11  Failed: 0" in output
+
+    def test_smoke_missing_manifest_fails_clearly(self):
+        """Smoke with a nonexistent data pack directory exits 1 with clear
+        error."""
+        exit_code, output = run_smoke(Path(".tmp/smoke-nonexistent-xyz"))
+        assert exit_code == 1, (
+            f"Smoke should FAIL (exit 1) for missing manifest, "
+            f"got {exit_code}\n{output}"
+        )
+        assert "manifest.json not found" in output
+
+    def test_smoke_no_data_pack_flag_stable(self):
+        """Smoke without --data-pack auto-generates and still PASSes."""
+        exit_code, output = run_smoke(data_pack=None)
+        assert exit_code == 0, (
+            f"Smoke should PASS (exit 0) without data pack, "
+            f"got {exit_code}\n{output}"
+        )
+        assert "auto-generated default" in output, (
+            f"Expected auto-generation note in output:\n{output}"
+        )
+        assert "FDE Demo Smoke: PASS" in output
+
+    def test_smoke_corrupt_manifest_fails_clearly(self):
+        """Smoke with a broken manifest (deleted CSV) exits 1."""
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "data"
+            run_generator(out, preset="tiny", seed=42)
+            # Delete a CSV that's referenced in manifest
+            (out / "work_orders.csv").unlink()
+
+            exit_code, output = run_smoke(out)
+            assert exit_code == 1, (
+                f"Smoke should FAIL (exit 1) for missing CSV, "
+                f"got {exit_code}\n{output}"
+            )
+            assert "Missing CSV" in output or "FAIL" in output
