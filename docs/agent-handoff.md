@@ -208,13 +208,55 @@ The previous "frontend freeze" / "deferred to Kimi" policy has been **retired**.
 - No external data downloaded (AdventureWorks deferred).
 - All mappings derived deterministically from generator metadata + TABLE_SCHEMAS.
 
-### Next: Phase 19.4
+## Phase 19.4 — Rule Validation v1
 
-Rule Validation v1 as offline/script-level validation. Apply business rules (required fields, uniqueness, enum ranges, type ranges, derived classes) against the mapping contract + data pack CSV content. AdventureWorks remains a candidate for a future external benchmark slice, not in 19.4.
+**Status**: Delivered (2026-06-22). **Lane**: Standard.
+
+### Changes
+
+- `scripts/validate_business_rules.py` (new): Offline deterministic business rule validation engine. Reads manifest.json + mapping_contract.json + CSV files, runs 8 rule categories, outputs `rule_validation_report.json`. No DB writes, no API calls.
+- `tests/test_business_rule_validation.py` (new): 7 tests — report schema, required_field, pk_unique, fk_integrity, enum_allowed, date_order, derived_class.
+
+### Rule Categories (8)
+
+1. **required_field** — null_strategy=forbid columns must be non-null
+2. **pk_unique** — primary keys unique and non-null
+3. **fk_integrity** — foreign keys resolve to existing rows
+4. **enum_allowed** — enum columns constrained to hardcoded allowed vocab (18 table.column entries)
+5. **numeric_range** — 33 quantity/cost/rate/downtime/lead_time columns checked ≥0
+6. **date_order** — 5 date pairs checked for start ≤ end
+7. **derived_class** — 4 derived entity types identified (INFO only, never FAIL)
+8. **row_count_range** — each table must have > 0 rows
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Rule validator (clean data) | 8 rules, 4,528 checks, 103 findings (99 date_order + 4 derived_class) |
+| Most rules on clean data | 7/8 PASS (date_order catches genuine generator anomalies) |
+| Corrupted data (5 categories) | All detected correctly |
+| Pytest (7 new tests) | 7 passed, 2.32s |
+| All Phase 19 tests (19.1–19.4) | 23 passed, 13.89s |
+| Ruff (changed files) | clean |
+| Doc alignment | PASS |
+| git diff --check | clean |
+
+### Boundaries Preserved
+
+- No UI, no backend API, no migrations, no frontend.
+- No database writes — `rule_validation_report.json` is offline-only.
+- No governance issue creation (deferred to 19.5).
+- No external data downloaded (AdventureWorks deferred).
+- Enum vocab hardcoded from generator schema — no runtime resolution.
+- Derived class findings are INFO only — never cause exit 1.
+
+### Next: Phase 19.5
+
+Governance Feedback v1 — wire rule validation findings into governance issues or evidence-backed modeling drafts. Close the loop: rule violations → human-reviewable governance artifact. AdventureWorks remains a candidate for a future external benchmark slice, not in 19.5.
 
 ## Next Decision Gate
 
-**Phase 19 in progress (19.1 + 19.2 + 19.3 delivered)**: Next is 19.4 Rule Validation v1. AdventureWorks is a recognised external benchmark candidate for a future slice — not to be wired in 19.4 without explicit planning.
+**Phase 19 in progress (19.1–19.4 delivered)**: Next is 19.5 Governance Feedback v1. AdventureWorks is a recognised external benchmark candidate for a future slice — not to be wired in 19.5 without explicit planning.
 
 ## Phase 15 Delivery Summary
 

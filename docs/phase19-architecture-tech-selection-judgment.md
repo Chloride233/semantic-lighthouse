@@ -70,21 +70,22 @@ Mapping contract 表达：
 
 这比直接引入 OWL 更实际，也更符合项目当前链路。
 
-### 3. 增加轻量规则验证层
+### 3. 轻量规则验证层（19.4 已交付）
 
-Protégé / OWL 文章里的推理能力值得借鉴，但当前项目应先实现 deterministic business rule validation：
+Protégé / OWL 文章里的推理能力值得借鉴。Phase 19.4 已实现 deterministic offline
+business rule validation：
 
-- 必填字段
-- 唯一性
-- 枚举范围
-- 类型范围
-- 互斥分类
-- 派生类规则，例如 `HighValueOrder`
-- 类型转换失败
-- 未知枚举值
-- 规则验证失败进入 governance issue 或 evidence-backed draft
+- `scripts/validate_business_rules.py`：8 个规则类别，读取 manifest + mapping_contract + CSV
+- 输出 `rule_validation_report.json`（summary + rule_results + findings + boundaries）
+- 不写数据库，不调用 API，纯离线确定性验证
+- 规则：required_field, pk_unique, fk_integrity, enum_allowed, numeric_range,
+  date_order, derived_class, row_count_range
+- 枚举词表硬编码自 generator schema（18 个 table.column 条目）
+- 派生类（critical_work_order, at_risk_equipment, high_value_material,
+  high_scrap_work_order）为 INFO 级别，不导致失败
+- Rule violations 尚未进入 governance issue（19.5 待实现）
 
-这样可以证明 Ontology 不只是“能查数据”，而是能解释、验证和治理业务数据。
+这样可以证明 Ontology 不只是”能查数据”，而是能解释、验证和治理业务数据。
 
 ## 推荐 Phase 19 方向
 

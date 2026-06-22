@@ -1,6 +1,6 @@
 # Phase 19 — Ontology Operationalization with Realistic Business Data
 
-**Status**: In progress (19.1 delivered, 19.2 delivered, 19.3 delivered)
+**Status**: In progress (19.1–19.4 delivered)
 
 ## Goal
 
@@ -20,7 +20,8 @@ validators, tests, and demo consumers can rely on.
 - **No UI, no backend API changes, no migrations, no frontend.**
 - **No new database dependencies** (no Neo4j, OWL, LangGraph, MCP runtime, OSDK).
 - **Mapping Contract v1**: delivered as offline JSON artifact in 19.3.
-- **Rule Validation v1**: deferred to 19.4 as script-level / offline validation.
+- **Rule Validation v1**: delivered as offline deterministic report in 19.4.
+- **Governance Feedback v1**: deferred to 19.5.
 
 ## Slices
 
@@ -29,7 +30,7 @@ validators, tests, and demo consumers can rely on.
 | 19.1 | Manufacturing Data Pack Contract & Validation | Delivered |
 | 19.2 | FDE Demo Smoke Reads Data Pack Contract | Delivered |
 | 19.3 | Mapping Contract v1 (offline/script-level) | Delivered |
-| 19.4 | Rule Validation v1 (offline/script-level) | Planned |
+| 19.4 | Rule Validation v1 (offline/script-level) | Delivered |
 | 19.5 | Governance Feedback v1 | Planned |
 | 19.6 | Phase 19 Closeout | Planned |
 
@@ -72,6 +73,28 @@ validators, tests, and demo consumers can rely on.
 - 6 new tests: generate+validate PASS, missing source_column FAIL, PK mismatch
   FAIL, FK mismatch FAIL, invalid value_type FAIL, invalid semantic_role FAIL.
 - Total test count: 16 (6 from 19.1 + 4 from 19.2 + 6 from 19.3).
+
+## 19.4 Delivered
+
+- `scripts/validate_business_rules.py` (new): Offline deterministic business rule
+  validation against manifest + mapping_contract + CSV data. 8 rule categories.
+- Output: `rule_validation_report.json` with summary, rule_results (per-rule
+  status + findings), and boundaries section.
+- 8 rule categories: required_field (null_strategy=forbid), pk_unique,
+  fk_integrity, enum_allowed (hardcoded enum vocab from generator), numeric_range
+  (non-negative), date_order (start <= end), derived_class (INFO-only entity
+  classification), row_count_range (> 0 rows).
+- Each finding: rule_id, status (PASS/FAIL/WARN/INFO), finding_id, table,
+  row, primary_key, column, message, evidence (bounded — no raw data rows).
+- Boundaries: offline_only=true, writes_to_database=false,
+  creates_governance_issues=false.
+- Enum vocab: hardcoded from generator deterministic schema (18 table.column
+  entries covering status, type, priority, country, abc_class, etc.).
+- Derived classes: critical_work_order, at_risk_equipment, high_value_material,
+  high_scrap_work_order.
+- Tests (`tests/test_business_rule_validation.py`): 7 tests — report schema,
+  required_field, pk_unique, fk_integrity, enum_allowed, date_order, derived_class.
+- Total test count: 23 (16 from 19.1–19.3 + 7 from 19.4).
 
 ## AdventureWorks Note
 
