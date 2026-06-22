@@ -398,6 +398,12 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 
 ### Boundaries: no migrations, no new deps, no auto-accept drafts, no auto-activate pilot.
 
+### Codex Review Fix
+
+- Fixed demo onboarding visibility: the "load manufacturing demo data" action is now visible at the no-dataset goal stage, not only bound in data-stage JavaScript.
+- Added `verify_ui.py` coverage for the P1.2 demo data button at goal stage.
+- Verification: `node --check static/js/pages/project.js`, `scripts/verify_ui.py` 54/54, `git diff --check`.
+
 ## Next Decision Gate
 
 **P1.2 delivered**: Next: P1.3 product workflow review, R1 runtime boundary

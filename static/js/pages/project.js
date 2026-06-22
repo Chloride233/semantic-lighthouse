@@ -149,6 +149,7 @@ export async function render(container, params) {
           <div class="stageCTAs">
             <p class="stageHint">${hasDatasets ? '已有就绪数据集。数据阶段已自动推进。' : '先上传一到多张业务 CSV/XLSX。推荐从工单、设备、产品、维护记录等核心表开始。'}</p>
             ${!hasDatasets ? '<button class="primary" id="uploadFirstBtn">上传数据集</button>' : ''}
+            ${!hasDatasets ? '<button class="secondary" id="loadDemoBtn">载入制造业示例数据</button>' : ''}
           </div>
         ` : '<p class="muted">需要 owner 或 admin 角色才能上传数据。</p>'}
         <div class="stageSupport">
@@ -161,6 +162,7 @@ export async function render(container, params) {
     `;
     if (isOwnerAdmin && !hasDatasets) {
       document.getElementById('uploadFirstBtn')?.addEventListener('click', () => openUploadDialog());
+      document.getElementById('loadDemoBtn')?.addEventListener('click', importDemoData);
     }
     if (canPropose) {
       bindEvidenceSelection();
@@ -539,16 +541,6 @@ export async function render(container, params) {
     `;
     if (isOwnerAdmin) {
       document.getElementById('uploadMoreBtn')?.addEventListener('click', () => openUploadDialog());
-      document.getElementById('loadDemoBtn')?.addEventListener('click', async () => {
-        const btn = document.getElementById('loadDemoBtn');
-        btn.disabled = true; btn.textContent = '导入中...';
-        try {
-          const result = await api(`/groups/${gid}/projects/${pid}/datasets/demo-data`, { method: 'POST' });
-          showToast(`已导入 ${result.datasets_imported} 个数据集（${result.total_rows} 行），跳过 ${result.datasets_skipped} 个重复`, 'success');
-          await renderFull();
-        } catch (err) { showToast(err.humanMessage || err.message || '导入失败', 'error'); }
-        finally { btn.disabled = false; btn.textContent = '载入制造业示例数据'; }
-      });
       document.getElementById('genFromDataBtn')?.addEventListener('click', async () => {
         const btn = document.getElementById('genFromDataBtn');
         btn.disabled = true; btn.textContent = '生成中...';
@@ -559,6 +551,23 @@ export async function render(container, params) {
         } catch (err) { showToast(err.humanMessage || err.message, 'error'); }
         finally { btn.disabled = false; btn.textContent = '生成模型草案'; }
       });
+    }
+  }
+
+  async function importDemoData() {
+    const btn = document.getElementById('loadDemoBtn');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = '导入中...';
+    try {
+      const result = await api(`/groups/${gid}/projects/${pid}/datasets/demo-data`, { method: 'POST' });
+      showToast(`已导入 ${result.datasets_imported} 个数据集（${result.total_rows} 行），跳过 ${result.datasets_skipped} 个重复`, 'success');
+      await renderFull();
+    } catch (err) {
+      showToast(err.humanMessage || err.message || '导入失败', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '载入制造业示例数据';
     }
   }
 

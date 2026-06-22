@@ -304,6 +304,9 @@ def _run_checks(page, base: str) -> list[tuple[str, bool]]:
         has_upload_btn = page.locator("#uploadFirstBtn").count() > 0
         results.append(("F2A Upload button visible at goal stage", has_upload_btn))
         assert has_upload_btn, "Upload button must be visible at goal stage"
+        has_demo_btn = page.locator("#loadDemoBtn").count() > 0
+        results.append(("P1.2 Demo data button visible at goal stage", has_demo_btn))
+        assert has_demo_btn, "Demo data button must be visible at goal stage"
 
         # S2.1: Goal stage contextual links
         goal_kl = page.locator("#goalKnowledgeLink")
