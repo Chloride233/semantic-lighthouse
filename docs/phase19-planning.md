@@ -16,14 +16,14 @@ candidates without database writes or API changes.
 - **Data source**: Realistic synthetic generator (`scripts/generate_manufacturing_dataset.py`),
   generating a business-plausible data pack — not real enterprise data.
 - **AdventureWorks**: Recognized as a strong external benchmark candidate but
-  explicitly deferred. Not downloaded, not wired, not included in 19.1 or 19.2.
+  explicitly deferred. Not downloaded, not wired, not included in Phase 19.
   Candidate for a future external benchmark slice.
 - **No UI, no backend API changes, no migrations, no frontend.**
 - **No new database dependencies** (no Neo4j, OWL, LangGraph, MCP runtime, OSDK).
 - **Mapping Contract v1**: delivered as offline JSON artifact in 19.3.
 - **Rule Validation v1**: delivered as offline deterministic report in 19.4.
 - **Governance Feedback v1**: delivered as offline candidate generation in 19.5.
-- **Phase 19 Closeout**: deferred to 19.6.
+- **Phase 19 Closeout**: delivered in 19.6.
 
 ## Slices
 
@@ -170,6 +170,6 @@ candidates without database writes or API changes.
 
 AdventureWorks (Microsoft's OLTP sample database) is an excellent external
 benchmark for manufacturing/supply-chain ontology modeling. It is **not**
-part of 19.1 or 19.2. A future slice may evaluate it as a separate
+part of Phase 19. A future slice may evaluate it as a separate
 data-source candidate with its own ingestion and contract validation,
 not mixed into the existing synthetic generator.
