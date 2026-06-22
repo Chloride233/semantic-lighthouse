@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "P1.1 pilot first-use guidance delivered"
-description = "Pilot list empty state, new project dialog, stage-by-stage guidance, data-stage hints, model/validate/pilot button explanations, and accompanying CSS. 53/53 verify_ui PASS. Next: P1.2 demo dataset onboarding or screenshots review."
+current = "P1.2 demo dataset onboarding delivered"
+description = "POST datasets/demo-data endpoint generates tiny manufacturing pack via subprocess and imports 13 CSVs as project datasets. Frontend button in data stage. 6 tests (owner/admin success, member/outsider 403, idempotent, archived 409). 53/53 verify_ui."
 
 [next_decision_gate]
-name = "P1.2 demo dataset onboarding or screenshots review"
-description = "Options: (1) add one-click demo data onboarding so new users can reach Pilot without CLI, (2) screenshot/visual review of the new guidance, (3) AdventureWorks benchmark implementation, (4) Safety Lane DB-backed governance feedback."
+name = "P1.3 product workflow review or R1 runtime boundary planning"
+description = "Options: (1) end-to-end product workflow review with screenshots, (2) R1 runtime boundary audit/cleanup, (3) AdventureWorks benchmark implementation, (4) Safety Lane DB-backed governance feedback."
 
 [mcp]
 runtime_status = "not started"

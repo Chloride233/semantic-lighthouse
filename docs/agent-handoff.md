@@ -384,10 +384,25 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 
 ### Verification: node --check 5/5 clean, verify_ui 53/53, doc alignment PASS.
 
+## P1.2 — Demo Dataset Onboarding
+
+**Status**: Delivered (2026-06-22). **Lane**: Standard.
+
+### Changes
+
+- `src/semantic_lighthouse/routers/datasets.py`: Added `POST /demo-data` endpoint. Owner/admin only. Generates tiny manufacturing data pack via subprocess, imports 13 CSVs as project datasets. Shared `_import_single_dataset()` helper. Deduplicates by content hash.
+- `static/js/pages/project.js`: "载入制造业示例数据" button in data stage. Hint text updated to mention one-click import.
+- `tests/test_dataset_assets.py`: 6 new tests — owner/admin success (201, 13 datasets), member 403, outsider 403, idempotent (skip all), archived 409.
+
+### Verification: pytest 6/6, verify_ui 53/53, ruff clean, JS syntax OK, doc alignment PASS.
+
+### Boundaries: no migrations, no new deps, no auto-accept drafts, no auto-activate pilot.
+
 ## Next Decision Gate
 
-**P1.1 delivered**: Next: P1.2 demo dataset onboarding, screenshot review,
-AdventureWorks implementation, or Safety Lane DB-backed governance feedback.
+**P1.2 delivered**: Next: P1.3 product workflow review, R1 runtime boundary
+planning, AdventureWorks implementation, or Safety Lane DB-backed governance
+feedback.
 
 ## Phase 15 Delivery Summary
 

@@ -708,3 +708,116 @@ class TestDoubleUploadCleanup:
         # Should be no datasets
         r_list = client.get(f"/groups/{gid}/projects/{pid}/datasets", headers=h)
         assert r_list.json()["total"] == 0
+
+
+# ── P1.2 Demo data onboarding ───────────────────────────────────────────────
+
+
+class TestDemoDataOnboarding:
+    """Verify demo data import endpoint (P1.2)."""
+
+    def test_owner_imports_demo_data_success(self, client):
+        """Owner imports demo data — returns 201 with 13 datasets."""
+        _, _, h = register_and_login(client, "demo-own@pj.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/datasets/demo-data",
+            headers=h,
+        )
+        assert r.status_code == 201, r.text
+        data = r.json()
+        assert data["demo_data_imported"] is True
+        assert data["files_generated"] == 13
+        assert data["datasets_imported"] == 13
+        assert data["datasets_skipped"] == 0
+        assert data["total_rows"] > 0
+
+        # Verify datasets appear in list
+        r_list = client.get(
+            f"/groups/{gid}/projects/{pid}/datasets", headers=h,
+        )
+        assert r_list.json()["total"] == 13
+
+    def test_admin_imports_demo_data_success(self, client):
+        """Admin can also import demo data."""
+        _, owner_me, owner_h = register_and_login(client, "demo-adm-o@pj.com")
+        admin_me, _, admin_h = register_and_login(client, "demo-adm-a@pj.com")
+        gid = _create_group(client, owner_h)
+        _join_group(client, gid, owner_h, admin_h)
+        _promote_admin(client, gid, owner_h, admin_me["id"])
+        pid = _create_project(client, gid, owner_h)
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/datasets/demo-data",
+            headers=admin_h,
+        )
+        assert r.status_code == 201, r.text
+        assert r.json()["datasets_imported"] == 13
+
+    def test_member_cannot_import_demo_data(self, client):
+        """Member gets 403."""
+        _, _, owner_h = register_and_login(client, "demo-mem-o@pj.com")
+        _, _, mem_h = register_and_login(client, "demo-mem-m@pj.com")
+        gid = _create_group(client, owner_h)
+        _join_group(client, gid, owner_h, mem_h)
+        pid = _create_project(client, gid, owner_h)
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/datasets/demo-data",
+            headers=mem_h,
+        )
+        assert r.status_code == 403
+
+    def test_outsider_403_demo_data(self, client):
+        """Non-member gets 403."""
+        _, _, owner_h = register_and_login(client, "demo-out-o@pj.com")
+        _, _, outsider_h = register_and_login(client, "demo-out-x@pj.com")
+        gid = _create_group(client, owner_h)
+        pid = _create_project(client, gid, owner_h)
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/datasets/demo-data",
+            headers=outsider_h,
+        )
+        assert r.status_code == 403
+
+    def test_demo_data_idempotent(self, client):
+        """Second import skips all datasets as duplicates."""
+        _, _, h = register_and_login(client, "demo-dup@pj.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)
+        r1 = client.post(
+            f"/groups/{gid}/projects/{pid}/datasets/demo-data",
+            headers=h,
+        )
+        assert r1.status_code == 201
+        assert r1.json()["datasets_imported"] == 13
+
+        r2 = client.post(
+            f"/groups/{gid}/projects/{pid}/datasets/demo-data",
+            headers=h,
+        )
+        assert r2.status_code == 201
+        data2 = r2.json()
+        assert data2["datasets_imported"] == 0
+        assert data2["datasets_skipped"] == 13
+
+        # Still only 13 datasets total
+        r_list = client.get(
+            f"/groups/{gid}/projects/{pid}/datasets", headers=h,
+        )
+        assert r_list.json()["total"] == 13
+
+    def test_archived_project_rejects_demo_data(self, client):
+        """Cannot import demo data into an archived project."""
+        _, _, h = register_and_login(client, "demo-arch@pj.com")
+        gid = _create_group(client, h)
+        pid = _create_project(client, gid, h)
+        # Archive the project
+        client.post(
+            f"/groups/{gid}/projects/{pid}/archive",
+            headers=h,
+        )
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/datasets/demo-data",
+            headers=h,
+        )
+        assert r.status_code == 409

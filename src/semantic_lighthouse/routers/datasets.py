@@ -333,6 +333,264 @@ def upload_dataset(
         raise
 
 
+# ── Demo data onboarding (P1.2) ─────────────────────────────────────────────
+
+
+def _import_single_dataset(
+    *,
+    file_path: Path,
+    group_id: str,
+    project_id: str,
+    user_id: str,
+    db: Session,
+    storage_dir: Path,
+    existing_datasets: list[DatasetAsset],
+) -> dict:
+    """Import a single CSV file as a dataset asset. Returns import result.
+
+    Reuses the same profiling/dedup/storage pipeline as upload_dataset,
+    but reads from a local file path instead of an HTTP upload.
+    """
+    from uuid import uuid4
+
+    safe_name = _sanitize_name(file_path.name)
+    content = file_path.read_bytes()
+    file_size = len(content)
+
+    # Write to temp location for hash computation
+    tmp_name = f".tmp_{uuid4().hex}_{safe_name}"
+    tmp_path = storage_dir / tmp_name
+    tmp_path.write_bytes(content)
+
+    try:
+        content_hash = compute_content_hash(str(tmp_path))
+
+        # Check duplicate in same project
+        existing = db.scalar(
+            select(DatasetAsset).where(
+                DatasetAsset.project_id == project_id,
+                DatasetAsset.content_hash == content_hash,
+            )
+        )
+        if existing is not None:
+            tmp_path.unlink(missing_ok=True)
+            return {
+                "name": safe_name,
+                "imported": False,
+                "deduplicated": True,
+                "dataset_id": existing.id,
+                "rows": existing.row_count,
+                "columns": existing.column_count,
+            }
+
+        # Profile
+        result = profile_csv(str(tmp_path), include_samples=False)
+        if result.error is not None:
+            tmp_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Profile error for {safe_name}: {result.error}",
+            )
+
+        dataset_id = uuid4().hex
+        final_path = storage_dir / f"{dataset_id}_{safe_name}"
+        tmp_path.rename(final_path)
+
+        # FK suggestions
+        fk_suggestions = suggest_foreign_keys(
+            result.columns,
+            [
+                {"id": d.id, "original_name": d.original_name,
+                 "profile_json": d.profile_json}
+                for d in existing_datasets
+            ],
+        )
+        result.foreign_key_suggestions = fk_suggestions
+
+        asset = DatasetAsset(
+            id=dataset_id,
+            group_id=group_id,
+            project_id=project_id,
+            original_name=safe_name,
+            storage_path=str(final_path),
+            file_format="csv",
+            file_size=file_size,
+            content_hash=content_hash,
+            status="ready",
+            row_count=result.rows_scanned,
+            column_count=len(result.columns),
+            profile_json=result.to_dict(),
+            created_by=user_id,
+        )
+        db.add(asset)
+
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            final_path.unlink(missing_ok=True)
+            existing2 = db.scalar(
+                select(DatasetAsset).where(
+                    DatasetAsset.project_id == project_id,
+                    DatasetAsset.content_hash == content_hash,
+                )
+            )
+            if existing2 is not None:
+                return {
+                    "name": safe_name,
+                    "imported": False,
+                    "deduplicated": True,
+                    "dataset_id": existing2.id,
+                    "rows": existing2.row_count,
+                    "columns": existing2.column_count,
+                }
+            raise
+
+        db.refresh(asset)
+        # Add to existing datasets list for subsequent FK suggestions
+        existing_datasets.append(asset)
+
+        return {
+            "name": safe_name,
+            "imported": True,
+            "deduplicated": False,
+            "dataset_id": asset.id,
+            "rows": asset.row_count,
+            "columns": asset.column_count,
+        }
+
+    except HTTPException:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
+@router.post("/demo-data", status_code=status.HTTP_201_CREATED)
+def import_demo_datasets(
+    group_id: str,
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Import manufacturing demo datasets into a project.
+
+    Owner/admin only. Generates a tiny manufacturing data pack using the
+    existing generator script, then imports each CSV as a project dataset.
+    Deduplicates by content hash — safe to call multiple times.
+    Does NOT auto-accept drafts or activate the pilot.
+    """
+    import subprocess
+    import sys
+    import tempfile
+
+    require_group_role(db, current_user.id, group_id, {"owner", "admin"})
+    project = _get_project_or_404(db, project_id, group_id)
+
+    if project.status == "archived":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot import demo data into an archived project",
+        )
+
+    # Generate manufacturing data pack in a temp directory
+    gen_script = (
+        Path(__file__).resolve().parents[3]
+        / "scripts"
+        / "generate_manufacturing_dataset.py"
+    )
+    if not gen_script.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Demo data generator script not found",
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        result = subprocess.run(
+            [sys.executable, str(gen_script),
+             "--preset", "tiny", "--seed", "42",
+             "--output-dir", tmp],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode != 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to generate demo data. "
+                       "Check server logs for details.",
+            )
+
+        # Collect generated CSV files
+        csv_files = sorted(Path(tmp).glob("*.csv"))
+        if not csv_files:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="No CSV files generated by demo data generator",
+            )
+
+        # Prepare storage
+        settings = get_settings()
+        storage_root = Path(settings.dataset_storage_path).resolve()
+        storage_dir = storage_root / group_id / project_id
+        storage_dir.mkdir(parents=True, exist_ok=True)
+
+        # Load existing datasets for FK suggestions and dedup
+        existing_datasets = db.scalars(
+            select(DatasetAsset).where(
+                DatasetAsset.project_id == project_id,
+                DatasetAsset.status == "ready",
+            )
+        ).all()
+
+        # Import each CSV
+        results = []
+        errors = []
+        for csv_path in csv_files:
+            try:
+                r = _import_single_dataset(
+                    file_path=csv_path,
+                    group_id=group_id,
+                    project_id=project_id,
+                    user_id=current_user.id,
+                    db=db,
+                    storage_dir=storage_dir,
+                    existing_datasets=existing_datasets,
+                )
+                results.append(r)
+            except HTTPException as e:
+                errors.append({
+                    "file": csv_path.name,
+                    "error": e.detail,
+                })
+
+        imported = [r for r in results if r["imported"]]
+        skipped = [r for r in results if r["deduplicated"]]
+        total_rows = sum(r["rows"] or 0 for r in results)
+
+        # Advance project stage if this was the first data
+        if imported and project.stage == "goal":
+            projects_service.advance_stage("goal", "data")
+            project.stage = "data"
+            db.commit()
+            db.refresh(project)
+
+        response_data = {
+            "demo_data_imported": len(imported) > 0,
+            "files_generated": len(csv_files),
+            "datasets_imported": len(imported),
+            "datasets_skipped": len(skipped),
+            "total_rows": total_rows,
+            "errors": errors,
+            "results": results,
+        }
+
+        if not imported and not skipped:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"All {len(csv_files)} files failed to import. "
+                       f"Errors: {errors}",
+            )
+
+        return response_data
+
+
 @router.get("", response_model=DatasetAssetListResponse)
 def list_datasets(
     group_id: str,
