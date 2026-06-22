@@ -169,7 +169,7 @@ candidates without database writes or API changes.
 ## AdventureWorks Note
 
 AdventureWorks (Microsoft's OLTP sample database) is an excellent external
-benchmark for manufacturing/supply-chain ontology modeling. It is **not**
-part of Phase 19. A future slice may evaluate it as a separate
-data-source candidate with its own ingestion and contract validation,
-not mixed into the existing synthetic generator.
+benchmark for manufacturing/supply-chain ontology modeling. Planning complete:
+see `docs/adventureworks-benchmark-planning.md`. Recommended 10-table subset,
+standalone data pack approach, reuse existing P19 pipeline. **Not downloaded,
+not implemented** — planning only.

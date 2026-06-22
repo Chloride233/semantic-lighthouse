@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Phase 19 closeout complete"
-description = "Phase 19 Ontology Operationalization complete. Full offline chain delivered: 13-table manufacturing data pack → manifest → mapping_contract → 8-rule validation → governance feedback with 3 candidate types. 29 tests, 5 offline artifact types. Next: AdventureWorks external benchmark planning or portfolio wrap-up."
+current = "Phase 19 complete + AdventureWorks benchmark planned"
+description = "Phase 19 closeout complete (29 tests, 5 artifact types). AdventureWorks external benchmark planning document delivered: 10-table subset recommended, standalone data pack approach, reuse existing P19 pipeline. No implementation yet."
 
 [next_decision_gate]
-name = "AdventureWorks external benchmark planning"
-description = "AdventureWorks is a recognised external benchmark candidate for manufacturing/supply-chain ontology modeling. Next step: plan a separate evaluation slice with its own ingestion and contract validation, not mixed into the existing synthetic generator. Alternatives: portfolio/demo packaging, or Safety Lane DB-backed governance feedback."
+name = "Portfolio wrap-up or Safety Lane next steps"
+description = "Options: (1) implement AdventureWorks benchmark as standalone slice, (2) portfolio/demo packaging for presentation, (3) Safety Lane: DB-backed governance feedback from confirmed candidates. AdventureWorks planning document at docs/adventureworks-benchmark-planning.md."
 
 [mcp]
 runtime_status = "not started"
