@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "portfolio/demo packaging delivered"
-description = "Portfolio narrative document created (docs/portfolio-demo-narrative.md). README.md and PRODUCT.md refreshed with Phase 18–19 achievements. Project story is now tellable in technical and business terms. Next: implement AdventureWorks benchmark, or Safety Lane DB-backed governance feedback."
+current = "public README refresh delivered"
+description = "README.md is now a public-facing portfolio entrypoint focused on what Semantic Lighthouse proves, how to run the FDE demo, and the Phase 19 ontology pipeline. Portfolio narrative remains at docs/portfolio-demo-narrative.md."
 
 [next_decision_gate]
-name = "README public-facing refresh or next implementation slice"
-description = "Options: (1) further README polish for public consumption, (2) demo video/screenshot capture for portfolio, (3) implement AdventureWorks external benchmark as standalone slice, (4) Safety Lane: DB-backed governance feedback from confirmed candidates. See docs/adventureworks-benchmark-planning.md and docs/portfolio-demo-narrative.md."
+name = "demo capture or next implementation slice"
+description = "Options: (1) demo video/screenshot capture for portfolio, (2) implement AdventureWorks external benchmark as standalone slice, (3) Safety Lane: DB-backed governance feedback from confirmed candidates. See docs/adventureworks-benchmark-planning.md and docs/portfolio-demo-narrative.md."
 
 [mcp]
 runtime_status = "not started"

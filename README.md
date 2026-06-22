@@ -1,82 +1,150 @@
 # Semantic Lighthouse / 语义灯塔
 
-企业 AI 转型 Ontology 语义操作层工作台：帮助企业把碎片化知识、文档、系统和流程，逐步建成权限感知、可审计、可操作、可被 Agent 安全调用的 Ontology 语义层。
+Semantic Lighthouse is an **ontology-oriented semantic operating layer workspace** for enterprise AI transformation. It shows how fragmented documents, knowledge, datasets, workflows, permissions, evidence, and Agent-facing interfaces can be turned into an auditable business semantic layer.
 
-当前可信 RAG 闭环是底座：用权限隔离的知识库、引用来源、可信度判断、知识缺口和用户确认任务，把企业 AI 转型知识转化为可审阅的回答和可追踪行动。项目终局不是普通 RAG/Agent，而是面向业务对象、关系、动作、权限、证据和 Agent 接口的语义操作层。
+This is not a generic RAG chatbot and not an autonomous Agent platform. The core claim is narrower and stronger:
 
-当前产品边界见 `docs/product-alignment-prd.md`。核心链路是：
+> Enterprise AI needs governed business semantics, not just model calls.
+
+## What It Proves
+
+Semantic Lighthouse demonstrates an end-to-end FDE-style delivery chain:
 
 ```text
-注册登录 -> 进入群组 -> 上传/导入知识 -> 提问 -> 查看引用/可信度/知识缺口 -> 确认下一步任务 -> Agent/HITL 审计 -> Ontology 治理与图谱 -> 语义操作层
+business goal
+-> scoped evidence
+-> reviewed ontology model
+-> quality-gated package
+-> dataset binding
+-> typed runtime query
+-> outcome record
+-> bounded markdown artifact
+-> ontology governance feedback
 ```
 
-Agent 不是默认目标，而是受控协调层：只有多步骤、多工具、需要审计或用户确认的流程才使用 Agent。Phase 8–14 已全部交付。当前项目状态见 `docs/project-status.toml`。
+The strongest current demo is the manufacturing ontology pipeline from Phase 19:
 
-## V1 Scope
+```text
+CSV
+-> manifest.json
+-> mapping_contract.json
+-> rule_validation_report.json
+-> governance_feedback.json
+-> FDE smoke demo
+```
 
-- FastAPI backend
-- PostgreSQL via Docker Compose
-- SQLAlchemy + Alembic migrations
-- BCrypt password hashing
-- 15-minute JWT Access Token
-- httpOnly Cookie Refresh Token
-- Refresh Token Rotation and replay detection
-- Owner/Admin/Member group roles
-- group_id-scoped authorization checks
+## Run The Demo
 
-## V2 Scope
+Generate a realistic synthetic manufacturing data pack:
 
-- Markdown-only document ingestion
-- Local import from `F:\ontology-kb\knowledge-graph`
-- Single Markdown file upload
-- PostgreSQL-backed keyword search
-- group_id-scoped `documents` and `document_chunks`
-- citation-ready search results with source path and frontmatter metadata
+```powershell
+.\.venv\Scripts\python scripts\generate_manufacturing_dataset.py `
+    --preset tiny --output-dir .tmp\phase19-manufacturing
+```
 
-## V2.2 Scope
+Run the full FDE smoke chain against that data pack:
 
-- MD/TXT/PDF/DOCX document ingestion
-- three-stage chunked upload: init, chunks, complete
-- instant upload by group-scoped SHA-256 file hash
-- resumable upload sessions with uploaded chunk indexes
-- idempotent chunk upload by `upload_id + chunk_index`
-- local disk-backed upload temp and document storage volumes
-- original file metadata on documents
+```powershell
+.\.venv\Scripts\python scripts\smoke_fde_demo.py `
+    --data-pack .tmp\phase19-manufacturing
+```
 
-## V2.1 Scope
+Expected result:
 
-- Cloud embedding provider abstraction
-- Aliyun Model Studio/DashScope embedding configuration
-- PostgreSQL pgvector-ready document chunk embeddings
-- Manual Owner/Admin embedding rebuild endpoint
-- group_id-scoped semantic search endpoint
-- Fake embedding provider for local tests
+```text
+FDE Demo Smoke: PASS | 11/11
+Artifact gate: PASS
+```
 
-## V3 Scope
+The smoke uses fake embedding/chat providers, temporary SQLite, and no external API keys.
 
-- DeepSeek/OpenAI-compatible chat provider abstraction
-- `POST /groups/{group_id}/rag/answer`
-- `GET /groups/{group_id}/rag/runs`
-- `GET /groups/{group_id}/rag/runs/{run_id}`
-- keyword or semantic retrieval before generation
-- citation-backed answer output
-- confidence, knowledge gaps, and next steps
-- Fake chat provider for local tests
-- local evidence gate: no retrieved citations means no LLM call and a low-confidence answer
-- persisted RAG run audit records for replay and evaluation
+## Phase 19 Ontology Pipeline
 
-## V3.4 Scope
+Run the offline ontology operationalization chain:
 
-- **Async ETL ingestion pipeline** for chunked uploads:
-  - `POST /uploads/{id}/complete` creates a document with `status=uploaded` and triggers async ETL.
-  - 7-step pipeline: Extract → Parse → Clean → Chunk → Embedding → Load → Finalize.
-  - Structure-aware chunking with configurable character limits (target/max/min/overlap).
-  - 3-attempt retry with exponential backoff (2s/4s/8s).
-  - Ingestion job tracking: `POST/GET /ingestion-jobs` endpoints with group-scoped permissions.
-  - Startup crash recovery: orphaned `running` jobs → `failed`, orphaned `processing` docs → `uploaded`.
-- **PostgreSQL pgvector HNSW index**: `m=16, ef_construction=200` for <1M vector prototype-scale search.
-- **Ready-only retrieval**: keyword search, semantic search, and RAG only return documents with `status=ready`.
-- **ETL scope boundary**: chunked upload complete only. `POST /upload` (single file) and `POST /import-local` remain synchronous through `ingest_markdown` — they do not create ingestion jobs.
+```powershell
+# 1. Generate the manufacturing data pack
+.\.venv\Scripts\python scripts\generate_manufacturing_dataset.py `
+    --preset tiny --output-dir .tmp\phase19-manufacturing
+
+# 2. Validate the data pack contract
+.\.venv\Scripts\python scripts\validate_manufacturing_data_pack.py `
+    .tmp\phase19-manufacturing
+
+# 3. Generate field-to-business-property mappings
+.\.venv\Scripts\python scripts\generate_mapping_contract.py `
+    --data-pack .tmp\phase19-manufacturing
+
+# 4. Validate the mapping contract
+.\.venv\Scripts\python scripts\validate_mapping_contract.py `
+    --data-pack .tmp\phase19-manufacturing
+
+# 5. Run deterministic business rule validation
+.\.venv\Scripts\python scripts\validate_business_rules.py `
+    --data-pack .tmp\phase19-manufacturing
+
+# 6. Generate human-reviewable governance feedback
+.\.venv\Scripts\python scripts\generate_governance_feedback.py `
+    --data-pack .tmp\phase19-manufacturing
+```
+
+Phase 19 closeout verified:
+
+| Artifact | Purpose |
+|----------|---------|
+| `manifest.json` | 13 tables, PK/FK, row counts, core pilot subset, business meaning |
+| `mapping_contract.json` | 13 object types, 15 relationships, controlled value/role/null vocabularies |
+| `rule_validation_report.json` | 8 rule categories, deterministic checks, bounded findings |
+| `governance_feedback.json` | Human-reviewable governance candidates by type and severity |
+| FDE artifact markdown | Bounded business delivery artifact with quality gate |
+
+## Architecture Chain
+
+```text
+Auth + group isolation
+-> document ingestion
+-> hybrid retrieval
+-> citation-grounded RAG
+-> user-confirmed task/action
+-> controlled Agent/HITL workflow
+-> ontology governance
+-> modeling drafts
+-> quality-gated packages
+-> business contracts
+-> dataset bindings
+-> runtime query
+-> outcome artifacts
+-> governance feedback
+```
+
+The implementation intentionally favors explainable backend boundaries over broad framework adoption.
+
+## Key Capabilities
+
+- JWT auth, BCrypt password hashing, refresh-token rotation, group RBAC.
+- Hard `group_id` isolation across documents, chunks, retrieval, RAG, tasks, Agent runs, ontology entities, model packages, projects, datasets, bindings, outcomes, and evidence links.
+- Document ingestion for Markdown, TXT, PDF, and DOCX.
+- Keyword + semantic retrieval with PostgreSQL/pgvector support.
+- Citation-grounded RAG with confidence, knowledge gaps, next steps, and persisted audit records.
+- Controlled Agent orchestration with tool registry, HITL confirmation, and audit trail.
+- Ontology governance: entities, relations, validation issues, curation, modeling drafts.
+- Quality-gated immutable ontology model packages.
+- Business pilot workflow: Goal -> Data -> Model -> Validate -> Pilot.
+- Dataset profiling, deterministic modeling draft generation, explicit dataset bindings.
+- FDE outcome records, outcome summaries, and bounded markdown artifacts.
+- Phase 19 offline data-governance chain: data pack -> mapping -> rules -> governance feedback.
+
+## Intentional Boundaries
+
+These are deliberate design boundaries, not missing checkboxes:
+
+- No MCP runtime yet. MCP remains a future Agent-facing adapter candidate.
+- No Graph RAG yet. The project has ontology entities/relations, but retrieval is still hybrid search.
+- No autonomous Agent writes. High-risk write behavior requires backend permission checks and human confirmation.
+- No real enterprise data. The manufacturing data pack is realistic synthetic data.
+- No AdventureWorks implementation yet. It is planned as a future external benchmark.
+- No DB-backed governance feedback yet. Phase 19 produces offline candidates only.
+- No Neo4j, OWL reasoner, LangGraph, OSDK, or Kubernetes dependency in the core runtime.
 
 ## Local Setup
 
@@ -90,104 +158,59 @@ alembic upgrade head
 uvicorn semantic_lighthouse.main:app --reload
 ```
 
-Open API docs at `http://127.0.0.1:8000/docs`.
-
-For a SQLite smoke run without Docker:
-
-```powershell
-$env:DATABASE_URL="sqlite+pysqlite:///./local_v1.db"
-alembic upgrade head
-powershell -ExecutionPolicy Bypass -File .\scripts\dev\start-v1-api.ps1
-```
-
-Stop the smoke-run API:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\dev\stop-v1-api.ps1
-```
-
-## Tests
-
-```powershell
-pytest
-```
-
-Migration check:
-
-```powershell
-alembic upgrade head
-```
-
-## Current Demo Path / 当前可演示链路
-
-**The strongest current demo is the FDE (Future Data Engineer) Delivery Chain**:
-
-```powershell
-# Full FDE chain with manufacturing data pack
-.\.venv\Scripts\python scripts\smoke_fde_demo.py \
-    --data-pack .tmp\phase19-manufacturing
-
-# Generate the data pack first
-.\.venv\Scripts\python scripts\generate_manufacturing_dataset.py \
-    --preset tiny --output-dir .tmp\phase19-manufacturing
-```
-
-Result: **11/11 PASS, artifact gate PASS (0 findings), ~0.7s**.
-
-### Phase 19 Ontology Pipeline (data → governance)
-
-```powershell
-# 1. Generate
-.\.venv\Scripts\python scripts\generate_manufacturing_dataset.py \
-    --preset tiny --output-dir .tmp\phase19-manufacturing
-
-# 2. Validate data pack
-.\.venv\Scripts\python scripts\validate_manufacturing_data_pack.py \
-    .tmp\phase19-manufacturing
-
-# 3. Generate mapping contract
-.\.venv\Scripts\python scripts\generate_mapping_contract.py \
-    --data-pack .tmp\phase19-manufacturing
-
-# 4. Validate mapping contract
-.\.venv\Scripts\python scripts\validate_mapping_contract.py \
-    --data-pack .tmp\phase19-manufacturing
-
-# 5. Run business rules
-.\.venv\Scripts\python scripts\validate_business_rules.py \
-    --data-pack .tmp\phase19-manufacturing
-
-# 6. Generate governance feedback
-.\.venv\Scripts\python scripts\generate_governance_feedback.py \
-    --data-pack .tmp\phase19-manufacturing
-```
-
-Full pipeline: CSV → manifest → mapping_contract → rule_validation → governance_feedback.
-
-Complete chain with FDE:
+Open API docs:
 
 ```text
-manufacturing CSV → manifest → mapping_contract → rule validation → governance feedback
-registration → login → group → project → evidence → package
-→ runtime → outcome → markdown artifact → quality gate
+http://127.0.0.1:8000/docs
 ```
 
-- Smoke script: zero external dependencies (fake embedding + fake chat), temporary SQLite, no API keys needed
-- FDE deliverables: outcome record + outcome-summary JSON + bounded markdown artifact
-- Markdown artifact: 7 required sections, 11 forbidden terms, 5 boundedness rules quality gate
-- Interview script: `docs/interview-demo-questions.md` (5-min demo + 5 FAQ)
-- Portfolio narrative: `docs/portfolio-demo-narrative.md`
+SQLite smoke mode is available for local scripts and tests; most demo scripts create their own temporary database.
 
-## Demo And Deployment
+## Verification
 
-- Portfolio narrative: `docs/portfolio-demo-narrative.md`
-- Cloud deployment guide: `docs/deployment-v3-cloud.md`
-- Cloud smoke playbook: `docs/cloud-smoke-playbook.md`
-- Interview demo questions: `docs/interview-demo-questions.md`
+Use targeted checks instead of defaulting to full regression:
 
-## Project Boundary
+```powershell
+# Phase 19 related tests
+.\.venv\Scripts\python -m pytest `
+    tests\test_manufacturing_data_pack.py `
+    tests\test_business_rule_validation.py `
+    tests\test_governance_feedback.py `
+    -p no:cacheprovider
 
-- Knowledge source and Ontology seed corpus: `F:\ontology-kb`
-- Phases 8–19 delivered: RAG → tasks → Agent/HITL → ontology governance → modeling drafts → quality-gated packages → business contracts → pilot projects → evidence feedback loop → FDE outcome records → cloud deployment → manufacturing ontology pipeline. See `docs/project-status.toml` for current phase.
-- Intentionally deferred: full modeling studio, Graph RAG, MCP runtime, Agent auto-write, Neo4j, OWL, LangGraph, Kubernetes. See `docs/portfolio-demo-narrative.md` and `docs/product-alignment-prd.md` for rationale.
-- Engineering lessons tracked in `docs/engineering-memory/`.
+# FDE smoke
+.\.venv\Scripts\python scripts\smoke_fde_demo.py `
+    --data-pack .tmp\phase19-manufacturing
+
+# Documentation alignment
+.\.venv\Scripts\python scripts\check_doc_alignment.py
+```
+
+Full backend regression and UI smoke are lane-dependent. See `docs/development-workflow.md`.
+
+## Portfolio And Interview Docs
+
+| Document | Purpose |
+|----------|---------|
+| `docs/portfolio-demo-narrative.md` | Portfolio-level project story and demo narrative |
+| `docs/interview-demo-questions.md` | Interview demo script and FAQ |
+| `docs/project-status.toml` | Canonical current project state |
+| `docs/agent-handoff.md` | Operational handoff for future sessions |
+| `docs/phase19-planning.md` | Phase 19 delivery record |
+| `docs/adventureworks-benchmark-planning.md` | Future external benchmark plan |
+| `docs/phase19-architecture-tech-selection-judgment.md` | Architecture and technology selection rationale |
+| `PRODUCT.md` | Product positioning and boundaries |
+
+## Current Status
+
+Current canonical status lives in:
+
+```text
+docs/project-status.toml
+```
+
+As of Phase 19 closeout, the project has delivered the full offline ontology operationalization chain and portfolio narrative. Recommended next options:
+
+1. Public demo video / screenshot package.
+2. AdventureWorks external benchmark implementation planning.
+3. Safety Lane for DB-backed governance feedback from confirmed candidates.

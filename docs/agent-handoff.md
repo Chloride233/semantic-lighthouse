@@ -350,7 +350,7 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 ### Changes
 
 - `docs/portfolio-demo-narrative.md` (new): Full portfolio narrative — one-paragraph pitch, journey (Phase 8→19), architecture differentiators, demo walkthrough, audience-specific entry points.
-- `README.md`: Refreshed with Phase 19 pipeline commands, data pack demo path, portfolio narrative link.
+- `README.md`: Rewritten as a public-facing portfolio entrypoint with demo commands, Phase 19 pipeline, architecture chain, capabilities, and explicit boundaries.
 - `PRODUCT.md`: Updated with Phase 18–19 achievements and portfolio narrative reference.
 - `docs/project-status.toml`: Focus and next gate updated.
 - `docs/agent-handoff.md`: This entry.
@@ -365,16 +365,15 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 
 ### Next Candidates
 
-1. Further README polish for public GitHub consumption
-2. Demo video / screenshot capture for portfolio presentation
-3. Implement AdventureWorks external benchmark (see `docs/adventureworks-benchmark-planning.md`)
-4. Safety Lane: DB-backed governance feedback from confirmed candidates
+1. Demo video / screenshot capture for portfolio presentation
+2. Implement AdventureWorks external benchmark (see `docs/adventureworks-benchmark-planning.md`)
+3. Safety Lane: DB-backed governance feedback from confirmed candidates
 
 ## Next Decision Gate
 
-**Portfolio/demo packaging complete**: Project narrative is tellable. Next:
-README public-facing polish, demo capture, AdventureWorks implementation,
-or Safety Lane DB-backed governance feedback.
+**Public README refresh complete**: Project narrative is tellable from the
+repository entrypoint. Next: demo capture, AdventureWorks implementation, or
+Safety Lane DB-backed governance feedback.
 
 ## Phase 15 Delivery Summary
 
