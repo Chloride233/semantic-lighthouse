@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Phase 19 complete + AdventureWorks benchmark planned"
-description = "Phase 19 closeout complete (29 tests, 5 artifact types). AdventureWorks external benchmark planning document delivered: 10-table subset recommended, standalone data pack approach, reuse existing P19 pipeline. No implementation yet."
+current = "portfolio/demo packaging delivered"
+description = "Portfolio narrative document created (docs/portfolio-demo-narrative.md). README.md and PRODUCT.md refreshed with Phase 18–19 achievements. Project story is now tellable in technical and business terms. Next: implement AdventureWorks benchmark, or Safety Lane DB-backed governance feedback."
 
 [next_decision_gate]
-name = "Portfolio wrap-up or Safety Lane next steps"
-description = "Options: (1) implement AdventureWorks benchmark as standalone slice, (2) portfolio/demo packaging for presentation, (3) Safety Lane: DB-backed governance feedback from confirmed candidates. AdventureWorks planning document at docs/adventureworks-benchmark-planning.md."
+name = "README public-facing refresh or next implementation slice"
+description = "Options: (1) further README polish for public consumption, (2) demo video/screenshot capture for portfolio, (3) implement AdventureWorks external benchmark as standalone slice, (4) Safety Lane: DB-backed governance feedback from confirmed candidates. See docs/adventureworks-benchmark-planning.md and docs/portfolio-demo-narrative.md."
 
 [mcp]
 runtime_status = "not started"

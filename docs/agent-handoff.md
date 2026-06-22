@@ -343,11 +343,38 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 3. **Safety Lane: DB-backed governance feedback**: After human review,
    write confirmed candidates as real governance_issues or modeling_drafts.
 
+## Portfolio/Demo Packaging v1
+
+**Status**: Delivered (2026-06-22). **Lane**: Fast (docs only).
+
+### Changes
+
+- `docs/portfolio-demo-narrative.md` (new): Full portfolio narrative — one-paragraph pitch, journey (Phase 8→19), architecture differentiators, demo walkthrough, audience-specific entry points.
+- `README.md`: Refreshed with Phase 19 pipeline commands, data pack demo path, portfolio narrative link.
+- `PRODUCT.md`: Updated with Phase 18–19 achievements and portfolio narrative reference.
+- `docs/project-status.toml`: Focus and next gate updated.
+- `docs/agent-handoff.md`: This entry.
+
+### Key Messages
+
+- Semantic Lighthouse is an Ontology semantic operating layer, not a generic RAG/Agent demo.
+- Full offline pipeline: CSV → manifest → mapping_contract → rule_validation → governance_feedback.
+- 29 tests, 5 offline artifact types, 8 rule categories, 3 governance candidate types.
+- Zero external dependencies for demo — fake providers, temporary SQLite, no API keys.
+- Architecture decisions are intentional: what's NOT built is as important as what IS.
+
+### Next Candidates
+
+1. Further README polish for public GitHub consumption
+2. Demo video / screenshot capture for portfolio presentation
+3. Implement AdventureWorks external benchmark (see `docs/adventureworks-benchmark-planning.md`)
+4. Safety Lane: DB-backed governance feedback from confirmed candidates
+
 ## Next Decision Gate
 
-**Phase 19 complete.**: Next options: AdventureWorks external benchmark
-planning, portfolio/demo packaging, or Safety Lane DB-backed governance
-feedback.
+**Portfolio/demo packaging complete**: Project narrative is tellable. Next:
+README public-facing polish, demo capture, AdventureWorks implementation,
+or Safety Lane DB-backed governance feedback.
 
 ## Phase 15 Delivery Summary
 

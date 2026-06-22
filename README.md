@@ -120,34 +120,67 @@ alembic upgrade head
 
 ## Current Demo Path / 当前可演示链路
 
-**最强的当前 demo 是 FDE (Future Data Engineer) Delivery Chain**:
+**The strongest current demo is the FDE (Future Data Engineer) Delivery Chain**:
 
 ```powershell
-.\.venv\Scripts\python scripts\smoke_fde_demo.py
+# Full FDE chain with manufacturing data pack
+.\.venv\Scripts\python scripts\smoke_fde_demo.py \
+    --data-pack .tmp\phase19-manufacturing
+
+# Generate the data pack first
+.\.venv\Scripts\python scripts\generate_manufacturing_dataset.py \
+    --preset tiny --output-dir .tmp\phase19-manufacturing
 ```
 
-结果：**11/11 PASS，artifact gate PASS (0 findings)，~0.8s**。
+Result: **11/11 PASS, artifact gate PASS (0 findings), ~0.7s**.
 
-完整链路：
+### Phase 19 Ontology Pipeline (data → governance)
+
+```powershell
+# 1. Generate
+.\.venv\Scripts\python scripts\generate_manufacturing_dataset.py \
+    --preset tiny --output-dir .tmp\phase19-manufacturing
+
+# 2. Validate data pack
+.\.venv\Scripts\python scripts\validate_manufacturing_data_pack.py \
+    .tmp\phase19-manufacturing
+
+# 3. Generate mapping contract
+.\.venv\Scripts\python scripts\generate_mapping_contract.py \
+    --data-pack .tmp\phase19-manufacturing
+
+# 4. Validate mapping contract
+.\.venv\Scripts\python scripts\validate_mapping_contract.py \
+    --data-pack .tmp\phase19-manufacturing
+
+# 5. Run business rules
+.\.venv\Scripts\python scripts\validate_business_rules.py \
+    --data-pack .tmp\phase19-manufacturing
+
+# 6. Generate governance feedback
+.\.venv\Scripts\python scripts\generate_governance_feedback.py \
+    --data-pack .tmp\phase19-manufacturing
+```
+
+Full pipeline: CSV → manifest → mapping_contract → rule_validation → governance_feedback.
+
+Complete chain with FDE:
 
 ```text
-注册登录 → 创建 Demo Group → 创建 Pilot Project (制造业设备维护)
-→ 链接证据 (document + RAG run, user-confirmed)
-→ 建模草案 → 质量门 → 模型包 (immutable, quality-gated)
-→ Runtime binding → typed query → runtime audit
-→ PilotOutcomeRecord (immutable FDE snapshot)
-→ GET /outcome-summary (JSON 聚合)
-→ GET /outcome-artifact.md (bounded markdown)
-→ artifact quality gate → PASS
+manufacturing CSV → manifest → mapping_contract → rule validation → governance feedback
+registration → login → group → project → evidence → package
+→ runtime → outcome → markdown artifact → quality gate
 ```
 
-- Smoke script 零外部依赖（fake embedding + fake chat），临时 SQLite，不需要 API key
-- FDE 交付物：outcome record + outcome-summary JSON + markdown artifact
-- Markdown artifact 经过 7 个必选章节、11 个禁用词、5 个边界规则的质量门校验
-- 面试讲稿：`docs/interview-demo-questions.md`（含 5 分钟 demo script + 5 FAQ）
+- Smoke script: zero external dependencies (fake embedding + fake chat), temporary SQLite, no API keys needed
+- FDE deliverables: outcome record + outcome-summary JSON + bounded markdown artifact
+- Markdown artifact: 7 required sections, 11 forbidden terms, 5 boundedness rules quality gate
+- Interview script: `docs/interview-demo-questions.md` (5-min demo + 5 FAQ)
+- Portfolio narrative: `docs/portfolio-demo-narrative.md`
 
 ## Demo And Deployment
 
+- Portfolio narrative: `docs/portfolio-demo-narrative.md`
 - Cloud deployment guide: `docs/deployment-v3-cloud.md`
 - Cloud smoke playbook: `docs/cloud-smoke-playbook.md`
 - Interview demo questions: `docs/interview-demo-questions.md`
@@ -155,7 +188,6 @@ alembic upgrade head
 ## Project Boundary
 
 - Knowledge source and Ontology seed corpus: `F:\ontology-kb`
-- The current prototype intentionally does not implement MinIO/OSS, Elasticsearch, Kubernetes, full SaaS administration, or unrestricted autonomous Agent actions.
-- Phases 8–17 delivered: RAG → tasks → Agent/HITL → ontology governance → modeling drafts → quality-gated packages → business contracts → pilot projects → evidence feedback loop → FDE outcome records → demo readiness smoke. See `docs/project-status.toml` for current phase.
-- Not a full modeling studio, not Graph RAG, not MCP runtime, not Agent auto-write. These are intentionally deferred — see `docs/product-alignment-prd.md` for rationale.
-- Engineering lessons are tracked in `docs/engineering-memory/`.
+- Phases 8–19 delivered: RAG → tasks → Agent/HITL → ontology governance → modeling drafts → quality-gated packages → business contracts → pilot projects → evidence feedback loop → FDE outcome records → cloud deployment → manufacturing ontology pipeline. See `docs/project-status.toml` for current phase.
+- Intentionally deferred: full modeling studio, Graph RAG, MCP runtime, Agent auto-write, Neo4j, OWL, LangGraph, Kubernetes. See `docs/portfolio-demo-narrative.md` and `docs/product-alignment-prd.md` for rationale.
+- Engineering lessons tracked in `docs/engineering-memory/`.
