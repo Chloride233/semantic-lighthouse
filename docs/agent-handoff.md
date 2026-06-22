@@ -369,11 +369,25 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 2. Implement AdventureWorks external benchmark (see `docs/adventureworks-benchmark-planning.md`)
 3. Safety Lane: DB-backed governance feedback from confirmed candidates
 
+## P1.1 — Pilot First-Use Guidance
+
+**Status**: Delivered (2026-06-22). **Lane**: Standard.
+
+### Changes
+
+- `static/js/pages/projects.js`: Empty state rewritten as guided onboarding ("从一个业务 Pilot 开始"). Dialog placeholder with concrete example. CLI demo hint.
+- `static/js/pages/project.js`: Stage-by-stage guidance (5 stages). Data hint recommends core tables. Secondary hint with script path.
+- `static/js/pages/project-model.js`: Stage guidance + expanded no-drafts hint.
+- `static/js/pages/project-validate.js`: Stage guidance + expanded bindings hint.
+- `static/js/pages/project-pilot.js`: Stage guidance for typed query.
+- `static/styles.css`: `.stageGuide`, `.stageHint code`, `.emptyFooter`.
+
+### Verification: node --check 5/5 clean, verify_ui 53/53, doc alignment PASS.
+
 ## Next Decision Gate
 
-**Public README refresh complete**: Project narrative is tellable from the
-repository entrypoint. Next: demo capture, AdventureWorks implementation, or
-Safety Lane DB-backed governance feedback.
+**P1.1 delivered**: Next: P1.2 demo dataset onboarding, screenshot review,
+AdventureWorks implementation, or Safety Lane DB-backed governance feedback.
 
 ## Phase 15 Delivery Summary
 

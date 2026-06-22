@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "public README refresh delivered"
-description = "README.md is now a public-facing portfolio entrypoint focused on what Semantic Lighthouse proves, how to run the FDE demo, and the Phase 19 ontology pipeline. Portfolio narrative remains at docs/portfolio-demo-narrative.md."
+current = "P1.1 pilot first-use guidance delivered"
+description = "Pilot list empty state, new project dialog, stage-by-stage guidance, data-stage hints, model/validate/pilot button explanations, and accompanying CSS. 53/53 verify_ui PASS. Next: P1.2 demo dataset onboarding or screenshots review."
 
 [next_decision_gate]
-name = "demo capture or next implementation slice"
-description = "Options: (1) demo video/screenshot capture for portfolio, (2) implement AdventureWorks external benchmark as standalone slice, (3) Safety Lane: DB-backed governance feedback from confirmed candidates. See docs/adventureworks-benchmark-planning.md and docs/portfolio-demo-narrative.md."
+name = "P1.2 demo dataset onboarding or screenshots review"
+description = "Options: (1) add one-click demo data onboarding so new users can reach Pilot without CLI, (2) screenshot/visual review of the new guidance, (3) AdventureWorks benchmark implementation, (4) Safety Lane DB-backed governance feedback."
 
 [mcp]
 runtime_status = "not started"

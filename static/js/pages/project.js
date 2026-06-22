@@ -137,6 +137,7 @@ export async function render(container, params) {
         <div class="stagePanelHead">
           <h2>目标 — 定义业务问题</h2>
           <span class="badge badgeOk">已完成</span>
+          <p class="stageGuide">确认这个 Pilot 要解决的业务问题。上传证据文档，通过项目内问答探索背景，为后续建模提供上下文。</p>
         </div>
         <p>项目已创建，业务目标已记录。下一步是为 Pilot 项目上传业务数据集。</p>
 
@@ -146,7 +147,7 @@ export async function render(container, params) {
 
         ${isOwnerAdmin ? `
           <div class="stageCTAs">
-            <p class="stageHint">${hasDatasets ? '已有就绪数据集。数据阶段已自动推进。' : '上传 CSV 或 XLSX 数据集开始数据阶段。'}</p>
+            <p class="stageHint">${hasDatasets ? '已有就绪数据集。数据阶段已自动推进。' : '先上传一到多张业务 CSV/XLSX。推荐从工单、设备、产品、维护记录等核心表开始。'}</p>
             ${!hasDatasets ? '<button class="primary" id="uploadFirstBtn">上传数据集</button>' : ''}
           </div>
         ` : '<p class="muted">需要 owner 或 admin 角色才能上传数据。</p>'}
@@ -523,13 +524,14 @@ export async function render(container, params) {
         <div class="stagePanelHead">
           <h2>数据 — 数据集已就绪</h2>
           <span class="badge badgeOk">已完成</span>
+          <p class="stageGuide">上传 CSV/XLSX 数据集，系统会自动分析字段类型、主键候选和外键关系，为生成 Ontology 草案做准备。</p>
         </div>
         <p>数据集已上传并完成分析。后端已识别字段类型、主键候选和外键建议。</p>
         ${isOwnerAdmin ? `
           <div class="stageCTAs">
             <button class="primary" id="genFromDataBtn">生成模型草案</button>
             <button class="secondary" id="uploadMoreBtn">上传更多数据</button>
-            <p class="stageHint">数据准备就绪后即可开始建模</p>
+            <p class="stageHint">数据准备就绪后即可开始建模。本地演示可先运行 <code>scripts/generate_manufacturing_dataset.py --preset tiny</code> 生成示例数据。</p>
           </div>
         ` : ''}
       </div>
@@ -557,6 +559,7 @@ export async function render(container, params) {
       <div class="stagePanel">
         <div class="stagePanelHead">
           <h2>${STAGE_LABELS[stage]} — 阶段进行中</h2>
+          <p class="stageGuide">${stage === "model" ? "从已上传数据集生成 Ontology 草案，并由人工审核通过。每条草案都会携带数据集证据来源。" : stage === "validate" ? "构建模型包并生成数据绑定，将 Ontology 属性绑定到实际数据集字段。验证通过后即可进入 Pilot 阶段。" : stage === "pilot" ? "通过 Ontology runtime 查询业务对象，形成后续行动。Pilot 阶段可创建任务和项目专属对话。" : ""}</p>
         </div>
         <p>当前项目处于 <strong>${STAGE_LABELS[stage]}</strong> 阶段。后续操作将在模型工作区中提供。</p>
       </div>

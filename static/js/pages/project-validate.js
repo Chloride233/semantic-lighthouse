@@ -54,6 +54,7 @@ export async function renderValidateStage(container, gid, pid, project, reloadPr
     const allActive = bindingList.every(b => b.status === 'active');
 
     main.innerHTML = `
+      <div class="stagePanel"><div class="stagePanelHead"><h2>验证 — 构建与绑定</h2></div><p class="stageGuide">将已审核通过的模型草案固化为不可变的 Ontology 模型包（Package），然后生成数据绑定，把 Ontology 业务属性映射到数据集的实际字段。验证通过后即可激活 Pilot 进入查询运行时。</p></div>
       <div class="stagePanel"><div class="stagePanelHead"><h2>质量门禁</h2><span class="badge ${qBadge}">${esc(qs)}</span></div>
         <p>错误 ${quality.error_count || 0} · 警告 ${quality.warning_count || 0}</p>
         ${(quality.issues || []).length > 0 ? `<ul class="issueList">${quality.issues.slice(0, 10).map(i => `<li><span class="badge ${i.severity === 'error' ? 'badgeDanger' : 'badgeWarn'}">${esc(i.severity)}</span> ${esc(i.code)}: ${esc(i.message || '')}</li>`).join('')}</ul>` : ''}
@@ -67,7 +68,7 @@ export async function renderValidateStage(container, gid, pid, project, reloadPr
 
       <div class="stagePanel"><div class="stagePanelHead"><h2>数据绑定</h2><span class="badge badgeMuted">${bindingList.length} 条</span></div>
         ${bindingsError ? `<div class="error"><p>${esc(bindingsError)}</p></div>` : ''}
-        ${bindingList.length === 0 ? '<p class="muted">尚无数据绑定。</p>' : bindingsListHTML(bindingList)}
+        ${bindingList.length === 0 ? '<p class="muted">尚无数据绑定。点击下方按钮，系统自动将已审核的 Ontology 属性绑定到数据集字段，生成可查询的 typed binding。</p>' : bindingsListHTML(bindingList)}
         ${missingOTs.length > 0 ? `<p class="muted">缺失绑定：${missingOTs.map(esc).join(', ')}</p>` : ''}
         ${isOwnerAdmin ? `
         <div class="stageCTAs" style="margin-top:12px">

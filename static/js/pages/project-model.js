@@ -124,7 +124,7 @@ function buildHTML(drafts, quality, proposed, isOwnerAdmin, gid) {
 
   return `
     <div class="stagePanel">
-      <div class="stagePanelHead"><h2>模型 — 草案与审核</h2><span class="badge ${qBadge}">${esc(qs)}</span></div>
+      <div class="stagePanelHead"><h2>模型 — 草案与审核</h2><span class="badge ${qBadge}">${esc(qs)}</span></div><p class="stageGuide">从已上传数据集生成候选业务对象、属性和关系。每条草案附带数据集证据来源，需经人工审核后进入模型包构建。</p>
       <p>草案状态：${accepted.length} 已接受 · ${rejected.length} 已拒绝 · ${proposed.length} 待审核</p>
       ${isOwnerAdmin ? `
       <div class="stageCTAs">
@@ -139,7 +139,7 @@ function buildHTML(drafts, quality, proposed, isOwnerAdmin, gid) {
       </div>` : '<p class="muted">需要 owner 或 admin 角色才能操作。</p>'}
     </div>
     ${counts.some(c => c.n > 0) ? `<div class="draftSummary">${counts.filter(c => c.n > 0).map(c => `<span class="badge badgeMuted">${c.label} ${c.n}</span>`).join(' ')}</div>` : ''}
-    ${drafts.length === 0 ? '<p class="muted">尚无草案。点击"生成模型草案"从数据集创建。</p>' : `<div class="draftList">${drafts.map(d => draftRowHTML(d, isOwnerAdmin)).join('')}</div>`}
+    ${drafts.length === 0 ? '<p class="muted">尚无草案。点击下方按钮，从已上传数据集生成候选业务对象、属性和关系。草案进入提案状态，需人工审核。</p>' : `<div class="draftList">${drafts.map(d => draftRowHTML(d, isOwnerAdmin)).join('')}</div>`}
     <div class="stageSupport" style="margin-top:16px">
       <p class="muted" style="font-size:var(--text-xs);margin:0 0 6px">组级语义治理上下文（尚未关联当前项目）：</p>
       <a id="modelOntologyLink" href="#/groups/${gid}/ontology" class="supportLink">查看共享 Ontology</a>

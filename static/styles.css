@@ -1594,6 +1594,9 @@ button.danger:hover { background: #7f1d1d; border-color: #7f1d1d; }
 .stagePanelHead h2 { margin: 0; font-size: var(--text-lg); font-weight: 600; }
 .stageCTAs { margin-top: 12px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .stageHint { font-size: var(--text-sm); color: var(--muted); margin: 0; }
+.stageHint code { font-size: var(--text-xs); background: var(--bg); padding: 1px 5px; border-radius: var(--radius-xs); }
+.stageGuide { font-size: var(--text-sm); color: var(--muted); margin: 0 0 12px; line-height: 1.65; max-width: 54ch; }
+.emptyFooter { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
 
 /* ── Dataset section ───────────────────────────────────────────── */
 .datasetSection { margin-top: 8px; }

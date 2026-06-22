@@ -32,7 +32,7 @@ export async function renderPilotStage(container, gid, pid, project, reloadProje
   const bindingOpts = Array.isArray(bindings) ? bindings.map((b, i) => ({ ...b, fields: Object.keys(b.property_mappings || {}), idx: i })) : [];
   const queryPanel = bindingOpts.length === 0
     ? '<div class="stagePanel"><p class="muted">尚无数据绑定。请先在验证阶段生成绑定。</p></div>'
-    : `<div class="stagePanel"><div class="stagePanelHead"><h2>Pilot — 查询工作台</h2></div>
+    : `<div class="stagePanel"><div class="stagePanelHead"><h2>Pilot — 查询工作台</h2></div><p class="stageGuide">通过 Ontology runtime 查询已验证的业务对象。选择对象类型和字段，系统通过数据绑定从实际数据集读取结果。查询包含完整溯源（package、binding、dataset、hash）。</p>
       <div class="queryForm">
         <div class="queryRow">
           <label class="field"><span>对象类型</span><select id="qOT">${bindingOpts.map((b, i) => `<option value="${i}">${esc(b.object_type_api_name)}</option>`).join('')}</select></label>

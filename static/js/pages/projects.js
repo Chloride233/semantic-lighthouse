@@ -72,9 +72,12 @@ export async function render(container, params) {
   const emptyHTML = `
     <div class="emptyState">
       <div class="emptyIcon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
-      <p class="emptyTitle">还没有 Pilot 项目</p>
-      <p class="emptyHint">创建一个业务 Pilot 项目，从目标出发，经过数据建模，最终到达可查询的语义运行时。</p>
+      <p class="emptyTitle">从一个业务 Pilot 开始</p>
+      <p class="emptyHint">上传你的业务数据集（CSV / XLSX），生成 Ontology 草案，经过审核后进入可查询的语义运行时。Pilot 是进入 Ontology 语义操作层的最小产品起点。</p>
       ${isOwnerAdmin ? '<button class="primary" id="createFirstBtn">创建第一个 Pilot</button>' : '<p class="muted" style="margin-top:12px">需要 owner 或 admin 角色才能创建项目。</p>'}
+      <div class="emptyFooter">
+        <p class="muted" style="font-size:var(--text-xs)">本地演示可先运行 <code>scripts/generate_manufacturing_dataset.py --preset tiny</code> 生成示例数据。</p>
+      </div>
     </div>
   `;
 
@@ -114,7 +117,7 @@ export async function render(container, params) {
           </label>
           <label class="field">
             <span>业务目标</span>
-            <textarea id="npGoal" rows="3" maxlength="2000" placeholder="描述这个 Pilot 要解决的业务问题或验证的假设"></textarea>
+            <textarea id="npGoal" rows="3" maxlength="2000" placeholder="例如：降低设备非计划停机，识别高风险工单，并生成可审计的 Ontology 建模与查询链路。"></textarea>
           </label>
           <fieldset class="segmented">
             <legend>进入方式</legend>
