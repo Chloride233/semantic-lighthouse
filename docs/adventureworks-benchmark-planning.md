@@ -21,8 +21,8 @@ wiring, or implementing anything at this stage.**
 |--------|-----------|
 | Domain match | Bicycle manufacturing — BOM, work orders, routing, inventory, vendors |
 | Schema richness | ~70 tables, well-documented PK/FK, realistic cardinalities |
-| Availability | Public domain, downloadable from Microsoft/sql-server-samples GitHub |
-| Licensing | MIT License — safe for evaluation and benchmarking |
+| Availability | Microsoft sample database with public Learn/GitHub distribution |
+| Licensing | Microsoft/sql-server-samples uses MIT license for samples; confirm exact source path/license before committing derived data |
 | Industry recognition | Widely used in SQL Server training, BI demos, and data engineering |
 | Contrast with current | Real-world schema complexity vs our 13-table synthetic generator |
 
@@ -130,7 +130,7 @@ observing what the rules find.
 | CSV export fidelity | Medium | AW uses SQL Server types (money, datetime2, hierarchyid). Export to CSV may lose precision or hierarchy metadata. Validate with checksums. |
 | Scale difference | Low | AW WorkOrder has 72K rows vs our 10-row tiny preset. P19 scripts are stdlib-only CSV readers — they scale linearly. Test with medium preset first. |
 | Schema mismatch | Medium | AW has composite keys, multi-column FKs, and nullable patterns our current manifest supports but hasn't been tested against. May need minor manifest schema extension. |
-| Licensing | Low | MIT License. Document license in extracted data pack. |
+| Licensing | Low | Confirm exact Microsoft source path and license before committing derived manifest or extracted sample data. |
 | Time investment | Medium | Even with planning, extraction + manifest + mapping + validation + test is a full Standard Lane slice. Budget cautiously. |
 
 ## What We Learn (Value Proposition)
@@ -152,8 +152,9 @@ Running the P19 pipeline against AdventureWorks proves:
 
 1. **This document is the deliverable** — no further action in this slice.
 2. If approved for implementation (future slice):
-   - Clone `microsoft/sql-server-samples` and extract AW CSV
-   - Write `scripts/extract_adventureworks.py` (~50 lines)
+   - Choose a source acquisition method (manual download, pinned GitHub
+     archive, or local SQL export) and document exact source path/license
+   - Write `scripts/extract_adventureworks.py` only after the source method is approved
    - Generate manifest.json and mapping_contract.json
    - Run full P19 pipeline and compare governance findings
    - Document delta findings and mapping contract gaps
