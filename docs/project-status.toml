@@ -32,7 +32,7 @@ runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "c03e62e"
+latest_commit = "3fcb988"
 backend_pytest = 848
 ruff = "clean"
 migration_head = "0028"
