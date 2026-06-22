@@ -134,12 +134,42 @@ The previous "frontend freeze" / "deferred to Kimi" policy has been **retired**.
 
 **Verification**: `scripts/verify_ui.py` 53/53 PASS; `scripts/screenshots_legacy_polish.py` 12/12 PASS; `node --check static/js/pages/documents.js` PASS; `python -m py_compile scripts/screenshots_legacy_polish.py` PASS; no `button:not(` selectors; `git diff --check` clean.
 
+## Phase 19.1 — Manufacturing Data Pack Contract & Validation
+
+**Status**: Delivered (2026-06-22). **Lane**: Standard.
+
+### Changes
+
+- `scripts/generate_manufacturing_dataset.py`: Added `manifest.json` generation alongside existing `metadata.json`. Manifest includes generator metadata, preset/seed, per-table row_count, primary_key, foreign_keys, core_pilot flag (8 of 13 tables), and business_meaning descriptions.
+- `scripts/validate_manufacturing_data_pack.py` (new): Validates a data pack directory against the 19.1 contract. 7 check categories: manifest completeness, 13 table presence, row_count vs CSV, PK uniqueness, FK referential integrity, core_pilot >= 4 tables, future date / negative value anomalies.
+- `tests/test_manufacturing_data_pack.py` (new): 6 tests — generator produces 13 tables + manifest, seed reproducibility, validator PASS on clean data, validator detects missing table, PK duplicate, and broken FK.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Generator (tiny preset) | 13 tables, 279 rows, manifest + metadata |
+| Validator on clean data | 57 OK, 0 FAIL, 0 WARN — PASS |
+| Pytest (6 tests) | 6 passed, 1.20s |
+| Ruff (changed files) | clean |
+| Doc alignment | PASS (7 entry docs) |
+| git diff --check | clean |
+
+### Boundaries Preserved
+
+- No UI, no backend API, no migrations, no frontend.
+- No external data downloaded (AdventureWorks deferred to 19.2/19.3).
+- No Graph RAG, MCP runtime, Agent write.
+- Existing `metadata.json` preserved for backward compatibility.
+- 13-table schema unchanged.
+
+### Next: Phase 19.2
+
+FDE demo smoke (`scripts/smoke_fde_demo.py`) should be updated to explicitly read the manufacturing data pack contract (manifest.json) as its input asset, replacing the current hardcoded seed scenario. AdventureWorks remains a candidate for separate 19.3 evaluation — do not insert it into 19.2 without explicit planning.
+
 ## Next Decision Gate
 
-**Plan Phase 19 or portfolio wrap-up**: Phase 18 complete and frontend visual closeout accepted. Avoid opportunistic legacy-page polish unless a new scoped UI lane is opened. Recommended next options:
-- Phase 19: ontology operationalization with real data
-- Portfolio wrap-up: final docs refresh, demo video, or cloud deployment
-- Separately scoped UI phase only if there is a concrete user-flow problem to solve
+**Phase 19 in progress (19.1 delivered)**: Next is 19.2 (FDE demo reads data pack contract). AdventureWorks is a recognised external benchmark candidate for 19.3 — not to be wired in 19.2 without explicit planning.
 
 ## Phase 15 Delivery Summary
 

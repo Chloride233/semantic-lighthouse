@@ -661,6 +661,284 @@ class ManufacturingGenerator:
                 })
         return rows
 
+    # ── Manifest (Phase 19.1 data pack contract) ──────────────────────────
+
+    def _build_manifest(self, counts: dict[str, int]) -> dict:
+        """Build a lightweight manifest.json for the data pack contract.
+
+        The manifest is the canonical contract that validators and
+        downstream consumers (FDE demo, Ontology pilot) can rely on.
+        """
+        # Phase 19 core pilot subset: the tables most essential for the
+        # equipment-reliability FDE demo narrative.
+        CORE_PILOT_TABLES = {
+            "suppliers", "materials", "products", "work_centers",
+            "work_orders", "work_order_operations", "equipment",
+            "quality_inspections",
+        }
+
+        TABLE_SPEC: list[dict] = [
+            {
+                "table_name": "suppliers",
+                "csv_file": "suppliers.csv",
+                "primary_key": ["supplier_id"],
+                "foreign_keys": [],
+                "business_meaning": (
+                    "Raw material and component suppliers with quality "
+                    "ratings, lead times, and active status"
+                ),
+            },
+            {
+                "table_name": "materials",
+                "csv_file": "materials.csv",
+                "primary_key": ["material_id"],
+                "foreign_keys": [
+                    {
+                        "columns": ["supplier_id"],
+                        "references": {"table": "suppliers", "columns": ["supplier_id"]},
+                    },
+                ],
+                "business_meaning": (
+                    "Raw materials, components, and sub-assemblies with "
+                    "unit costs, ABC classification, and batch tracking flags"
+                ),
+            },
+            {
+                "table_name": "products",
+                "csv_file": "products.csv",
+                "primary_key": ["product_id"],
+                "foreign_keys": [],
+                "business_meaning": (
+                    "Finished products organized by product family with "
+                    "revisions, costs, lead times, and make-to-order flags"
+                ),
+            },
+            {
+                "table_name": "work_centers",
+                "csv_file": "work_centers.csv",
+                "primary_key": ["work_center_id"],
+                "foreign_keys": [],
+                "business_meaning": (
+                    "Production work centers / lines with hourly rates, "
+                    "capacity, efficiency, and bottleneck flags"
+                ),
+            },
+            {
+                "table_name": "bills_of_materials",
+                "csv_file": "bills_of_materials.csv",
+                "primary_key": ["bom_id"],
+                "foreign_keys": [
+                    {
+                        "columns": ["product_id"],
+                        "references": {"table": "products", "columns": ["product_id"]},
+                    },
+                    {
+                        "columns": ["material_id"],
+                        "references": {"table": "materials", "columns": ["material_id"]},
+                    },
+                ],
+                "business_meaning": (
+                    "Bill of Materials: per-product material composition "
+                    "with quantities, scrap rates, and criticality flags"
+                ),
+            },
+            {
+                "table_name": "routings",
+                "csv_file": "routings.csv",
+                "primary_key": ["routing_id"],
+                "foreign_keys": [
+                    {
+                        "columns": ["product_id"],
+                        "references": {"table": "products", "columns": ["product_id"]},
+                    },
+                ],
+                "business_meaning": (
+                    "Manufacturing routings: the production recipe that "
+                    "defines the sequence of operations for each product"
+                ),
+            },
+            {
+                "table_name": "routing_operations",
+                "csv_file": "routing_operations.csv",
+                "primary_key": ["routing_operation_id"],
+                "foreign_keys": [
+                    {
+                        "columns": ["routing_id"],
+                        "references": {"table": "routings", "columns": ["routing_id"]},
+                    },
+                    {
+                        "columns": ["work_center_id"],
+                        "references": {
+                            "table": "work_centers",
+                            "columns": ["work_center_id"],
+                        },
+                    },
+                ],
+                "business_meaning": (
+                    "Individual steps within a routing, each assigned to a "
+                    "work center with standard and setup times"
+                ),
+            },
+            {
+                "table_name": "equipment",
+                "csv_file": "equipment.csv",
+                "primary_key": ["equipment_id"],
+                "foreign_keys": [
+                    {
+                        "columns": ["work_center_id"],
+                        "references": {
+                            "table": "work_centers",
+                            "columns": ["work_center_id"],
+                        },
+                    },
+                ],
+                "business_meaning": (
+                    "Physical equipment assets per work center with serial "
+                    "numbers, calibration dates, and operational status"
+                ),
+            },
+            {
+                "table_name": "equipment_maintenance",
+                "csv_file": "equipment_maintenance.csv",
+                "primary_key": ["maintenance_id"],
+                "foreign_keys": [
+                    {
+                        "columns": ["equipment_id"],
+                        "references": {
+                            "table": "equipment",
+                            "columns": ["equipment_id"],
+                        },
+                    },
+                ],
+                "business_meaning": (
+                    "Maintenance records per equipment asset: type, "
+                    "downtime, cost, technician, and completion status"
+                ),
+            },
+            {
+                "table_name": "work_orders",
+                "csv_file": "work_orders.csv",
+                "primary_key": ["work_order_id"],
+                "foreign_keys": [
+                    {
+                        "columns": ["product_id"],
+                        "references": {"table": "products", "columns": ["product_id"]},
+                    },
+                ],
+                "business_meaning": (
+                    "Production work orders with quantities, status state "
+                    "machine, priority, scheduling, and rejection reasons"
+                ),
+            },
+            {
+                "table_name": "work_order_operations",
+                "csv_file": "work_order_operations.csv",
+                "primary_key": ["wo_operation_id"],
+                "foreign_keys": [
+                    {
+                        "columns": ["work_order_id"],
+                        "references": {
+                            "table": "work_orders",
+                            "columns": ["work_order_id"],
+                        },
+                    },
+                    {
+                        "columns": ["routing_operation_id"],
+                        "references": {
+                            "table": "routing_operations",
+                            "columns": ["routing_operation_id"],
+                        },
+                    },
+                    {
+                        "columns": ["work_center_id"],
+                        "references": {
+                            "table": "work_centers",
+                            "columns": ["work_center_id"],
+                        },
+                    },
+                ],
+                "business_meaning": (
+                    "Per-work-order operation instances: planned vs actual "
+                    "timing, run times, operator assignment, and status"
+                ),
+            },
+            {
+                "table_name": "inventory",
+                "csv_file": "inventory.csv",
+                "primary_key": ["inventory_id"],
+                "foreign_keys": [
+                    {
+                        "columns": ["material_id"],
+                        "references": {"table": "materials", "columns": ["material_id"]},
+                    },
+                ],
+                "business_meaning": (
+                    "Per-location inventory records for materials: "
+                    "on-hand, allocated, on-order quantities with count dates"
+                ),
+            },
+            {
+                "table_name": "quality_inspections",
+                "csv_file": "quality_inspections.csv",
+                "primary_key": ["inspection_id"],
+                "foreign_keys": [
+                    {
+                        "columns": ["work_order_id"],
+                        "references": {
+                            "table": "work_orders",
+                            "columns": ["work_order_id"],
+                        },
+                    },
+                    {
+                        "columns": ["wo_operation_id"],
+                        "references": {
+                            "table": "work_order_operations",
+                            "columns": ["wo_operation_id"],
+                        },
+                    },
+                ],
+                "business_meaning": (
+                    "Quality inspection records: final and in-process "
+                    "checks with results, defect counts, and spec limits"
+                ),
+            },
+        ]
+
+        tables = []
+        for spec in TABLE_SPEC:
+            tname = spec["table_name"]
+            # Map counts key to table name
+            count_key = {
+                "bills_of_materials": "bom_items",
+                "work_order_operations": "wo_operations",
+                "quality_inspections": "quality_inspections",
+                "equipment_maintenance": "maintenance",
+            }.get(tname, tname)
+            row_count = counts.get(count_key, 0)
+            tables.append({
+                **spec,
+                "row_count": row_count,
+                "core_pilot": tname in CORE_PILOT_TABLES,
+            })
+
+        return {
+            "manifest_version": "1.0",
+            "data_pack": "manufacturing",
+            "generator": {
+                "name": "generate_manufacturing_dataset.py",
+                "version": "1.0",
+            },
+            "preset": getattr(self.cfg, "_preset_name", "custom"),
+            "seed": self.cfg.seed,
+            "generated_at": self.now.isoformat(),
+            "table_count": len(tables),
+            "total_rows": sum(t["row_count"] for t in tables),
+            "core_pilot_table_count": sum(
+                1 for t in tables if t["core_pilot"]
+            ),
+            "tables": tables,
+        }
+
     # ── Orchestration ──────────────────────────────────────────────────────
 
     def run(self) -> dict[str, int]:
@@ -746,7 +1024,7 @@ class ManufacturingGenerator:
         counts["quality_inspections"] = len(inspections)
         print(f"  [OK] quality inspections: {counts['quality_inspections']}")
 
-        # Metadata
+        # Metadata (legacy, keep for backward compat)
         metadata = {
             "schema_version": "1.0",
             "generator": "generate_manufacturing_dataset.py",
@@ -801,6 +1079,13 @@ class ManufacturingGenerator:
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
         print(f"  [OK] metadata: {meta_path}")
+
+        # ── Manifest (Phase 19.1 data pack contract) ───────────────────
+        manifest = self._build_manifest(counts)
+        manifest_path = self.output_dir / "manifest.json"
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2, ensure_ascii=False)
+        print(f"  [OK] manifest: {manifest_path}")
 
         total = sum(counts.values())
         print(f"\n{'=' * 60}")
@@ -899,6 +1184,7 @@ Examples:
         num_work_orders=args.num_work_orders,
         days_of_history=args.days_of_history,
     )
+    cfg._preset_name = args.preset or "custom"
 
     gen = ManufacturingGenerator(cfg, args.output_dir)
     gen.run()
