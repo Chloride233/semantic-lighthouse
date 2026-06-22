@@ -106,7 +106,13 @@ export async function render(container, params) {
         </tbody>
       </table>`;
 
-  container.innerHTML = `<div class="legacyPage">${uploadForm}${filterBar}${docTable}</div>`;
+  container.innerHTML = `
+    <div class="legacyPage">
+      <h1 class="pageTitle">知识库</h1>
+      <p class="pageMeta">上传、导入和管理当前工作区的知识文档。</p>
+      ${uploadForm}${filterBar}${docTable}
+    </div>
+  `;
 
   container.querySelectorAll('.docFilters .taskFilter').forEach(btn => {
     btn.addEventListener('click', () => {

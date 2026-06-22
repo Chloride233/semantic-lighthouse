@@ -115,6 +115,8 @@ The previous "frontend freeze" / "deferred to Kimi" policy has been **retired**.
 
 **Status**: DOM classes wired + verify_ui PASS. `.legacyPage` wrapper added to all 6 legacy pages (Documents, Tasks, Ontology, Agent, Conversations, Groups). `.legacyFilters` with `.taskFilter`/`.docFilters` compatibility on filter bars. `.legacyTable` added to Documents and Conversations tables. `.legacyPage .grid` auto-fill layout for Groups panel grid. 53/53 verify_ui PASS, no `button:not(` selectors, all JS syntax checks pass.
 
+**Screenshot QA update (2026-06-22)**: Added `scripts/screenshots_legacy_polish.py` to capture Documents, Tasks, Ontology, Agent, Conversations, and Groups at desktop and mobile widths. 12/12 screenshots PASS in `.tmp/legacy-polish/`; Documents page title/meta restored after visual review; no horizontal overflow reported.
+
 ## Frontend Visual Baseline Refresh (2026-06-21)
 
 **Status**: first-pass visual refresh delivered.
