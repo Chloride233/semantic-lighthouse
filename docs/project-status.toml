@@ -8,9 +8,9 @@
 version = 1
 
 [product]
-phase = "Phase 19.5"
-status = "delivered"
-summary = "Phase 19.5 Governance Feedback v1 delivered: generate_governance_feedback.py transforms rule findings into human-reviewable governance candidates (3 types, 4 severity levels), governance_feedback.json offline output. 29 tests total. Proves closed loop: CSV → manifest → mapping_contract → rule validation → governance feedback."
+phase = "Phase 19"
+status = "closeout complete"
+summary = "Phase 19 Ontology Operationalization complete (19.1–19.6). Delivered full offline chain: CSV → manifest → mapping_contract → rule_validation_report → governance_feedback. 29 tests, 5 offline JSON artifacts, 8 rule categories, 3 governance candidate types. All boundaries preserved: no DB writes, no API changes, no external data. AdventureWorks is a recognised follow-up external benchmark candidate."
 
 [frontend]
 status = "F2 complete + visual baseline closeout accepted"
@@ -20,19 +20,19 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Phase 19.5 delivered — governance feedback v1"
-description = "Rule validation findings transformed into governance candidates (3 types, 4 severity levels). Closed loop: CSV → manifest → mapping_contract → rule validation → governance feedback. Next: Phase 19.6 Closeout."
+current = "Phase 19 closeout complete"
+description = "Phase 19 Ontology Operationalization complete. Full offline chain delivered: 13-table manufacturing data pack → manifest → mapping_contract → 8-rule validation → governance feedback with 3 candidate types. 29 tests, 5 offline artifact types. Next: AdventureWorks external benchmark planning or portfolio wrap-up."
 
 [next_decision_gate]
-name = "Phase 19.6: Phase 19 Closeout"
-description = "Final review, documentation refresh, verification gates, portfolio handoff readiness. 29 tests across 19.1–19.5. AdventureWorks remains a candidate for a future external benchmark slice."
+name = "AdventureWorks external benchmark planning"
+description = "AdventureWorks is a recognised external benchmark candidate for manufacturing/supply-chain ontology modeling. Next step: plan a separate evaluation slice with its own ingestion and contract validation, not mixed into the existing synthetic generator. Alternatives: portfolio/demo packaging, or Safety Lane DB-backed governance feedback."
 
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "3fcb988"
+latest_commit = "9054ac3"
 backend_pytest = 848
 ruff = "clean"
 migration_head = "0028"
