@@ -710,6 +710,32 @@ Next gate is an explicit R3 planning decision, not automatic feature expansion.
 - No frontend, no MCP/Agent, no Graph RAG.
 - R3B–R3F implementation deferred to explicit user decision.
 
+## R3B — Grouped Response Shape
+
+**Status**: Delivered (2026-06-23). **Lane**: Standard.
+
+### Changes
+
+- `src/semantic_lighthouse/schemas.py`: `RuntimeTraverseRequest` gains `response_shape` field (default `"flat"`, pattern `^(flat|grouped)$`). `TraverseExplain` gains `response_shape` metadata field.
+- `src/semantic_lighthouse/services/runtime_traverse.py`: `execute_traversal()` accepts `response_shape` parameter. `_group_flat_rows()` (~95 lines) post-processes joined rows into nested tree: root OT fields form unique groups, child OTs nest as arrays/single-objects following hop cardinalities. `row_count` reflects group count in grouped mode. Both single-hop and two-hop branches support grouping.
+- `tests/test_runtime_traverse.py`: 13 new tests — `TestGroupedResponseShape` (10: single-hop grouped, multi-root, empty, field whitelist, explain, explain_only, two-hop nested, inner-join-exclusion, two-hop explain, flat-backward-compat) + `TestGroupedResponseRouter` (3: invalid shape 422, no storage_path, no filter values).
+
+### Verification: 76/76 tests passed, ruff clean, doc alignment PASS.
+
+## R3C — Filter Pushdown
+
+**Status**: Delivered (2026-06-23). **Lane**: Safety.
+
+### Changes
+
+- `src/semantic_lighthouse/routers/runtime.py`: Removed non-root filter 422 rejection. All per-OT filters passed through to `execute_traversal()`. Docstring updated.
+- `src/semantic_lighthouse/services/runtime_traverse.py`: `filters` parameter changed from flat `dict[str,value]` to per-OT `dict[str,dict[str,value]]`. New `_prepare_ot_filters()` validates/converts filters for one OT against contract + binding. New `_apply_flat_filters()` filters joined flat rows by checking `{ot}__{field}` keys. Single-hop: root filter in `_join_source_rows`, target OT filter applied after join. Two-hop: root in hop 0, OT1 filter after hop 0, OT2 filter after hop 1. `explain.filter_field_names_by_ot` and audit filter names cover all filtered OTs. AND within each OT, intersection across OTs.
+- `tests/test_runtime_traverse.py`: 11 new tests — `TestFilterPushdown` (11: target OT filter, no-match, invalid field 422, explain multi-OT metadata, two-hop intermediate filter, two-hop target filter, root+intermediate intersection, root+target intersection, two-hop explain, grouped+filter, explain_only metadata). 6 existing filter calls updated from flat to per-OT format. 1 router test reversed (non-root rejection → acceptance).
+
+### Verification: 87/87 tests passed, ruff clean, doc alignment PASS. No migration.
+
+### Boundaries preserved: no SQL/DSL creep (structured per-OT dicts, no expression strings), no cross-OT expressions, no audit schema change, flat/grouped response shapes both work.
+
 ---
 
 ## R2B — Contract Context Extension

@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R3B grouped response shape delivered"
-description = "R3B complete. RuntimeTraverseRequest gains response_shape='flat'|'grouped' (default flat, backward compat). _group_flat_rows() post-processes joined rows into nested tree: root OT fields form groups, child OTs nest as arrays/single-objects following hop cardinalities. row_count reflects group count in grouped mode. explain.response_shape metadata added. 13 new tests (10 service + 3 router). 76 total traverse tests pass. No join/auth/audit changes, no DB migration."
+current = "R3C filter pushdown delivered"
+description = "R3C complete. Router no longer rejects non-root filters. execute_traversal filters parameter changed to per-OT dict[str,dict[str,value]]. _prepare_ot_filters validates/converts per-OT. _apply_flat_filters filters joined flat rows by {ot}__{field} keys. Single-hop: root filter in _join_source_rows, target OT filter after join. Two-hop: root in hop 0, intermediate after hop 0, target after hop 1. explain.filter_field_names_by_ot and audit filter names cover all filtered OTs. AND within each OT, intersection across OTs. 11 new tests. 87 total traverse tests pass. No migration, no audit schema change."
 
 [next_decision_gate]
-name = "R3C filter pushdown"
-description = "Remove non-root filter rejection in router. Allow filters dict keys for any OT in path. Apply filters at each hop: root before first join, intermediate during join, target after final join. AND semantics within each OT. explain/audit record filter_field_names_by_ot for all filtered OTs. ~10 tests. Lane: Safety (changes filter semantics)."
+name = "R3D bidirectional traversal or R3E aggregation"
+description = "Next candidates: R3D bidirectional traversal (reverse FK/PK direction per hop), R3E aggregation/sorting (COUNT/SUM/AVG/ORDER BY on joined rows). Both need dedicated design docs before implementation. R3D is lower risk; R3E has higher SQL-creep risk and should wait for measured demand."
 
 [mcp]
 runtime_status = "not started"

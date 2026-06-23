@@ -45,7 +45,7 @@ def execute_traversal(
     path: list[str],
     user_id: str,
     fields: dict[str, list[str]] | None = None,
-    filters: dict[str, str | int | float | bool | None] | None = None,
+    filters: dict[str, dict[str, str | int | float | bool | None]] | None = None,
     limit: int = _DEFAULT_LIMIT,
     offset: int = 0,
     explain_only: bool = False,
@@ -190,18 +190,27 @@ def execute_traversal(
         except ValueError as exc:
             return _fail("invalid_fields", str(exc))
 
-        # Filter validation.
-        try:
-            filter_field_names, converted_filters = _validate_root_filters(
-                filters,
-                source_ot,
-                source_binding,
-                fields_by_ot,
-                prop_map,
-            )
-        except ValueError as exc:
-            code = "type_conversion" if "cannot be converted" in str(exc).lower() else "invalid_filter"
-            return _fail(code, str(exc))
+        # Filter validation — per-OT (R3C pushdown).
+        all_filter_names: dict[str, list[str]] = {}
+        all_converted_filters: dict[str, dict[str, Any]] = {}
+        if filters:
+            for ot_name in path:
+                ot_filters = filters.get(ot_name)
+                if not ot_filters:
+                    continue
+                ot_binding = source_binding if ot_name == source_ot else target_binding
+                try:
+                    fnames, fconverted = _prepare_ot_filters(
+                        ot_name, ot_filters, ot_binding, fields_by_ot, prop_map,
+                    )
+                except ValueError as exc:
+                    code = "type_conversion" if "cannot be converted" in str(exc).lower() else "invalid_filter"
+                    return _fail(code, str(exc))
+                if fnames:
+                    all_filter_names[ot_name] = fnames
+                    all_converted_filters[ot_name] = fconverted
+        root_converted = all_converted_filters.get(source_ot, {})
+        root_filter_names = all_filter_names.get(source_ot, [])
 
         # Column resolution.
         source_fk_col = source_binding.property_mappings.get(source_fk)
@@ -243,9 +252,9 @@ def execute_traversal(
         ] + [
             f"{target_ot}__{f}" for f in target_fields
         ]
-        audit_filter_names = [
-            f"{source_ot}__{f}" for f in filter_field_names
-        ]
+        audit_filter_names: list[str] = []
+        for ot_name, fnames in all_filter_names.items():
+            audit_filter_names.extend(f"{ot_name}__{f}" for f in fnames)
 
         explain: dict[str, Any] = {
             "package_id": pkg.id,
@@ -273,7 +282,7 @@ def execute_traversal(
                 source_ot: source_fields,
                 target_ot: target_fields,
             },
-            "filter_field_names_by_ot": {source_ot: filter_field_names},
+            "filter_field_names_by_ot": all_filter_names,
             "limit": limit,
             "offset": offset,
             "response_shape": response_shape,
@@ -352,10 +361,15 @@ def execute_traversal(
             source_ot,
             target_ot,
             target_index,
-            converted_filters,
-            filter_field_names,
+            root_converted,
+            root_filter_names,
             prop_map,
         )
+
+        # Apply target-OT filters (R3C pushdown).
+        target_converted = all_converted_filters.get(target_ot, {})
+        if target_converted:
+            matched = _apply_flat_filters(matched, target_ot, target_converted)
 
         paged = matched[offset : offset + limit]
         explain["scanned_rows"] = {
@@ -485,14 +499,26 @@ def execute_traversal(
         else:
             output_fields.append(list(per_ot_fields[i]))
 
-    # Root filters on path[0].
-    try:
-        filter_field_names, converted_filters = _validate_root_filters(
-            filters, ots[0], bindings[0], fields_by_ot, prop_map,
-        )
-    except ValueError as exc:
-        code = "type_conversion" if "cannot be converted" in str(exc).lower() else "invalid_filter"
-        return _fail(code, str(exc))
+    # Filters — validate for all OTs that have them (R3C pushdown).
+    all_filter_names: dict[str, list[str]] = {}
+    all_converted_filters: dict[str, dict[str, Any]] = {}
+    if filters:
+        for i, ot_name in enumerate(ots):
+            ot_filters = filters.get(ot_name)
+            if not ot_filters:
+                continue
+            try:
+                fnames, fconverted = _prepare_ot_filters(
+                    ot_name, ot_filters, bindings[i], fields_by_ot, prop_map,
+                )
+            except ValueError as exc:
+                code = "type_conversion" if "cannot be converted" in str(exc).lower() else "invalid_filter"
+                return _fail(code, str(exc))
+            if fnames:
+                all_filter_names[ot_name] = fnames
+                all_converted_filters[ot_name] = fconverted
+    root_converted = all_converted_filters.get(ots[0], {})
+    root_filter_names = all_filter_names.get(ots[0], [])
 
     # FK/PK column resolution per hop.
     hop_fk_cols: list[str] = []
@@ -548,7 +574,9 @@ def execute_traversal(
     audit_field_names = []
     for i, ot in enumerate(ots):
         audit_field_names.extend(f"{ot}__{f}" for f in output_fields[i])
-    audit_filter_names = [f"{ots[0]}__{f}" for f in filter_field_names]
+    audit_filter_names: list[str] = []
+    for ot_name, fnames in all_filter_names.items():
+        audit_filter_names.extend(f"{ot_name}__{f}" for f in fnames)
 
     explain: dict[str, Any] = {
         "package_id": pkg.id,
@@ -559,7 +587,7 @@ def execute_traversal(
         "selected_fields_by_ot": {
             ot: output_fields[i] for i, ot in enumerate(ots)
         },
-        "filter_field_names_by_ot": {ots[0]: filter_field_names},
+        "filter_field_names_by_ot": all_filter_names,
         "limit": limit,
         "offset": offset,
         "response_shape": response_shape,
@@ -627,9 +655,14 @@ def execute_traversal(
         all_rows_raw[0], col_indices[0],
         hop_fk_cols[0], links[0]["source_fk_property"],
         per_ot_fields[0], bindings[0], ots[0], ots[1],
-        idx1, converted_filters, filter_field_names, prop_map,
+        idx1, root_converted, root_filter_names, prop_map,
     )
     all_type_errors.extend(te0)
+
+    # Apply OT1 filters (R3C pushdown) before hop 1.
+    ot1_converted = all_converted_filters.get(ots[1], {})
+    if ot1_converted:
+        intermediate = _apply_flat_filters(intermediate, ots[1], ot1_converted)
 
     # Hop 1: build target index on OT2, join intermediate -> OT2.
     idx2, te2 = _build_target_index(
@@ -643,6 +676,11 @@ def execute_traversal(
         intermediate, ots[1], links[1]["source_fk_property"],
         idx2, ots[2],
     )
+
+    # Apply OT2 filters (R3C pushdown).
+    ot2_converted = all_converted_filters.get(ots[2], {})
+    if ot2_converted:
+        final_rows = _apply_flat_filters(final_rows, ots[2], ot2_converted)
 
     # Strip join-only fields: only keep output_fields for each OT.
     keep_keys: set[str] = set()
@@ -1062,6 +1100,49 @@ def _convert_row_fields(
             converted[field] = None
             row_ok = False
     return converted, row_ok
+
+
+def _prepare_ot_filters(
+    ot: str,
+    ot_filters: dict[str, str | int | float | bool | None] | None,
+    binding: OntologyDatasetBinding,
+    fields_by_ot: dict,
+    prop_map: dict,
+) -> tuple[list[str], dict[str, Any]]:
+    """Validate and type-convert filters for one OT. Returns (names, converted)."""
+    if not ot_filters:
+        return [], {}
+    valid_fields = set(fields_by_ot.get(ot, [])) & set(binding.property_mappings.keys())
+    filter_names: list[str] = []
+    converted: dict[str, Any] = {}
+    for field_name, raw_value in ot_filters.items():
+        if field_name not in valid_fields:
+            raise ValueError(
+                f"Filter field '{field_name}' is not a bound property of '{ot}'"
+            )
+        value_type = prop_map.get(field_name, {}).get("value_type", "string")
+        try:
+            converted[field_name] = _convert_filter_value(raw_value, value_type, field_name)
+        except ValueError:
+            raise ValueError(
+                f"Filter value for '{field_name}' cannot be converted to {value_type}"
+            ) from None
+        filter_names.append(field_name)
+    return filter_names, converted
+
+
+def _apply_flat_filters(
+    rows: list[dict[str, Any]],
+    ot: str,
+    converted_filters: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Filter flat rows by checking {ot}__{field} keys."""
+    if not converted_filters:
+        return rows
+    return [
+        row for row in rows
+        if all(row.get(f"{ot}__{f}") == v for f, v in converted_filters.items())
+    ]
 
 
 def _type_error(object_type: str, field: str, prop_map: dict) -> dict:

@@ -265,7 +265,7 @@ class TestSingleHopTraversal:
             db, gid, pid, path, uid,
             fields={"equipment": ["equipment_name"],
                     "maintenance": ["maint_type"]},
-            filters={"status": "active"},
+            filters={"equipment": {"status": "active"}},
         )
         assert result["row_count"] == 1
         assert result["rows"][0]["equipment__equipment_name"] == "Pump-A"
@@ -277,7 +277,7 @@ class TestSingleHopTraversal:
 
         result = execute_traversal(
             db, gid, pid, path, uid,
-            filters={"status": "nonexistent"},
+            filters={"equipment": {"status": "nonexistent"}},
         )
         assert result["row_count"] == 0
         assert result["rows"] == []
@@ -540,7 +540,7 @@ class TestTraverseExplainSafety:
     def test_explain_no_filter_values(self, monkeypatch):
         db, gid, pid, path, uid = self._setup(monkeypatch)
         result = execute_traversal(
-            db, gid, pid, path, uid, filters={"status": "active"},
+            db, gid, pid, path, uid, filters={"equipment": {"status": "active"}},
         )
         explain_str = str(result["explain"]).lower()
         assert "active" not in explain_str
@@ -947,8 +947,8 @@ class TestTraverseRouterErrors:
         )
         assert r.status_code == 422, r.text
 
-    def test_non_root_filter_rejected_422(self, client, monkeypatch):
-        """Filters on non-root object_types are rejected, not ignored."""
+    def test_non_root_filter_accepted(self, client, monkeypatch):
+        """R3C: filters on non-root OTs are accepted (not rejected)."""
         gid, pid, mem_h = self._setup_with_mock(
             client,
             monkeypatch,
@@ -959,12 +959,11 @@ class TestTraverseRouterErrors:
             f"/groups/{gid}/projects/{pid}/runtime/traverse",
             json={
                 "path": ["equipment", "maintenance"],
-                "filters": {"maintenance": {"type": "preventive"}},
+                "filters": {"maintenance": {"maint_type": "preventive"}},
             },
             headers=mem_h,
         )
-        assert r.status_code == 422, r.text
-        assert "root object_type" in r.json()["detail"]
+        assert r.status_code == 200, r.text
 
 
 # Response shape and provenance safety.
@@ -1183,7 +1182,7 @@ class TestTraverseAudit:
 
         result = execute_traversal(
             db_session, "g1", "p1", ["equipment", "maintenance"], "user-1",
-            filters={"status": "nonexistent"},
+            filters={"equipment": {"status": "nonexistent"}},
         )
         assert result["row_count"] == 0
 
@@ -1328,7 +1327,7 @@ class TestTraverseAudit:
 
         execute_traversal(
             db_session, "g1", "p1", ["equipment", "maintenance"], "user-1",
-            filters={"status": "active"},
+            filters={"equipment": {"status": "active"}},
         )
 
         audits = _audit_rows(db_session)
@@ -1575,7 +1574,7 @@ class TestTwoHopTraversal:
             fields={"equipment": ["equipment_name"],
                     "maintenance": ["maint_type"],
                     "work_orders": ["wo_description"]},
-            filters={"status": "active"},
+            filters={"equipment": {"status": "active"}},
         )
         assert result["row_count"] == 1
         assert result["rows"][0]["equipment__equipment_name"] == "Pump-A"
@@ -2079,3 +2078,308 @@ class TestGroupedResponseRouter:
         assert r.status_code == 200
         explain_str = str(r.json()["explain"]).lower()
         assert "active" not in explain_str
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  R3C filter pushdown tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestFilterPushdown:
+    """Per-OT filter pushdown on any OT in the path."""
+
+    # ── single-hop target filter ────────────────────────────────────────
+
+    def _setup_single(self, monkeypatch, src_csv, tgt_csv):
+        tmp = tempfile.mkdtemp()
+        src_path = os.path.join(tmp, "equipment.csv")
+        tgt_path = os.path.join(tmp, "maintenance.csv")
+        _write_csv(src_path, src_csv)
+        _write_csv(tgt_path, tgt_csv)
+
+        pkg = _mock_package()
+        ctx = _contract_context()
+        src_b = _mock_binding("bind-src", pkg.id, "ds-src", "equipment",
+                              {"equipment_id": "eq_id", "equipment_name": "eq_name",
+                               "status": "status"})
+        tgt_b = _mock_binding("bind-tgt", pkg.id, "ds-tgt", "maintenance",
+                              {"maintenance_id": "maint_id", "equipment_fk": "equipment_id",
+                               "maint_type": "type", "downtime_hours": "hours"})
+        src_ds = _mock_dataset("ds-src", src_path)
+        tgt_ds = _mock_dataset("ds-tgt", tgt_path)
+
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+            lambda sp, gid, pid: Path(sp),
+        )
+        import itertools
+        _scalar_cycle = itertools.cycle([src_b, tgt_b])
+        db = MagicMock()
+        db.scalar = MagicMock(side_effect=lambda stmt: next(_scalar_cycle))
+        db.get = MagicMock(side_effect=lambda model, ds_id:
+                           {"ds-src": src_ds, "ds-tgt": tgt_ds}.get(ds_id))
+        return db, "g1", "p1", ["equipment", "maintenance"], "user-1"
+
+    def test_target_ot_filter_narrows_results(self, monkeypatch):
+        """Filter on target OT (maintenance) reduces joined rows."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,2.5\nM2,EQ1,corrective,8.0\n")
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"]},
+            filters={"maintenance": {"maint_type": "preventive"}},
+        )
+        assert result["row_count"] == 1
+        assert result["rows"][0]["maintenance__maint_type"] == "preventive"
+
+    def test_target_ot_filter_no_match(self, monkeypatch):
+        """Target OT filter with no matches yields empty result."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            filters={"maintenance": {"maint_type": "nonexistent"}},
+        )
+        assert result["row_count"] == 0
+        assert result["rows"] == []
+
+    def test_target_ot_invalid_filter_field_422(self, monkeypatch):
+        """Invalid filter field on target OT raises ValueError."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        with pytest.raises(ValueError, match="not a bound property"):
+            execute_traversal(
+                db, gid, pid, path, uid,
+                filters={"maintenance": {"bad_field": "x"}},
+            )
+
+    def test_explain_records_all_filtered_ots(self, monkeypatch):
+        """explain.filter_field_names_by_ot includes all OTs with filters."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            filters={
+                "equipment": {"status": "active"},
+                "maintenance": {"maint_type": "preventive"},
+            },
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"]},
+        )
+        fbn = result["explain"]["filter_field_names_by_ot"]
+        assert "equipment" in fbn
+        assert "maintenance" in fbn
+        assert "status" in fbn["equipment"]
+        assert "maint_type" in fbn["maintenance"]
+
+    # ── two-hop filters ─────────────────────────────────────────────────
+
+    def _setup_two(self, monkeypatch, eq_csv, maint_csv, wo_csv):
+        tmp = tempfile.mkdtemp()
+        eq_path = os.path.join(tmp, "equipment.csv")
+        maint_path = os.path.join(tmp, "maintenance.csv")
+        wo_path = os.path.join(tmp, "work_orders.csv")
+        _write_csv(eq_path, eq_csv)
+        _write_csv(maint_path, maint_csv)
+        _write_csv(wo_path, wo_csv)
+
+        pkg = _mock_package(pkg_id="pkg-2h")
+        ctx = _two_hop_context()
+        eq_b = _mock_binding("b-eq", pkg.id, "ds-eq", "equipment",
+                             {"equipment_id": "eq_id", "equipment_name": "eq_name",
+                              "status": "status"})
+        m_b = _mock_binding("b-m", pkg.id, "ds-m", "maintenance",
+                            {"maintenance_id": "maint_id", "equipment_fk": "equipment_id",
+                             "maint_type": "type", "downtime_hours": "hours"})
+        wo_b = _mock_binding("b-wo", pkg.id, "ds-wo", "work_orders",
+                             {"work_order_id": "wo_id", "maintenance_fk": "maint_ref",
+                              "wo_description": "description", "priority": "priority"})
+        eq_ds = _mock_dataset("ds-eq", eq_path)
+        m_ds = _mock_dataset("ds-m", maint_path)
+        wo_ds = _mock_dataset("ds-wo", wo_path)
+
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+            lambda sp, gid, pid: Path(sp),
+        )
+        import itertools
+        _scalar_cycle = itertools.cycle([eq_b, m_b, wo_b])
+        db = MagicMock()
+        db.scalar = MagicMock(side_effect=lambda stmt: next(_scalar_cycle))
+        db.get = MagicMock(side_effect=lambda model, ds_id:
+                           {"ds-eq": eq_ds, "ds-m": m_ds, "ds-wo": wo_ds}.get(ds_id))
+        return db, "g1", "p1", ["equipment", "maintenance", "work_orders"], "user-1"
+
+    def test_two_hop_intermediate_filter(self, monkeypatch):
+        """Filter on OT1 (maintenance) narrows before hop 1."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = ("maint_id,equipment_id,type,hours\n"
+                     "M1,EQ1,preventive,2.5\nM2,EQ1,corrective,8.0\n")
+        wo_csv = ("wo_id,maint_ref,description,priority\n"
+                  "W1,M1,Replace,high\nW2,M1,Inspect,low\n"
+                  "W3,M2,Lubricate,medium\n")
+
+        db, gid, pid, path, uid = self._setup_two(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"],
+                    "work_orders": ["wo_description"]},
+            filters={"maintenance": {"maint_type": "preventive"}},
+        )
+        assert result["row_count"] == 2  # M1 has 2 WOs, M2 filtered out
+        for r in result["rows"]:
+            assert r["maintenance__maint_type"] == "preventive"
+
+    def test_two_hop_target_filter(self, monkeypatch):
+        """Filter on OT2 (work_orders) narrows final result."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = ("wo_id,maint_ref,description,priority\n"
+                  "W1,M1,Replace,high\nW2,M1,Inspect,low\n")
+
+        db, gid, pid, path, uid = self._setup_two(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"],
+                    "work_orders": ["wo_description", "priority"]},
+            filters={"work_orders": {"priority": "high"}},
+        )
+        assert result["row_count"] == 1
+        assert result["rows"][0]["work_orders__priority"] == "high"
+
+    def test_two_hop_multi_ot_filters_intersection(self, monkeypatch):
+        """Filters on root + intermediate OTs: intersection (AND across OTs)."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\nEQ2,Motor-B,active\n"
+        maint_csv = ("maint_id,equipment_id,type,hours\n"
+                     "M1,EQ1,preventive,2.5\nM2,EQ1,corrective,8.0\n"
+                     "M3,EQ2,preventive,1.0\n")
+        wo_csv = ("wo_id,maint_ref,description,priority\n"
+                  "W1,M1,Replace,high\nW2,M1,Inspect,low\n"
+                  "W3,M2,Lubricate,low\nW4,M3,Check,high\n")
+
+        db, gid, pid, path, uid = self._setup_two(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        # Filters on root + intermediate: only preventive maintenance survives
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"],
+                    "work_orders": ["wo_description"]},
+            filters={
+                "equipment": {"status": "active"},
+                "maintenance": {"maint_type": "preventive"},
+            },
+        )
+        # EQ1→M1→W1,W2 (2 rows) + EQ2→M3→W4 (1 row) = 3 rows
+        assert result["row_count"] == 3
+        for r in result["rows"]:
+            assert r["maintenance__maint_type"] == "preventive"
+
+    def test_two_hop_root_and_target_filters(self, monkeypatch):
+        """Filter on root + target OT: both applied correctly."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = ("wo_id,maint_ref,description,priority\n"
+                  "W1,M1,Replace,high\nW2,M1,Inspect,low\n")
+
+        db, gid, pid, path, uid = self._setup_two(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            filters={
+                "equipment": {"status": "active"},
+                "work_orders": {"priority": "high"},
+            },
+        )
+        assert result["row_count"] == 1
+        assert result["rows"][0]["work_orders__priority"] == "high"
+
+    def test_two_hop_explain_all_filtered_ots(self, monkeypatch):
+        """Two-hop explain records all filtered OTs."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = "wo_id,maint_ref,description,priority\nW1,M1,Replace,high\n"
+
+        db, gid, pid, path, uid = self._setup_two(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            filters={
+                "equipment": {"status": "active"},
+                "work_orders": {"priority": "high"},
+            },
+        )
+        fbn = result["explain"]["filter_field_names_by_ot"]
+        assert "equipment" in fbn
+        assert "work_orders" in fbn
+        assert "status" in fbn["equipment"]
+        assert "priority" in fbn["work_orders"]
+
+    def test_grouped_with_filter(self, monkeypatch):
+        """Grouped response works with per-OT filters."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,2.5\nM2,EQ1,corrective,8.0\n")
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"]},
+            filters={"maintenance": {"maint_type": "preventive"}},
+            response_shape="grouped",
+        )
+        assert result["row_count"] == 1
+        root = result["rows"][0]
+        assert len(root["maintenance"]) == 1
+        assert root["maintenance"][0]["maint_type"] == "preventive"
+
+    def test_explain_only_with_filters(self, monkeypatch):
+        """explain_only returns correct filter metadata."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            filters={
+                "equipment": {"status": "active"},
+                "maintenance": {"maint_type": "preventive"},
+            },
+            explain_only=True,
+        )
+        assert result["row_count"] is None
+        assert result["rows"] == []
+        fbn = result["explain"]["filter_field_names_by_ot"]
+        assert "equipment" in fbn
+        assert "maintenance" in fbn

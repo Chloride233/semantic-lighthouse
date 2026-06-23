@@ -277,10 +277,10 @@ def traverse_runtime(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RuntimeTraverseResponse:
-    """Execute a single-hop relationship traversal over bound datasets.
+    """Execute a 1-2 hop relationship traversal over bound datasets.
 
     Member+. Only package-declared link_types. No SQL, no DSL.
-    Filters only on root object_type in v1.
+    Filters accepted on any OT in the path (AND within each OT).
     """
     get_membership_or_404(db, current_user.id, group_id)
 
@@ -299,18 +299,12 @@ def traverse_runtime(
             detail="Project is archived",
         )
 
-    # Extract root OT filters (filter-before-traversal semantics)
-    root_ot = body.path[0]
-    native_filters: dict[str, str | int | float | bool | None] | None = None
+    # Pass all per-OT filters through — service validates per OT.
+    native_filters: dict[str, dict[str, str | int | float | bool | None]] | None = None
     if body.filters:
-        non_root_filters = [ot for ot in body.filters if ot != root_ot]
-        if non_root_filters:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Traversal filters are only supported on the root object_type",
-            )
-        if root_ot in body.filters:
-            native_filters = dict(body.filters[root_ot])
+        native_filters = {
+            ot: dict(ot_filters) for ot, ot_filters in body.filters.items()
+        }
 
     try:
         result = execute_traversal(
