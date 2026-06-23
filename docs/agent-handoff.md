@@ -497,7 +497,37 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 
 ## Next Decision Gate
 
-**R1C complete**: Next: R1D query core extraction, R1E binding and activation extraction, AdventureWorks benchmark, Safety Lane DB-backed governance feedback, or portfolio/demo video capture.
+## Four-Chain Ontology Route Alignment
+
+**Status**: Accepted (2026-06-23). **Lane**: Fast, strategy/docs only.
+
+### Source
+
+- `docs/palantir-ontology-four-chain-gap-analysis.md`
+
+### Decision
+
+- Treat the next product route as four chains, not as "add a graph database":
+  object chain, relationship chain, action chain, permission chain.
+- Current project strengths: object chain and permission chain.
+- Current gaps: relationship runtime traversal and controlled action/writeback.
+- R1D remains useful because extracting query core prepares the codebase for
+  relationship traversal.
+- Do not let R1 become indefinite refactor work. After R1D, pivot to R2
+  relationship runtime query unless a concrete blocker appears.
+
+### Explicit Non-Goals For The Next Step
+
+- No Neo4j/graph database adoption just because relationships exist.
+- No Graph RAG.
+- No action writeback before a separate HITL/audit design.
+- No Agent/MCP write path.
+
+## Next Decision Gate
+
+**R1C + four-chain route complete**: Next: R1D query core extraction, then R2
+relationship runtime query. R1E binding/activation extraction is optional and
+should only run if R1D reveals concrete maintainability pressure.
 
 ## Phase 15 Delivery Summary
 

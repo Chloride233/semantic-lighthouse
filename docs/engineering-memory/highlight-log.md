@@ -1,5 +1,18 @@
 # Highlight Log
 
+## Four-Chain Ontology Route Beats Graph-Database Drift
+
+- Date: 2026-06-23
+- Version: Four-chain route alignment
+- Type: decision
+- Context: After P1 first-use onboarding and R1 runtime extraction slices, the project needed a sharper post-refactor route. A Palantir Ontology gap analysis reframed the goal around four chains: object, relationship, action, and permission.
+- What happened: Accepted `docs/palantir-ontology-four-chain-gap-analysis.md` as a strategic route check. Semantic Lighthouse is strongest on object unification and permission/audit. The real gaps are relationship runtime traversal and controlled action/writeback, not graph database infrastructure.
+- Engineering judgment: Ontology value does not come from adopting Neo4j or drawing graphs. It comes from making business objects queryable through governed relationships, then making actions executable only through role checks, HITL, and immutable audit. R1D can still proceed because query-core extraction prepares relationship traversal, but R1 should not become indefinite low-value refactor work.
+- Risk if ignored: Future agents may keep polishing internal modules, jump to Graph RAG, or add a graph database before the product can answer relationship-path questions or safely propose actions. That would look sophisticated while missing the FDE/Ontology operating-layer gap.
+- Fix or control: After R1D, default next route is R2 relationship runtime query over package-declared links. R1E is optional only if a concrete maintainability blocker remains. Action/writeback requires a separate Safety Lane HITL/audit design.
+- Verification: Documentation-only alignment; source analysis is committed in `docs/palantir-ontology-four-chain-gap-analysis.md`.
+- Interview version: I evaluated the project against the real Ontology operating-layer problem: objects, relationships, actions, and permissions. The next gap is not "add a graph database"; it is making governed relationships queryable and later making actions safely executable.
+
 ## S2.4 Closeout — Backend Surface Is Ready Enough; Do Not Expand By Momentum
 
 - Date: 2026-06-20

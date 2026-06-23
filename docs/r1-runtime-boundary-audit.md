@@ -200,6 +200,22 @@ Stop immediately if a slice requires:
 
 ## Current Decision
 
-Proceed with R1 only as small behavior-preserving refactor slices. The first implementation slice should be R1B, not a large rewrite.
+Proceed with R1 only as small behavior-preserving refactor slices. R1B and R1C
+proved the extraction pattern is safe.
 
-Do not start AdventureWorks, governance feedback persistence, or runtime feature expansion until R1B proves the extraction pattern is safe.
+R1D remains worthwhile because query-core extraction prepares the runtime for
+the next high-value product capability: limited relationship traversal over
+package-declared links.
+
+After R1D, do not keep refactoring by default. Use
+`docs/palantir-ontology-four-chain-gap-analysis.md` as the route check:
+
+- object chain: mostly in place
+- permission chain: strongest current chain
+- relationship chain: next gap to close through R2 relationship runtime query
+- action chain: later, only with explicit HITL/audit design
+
+R1E binding/activation extraction is optional. Run it only if R1D exposes a
+concrete maintainability blocker. Do not start graph database adoption, Graph
+RAG, action writeback, or Agent/MCP write paths without a separate Safety Lane
+plan.
