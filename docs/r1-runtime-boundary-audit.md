@@ -127,7 +127,7 @@ Verification:
 - `python scripts/check_doc_alignment.py`
 - `git diff --check`
 
-### R1C: Dataset IO Extraction
+### R1C: Dataset IO Extraction  ✅ Delivered 2026-06-23
 
 Move:
 

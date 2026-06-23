@@ -468,9 +468,36 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 - No dataset IO, query core, binding, or activation extraction (deferred to R1C/R1D/R1E).
 - `OntologyRuntimeAudit` kept as re-export in `runtime.py` for test backward compatibility.
 
+## R1C — Dataset IO Extraction
+
+**Status**: Delivered (2026-06-23). **Lane**: Standard.
+
+### Changes
+
+- `src/semantic_lighthouse/services/runtime_dataset_io.py` (new): `_validate_dataset_path`, `_stream_csv_rows`, `_stream_xlsx_rows`, `_read_dataset_rows` — dataset path safety validation and CSV/XLSX row streaming/reading.
+- `src/semantic_lighthouse/services/runtime.py`: Removed extracted functions; cleaned `csv` and `Path` imports; imports and re-exports from `runtime_dataset_io`. All public entry points unchanged.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Pytest (test_project_runtime.py) | 94/94 passed, 68.35s |
+| Ruff (changed files) | clean |
+| Doc alignment | PASS |
+| git diff --check | clean |
+
+### Boundaries Preserved
+
+- No router path, request body, response body, permission, or stage gate changes.
+- No database model or migration changes.
+- No query semantic changes.
+- No new dependencies.
+- No value/filter conversion or query core extraction (deferred to R1D).
+- No binding or activation extraction (deferred to R1E).
+
 ## Next Decision Gate
 
-**R1B complete**: Next: R1C dataset IO extraction, R1D query core extraction, AdventureWorks benchmark, Safety Lane DB-backed governance feedback, or portfolio/demo video capture.
+**R1C complete**: Next: R1D query core extraction, R1E binding and activation extraction, AdventureWorks benchmark, Safety Lane DB-backed governance feedback, or portfolio/demo video capture.
 
 ## Phase 15 Delivery Summary
 
