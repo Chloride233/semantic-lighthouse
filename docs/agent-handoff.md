@@ -560,6 +560,34 @@ No circular imports. All backward-compatible re-exports preserved.
 - No action writeback before a separate HITL/audit design.
 - No Agent/MCP write path.
 
+## R2C — Traversal Core
+
+**Status**: Delivered (2026-06-23). **Lane**: Standard.
+
+### Changes
+
+- `src/semantic_lighthouse/services/runtime_traverse.py` (new, ~300 lines): `execute_traversal()` — single-hop hash join traversal. Resolves compiled link_map FK/PK properties → binding.property_mappings → CSV/XLSX column names. Streams source dataset, builds in-memory PK index for target dataset, performs inner-join hash join. Flat output with `{object_type}__{field}` prefix. Supports fields per OT, root filters (equality, type-converted), limit/offset, explain_only. No SQL, no DSL, no Graph RAG, no audit yet.
+- `tests/test_runtime_traverse.py` (new, 25 tests): 3 classes — TestSingleHopTraversal (12 happy-path + edge), TestTraversalErrors (7 error cases), TestTraverseExplainSafety (6 provenance safety). Uses synthetic CSV temp files + monkeypatched DB/services.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Pytest (traversal + compiler + validator + runtime) | 174/174 passed, 81.30s |
+| Ruff (traversal source + test) | clean |
+| Doc alignment | PASS |
+| git diff --check | clean |
+
+### Boundaries Preserved
+
+- No router, no API endpoint, no DB migration.
+- No audit (deferred to R2E).
+- Single-hop only (path length == 2).
+- No cross-package traversal.
+- No frontend changes.
+
+---
+
 ## R2B — Contract Context Extension
 
 **Status**: Delivered (2026-06-23). **Lane**: Standard.
@@ -627,12 +655,11 @@ R2B can begin implementation immediately:
 
 ## Next Decision Gate
 
-**R2B complete**: Contract context now exposes link_types and link_map with
-FK/PK property resolution. Next: R2C traversal core — implement
-`execute_traversal()` in new `services/runtime_traverse.py` with single-hop
-hash-join over CSV datasets using FK/PK columns resolved through bindings
-and link_map. R1E binding/activation extraction remains optional (no
-maintainability pressure detected).
+**R2C complete**: Traversal core delivers single-hop hash join with FK/PK
+column resolution through bindings and link_map. Next: R2D router and API
+— add POST /runtime/traverse endpoint with request/response schemas,
+permission wiring, and integration tests. R1E binding/activation extraction
+remains optional.
 
 ## Phase 15 Delivery Summary
 
