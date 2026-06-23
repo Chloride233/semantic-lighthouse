@@ -601,3 +601,143 @@ def test_input_not_mutated_and_output_deterministic():
     assert result_bad["status"] == "FAIL"
     assert any(i["code"] == "contract_profile_mismatch"
                for i in result_bad["issues"])
+
+
+# ── test 8: R2B — link_type FK/PK property validation ────────────────────
+
+
+def _fk_pk_contract(
+    source_fk="", target_pk="",
+    src_ot="equipment", tgt_ot="work_order",
+    src_props=None, tgt_props=None,
+    src_vt="string", tgt_vt="string",
+):
+    """Build a minimal contract for FK/PK link_type validation."""
+    if src_props is None:
+        src_props = [
+            _item("property", f"{src_ot}.equipment_id", "ID",
+                  api_name="equipment_id", display_name="Equipment ID",
+                  object_type=src_ot, value_type=src_vt, required=True),
+        ]
+    if tgt_props is None:
+        tgt_props = [
+            _item("property", f"{tgt_ot}.work_order_id", "ID",
+                  api_name="work_order_id", display_name="WO ID",
+                  object_type=tgt_ot, value_type=tgt_vt, required=True),
+        ]
+
+    link_kw = {
+        "api_name": "equipment_work_orders",
+        "display_name": "Equipment Work Orders",
+        "source_object_type": src_ot,
+        "target_object_type": tgt_ot,
+        "cardinality": "one_to_many",
+    }
+    if source_fk:
+        link_kw["source_fk_property"] = source_fk
+    if target_pk:
+        link_kw["target_pk_property"] = target_pk
+
+    items = [
+        _item("object_type", src_ot, f"{src_ot} desc",
+              api_name=src_ot, display_name=src_ot,
+              primary_key="equipment_id"),
+        _item("object_type", tgt_ot, f"{tgt_ot} desc",
+              api_name=tgt_ot, display_name=tgt_ot,
+              primary_key="work_order_id"),
+        *src_props,
+        *tgt_props,
+        _item("link_type", "eq_wo", "Equipment to WorkOrder",
+              **link_kw),
+    ]
+    return _contract(*items)
+
+
+def test_link_type_fk_pk_valid_passes():
+    """Valid source_fk_property + target_pk_property → no FK/PK issues."""
+    contract = _fk_pk_contract(
+        source_fk="equipment_id", target_pk="work_order_id",
+    )
+    result = validate_business_contract(contract)
+    fk_pk_codes = {i["code"] for i in result["issues"]
+                   if i["code"] in (
+                       "fk_property_not_found", "pk_property_not_found",
+                       "fk_pk_value_type_mismatch",
+                   )}
+    assert not fk_pk_codes, f"Expected no FK/PK issues, got {fk_pk_codes}"
+
+
+def test_link_type_fk_not_found():
+    """source_fk_property not in source OT properties → error."""
+    contract = _fk_pk_contract(source_fk="nonexistent_prop")
+    result = validate_business_contract(contract)
+    codes = {i["code"] for i in result["issues"]}
+    assert "fk_property_not_found" in codes, (
+        f"Expected fk_property_not_found, got {codes}"
+    )
+
+
+def test_link_type_explicit_pk_not_found():
+    """Explicit target_pk_property not in target OT properties → error."""
+    contract = _fk_pk_contract(target_pk="nonexistent_pk")
+    result = validate_business_contract(contract)
+    codes = {i["code"] for i in result["issues"]}
+    assert "pk_property_not_found" in codes, (
+        f"Expected pk_property_not_found, got {codes}"
+    )
+
+
+def test_link_type_target_pk_defaults_to_ot_primary_key():
+    """When target_pk_property is absent, it defaults to the OT's primary_key
+    without flagging an error (validated elsewhere)."""
+    # target_pk_property NOT set → defaults to "work_order_id" from OT
+    contract = _fk_pk_contract(source_fk="equipment_id")  # no target_pk
+    result = validate_business_contract(contract)
+    codes = {i["code"] for i in result["issues"]}
+    # Should NOT produce pk_property_not_found (resolved from OT PK)
+    assert "pk_property_not_found" not in codes, (
+        f"Default target PK should not flag error, got {codes}"
+    )
+
+
+def test_link_type_fk_pk_value_type_mismatch():
+    """source_fk value_type differs from target_pk value_type → error."""
+    contract = _fk_pk_contract(
+        source_fk="equipment_id", target_pk="work_order_id",
+        src_vt="integer", tgt_vt="string",
+    )
+    result = validate_business_contract(contract)
+    codes = {i["code"] for i in result["issues"]}
+    assert "fk_pk_value_type_mismatch" in codes, (
+        f"Expected fk_pk_value_type_mismatch, got {codes}"
+    )
+
+
+def test_link_type_fk_pk_value_type_match():
+    """source_fk value_type matches target_pk value_type → no type error."""
+    contract = _fk_pk_contract(
+        source_fk="equipment_id", target_pk="work_order_id",
+        src_vt="integer", tgt_vt="integer",
+    )
+    result = validate_business_contract(contract)
+    codes = {i["code"] for i in result["issues"]}
+    assert "fk_pk_value_type_mismatch" not in codes, (
+        f"Matching types should not flag, got {codes}"
+    )
+
+
+def test_link_type_without_fk_pk_still_validates_existing_rules():
+    """Link types without FK/PK annotations still pass all existing checks."""
+    contract = _fk_pk_contract()  # no FK/PK set
+    result = validate_business_contract(contract)
+    # Should have no FK/PK-specific errors
+    fk_pk_codes = {i["code"] for i in result["issues"]
+                   if i["code"] in (
+                       "fk_property_not_found", "pk_property_not_found",
+                       "fk_pk_value_type_mismatch",
+                   )}
+    assert not fk_pk_codes, (
+        f"Link without FK/PK should not produce FK/PK errors, got {fk_pk_codes}"
+    )
+    # Existing validation should still catch missing cardinality etc.
+    # (cardinality is set in _fk_pk_contract, so no missing_cardinality either)

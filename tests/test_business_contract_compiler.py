@@ -403,7 +403,71 @@ def test_different_content_different_hash():
     assert h1 != h2, f"Expected different hashes, got {h1}"
 
 
-# ── test 7: input not mutated ────────────────────────────────────────────
+# ── test 7: R2B — link_type with FK/PK properties ─────────────────────────
+
+def test_link_type_with_fk_pk_properties():
+    """Link types with source_fk_property and target_pk_property compile
+    with the new fields in output."""
+    contract = _contract(
+        _item("object_type", "equipment", "Equipment",
+              api_name="equipment", display_name="Equipment",
+              primary_key="equipment_id"),
+        _item("object_type", "work_order", "Work Order",
+              api_name="work_order", display_name="Work Order",
+              primary_key="work_order_id"),
+        _item("property", "equipment.equipment_id", "ID",
+              api_name="equipment_id", display_name="ID",
+              object_type="equipment", value_type="string", required=True),
+        _item("property", "work_order.work_order_id", "ID",
+              api_name="work_order_id", display_name="WO ID",
+              object_type="work_order", value_type="string", required=True),
+        _item("link_type", "eq_wo", "Equipment to WorkOrder",
+              api_name="equipment_work_orders",
+              display_name="Equipment Work Orders",
+              source_object_type="equipment",
+              target_object_type="work_order",
+              cardinality="one_to_many",
+              source_fk_property="equipment_id",
+              target_pk_property="work_order_id"),
+    )
+    pkg = _package(contract)
+    result = compile_business_contract(pkg)
+
+    assert len(result["link_types"]) == 1
+    link = result["link_types"][0]
+    assert link["source_fk_property"] == "equipment_id"
+    assert link["target_pk_property"] == "work_order_id"
+
+    # When only source_fk_property is provided (target_pk defaults)
+    contract2 = _contract(
+        _item("object_type", "equipment", "Equipment",
+              api_name="equipment", display_name="Equipment",
+              primary_key="equipment_id"),
+        _item("object_type", "work_order", "Work Order",
+              api_name="work_order", display_name="Work Order",
+              primary_key="work_order_id"),
+        _item("property", "equipment.equipment_id", "ID",
+              api_name="equipment_id", display_name="Equipment ID",
+              object_type="equipment", value_type="string", required=True),
+        _item("property", "work_order.work_order_id", "ID",
+              api_name="work_order_id", display_name="WO ID",
+              object_type="work_order", value_type="string", required=True),
+        _item("link_type", "eq_wo2", "Equipment to WorkOrder (FK only)",
+              api_name="equipment_work_orders_v2",
+              display_name="EQ→WO",
+              source_object_type="equipment",
+              target_object_type="work_order",
+              cardinality="one_to_many",
+              source_fk_property="equipment_id"),
+    )
+    result2 = compile_business_contract(_package(contract2))
+    link2 = result2["link_types"][0]
+    assert link2["source_fk_property"] == "equipment_id"
+    # target_pk_property absent from payload → absent from compiled link
+    assert "target_pk_property" not in link2 or link2.get("target_pk_property") == ""
+
+
+# ── test 8: input not mutated ────────────────────────────────────────────
 
 def test_input_not_mutated():
     """Package and its contract_json are never modified by compilation."""
@@ -426,3 +490,61 @@ def test_input_not_mutated():
     assert "reviewed_at" in ot_item
     assert "evidence_refs" in ot_item
     assert "payload" in ot_item
+
+
+# ── test 9: R2B — _build_contract_context includes link_types and link_map ──
+
+def test_build_contract_context_includes_link_map():
+    """_build_contract_context returns link_types and link_map with
+    FK/PK property resolution including default target_pk."""
+    from semantic_lighthouse.services.runtime_contract import (
+        _build_contract_context,
+    )
+
+    contract = _contract(
+        _item("object_type", "equipment", "Equipment",
+              api_name="equipment", display_name="Equipment",
+              primary_key="equipment_id"),
+        _item("object_type", "work_order", "Work Order",
+              api_name="work_order", display_name="Work Order",
+              primary_key="work_order_id"),
+        _item("property", "equipment.equipment_id", "ID",
+              api_name="equipment_id", display_name="Equipment ID",
+              object_type="equipment", value_type="string", required=True),
+        _item("property", "work_order.work_order_id", "ID",
+              api_name="work_order_id", display_name="WO ID",
+              object_type="work_order", value_type="string", required=True),
+        _item("link_type", "eq_wo", "Equipment to WorkOrder",
+              api_name="equipment_work_orders",
+              display_name="Equipment Work Orders",
+              source_object_type="equipment",
+              target_object_type="work_order",
+              cardinality="one_to_many",
+              source_fk_property="equipment_id"),
+        # target_pk_property omitted → should default to OT primary_key
+    )
+    pkg = _package(contract)
+    ctx = _build_contract_context(pkg)
+
+    # link_types list present
+    assert "link_types" in ctx
+    assert len(ctx["link_types"]) == 1
+
+    # link_map present
+    assert "link_map" in ctx
+    assert "equipment_work_orders" in ctx["link_map"]
+
+    lm = ctx["link_map"]["equipment_work_orders"]
+    assert lm["api_name"] == "equipment_work_orders"
+    assert lm["source_object_type"] == "equipment"
+    assert lm["target_object_type"] == "work_order"
+    assert lm["cardinality"] == "one_to_many"
+    assert lm["source_fk_property"] == "equipment_id"
+    # target_pk defaults from OT primary_key
+    assert lm["target_pk_property"] == "work_order_id"
+
+    # Existing keys still present (no regression)
+    assert "ot_map" in ctx
+    assert "prop_map" in ctx
+    assert "fields_by_ot" in ctx
+    assert "semantic_hash" in ctx

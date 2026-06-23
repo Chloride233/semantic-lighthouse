@@ -560,6 +560,37 @@ No circular imports. All backward-compatible re-exports preserved.
 - No action writeback before a separate HITL/audit design.
 - No Agent/MCP write path.
 
+## R2B — Contract Context Extension
+
+**Status**: Delivered (2026-06-23). **Lane**: Standard.
+
+### Changes
+
+- `src/semantic_lighthouse/services/business_contract_compiler.py`: Extended `LINK_FIELDS` with `source_fk_property`, `target_pk_property`. Updated `_compile_entities` link_type handler to extract both new fields.
+- `src/semantic_lighthouse/services/business_contract_validator.py`: Extended `_validate_link_type()` with FK/PK property validation — source_fk_property must belong to source OT properties, target_pk_property (explicit or defaulted from OT primary_key) must belong to target OT properties, value_types must match. Built `ot_primary_keys` map in `_validate_section` and passed through `_validate_item` to `_validate_link_type`.
+- `src/semantic_lighthouse/services/runtime_contract.py`: Extended `_build_contract_context()` to return `link_types` (compiled list) and `link_map` (indexed by link_type api_name, with source/target OT, cardinality, FK/PK properties, and target_pk default resolution from OT primary_key).
+- `tests/test_business_contract_compiler.py`: 2 new tests — link_type with FK/PK properties compiles correctly, `_build_contract_context` includes `link_map` with correct FK/PK resolution.
+- `tests/test_business_contract_validator.py`: 7 new tests — valid FK/PK passes, FK not found, explicit PK not found, target PK defaults to OT primary_key, value_type mismatch detected, value_type match accepted, link without FK/PK still passes existing checks.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Pytest (compiler + validator + runtime) | 149/149 passed, 109.68s |
+| Ruff (changed files) | clean |
+| git diff --check | clean |
+
+### Boundaries Preserved
+
+- No API changes, no new endpoints, no router modifications.
+- No database migrations.
+- No traversal execution logic (deferred to R2C).
+- No frontend changes.
+- Existing contracts without FK/PK annotations continue to validate and compile (new fields are optional).
+- All existing runtime, compiler, and validator tests pass without modification.
+
+---
+
 ## R2A — Relationship Runtime Query Planning
 
 **Status**: Delivered (2026-06-23). **Lane**: Safety, design only.
@@ -596,11 +627,12 @@ R2B can begin implementation immediately:
 
 ## Next Decision Gate
 
-**R2A complete**: Relationship runtime query design is documented. Next: R2B
-contract context extension — add link_types to `_build_contract_context()`,
-extend `LINK_FIELDS` for FK/PK properties, update validator. R1E
-binding/activation extraction remains optional (no maintainability pressure
-detected).
+**R2B complete**: Contract context now exposes link_types and link_map with
+FK/PK property resolution. Next: R2C traversal core — implement
+`execute_traversal()` in new `services/runtime_traverse.py` with single-hop
+hash-join over CSV datasets using FK/PK columns resolved through bindings
+and link_map. R1E binding/activation extraction remains optional (no
+maintainability pressure detected).
 
 ## Phase 15 Delivery Summary
 

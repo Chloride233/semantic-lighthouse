@@ -1,8 +1,8 @@
 # R2 Relationship Runtime Query Planning
 
-Status: Planning delivered, 2026-06-23.
-Lane: Safety — affects group/project isolation, permissions, audit, provenance, and future query semantics.
-Scope: Design document only. No code, no migration, no API changes, no frontend.
+Status: R2A planning + R2B contract context delivered, 2026-06-23.
+Lane: R2A was Safety (design only); R2B was Standard (compiler/validator/context extension, no DB/API).
+Scope: R2A design + R2B compiler/validator/context implementation. No traversal, no API, no migration.
 
 Canonical state remains `docs/project-status.toml`.
 
@@ -392,7 +392,7 @@ All error codes are sanitized through `_sanitized_code()` — internal error typ
 R2 is implemented as slices to de-risk each layer independently:
 
 - **R2A** (this document): Planning and design. No code.
-- **R2B**: Contract context extension. Add `link_types` to `_build_contract_context()` return dict. Add `link_map` keyed by `api_name`. This requires NO migration — it's a pure runtime data structure change. Unit tests for context shape.
+- **R2B**: Contract context extension. Add `link_types` to `_build_contract_context()` return dict. Add `link_map` keyed by `api_name`. This requires NO migration — it's a pure runtime data structure change. Unit tests for context shape. ✅ **Delivered 2026-06-23** — `LINK_FIELDS` extended, `_validate_link_type` validates FK/PK properties, `_build_contract_context` returns `link_types` and `link_map` with FK/PK resolution and OT primary_key default. 149/149 tests pass.
 - **R2C**: Traversal core in `services/runtime_traverse.py`. New `execute_traversal()` function. Single-hop first. Hash-join over CSV datasets using FK/PK resolution from bindings. Unit tests with mock datasets.
 - **R2D**: Router and API. New `POST /runtime/traverse` endpoint. Request/response validation. Permission wiring. Integration tests.
 - **R2E**: Audit and provenance. Extend `OntologyRuntimeAudit` to support `traverse` operation. Add `path`, `hop_count`, `link_type_api_names`, `binding_ids`, `dataset_ids` fields. Audit tests for success/failure/fail-closed/provenance-no-leak.

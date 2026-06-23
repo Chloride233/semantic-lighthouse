@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R2A relationship runtime query planning delivered"
-description = "R2A design document complete — defines R2 v1 traversal query shape (flat joined, declarative path), scope restrictions (package-declared link_types only, max 2 hops, field whitelist), permission/isolation (member+, per-hop group/project/package scope), audit/provenance (path/hop_count/link_type/binding_ids/dataset_ids, no FK values), API design (new POST /runtime/traverse endpoint), and test plan (10 categories). R2B–R2F implementation slices defined. Key prerequisite: link_type must be extended with source_fk_property and target_pk_property annotations."
+current = "R2B contract context extension delivered"
+description = "R2B complete. Extended _build_contract_context() to return link_types and link_map (indexed by link_type api_name, with source_fk_property and target_pk_property resolution including OT primary_key default). Extended LINK_FIELDS in business_contract_compiler.py with source_fk_property and target_pk_property. Extended _validate_link_type() in business_contract_validator.py with FK/PK property existence checks and value_type consistency validation. 9 new tests (2 compiler, 7 validator). 149/149 tests pass. No API, no DB migration, no traversal logic."
 
 [next_decision_gate]
-name = "R2B contract context extension"
-description = "Extend _build_contract_context() to include link_types from compiled business contract. Add link_map with FK/PK property resolution. Update LINK_FIELDS in business_contract_compiler.py to include source_fk_property and target_pk_property. Update _validate_link_type() for FK/PK property validation. This is a pure schema+compiler change — no runtime traversal yet. No migration required."
+name = "R2C traversal core"
+description = "Implement execute_traversal() in new services/runtime_traverse.py. Single-hop first: resolve two bindings, stream source dataset, build in-memory index for target dataset, hash-join on FK=PK columns. Use link_map from _build_contract_context for FK/PK resolution. No router, no API endpoint yet — service-level function only. Unit tests with small synthetic datasets."
 
 [mcp]
 runtime_status = "not started"

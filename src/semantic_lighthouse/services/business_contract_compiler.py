@@ -35,6 +35,7 @@ PROP_FIELDS = frozenset({
 LINK_FIELDS = frozenset({
     "entity_type", "api_name", "display_name", "description",
     "source_object_type", "target_object_type", "cardinality",
+    "source_fk_property", "target_pk_property",
 })
 ACTION_FIELDS = frozenset({
     "entity_type", "api_name", "display_name", "description",
@@ -168,7 +169,8 @@ def _compile_entities(
             entity["required"] = bool(payload.get("required"))
 
         elif entity_type == "link_type":
-            for fld in ("source_object_type", "target_object_type", "cardinality"):
+            for fld in ("source_object_type", "target_object_type", "cardinality",
+                        "source_fk_property", "target_pk_property"):
                 val = payload.get(fld)
                 if isinstance(val, str) and val.strip():
                     entity[fld] = val.strip()

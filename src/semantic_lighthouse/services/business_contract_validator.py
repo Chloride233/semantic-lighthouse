@@ -111,6 +111,7 @@ def _validate_section(
 
     # Build lookup sets from the contract
     ot_names: set[str] = set()
+    ot_primary_keys: dict[str, str] = {}  # casefolded api_name → primary_key api_name
     for ot_item in contract.get("object_types", []) or []:
         p = ot_item.get("payload") if isinstance(ot_item, dict) else None
         if not isinstance(p, dict):
@@ -118,6 +119,9 @@ def _validate_section(
         an = _trimmed_str(p.get("api_name"))
         if an:
             ot_names.add(_casefold(an))
+            pk = _trimmed_str(p.get("primary_key"))
+            if pk:
+                ot_primary_keys[_casefold(an)] = pk
 
     # Collect property info for primary_key validation
     prop_index: dict[str, list[dict]] = {}  # object_type → [prop_items]
@@ -135,7 +139,8 @@ def _validate_section(
     sorted_items = sorted(items, key=_item_sort_key)
 
     for item in sorted_items:
-        _validate_item(section, item, ot_names, prop_index, sorted_items, issues)
+        _validate_item(section, item, ot_names, prop_index,
+                      ot_primary_keys, sorted_items, issues)
 
 
 def _validate_item(
@@ -143,6 +148,7 @@ def _validate_item(
     item: dict,
     ot_names: set[str],
     prop_index: dict[str, list[dict]],
+    ot_primary_keys: dict[str, str],
     all_items: list[dict],
     issues: list[dict],
 ) -> None:
@@ -221,7 +227,8 @@ def _validate_item(
         )
     elif dt == "link_type":
         _validate_link_type(
-            section, item_id, sort_key, payload, api_name, ot_names, issues,
+            section, item_id, sort_key, payload, api_name, ot_names,
+            prop_index, ot_primary_keys, issues,
         )
     elif dt == "action_type":
         _validate_action_type(
@@ -374,9 +381,16 @@ def _validate_property(
 def _validate_link_type(
     section: str, item_id: str, sort_key: str,
     payload: dict, api_name: str, ot_names: set[str],
+    prop_index: dict[str, list[dict]],
+    ot_primary_keys: dict[str, str],
     issues: list[dict],
 ) -> None:
-    """Validate link_type-specific fields."""
+    """Validate link_type-specific fields including FK/PK property annotations.
+
+    source_fk_property and target_pk_property are optional in the payload
+    (existing contracts may lack them), but when present they are validated
+    against the package's declared properties.
+    """
     # source_object_type
     src = _trimmed_str(payload.get("source_object_type"))
     if not src:
@@ -425,6 +439,100 @@ def _validate_link_type(
             f"{sorted(VALID_CARDINALITY)}",
             details={"cardinality": card, "allowed": sorted(VALID_CARDINALITY)},
         ))
+
+    # ── FK/PK property validation (R2B) ────────────────────────────────
+    # Only validate when both source and target object_types are present
+    # and exist in the package.
+    src_cf = _casefold(src)
+    tgt_cf = _casefold(tgt)
+    if not src or not tgt or src_cf not in ot_names or tgt_cf not in ot_names:
+        return  # cannot validate FK/PK without valid source/target OTs
+
+    # Resolve target_pk_property: use explicit value or default to
+    # target object_type's primary_key.
+    target_pk = _trimmed_str(payload.get("target_pk_property"))
+    if not target_pk:
+        target_pk = ot_primary_keys.get(tgt_cf, "")
+
+    # Resolve source_fk_property (optional — may be absent in older contracts)
+    source_fk = _trimmed_str(payload.get("source_fk_property"))
+
+    # Validate source_fk_property when present
+    source_vt: str | None = None
+    if source_fk:
+        src_props = prop_index.get(src_cf, [])
+        found_source = False
+        for prop_item in src_props:
+            pp = prop_item.get("payload") if isinstance(prop_item, dict) else None
+            if not isinstance(pp, dict):
+                continue
+            if _casefold(_trimmed_str(pp.get("api_name"))) == _casefold(source_fk):
+                found_source = True
+                source_vt = _trimmed_str(pp.get("value_type"))
+                break
+
+        if not found_source:
+            issues.append(_make_issue(
+                "error", "fk_property_not_found", section, item_id, sort_key,
+                "payload.source_fk_property",
+                f"source_fk_property '{source_fk}' does not match any "
+                f"Property in source Object Type '{src}'",
+                details={"source_fk_property": source_fk,
+                         "source_object_type": src},
+            ))
+
+    # Validate target_pk_property (always resolved by now — from payload or
+    # defaulted from OT primary_key).  If there is no explicit target_pk_property
+    # AND the OT has no primary_key, that's caught by _validate_object_type
+    # separately.  Here we only flag it when an explicit target_pk_property
+    # is provided that cannot be found.
+    target_vt: str | None = None
+    if target_pk:
+        tgt_props = prop_index.get(tgt_cf, [])
+        found_target = False
+        for prop_item in tgt_props:
+            pp = prop_item.get("payload") if isinstance(prop_item, dict) else None
+            if not isinstance(pp, dict):
+                continue
+            if _casefold(_trimmed_str(pp.get("api_name"))) == _casefold(target_pk):
+                found_target = True
+                target_vt = _trimmed_str(pp.get("value_type"))
+                break
+
+        # Only flag when an explicit target_pk_property was provided and
+        # cannot be found.  Default (from OT primary_key) is already
+        # validated by _validate_object_type.
+        explicit_tgt = _trimmed_str(payload.get("target_pk_property"))
+        if explicit_tgt and not found_target:
+            issues.append(_make_issue(
+                "error", "pk_property_not_found", section, item_id, sort_key,
+                "payload.target_pk_property",
+                f"target_pk_property '{target_pk}' does not match any "
+                f"Property in target Object Type '{tgt}'",
+                details={"target_pk_property": target_pk,
+                         "target_object_type": tgt},
+            ))
+    else:
+        # target_pk is empty — OT has no primary_key.  This will be caught
+        # by _validate_object_type.  Don't double-report.
+        pass
+
+    # ── Value type consistency check ───────────────────────────────────
+    if source_fk and target_pk and source_vt and target_vt:
+        if _casefold(source_vt) != _casefold(target_vt):
+            issues.append(_make_issue(
+                "error", "fk_pk_value_type_mismatch", section, item_id, sort_key,
+                "payload.source_fk_property",
+                f"source_fk_property '{source_fk}' has value_type "
+                f"'{source_vt}' but target_pk_property '{target_pk}' "
+                f"has value_type '{target_vt}' — types must match",
+                details={
+                    "source_fk_property": source_fk,
+                    "source_value_type": source_vt,
+                    "target_pk_property": target_pk,
+                    "target_value_type": target_vt,
+                },
+            ))
 
 
 def _validate_action_type(
