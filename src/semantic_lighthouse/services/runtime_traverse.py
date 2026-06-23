@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from semantic_lighthouse.config import get_settings
 from semantic_lighthouse.models import DatasetAsset, OntologyDatasetBinding
+from semantic_lighthouse.services.runtime_audit import _record_audit, _sanitized_code
 from semantic_lighthouse.services.runtime_contract import (
     _build_contract_context,
     _get_latest_project_package,
@@ -54,83 +55,195 @@ def execute_traversal(
 ) -> dict:
     """Execute a single-hop relationship traversal over two bound datasets."""
     if len(path) != _MAX_PATH_LENGTH:
-        raise ValueError(
+        summary = (
             f"Traversal path must have exactly {_MAX_PATH_LENGTH} "
             f"object_types, got {len(path)}"
         )
+        _record_audit(
+            db,
+            user_id=user_id,
+            group_id=group_id,
+            project_id=project_id,
+            operation="traverse",
+            limit_val=max(1, min(limit, _MAX_LIMIT)),
+            offset_val=max(0, min(offset, _MAX_OFFSET)),
+            outcome="failure",
+            error_code=_sanitized_code("max_path_length_exceeded"),
+            error_summary=summary,
+            path=path,
+            hop_count=max(0, len(path) - 1),
+        )
+        db.commit()
+        raise ValueError(summary)
 
     limit = max(1, min(limit, _MAX_LIMIT))
     offset = max(0, min(offset, _MAX_OFFSET))
 
+    # Audit base.
+    audit_base: dict = {
+        "user_id": user_id,
+        "group_id": group_id,
+        "project_id": project_id,
+        "operation": "traverse",
+        "limit_val": limit,
+        "offset_val": offset,
+        "path": path,
+        "hop_count": len(path) - 1,
+    }
+    # Collected as we resolve (may be partial on failure)
+    audit_link_type_api_names: list[str] = []
+    audit_binding_ids: list[str] = []
+    audit_dataset_ids: list[str] = []
+
+    def _fail(code: str, summary: str) -> dict:
+        _record_audit(
+            db,
+            **audit_base,
+            outcome="failure",
+            error_code=_sanitized_code(code),
+            error_summary=summary,
+            link_type_api_names=audit_link_type_api_names or None,
+            binding_ids=audit_binding_ids or None,
+            dataset_ids=audit_dataset_ids or None,
+        )
+        db.commit()
+        raise ValueError(summary)
+
     source_ot, target_ot = path
+
+    # Package.
     pkg = _get_latest_project_package(db, group_id, project_id)
     if pkg is None:
-        raise ValueError("No project package found for this project")
+        return _fail("no_package",
+                      "No project package found for this project")
 
     try:
         ctx = _build_contract_context(pkg)
     except Exception:
-        raise ValueError("Business contract compilation failed") from None
+        return _fail("contract_compilation",
+                      "Business contract compilation failed")
 
-    link = _resolve_link(ctx, source_ot, target_ot)
+    # Link resolution.
+    try:
+        link = _resolve_link(ctx, source_ot, target_ot)
+    except ValueError as exc:
+        msg = str(exc)
+        code = (
+            "ambiguous_link_type"
+            if "ambiguous" in msg.lower()
+            else "no_link_type"
+        )
+        return _fail(code, msg)
+
+    audit_link_type_api_names.append(link.get("api_name", ""))
+
     source_fk = link.get("source_fk_property", "")
     target_pk = link.get("target_pk_property", "")
     if not source_fk:
-        raise ValueError(
+        return _fail(
+            "fk_property_not_in_contract",
             f"Link type '{link.get('api_name', '?')}' has no "
-            "source_fk_property; cannot resolve FK column"
+            "source_fk_property; cannot resolve FK column",
         )
     if not target_pk:
-        raise ValueError(
+        return _fail(
+            "fk_property_not_in_contract",
             f"Link type '{link.get('api_name', '?')}' has no "
-            "target_pk_property and target OT has no primary_key"
+            "target_pk_property and target OT has no primary_key",
         )
 
-    source_binding = _resolve_binding(db, pkg.id, group_id, project_id, source_ot)
-    target_binding = _resolve_binding(db, pkg.id, group_id, project_id, target_ot)
+    # Bindings.
+    try:
+        source_binding = _resolve_binding(db, pkg.id, group_id, project_id, source_ot)
+    except ValueError as exc:
+        return _fail("no_binding_for_hop", str(exc))
+    try:
+        target_binding = _resolve_binding(db, pkg.id, group_id, project_id, target_ot)
+    except ValueError as exc:
+        return _fail("no_binding_for_hop", str(exc))
+
+    audit_binding_ids.extend([source_binding.id, target_binding.id])
 
     fields_by_ot = ctx.get("fields_by_ot", {})
     prop_map = ctx.get("prop_map", {})
-    source_fields = _validate_ot_fields(
-        source_ot,
-        fields.get(source_ot) if fields else None,
-        source_binding,
-        fields_by_ot,
-    )
-    target_fields = _validate_ot_fields(
-        target_ot,
-        fields.get(target_ot) if fields else None,
-        target_binding,
-        fields_by_ot,
-    )
 
-    filter_field_names, converted_filters = _validate_root_filters(
-        filters,
-        source_ot,
-        source_binding,
-        fields_by_ot,
-        prop_map,
-    )
+    # Field validation.
+    try:
+        source_fields = _validate_ot_fields(
+            source_ot,
+            fields.get(source_ot) if fields else None,
+            source_binding,
+            fields_by_ot,
+        )
+    except ValueError as exc:
+        return _fail("invalid_fields", str(exc))
+    try:
+        target_fields = _validate_ot_fields(
+            target_ot,
+            fields.get(target_ot) if fields else None,
+            target_binding,
+            fields_by_ot,
+        )
+    except ValueError as exc:
+        return _fail("invalid_fields", str(exc))
 
+    # Filter validation.
+    try:
+        filter_field_names, converted_filters = _validate_root_filters(
+            filters,
+            source_ot,
+            source_binding,
+            fields_by_ot,
+            prop_map,
+        )
+    except ValueError as exc:
+        code = "type_conversion" if "cannot be converted" in str(exc).lower() else "invalid_filter"
+        return _fail(code, str(exc))
+
+    # Column resolution.
     source_fk_col = source_binding.property_mappings.get(source_fk)
     if source_fk_col is None:
-        raise ValueError(
+        return _fail(
+            "fk_property_not_in_contract",
             f"source_fk_property '{source_fk}' is not in binding "
-            f"property_mappings for '{source_ot}'"
+            f"property_mappings for '{source_ot}'",
         )
     target_pk_col = target_binding.property_mappings.get(target_pk)
     if target_pk_col is None:
-        raise ValueError(
+        return _fail(
+            "fk_property_not_in_contract",
             f"target_pk_property '{target_pk}' is not in binding "
-            f"property_mappings for '{target_ot}'"
+            f"property_mappings for '{target_ot}'",
         )
 
-    source_dataset, source_file = _resolve_dataset_and_path(
-        db, source_binding, group_id, project_id, source_ot
-    )
-    target_dataset, target_file = _resolve_dataset_and_path(
-        db, target_binding, group_id, project_id, target_ot
-    )
+    # Dataset resolution.
+    try:
+        source_dataset, source_file = _resolve_dataset_and_path(
+            db, source_binding, group_id, project_id, source_ot,
+        )
+    except ValueError as exc:
+        code = "cross_package_traversal" if "does not belong" in str(exc).lower() else "dataset_not_ready"
+        return _fail(code, str(exc))
+    try:
+        target_dataset, target_file = _resolve_dataset_and_path(
+            db, target_binding, group_id, project_id, target_ot,
+        )
+    except ValueError as exc:
+        code = "cross_package_traversal" if "does not belong" in str(exc).lower() else "dataset_not_ready"
+        return _fail(code, str(exc))
+
+    audit_dataset_ids.extend([source_dataset.id, target_dataset.id])
+
+    # Build explain metadata. No data values, no paths.
+    # Flat prefixed field names for audit
+    audit_field_names = [
+        f"{source_ot}__{f}" for f in source_fields
+    ] + [
+        f"{target_ot}__{f}" for f in target_fields
+    ]
+    audit_filter_names = [
+        f"{source_ot}__{f}" for f in filter_field_names
+    ]
 
     explain: dict[str, Any] = {
         "package_id": pkg.id,
@@ -164,40 +277,56 @@ def execute_traversal(
     }
 
     if explain_only:
+        _record_audit(
+            db,
+            **audit_base,
+            field_names=audit_field_names,
+            filter_field_names=audit_filter_names,
+            link_type_api_names=audit_link_type_api_names,
+            binding_ids=audit_binding_ids,
+            dataset_ids=audit_dataset_ids,
+            outcome="success",
+            row_count=0,
+        )
+        db.commit()
         return {"rows": [], "row_count": None, "explain": explain}
 
+    # Read datasets.
     settings = get_settings()
     scan_limit = settings.dataset_max_scan_rows
 
     try:
         source_header, source_rows, source_scanned, source_truncated = (
             _read_dataset_rows(
-                source_file, source_dataset.file_format, max_rows=scan_limit
+                source_file, source_dataset.file_format, max_rows=scan_limit,
             )
         )
     except Exception:
-        raise ValueError(f"Failed to read source dataset for '{source_ot}'") from None
-
+        return _fail("read_error",
+                      f"Failed to read source dataset for '{source_ot}'")
     try:
         target_header, target_rows, target_scanned, target_truncated = (
             _read_dataset_rows(
-                target_file, target_dataset.file_format, max_rows=scan_limit
+                target_file, target_dataset.file_format, max_rows=scan_limit,
             )
         )
     except Exception:
-        raise ValueError(f"Failed to read target dataset for '{target_ot}'") from None
+        return _fail("read_error",
+                      f"Failed to read target dataset for '{target_ot}'")
 
     source_col_idx = {name: i for i, name in enumerate(source_header)}
     target_col_idx = {name: i for i, name in enumerate(target_header)}
     if source_fk_col not in source_col_idx:
-        raise ValueError(
+        return _fail(
+            "no_matching_column",
             f"FK column '{source_fk_col}' not found in source dataset "
-            f"'{source_ot}'"
+            f"'{source_ot}'",
         )
     if target_pk_col not in target_col_idx:
-        raise ValueError(
+        return _fail(
+            "no_matching_column",
             f"PK column '{target_pk_col}' not found in target dataset "
-            f"'{target_ot}'"
+            f"'{target_ot}'",
         )
 
     target_index, target_type_errors = _build_target_index(
@@ -247,6 +376,30 @@ def execute_traversal(
     if type_errors:
         response["type_errors"] = type_errors
         response["row_count"] = None
+
+    # Audit must succeed before returning.
+    final_outcome = (
+        "failure" if type_errors
+        else "empty" if len(paged) == 0
+        else "success"
+    )
+    _record_audit(
+        db,
+        **audit_base,
+        field_names=audit_field_names,
+        filter_field_names=audit_filter_names,
+        link_type_api_names=audit_link_type_api_names,
+        binding_ids=audit_binding_ids,
+        dataset_ids=audit_dataset_ids,
+        outcome=final_outcome,
+        row_count=len(paged) if not type_errors else None,
+        error_code=_sanitized_code("type_conversion") if type_errors else None,
+        error_summary=(
+            f"{len(type_errors)} type conversion error(s)"
+            if type_errors else None
+        ),
+    )
+    db.commit()
 
     return response
 

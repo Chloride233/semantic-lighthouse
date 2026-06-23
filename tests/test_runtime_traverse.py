@@ -1068,3 +1068,309 @@ class TestTraverseRouterResponse:
         assert hop["target_binding_id"] == "bind-tgt"
         assert hop["source_dataset_id"] == "ds-src"
         assert hop["target_dataset_id"] == "ds-tgt"
+
+
+# R2E audit tests: service-level real DB session with mocked file IO.
+
+
+def _audit_rows(db_session, operation="traverse"):
+    """Query OntologyRuntimeAudit from the test DB."""
+    from sqlalchemy import select as sa_select
+
+    from semantic_lighthouse.models import OntologyRuntimeAudit
+
+    stmt = sa_select(OntologyRuntimeAudit).where(
+        OntologyRuntimeAudit.operation == operation,
+    ).order_by(OntologyRuntimeAudit.created_at)
+    return db_session.scalars(stmt).all()
+
+
+def _mk_audit_setup(monkeypatch, tmp_dir, pkg, ctx, src_b, tgt_b, src_ds, tgt_ds):
+    """Create temp CSVs and install common mocks for audit tests."""
+    import os as _os
+
+    src_path = _os.path.join(tmp_dir, "src.csv")
+    tgt_path = _os.path.join(tmp_dir, "tgt.csv")
+    _write_csv(src_path, "eq_id,eq_name,status\nEQ1,Pump-A,active\n")
+    _write_csv(tgt_path, "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n")
+
+    from pathlib import Path as _Path
+
+    monkeypatch.setattr(
+        "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+        lambda db, gid, pid: pkg,
+    )
+    monkeypatch.setattr(
+        "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+        lambda pkg: ctx,
+    )
+    monkeypatch.setattr(
+        "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+        lambda sp, gid, pid: _Path(sp),
+    )
+    monkeypatch.setattr(
+        "semantic_lighthouse.services.runtime_traverse._resolve_binding",
+        lambda db, pkg_id, gid, pid, ot: (
+            src_b if ot == "equipment" else tgt_b
+        ),
+    )
+    monkeypatch.setattr(
+        "semantic_lighthouse.services.runtime_traverse._resolve_dataset_and_path",
+        lambda db, binding, gid, pid, ot: (
+            (src_ds, src_path) if ot == "equipment"
+            else (tgt_ds, tgt_path)
+        ),
+    )
+
+
+def _make_audit_mocks():
+    """Build standard mock objects for audit success tests."""
+    pkg = _mock_package()
+    ctx = _contract_context()
+    src_b = _mock_binding("bind-src", pkg.id, "ds-src", "equipment",
+                          {"equipment_id": "eq_id", "equipment_name": "eq_name",
+                           "status": "status"})
+    tgt_b = _mock_binding("bind-tgt", pkg.id, "ds-tgt", "maintenance",
+                          {"maintenance_id": "maint_id",
+                           "equipment_fk": "equipment_id",
+                           "maint_type": "type", "downtime_hours": "hours"})
+    src_ds = _mock_dataset("ds-src", "dummy.csv")
+    tgt_ds = _mock_dataset("ds-tgt", "dummy.csv")
+    return pkg, ctx, src_b, tgt_b, src_ds, tgt_ds
+
+
+class TestTraverseAudit:
+    """Verify OntologyRuntimeAudit records for traverse operations."""
+
+    def test_success_audit_has_all_traverse_fields(self, db_session, monkeypatch):
+        """Successful traversal writes audit with path, hop_count, etc."""
+        pkg, ctx, src_b, tgt_b, src_ds, tgt_ds = _make_audit_mocks()
+        tmp_dir = tempfile.mkdtemp()
+        _mk_audit_setup(monkeypatch, tmp_dir, pkg, ctx, src_b, tgt_b, src_ds, tgt_ds)
+
+        result = execute_traversal(
+            db_session, "g1", "p1", ["equipment", "maintenance"], "user-1",
+            fields={"equipment": ["equipment_name"], "maintenance": ["maint_type"]},
+        )
+        assert result["row_count"] >= 1
+
+        audits = _audit_rows(db_session)
+        assert len(audits) >= 1
+        a = audits[-1]
+        assert a.operation == "traverse"
+        assert a.outcome == "success"
+        assert a.group_id == "g1"
+        assert a.project_id == "p1"
+        assert a.path == ["equipment", "maintenance"]
+        assert a.hop_count == 1
+        assert a.link_type_api_names == ["equipment_maintenance"]
+        assert a.binding_ids == ["bind-src", "bind-tgt"]
+        assert a.dataset_ids == ["ds-src", "ds-tgt"]
+        assert a.limit_val == 20
+        assert a.offset_val == 0
+        assert a.field_names is not None
+        assert "equipment__equipment_name" in a.field_names
+        assert "maintenance__maint_type" in a.field_names
+        assert a.row_count == 1
+
+    def test_empty_traversal_audit_outcome_empty(self, db_session, monkeypatch):
+        """Traversal with 0 matching rows writes audit outcome='empty'."""
+        pkg, ctx, src_b, tgt_b, src_ds, tgt_ds = _make_audit_mocks()
+        tmp_dir = tempfile.mkdtemp()
+        _mk_audit_setup(monkeypatch, tmp_dir, pkg, ctx, src_b, tgt_b, src_ds, tgt_ds)
+
+        result = execute_traversal(
+            db_session, "g1", "p1", ["equipment", "maintenance"], "user-1",
+            filters={"status": "nonexistent"},
+        )
+        assert result["row_count"] == 0
+
+        audits = _audit_rows(db_session)
+        a = audits[-1]
+        assert a.outcome == "empty"
+        assert a.row_count == 0
+        assert a.path == ["equipment", "maintenance"]
+
+    def test_explain_only_audit_has_metadata(self, db_session, monkeypatch):
+        """explain_only writes audit with path info and row_count=0."""
+        pkg, ctx, src_b, tgt_b, src_ds, tgt_ds = _make_audit_mocks()
+        tmp_dir = tempfile.mkdtemp()
+        _mk_audit_setup(monkeypatch, tmp_dir, pkg, ctx, src_b, tgt_b, src_ds, tgt_ds)
+
+        result = execute_traversal(
+            db_session, "g1", "p1", ["equipment", "maintenance"], "user-1",
+            explain_only=True,
+        )
+        assert result["row_count"] is None
+        assert result["rows"] == []
+
+        audits = _audit_rows(db_session)
+        a = audits[-1]
+        assert a.outcome == "success"
+        assert a.row_count == 0
+        assert a.path == ["equipment", "maintenance"]
+        assert a.link_type_api_names == ["equipment_maintenance"]
+        assert a.binding_ids == ["bind-src", "bind-tgt"]
+        assert a.dataset_ids == ["ds-src", "ds-tgt"]
+        assert a.field_names is not None
+        assert len(a.field_names) >= 2
+
+    def test_failure_audit_no_package(self, db_session, monkeypatch):
+        """Missing package writes failure audit with error_code."""
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: None,
+        )
+        with pytest.raises(ValueError, match="No project package"):
+            execute_traversal(db_session, "g1", "p1",
+                              ["equipment", "maintenance"], "user-1")
+
+        audits = _audit_rows(db_session)
+        assert len(audits) >= 1
+        a = audits[-1]
+        assert a.outcome == "failure"
+        assert a.error_code == "no_project_package"
+        assert a.path == ["equipment", "maintenance"]
+        assert a.hop_count == 1
+
+    def test_failure_audit_invalid_path_length(self, db_session):
+        """Invalid service-level path length writes failure audit."""
+        with pytest.raises(ValueError, match="exactly 2"):
+            execute_traversal(db_session, "g1", "p1", ["equipment"], "user-1")
+
+        audits = _audit_rows(db_session)
+        a = audits[-1]
+        assert a.outcome == "failure"
+        assert a.error_code == "max_path_length_exceeded"
+        assert a.path == ["equipment"]
+        assert a.hop_count == 0
+
+    def test_failure_audit_no_link_type(self, db_session, monkeypatch):
+        """No link_type writes failure audit with correct error_code."""
+        pkg = _mock_package()
+        ctx = _contract_context()
+        # Keep the link_type but query a path that doesn't match
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+
+        with pytest.raises(ValueError, match="No link_type connects"):
+            execute_traversal(db_session, "g1", "p1",
+                              ["equipment", "nonexistent"], "user-1")
+
+        audits = _audit_rows(db_session)
+        a = audits[-1]
+        assert a.outcome == "failure"
+        assert a.error_code == "no_link_type"
+        assert a.path == ["equipment", "nonexistent"]
+        assert a.link_type_api_names is None
+
+    def test_failure_audit_no_binding(self, db_session, monkeypatch):
+        """No binding writes failure audit with no_binding_for_hop."""
+        pkg = _mock_package()
+        ctx = _contract_context()
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+
+        with pytest.raises(ValueError, match="No active binding"):
+            execute_traversal(db_session, "g1", "p1",
+                              ["equipment", "maintenance"], "user-1")
+
+        audits = _audit_rows(db_session)
+        a = audits[-1]
+        assert a.outcome == "failure"
+        assert a.error_code == "no_binding_for_hop"
+        assert a.link_type_api_names == ["equipment_maintenance"]
+
+    def test_audit_no_storage_path(self, db_session, monkeypatch):
+        """Audit record must never contain storage_path."""
+        pkg, ctx, src_b, tgt_b, src_ds, tgt_ds = _make_audit_mocks()
+        tmp_dir = tempfile.mkdtemp()
+        _mk_audit_setup(monkeypatch, tmp_dir, pkg, ctx, src_b, tgt_b, src_ds, tgt_ds)
+
+        execute_traversal(
+            db_session, "g1", "p1", ["equipment", "maintenance"], "user-1",
+        )
+
+        audits = _audit_rows(db_session)
+        a = audits[-1]
+        for col_name in ("error_summary", "error_code"):
+            val = getattr(a, col_name, None)
+            if val:
+                assert "dataset-storage" not in str(val).lower()
+                assert "storage_path" not in str(val).lower()
+        for col_name in ("field_names", "filter_field_names", "path",
+                         "link_type_api_names", "binding_ids", "dataset_ids"):
+            val = getattr(a, col_name, None)
+            if val:
+                val_str = str(val).lower()
+                assert "dataset-storage" not in val_str
+                assert "storage_path" not in val_str
+
+    def test_audit_no_filter_values(self, db_session, monkeypatch):
+        """Audit must never contain filter values, only filter field names."""
+        pkg, ctx, src_b, tgt_b, src_ds, tgt_ds = _make_audit_mocks()
+        tmp_dir = tempfile.mkdtemp()
+        _mk_audit_setup(monkeypatch, tmp_dir, pkg, ctx, src_b, tgt_b, src_ds, tgt_ds)
+
+        execute_traversal(
+            db_session, "g1", "p1", ["equipment", "maintenance"], "user-1",
+            filters={"status": "active"},
+        )
+
+        audits = _audit_rows(db_session)
+        a = audits[-1]
+        assert a.filter_field_names is not None
+        audit_str = str({
+            "field_names": a.field_names,
+            "filter_field_names": a.filter_field_names,
+            "error_summary": a.error_summary,
+            "error_code": a.error_code,
+        }).lower()
+        assert "active" not in audit_str
+
+
+class TestTraverseAuditFailClosed:
+    """Prove that audit persistence failure prevents data exposure."""
+
+    def test_audit_commit_failure_does_not_return_data(
+        self, db_session, monkeypatch,
+    ):
+        """If audit write fails, an exception propagates and data is not returned."""
+        from semantic_lighthouse.models import OntologyRuntimeAudit
+
+        pkg, ctx, src_b, tgt_b, src_ds, tgt_ds = _make_audit_mocks()
+        tmp_dir = tempfile.mkdtemp()
+        _mk_audit_setup(monkeypatch, tmp_dir, pkg, ctx, src_b, tgt_b, src_ds, tgt_ds)
+
+        _orig_init = OntologyRuntimeAudit.__init__
+
+        def _failing_init(self, **kw):
+            if kw.get("operation") == "traverse" and kw.get("outcome") == "success":
+                raise RuntimeError("Simulated audit persistence failure")
+            return _orig_init(self, **kw)
+
+        monkeypatch.setattr(OntologyRuntimeAudit, "__init__", _failing_init)
+
+        errored = False
+        try:
+            result = execute_traversal(
+                db_session, "g1", "p1", ["equipment", "maintenance"], "user-1",
+            )
+            assert False, (
+                f"Expected exception on audit failure, got rows={result.get('row_count')}"
+            )
+        except (RuntimeError, ValueError):
+            errored = True
+        assert errored, "Audit persistence failure should prevent data return"

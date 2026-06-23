@@ -1,4 +1,4 @@
-"""Runtime audit helpers — immutable audit record creation and sanitized error codes.
+"""Runtime audit helpers: immutable records and sanitized error codes.
 
 Extracted from services/runtime.py per R1B.
 No API, permission, migration, or query semantic changes.
@@ -27,10 +27,16 @@ def _record_audit(
     row_count: int | None = None,
     error_code: str | None = None,
     error_summary: str | None = None,
+    path: list[str] | None = None,
+    hop_count: int | None = None,
+    link_type_api_names: list[str] | None = None,
+    binding_ids: list[str] | None = None,
+    dataset_ids: list[str] | None = None,
 ) -> OntologyRuntimeAudit:
     """Write an immutable runtime audit record.
 
     Never records filter values, raw data, storage_path, PII, or secrets.
+    Traverse-specific fields are nullable for query/activate backward compat.
     """
     record = OntologyRuntimeAudit(
         user_id=user_id,
@@ -46,6 +52,11 @@ def _record_audit(
         row_count=row_count,
         error_code=error_code,
         error_summary=error_summary,
+        path=path,
+        hop_count=hop_count,
+        link_type_api_names=link_type_api_names,
+        binding_ids=binding_ids,
+        dataset_ids=dataset_ids,
     )
     db.add(record)
     return record
@@ -64,6 +75,16 @@ _SANITIZED_ERROR_CODES = {
     "smoke_failed": "smoke_query_failed",
     "archive": "project_archived",
     "stage": "stage_not_allowed",
+    "no_link_type": "no_link_type",
+    "ambiguous_link_type": "ambiguous_link_type",
+    "no_binding_for_hop": "no_binding_for_hop",
+    "cross_package_traversal": "cross_package_traversal",
+    "max_path_length_exceeded": "max_path_length_exceeded",
+    "fk_property_not_in_contract": "fk_property_not_in_contract",
+    "invalid_fields": "invalid_fields",
+    "invalid_filter": "invalid_filter",
+    "contract_compilation": "contract_compilation_failed",
+    "no_matching_column": "no_matching_column",
 }
 
 

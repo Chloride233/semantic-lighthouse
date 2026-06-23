@@ -615,6 +615,39 @@ No circular imports. All backward-compatible re-exports preserved.
 - Permissions mirror existing /runtime/query pattern (member+).
 - Group/project isolation enforced server-side; body group/project not trusted.
 
+## R2E — Audit And Provenance
+
+**Status**: Delivered (2026-06-23). **Lane**: Safety.
+
+### Changes
+
+- `alembic/versions/0029_v29_traverse_audit_columns.py` (new): 5 nullable columns added to `ontology_runtime_audit` — `path` (JSON), `hop_count` (Integer), `link_type_api_names` (JSON), `binding_ids` (JSON), `dataset_ids` (JSON). SQLite-compatible via `batch_alter_table`.
+- `src/semantic_lighthouse/models.py`: `OntologyRuntimeAudit` extended with 5 new nullable mapped columns.
+- `src/semantic_lighthouse/services/runtime_audit.py`: `_record_audit()` accepts 5 new optional keyword args. `_SANITIZED_ERROR_CODES` extended with 10 traverse-specific codes.
+- `src/semantic_lighthouse/services/runtime_traverse.py`: `execute_traversal()` restructured with fail-closed audit (mirrors `execute_query`). `_fail()` helper records audit + raises ValueError. Incremental collection of `audit_link_type_api_names`, `audit_binding_ids`, `audit_dataset_ids`. Flat `{ot}__{field}` prefixed field_names in audit. Success/empty/failure outcome.
+- `tests/test_runtime_traverse.py`: 9 new audit tests — `TestTraverseAudit` (8) + `TestTraverseAuditFailClosed` (1). Real `db_session` + temp CSV + monkeypatched DB queries.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Pytest (test_runtime_traverse.py) | 52/52 passed (25 R2C + 17 R2D + 10 R2E), latest targeted run |
+| Pytest (existing audit tests) | 10/10 passed |
+| Ruff (8 changed files) | clean |
+| Alembic smoke (SQLite temp DB) | 0029 at head, all 29 migrations OK |
+| Doc alignment | PASS |
+| git diff --check | clean |
+
+### Boundaries Preserved
+
+- No multi-hop (R2F).
+- No frontend changes.
+- No Graph RAG, SQL DSL, Agent/MCP, action writeback.
+- Existing query/generate_bindings/activate audit untouched — 11 existing runtime audit tests pass.
+- All new columns nullable — backward compat for existing audit rows.
+- Filter values, storage_path, FK/PK data values never in audit (provenance verified).
+- Fail-closed: audit write failure prevents data return (verified).
+
 ---
 
 ## R2B — Contract Context Extension

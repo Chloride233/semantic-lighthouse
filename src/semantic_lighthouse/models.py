@@ -695,6 +695,12 @@ class OntologyRuntimeAudit(Base):
     row_count: Mapped[int | None] = mapped_column(nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
     error_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # R2E — traverse-specific fields (nullable, query/activate records have NULL)
+    path: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
+    hop_count: Mapped[int | None] = mapped_column(nullable=True)
+    link_type_api_names: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
+    binding_ids: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
+    dataset_ids: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
