@@ -1,4 +1,4 @@
-﻿"""Tests for R2C runtime relationship traversal core.
+"""Tests for R2C runtime relationship traversal core.
 
 Covers: single-hop hash join, FK/PK column resolution, field whitelist,
 root filters, limit/offset, explain_only, error cases (no link_type,
@@ -398,11 +398,11 @@ class TestTraversalErrors:
     def test_path_length_not_two(self, monkeypatch):
         self._patch_basics(monkeypatch)
         db = MagicMock()
-        with pytest.raises(ValueError, match="exactly 2"):
+        with pytest.raises(ValueError, match="must have 2"):
             execute_traversal(db, "g1", "p1", ["equipment"], "u1")
-        with pytest.raises(ValueError, match="exactly 2"):
+        with pytest.raises(ValueError, match="must have 2"):
             execute_traversal(db, "g1", "p1",
-                              ["equipment", "maintenance", "extra"], "u1")
+                              ["equipment", "maintenance", "extra", "fourth"], "u1")
 
     def test_no_link_type_connects(self, monkeypatch):
         self._patch_basics(monkeypatch)
@@ -924,12 +924,12 @@ class TestTraverseRouterErrors:
         assert r.status_code == 422, r.text
 
     def test_path_too_long_pydantic_422(self, client):
-        """Path with > 2 elements rejected by Pydantic validation."""
+        """Path with > 3 elements rejected by Pydantic validation."""
         gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
 
         r = client.post(
             f"/groups/{gid}/projects/{pid}/runtime/traverse",
-            json={"path": ["a", "b", "c"]},
+            json={"path": ["a", "b", "c", "d"]},
             headers=mem_h,
         )
         assert r.status_code == 422, r.text
@@ -1235,7 +1235,7 @@ class TestTraverseAudit:
 
     def test_failure_audit_invalid_path_length(self, db_session):
         """Invalid service-level path length writes failure audit."""
-        with pytest.raises(ValueError, match="exactly 2"):
+        with pytest.raises(ValueError, match="must have 2"):
             execute_traversal(db_session, "g1", "p1", ["equipment"], "user-1")
 
         audits = _audit_rows(db_session)
@@ -1374,3 +1374,378 @@ class TestTraverseAuditFailClosed:
         except (RuntimeError, ValueError):
             errored = True
         assert errored, "Audit persistence failure should prevent data return"
+
+
+# R2F two-hop traversal tests: equipment -> maintenance -> work_orders.
+
+
+
+
+def _two_hop_context(**overrides):
+    """Build a contract context for equipment -> maintenance -> work_orders."""
+    ctx = {
+        "manifest": {"semantic_hash": "sha256:2hop"},
+        "semantic_hash": "sha256:2hop",
+        "ot_map": {
+            "equipment": {"primary_key": "equipment_id", "display_name": "Equipment"},
+            "maintenance": {"primary_key": "maintenance_id", "display_name": "Maintenance"},
+            "work_orders": {"primary_key": "work_order_id", "display_name": "Work Orders"},
+        },
+        "prop_map": {
+            "equipment_id": {"object_type": "equipment", "value_type": "string", "required": True},
+            "equipment_name": {"object_type": "equipment", "value_type": "string", "required": True},
+            "status": {"object_type": "equipment", "value_type": "string", "required": False},
+            "maintenance_id": {"object_type": "maintenance", "value_type": "string", "required": True},
+            "equipment_fk": {"object_type": "maintenance", "value_type": "string", "required": True},
+            "maint_type": {"object_type": "maintenance", "value_type": "string", "required": True},
+            "downtime_hours": {"object_type": "maintenance", "value_type": "number", "required": False},
+            "work_order_id": {"object_type": "work_orders", "value_type": "string", "required": True},
+            "maintenance_fk": {"object_type": "work_orders", "value_type": "string", "required": True},
+            "wo_description": {"object_type": "work_orders", "value_type": "string", "required": True},
+            "priority": {"object_type": "work_orders", "value_type": "string", "required": False},
+        },
+        "fields_by_ot": {
+            "equipment": ["equipment_id", "equipment_name", "status"],
+            "maintenance": ["maintenance_id", "equipment_fk", "maint_type", "downtime_hours"],
+            "work_orders": ["work_order_id", "maintenance_fk", "wo_description", "priority"],
+        },
+        "link_types": [
+            {
+                "entity_type": "link_type",
+                "api_name": "equipment_maintenance",
+                "source_object_type": "equipment",
+                "target_object_type": "maintenance",
+                "cardinality": "one_to_many",
+                "source_fk_property": "equipment_id",
+                "target_pk_property": "equipment_fk",
+            },
+            {
+                "entity_type": "link_type",
+                "api_name": "maintenance_work_orders",
+                "source_object_type": "maintenance",
+                "target_object_type": "work_orders",
+                "cardinality": "one_to_many",
+                "source_fk_property": "maintenance_id",
+                "target_pk_property": "maintenance_fk",
+            },
+        ],
+        "link_map": {
+            "equipment_maintenance": {
+                "api_name": "equipment_maintenance",
+                "source_object_type": "equipment",
+                "target_object_type": "maintenance",
+                "cardinality": "one_to_many",
+                "source_fk_property": "equipment_id",
+                "target_pk_property": "equipment_fk",
+            },
+            "maintenance_work_orders": {
+                "api_name": "maintenance_work_orders",
+                "source_object_type": "maintenance",
+                "target_object_type": "work_orders",
+                "cardinality": "one_to_many",
+                "source_fk_property": "maintenance_id",
+                "target_pk_property": "maintenance_fk",
+            },
+        },
+    }
+    for k, v in overrides.items():
+        if isinstance(v, dict) and isinstance(ctx.get(k), dict):
+            ctx[k].update(v)
+        else:
+            ctx[k] = v
+    return ctx
+
+
+class TestTwoHopTraversal:
+    """Equipment -> Maintenance -> Work Orders two-hop traversal."""
+
+    def _setup(self, monkeypatch, eq_csv, maint_csv, wo_csv, ctx_overrides=None):
+        """Create 3 temp CSVs, patch DB/services, return args tuple."""
+        tmp = tempfile.mkdtemp()
+        eq_path = os.path.join(tmp, "equipment.csv")
+        maint_path = os.path.join(tmp, "maintenance.csv")
+        wo_path = os.path.join(tmp, "work_orders.csv")
+        _write_csv(eq_path, eq_csv)
+        _write_csv(maint_path, maint_csv)
+        _write_csv(wo_path, wo_csv)
+
+        pkg = _mock_package(pkg_id="pkg-2h", version=1)
+        ctx = _two_hop_context(**(ctx_overrides or {}))
+
+        # Bindings
+        eq_b = _mock_binding("b-eq", pkg.id, "ds-eq", "equipment",
+                             {"equipment_id": "eq_id", "equipment_name": "eq_name", "status": "status"})
+        m_b = _mock_binding("b-m", pkg.id, "ds-m", "maintenance",
+                            {"maintenance_id": "maint_id", "equipment_fk": "equipment_id",
+                             "maint_type": "type", "downtime_hours": "hours"})
+        wo_b = _mock_binding("b-wo", pkg.id, "ds-wo", "work_orders",
+                             {"work_order_id": "wo_id", "maintenance_fk": "maint_ref",
+                              "wo_description": "description", "priority": "priority"})
+
+        # Datasets
+        eq_ds = _mock_dataset("ds-eq", eq_path)
+        m_ds = _mock_dataset("ds-m", maint_path)
+        wo_ds = _mock_dataset("ds-wo", wo_path)
+
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+            lambda sp, gid, pid: Path(sp),
+        )
+
+        import itertools
+        _scalar_cycle = itertools.cycle([eq_b, m_b, wo_b])
+        db = MagicMock()
+        db.scalar = MagicMock(side_effect=lambda stmt: next(_scalar_cycle))
+        db.get = MagicMock(side_effect=lambda model, ds_id:
+                           {"ds-eq": eq_ds, "ds-m": m_ds, "ds-wo": wo_ds}.get(ds_id))
+
+        return db, "g1", "p1", ["equipment", "maintenance", "work_orders"], "user-1"
+
+    def test_basic_two_hop_returns_joined_rows(self, monkeypatch):
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\nEQ2,Motor-B,inactive\n"
+        maint_csv = ("maint_id,equipment_id,type,hours\n"
+                     "M1,EQ1,preventive,2.5\nM2,EQ1,corrective,8.0\nM3,EQ2,preventive,1.0\n")
+        wo_csv = ("wo_id,maint_ref,description,priority\n"
+                  "W1,M1,Replace bearing,high\nW2,M1,Inspect seal,low\nW3,M3,Lubricate,medium\n")
+
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"],
+                    "work_orders": ["wo_description"]},
+        )
+        assert result["row_count"] == 3
+        # EQ1 -> M1 -> W1, W2  (2 rows)
+        eq1 = [r for r in result["rows"] if r["equipment__equipment_name"] == "Pump-A"]
+        assert len(eq1) == 2
+        # EQ2 -> M3 -> W3  (1 row)
+        eq2 = [r for r in result["rows"] if r["equipment__equipment_name"] == "Motor-B"]
+        assert len(eq2) == 1
+
+        for r in result["rows"]:
+            assert "equipment__equipment_name" in r
+            assert "maintenance__maint_type" in r
+            assert "work_orders__wo_description" in r
+            # No unprefixed leak
+            assert "equipment_name" not in r
+            assert "maint_type" not in r
+
+    def test_two_hop_field_whitelist_per_ot(self, monkeypatch):
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = "wo_id,maint_ref,description,priority\nW1,M1,Replace bearing,high\n"
+
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"],
+                    "work_orders": ["wo_description"]},
+        )
+        row = result["rows"][0]
+        assert "equipment__equipment_name" in row
+        assert "equipment__status" not in row
+        assert "maintenance__maint_type" in row
+        assert "maintenance__downtime_hours" not in row
+        assert "work_orders__wo_description" in row
+        assert "work_orders__priority" not in row
+
+    def test_two_hop_root_filter(self, monkeypatch):
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\nEQ2,Motor-B,inactive\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\nM2,EQ2,preventive,1.0\n"
+        wo_csv = "wo_id,maint_ref,description,priority\nW1,M1,Replace,high\nW2,M2,Lube,low\n"
+
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"],
+                    "work_orders": ["wo_description"]},
+            filters={"status": "active"},
+        )
+        assert result["row_count"] == 1
+        assert result["rows"][0]["equipment__equipment_name"] == "Pump-A"
+
+    def test_two_hop_explain_has_two_hops(self, monkeypatch):
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = "wo_id,maint_ref,description,priority\nW1,M1,Replace,high\n"
+
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(db, gid, pid, path, uid)
+        explain = result["explain"]
+        assert explain["path"] == ["equipment", "maintenance", "work_orders"]
+        assert len(explain["hops"]) == 2
+        hop0 = explain["hops"][0]
+        assert hop0["hop_index"] == 0
+        assert hop0["link_type_api_name"] == "equipment_maintenance"
+        hop1 = explain["hops"][1]
+        assert hop1["hop_index"] == 1
+        assert hop1["link_type_api_name"] == "maintenance_work_orders"
+        assert "scanned_rows" in explain
+        assert "equipment" in explain["scanned_rows"]
+        assert "maintenance" in explain["scanned_rows"]
+        assert "work_orders" in explain["scanned_rows"]
+
+    def test_two_hop_explain_only(self, monkeypatch):
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = "wo_id,maint_ref,description,priority\nW1,M1,Replace,high\n"
+
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(db, gid, pid, path, uid, explain_only=True)
+        assert result["row_count"] is None
+        assert result["rows"] == []
+        assert len(result["explain"]["hops"]) == 2
+
+    def test_two_hop_limit_offset(self, monkeypatch):
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = ("wo_id,maint_ref,description,priority\n"
+                  "W1,M1,A,high\nW2,M1,B,low\nW3,M1,C,medium\n")
+
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        r1 = execute_traversal(db, gid, pid, path, uid, offset=1, limit=1)
+        assert r1["row_count"] == 1
+        r2 = execute_traversal(db, gid, pid, path, uid, offset=0, limit=2)
+        assert r2["row_count"] == 2
+
+    def test_two_hop_empty_intermediate_yields_empty(self, monkeypatch):
+        """If hop 0 produces no matches, result is empty (inner join semantics)."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ999,preventive,2.5\n"
+        wo_csv = "wo_id,maint_ref,description,priority\nW1,M1,Replace,high\n"
+
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(db, gid, pid, path, uid)
+        assert result["row_count"] == 0
+        assert result["rows"] == []
+
+    def test_two_hop_empty_final_yields_empty(self, monkeypatch):
+        """If hop 1 produces no matches, result is empty."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = "wo_id,maint_ref,description,priority\nW1,M999,Replace,high\n"
+
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(db, gid, pid, path, uid)
+        assert result["row_count"] == 0
+        assert result["rows"] == []
+
+    def test_two_hop_no_link_type_rejected(self, monkeypatch):
+        """Invalid second hop maps to no_link_type."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = "wo_id,maint_ref,description,priority\nW1,M1,Replace,high\n"
+
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        with pytest.raises(ValueError, match="No link_type connects"):
+            execute_traversal(db, gid, pid,
+                              ["equipment", "maintenance", "nonexistent"], uid)
+
+    def test_two_hop_missing_fk_property_rejected(self, monkeypatch):
+        """Link without FK property maps to fk_property_not_in_contract."""
+        ctx = _two_hop_context()
+        ctx["link_map"]["maintenance_work_orders"]["source_fk_property"] = ""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = "wo_id,maint_ref,description,priority\nW1,M1,Replace,high\n"
+
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv,
+                                              ctx_overrides=ctx)
+        with pytest.raises(ValueError, match="no source_fk_property"):
+            execute_traversal(db, gid, pid, path, uid)
+
+    def test_two_hop_audit_has_two_hop_metadata(self, db_session, monkeypatch):
+        """Two-hop success audit records 2 link_types, 3 bindings, 3 datasets."""
+        pkg = _mock_package(pkg_id="pkg-2h")
+        ctx = _two_hop_context()
+
+        # Bindings
+        eq_b = _mock_binding("b-eq", pkg.id, "ds-eq", "equipment",
+                             {"equipment_id": "eq_id", "equipment_name": "eq_name", "status": "status"})
+        m_b = _mock_binding("b-m", pkg.id, "ds-m", "maintenance",
+                            {"maintenance_id": "maint_id", "equipment_fk": "equipment_id",
+                             "maint_type": "type", "downtime_hours": "hours"})
+        wo_b = _mock_binding("b-wo", pkg.id, "ds-wo", "work_orders",
+                             {"work_order_id": "wo_id", "maintenance_fk": "maint_ref",
+                              "wo_description": "description", "priority": "priority"})
+
+        # Datasets
+        eq_ds = _mock_dataset("ds-eq", "dummy.csv")
+        m_ds = _mock_dataset("ds-m", "dummy.csv")
+        wo_ds = _mock_dataset("ds-wo", "dummy.csv")
+
+        tmp_dir = tempfile.mkdtemp()
+        eq_path = os.path.join(tmp_dir, "equipment.csv")
+        maint_path = os.path.join(tmp_dir, "maintenance.csv")
+        wo_path = os.path.join(tmp_dir, "work_orders.csv")
+        _write_csv(eq_path, "eq_id,eq_name,status\nEQ1,Pump-A,active\n")
+        _write_csv(maint_path, "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n")
+        _write_csv(wo_path, "wo_id,maint_ref,description,priority\nW1,M1,Replace,high\n")
+
+        from pathlib import Path as _Path
+
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+            lambda sp, gid, pid: _Path(sp),
+        )
+        _ot_bindings = {"equipment": eq_b, "maintenance": m_b, "work_orders": wo_b}
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._resolve_binding",
+            lambda db, pkg_id, gid, pid, ot: _ot_bindings[ot],
+        )
+        _ot_paths = {"equipment": eq_path, "maintenance": maint_path, "work_orders": wo_path}
+        _ot_ds = {"equipment": eq_ds, "maintenance": m_ds, "work_orders": wo_ds}
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._resolve_dataset_and_path",
+            lambda db, binding, gid, pid, ot: (_ot_ds[ot], _ot_paths[ot]),
+        )
+
+        result = execute_traversal(
+            db_session, "g1", "p1",
+            ["equipment", "maintenance", "work_orders"], "user-1",
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"],
+                    "work_orders": ["wo_description"]},
+        )
+        assert result["row_count"] >= 1
+
+        audits = _audit_rows(db_session)
+        a = audits[-1]
+        assert a.outcome == "success"
+        assert a.path == ["equipment", "maintenance", "work_orders"]
+        assert a.hop_count == 2
+        assert a.link_type_api_names == ["equipment_maintenance", "maintenance_work_orders"]
+        assert a.binding_ids == ["b-eq", "b-m", "b-wo"]
+        assert a.dataset_ids == ["ds-eq", "ds-m", "ds-wo"]
+        assert a.field_names is not None
+        assert "equipment__equipment_name" in a.field_names
+        assert "maintenance__maint_type" in a.field_names
+        assert "work_orders__wo_description" in a.field_names

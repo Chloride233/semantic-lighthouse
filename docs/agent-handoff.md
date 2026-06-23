@@ -648,6 +648,37 @@ No circular imports. All backward-compatible re-exports preserved.
 - Filter values, storage_path, FK/PK data values never in audit (provenance verified).
 - Fail-closed: audit write failure prevents data return (verified).
 
+## R2F — Multi-Hop Traversal
+
+**Status**: Delivered (2026-06-23). **Lane**: Safety.
+
+### Changes
+
+- `src/semantic_lighthouse/schemas.py`: `RuntimeTraverseRequest.path` max_length 2 → 3.
+- `src/semantic_lighthouse/services/runtime_traverse.py`: `_MAX_PATH_LENGTH` 2 → 3. Path validation accepts 2–3 OTs. Two-hop branch (path_len==3) resolves all links/bindings/datasets upfront, chains two hash joins: hop 0 joins raw CSV rows (OT0→OT1), hop 1 joins intermediate flat dicts (→OT2) via new `_join_flat_rows()` helper. FK property for second hop automatically included in OT1's target index fields. Output fields stripped to user-requested only. Shared audit/explain covers full path with N hop entries. Single-hop path (len==2) unchanged.
+- `tests/test_runtime_traverse.py`: 11 new `TestTwoHopTraversal` tests — basic join, field whitelist, root filter, explain (2 hops), explain_only, limit/offset, empty intermediate, empty final, no-link-type error, missing-FK error, two-hop audit metadata. Updated 3 existing tests for new path-length behavior and error messages.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Pytest (test_runtime_traverse.py) | **63/63 passed** (25 R2C + 17 R2D + 10 R2E + 11 R2F), 23.50s |
+| Pytest (audit regression) | 11/11 passed |
+| Ruff (changed files) | clean |
+| Doc alignment | PASS |
+| git diff --check | clean |
+
+### Boundaries Preserved
+
+- No DB migration needed (existing 0029 columns cover multi-hop).
+- Single-hop code path unchanged — zero regression risk.
+- No frontend changes.
+- No Graph RAG, SQL DSL, Agent/MCP, action writeback.
+- Root filters only on path[0] (same as single-hop).
+- Flat `{ot}__{field}` output preserved.
+- All group/project/package isolation enforced per-OT.
+- Audit covers full path, all hops, all bindings, all datasets.
+
 ---
 
 ## R2B — Contract Context Extension

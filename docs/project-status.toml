@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R2E audit and provenance delivered"
-description = "R2E complete. Alembic migration 0029 adds 5 nullable traverse-specific columns (path, hop_count, link_type_api_names, binding_ids, dataset_ids) to ontology_runtime_audit. Model, _record_audit, and execute_traversal updated with fail-closed audit pattern mirroring execute_query. 10 audit tests: success/empty/explain_only/failure(4)/provenance-no-leak(2)/fail-closed. 52 total traverse tests pass. 11 existing runtime audit tests still pass. SQLite migration smoke confirms 0029 at head."
+current = "R2F multi-hop traversal delivered"
+description = "R2F complete. execute_traversal generalized to support 2 or 3 object_types (1-2 hops). Two-hop chain: resolve all links/bindings/datasets upfront, hash-join OT0→OT1 (raw rows) then intermediate→OT2 (flat dicts via _join_flat_rows). Root filters on path[0], field whitelist per OT, limit/offset after full join. explain.hops contains N entries. audit.path/hop_count/link_type_api_names/binding_ids/dataset_ids cover full path. 11 two-hop tests + 52 existing = 63 total. No DB migration needed."
 
 [next_decision_gate]
-name = "R2F multi-hop traversal"
-description = "Generalize single-hop to N-hop. Path-length enforcement (2 to 3 object_types). Cross-hop binding validation. Multi-hop hash join chaining. Multi-hop audit and tests. No new DB migration expected."
+name = "R2 closeout / R3 planning"
+description = "R2 (1-hop + 2-hop traversal) delivered end-to-end. Next candidates: R3 nested response shape, bidirectional traversal, filter pushdown, aggregation, sorting; or pivot to Phase 20+ ontology governance, AdventureWorks benchmark, or frontend enhancements."
 
 [mcp]
 runtime_status = "not started"

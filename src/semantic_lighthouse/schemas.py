@@ -1040,12 +1040,12 @@ class PilotOutcomeSummaryResponse(BaseModel):
 class RuntimeTraverseRequest(BaseModel):
     """Declarative path traversal over bound dataset Object Types.
 
-    Single-hop only in v1 (path exactly 2 OTs). Filters are per-OT;
+    Supports 1-2 hops (path of 2 or 3 OTs). Filters are per-OT;
     only root OT filters applied (filter-before-traversal semantics).
     No SQL, no DSL, no expression strings.
     """
 
-    path: list[str] = Field(..., min_length=2, max_length=2)
+    path: list[str] = Field(..., min_length=2, max_length=3)
     fields: dict[str, list[str]] | None = Field(default=None)
     filters: dict[str, dict[str, str | int | float | bool | None]] | None = Field(
         default=None,

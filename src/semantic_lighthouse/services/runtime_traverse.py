@@ -1,12 +1,9 @@
-"""Runtime relationship traversal core: single-hop hash join over CSV/XLSX.
+"""Runtime relationship traversal core: hash join over CSV/XLSX.
 
-R2C: service-level only. No router, no endpoint, no audit, no migration.
+R2C-R2F: service-level traversal supporting 1-2 hops (path length 2 or 3).
 Uses compiled link_map from _build_contract_context for FK/PK resolution.
-Single-hop only: path must contain exactly 2 object_types.
-
-Query semantics: stream source -> filter -> for each matching row, look up
-FK value in an in-memory target index -> produce flat joined rows with the
-{object_type}__{field} prefix.
+Multi-hop chains hash joins: each hop builds a PK index on the target dataset,
+then joins source rows via FK -> PK lookup. Flat output with {ot}__{field} prefix.
 
 No SQL, no DSL, no AST, no LLM, no Graph RAG, no writes.
 """
@@ -38,7 +35,7 @@ from semantic_lighthouse.services.runtime_query import (
 )
 
 
-_MAX_PATH_LENGTH = 2
+_MAX_PATH_LENGTH = 3
 
 
 def execute_traversal(
@@ -53,11 +50,12 @@ def execute_traversal(
     offset: int = 0,
     explain_only: bool = False,
 ) -> dict:
-    """Execute a single-hop relationship traversal over two bound datasets."""
-    if len(path) != _MAX_PATH_LENGTH:
+    """Execute a 1-2 hop relationship traversal over bound datasets."""
+    path_len = len(path)
+    if path_len < 2 or path_len > _MAX_PATH_LENGTH:
         summary = (
-            f"Traversal path must have exactly {_MAX_PATH_LENGTH} "
-            f"object_types, got {len(path)}"
+            f"Traversal path must have 2-{_MAX_PATH_LENGTH} "
+            f"object_types, got {path_len}"
         )
         _record_audit(
             db,
@@ -71,7 +69,7 @@ def execute_traversal(
             error_code=_sanitized_code("max_path_length_exceeded"),
             error_summary=summary,
             path=path,
-            hop_count=max(0, len(path) - 1),
+            hop_count=max(0, path_len - 1),
         )
         db.commit()
         raise ValueError(summary)
@@ -109,9 +107,7 @@ def execute_traversal(
         db.commit()
         raise ValueError(summary)
 
-    source_ot, target_ot = path
-
-    # Package.
+    # Shared: package + contract context (used by both paths).
     pkg = _get_latest_project_package(db, group_id, project_id)
     if pkg is None:
         return _fail("no_package",
@@ -123,155 +119,434 @@ def execute_traversal(
         return _fail("contract_compilation",
                       "Business contract compilation failed")
 
-    # Link resolution.
-    try:
-        link = _resolve_link(ctx, source_ot, target_ot)
-    except ValueError as exc:
-        msg = str(exc)
-        code = (
-            "ambiguous_link_type"
-            if "ambiguous" in msg.lower()
-            else "no_link_type"
-        )
-        return _fail(code, msg)
-
-    audit_link_type_api_names.append(link.get("api_name", ""))
-
-    source_fk = link.get("source_fk_property", "")
-    target_pk = link.get("target_pk_property", "")
-    if not source_fk:
-        return _fail(
-            "fk_property_not_in_contract",
-            f"Link type '{link.get('api_name', '?')}' has no "
-            "source_fk_property; cannot resolve FK column",
-        )
-    if not target_pk:
-        return _fail(
-            "fk_property_not_in_contract",
-            f"Link type '{link.get('api_name', '?')}' has no "
-            "target_pk_property and target OT has no primary_key",
-        )
-
-    # Bindings.
-    try:
-        source_binding = _resolve_binding(db, pkg.id, group_id, project_id, source_ot)
-    except ValueError as exc:
-        return _fail("no_binding_for_hop", str(exc))
-    try:
-        target_binding = _resolve_binding(db, pkg.id, group_id, project_id, target_ot)
-    except ValueError as exc:
-        return _fail("no_binding_for_hop", str(exc))
-
-    audit_binding_ids.extend([source_binding.id, target_binding.id])
-
     fields_by_ot = ctx.get("fields_by_ot", {})
     prop_map = ctx.get("prop_map", {})
 
-    # Field validation.
-    try:
-        source_fields = _validate_ot_fields(
-            source_ot,
-            fields.get(source_ot) if fields else None,
-            source_binding,
-            fields_by_ot,
-        )
-    except ValueError as exc:
-        return _fail("invalid_fields", str(exc))
-    try:
-        target_fields = _validate_ot_fields(
-            target_ot,
-            fields.get(target_ot) if fields else None,
-            target_binding,
-            fields_by_ot,
-        )
-    except ValueError as exc:
-        return _fail("invalid_fields", str(exc))
+    if path_len == 2:
+        # Single-hop path (R2C-R2E).
 
-    # Filter validation.
+
+        source_ot, target_ot = path
+
+        # Link resolution.
+        try:
+            link = _resolve_link(ctx, source_ot, target_ot)
+        except ValueError as exc:
+            msg = str(exc)
+            code = (
+                "ambiguous_link_type"
+                if "ambiguous" in msg.lower()
+                else "no_link_type"
+            )
+            return _fail(code, msg)
+
+        audit_link_type_api_names.append(link.get("api_name", ""))
+
+        source_fk = link.get("source_fk_property", "")
+        target_pk = link.get("target_pk_property", "")
+        if not source_fk:
+            return _fail(
+                "fk_property_not_in_contract",
+                f"Link type '{link.get('api_name', '?')}' has no "
+                "source_fk_property; cannot resolve FK column",
+            )
+        if not target_pk:
+            return _fail(
+                "fk_property_not_in_contract",
+                f"Link type '{link.get('api_name', '?')}' has no "
+                "target_pk_property and target OT has no primary_key",
+            )
+
+        # Bindings.
+        try:
+            source_binding = _resolve_binding(db, pkg.id, group_id, project_id, source_ot)
+        except ValueError as exc:
+            return _fail("no_binding_for_hop", str(exc))
+        try:
+            target_binding = _resolve_binding(db, pkg.id, group_id, project_id, target_ot)
+        except ValueError as exc:
+            return _fail("no_binding_for_hop", str(exc))
+
+        audit_binding_ids.extend([source_binding.id, target_binding.id])
+
+        # Field validation.
+        try:
+            source_fields = _validate_ot_fields(
+                source_ot,
+                fields.get(source_ot) if fields else None,
+                source_binding,
+                fields_by_ot,
+            )
+        except ValueError as exc:
+            return _fail("invalid_fields", str(exc))
+        try:
+            target_fields = _validate_ot_fields(
+                target_ot,
+                fields.get(target_ot) if fields else None,
+                target_binding,
+                fields_by_ot,
+            )
+        except ValueError as exc:
+            return _fail("invalid_fields", str(exc))
+
+        # Filter validation.
+        try:
+            filter_field_names, converted_filters = _validate_root_filters(
+                filters,
+                source_ot,
+                source_binding,
+                fields_by_ot,
+                prop_map,
+            )
+        except ValueError as exc:
+            code = "type_conversion" if "cannot be converted" in str(exc).lower() else "invalid_filter"
+            return _fail(code, str(exc))
+
+        # Column resolution.
+        source_fk_col = source_binding.property_mappings.get(source_fk)
+        if source_fk_col is None:
+            return _fail(
+                "fk_property_not_in_contract",
+                f"source_fk_property '{source_fk}' is not in binding "
+                f"property_mappings for '{source_ot}'",
+            )
+        target_pk_col = target_binding.property_mappings.get(target_pk)
+        if target_pk_col is None:
+            return _fail(
+                "fk_property_not_in_contract",
+                f"target_pk_property '{target_pk}' is not in binding "
+                f"property_mappings for '{target_ot}'",
+            )
+
+        # Dataset resolution.
+        try:
+            source_dataset, source_file = _resolve_dataset_and_path(
+                db, source_binding, group_id, project_id, source_ot,
+            )
+        except ValueError as exc:
+            code = "cross_package_traversal" if "does not belong" in str(exc).lower() else "dataset_not_ready"
+            return _fail(code, str(exc))
+        try:
+            target_dataset, target_file = _resolve_dataset_and_path(
+                db, target_binding, group_id, project_id, target_ot,
+            )
+        except ValueError as exc:
+            code = "cross_package_traversal" if "does not belong" in str(exc).lower() else "dataset_not_ready"
+            return _fail(code, str(exc))
+
+        audit_dataset_ids.extend([source_dataset.id, target_dataset.id])
+
+        # Build explain metadata. No data values, no paths.
+        audit_field_names = [
+            f"{source_ot}__{f}" for f in source_fields
+        ] + [
+            f"{target_ot}__{f}" for f in target_fields
+        ]
+        audit_filter_names = [
+            f"{source_ot}__{f}" for f in filter_field_names
+        ]
+
+        explain: dict[str, Any] = {
+            "package_id": pkg.id,
+            "package_version": pkg.version,
+            "package_semantic_hash": ctx["semantic_hash"],
+            "path": path,
+            "hops": [
+                {
+                    "hop_index": 0,
+                    "link_type_api_name": link.get("api_name", ""),
+                    "source_object_type": source_ot,
+                    "target_object_type": target_ot,
+                    "cardinality": link.get("cardinality", ""),
+                    "source_binding_id": source_binding.id,
+                    "target_binding_id": target_binding.id,
+                    "source_dataset_id": source_dataset.id,
+                    "target_dataset_id": target_dataset.id,
+                    "source_fk_property": source_fk,
+                    "target_pk_property": target_pk,
+                    "source_fk_column": source_fk_col,
+                    "target_pk_column": target_pk_col,
+                }
+            ],
+            "selected_fields_by_ot": {
+                source_ot: source_fields,
+                target_ot: target_fields,
+            },
+            "filter_field_names_by_ot": {source_ot: filter_field_names},
+            "limit": limit,
+            "offset": offset,
+        }
+
+        if explain_only:
+            _record_audit(
+                db,
+                **audit_base,
+                field_names=audit_field_names,
+                filter_field_names=audit_filter_names,
+                link_type_api_names=audit_link_type_api_names,
+                binding_ids=audit_binding_ids,
+                dataset_ids=audit_dataset_ids,
+                outcome="success",
+                row_count=0,
+            )
+            db.commit()
+            return {"rows": [], "row_count": None, "explain": explain}
+
+        # Read datasets.
+        settings = get_settings()
+        scan_limit = settings.dataset_max_scan_rows
+
+        try:
+            source_header, source_rows, source_scanned, source_truncated = (
+                _read_dataset_rows(
+                    source_file, source_dataset.file_format, max_rows=scan_limit,
+                )
+            )
+        except Exception:
+            return _fail("read_error",
+                          f"Failed to read source dataset for '{source_ot}'")
+        try:
+            target_header, target_rows, target_scanned, target_truncated = (
+                _read_dataset_rows(
+                    target_file, target_dataset.file_format, max_rows=scan_limit,
+                )
+            )
+        except Exception:
+            return _fail("read_error",
+                          f"Failed to read target dataset for '{target_ot}'")
+
+        source_col_idx = {name: i for i, name in enumerate(source_header)}
+        target_col_idx = {name: i for i, name in enumerate(target_header)}
+        if source_fk_col not in source_col_idx:
+            return _fail(
+                "no_matching_column",
+                f"FK column '{source_fk_col}' not found in source dataset "
+                f"'{source_ot}'",
+            )
+        if target_pk_col not in target_col_idx:
+            return _fail(
+                "no_matching_column",
+                f"PK column '{target_pk_col}' not found in target dataset "
+                f"'{target_ot}'",
+            )
+
+        target_index, target_type_errors = _build_target_index(
+            target_rows,
+            target_col_idx,
+            target_pk_col,
+            target_pk,
+            target_fields,
+            target_binding,
+            target_ot,
+            prop_map,
+        )
+        matched, source_type_errors = _join_source_rows(
+            source_rows,
+            source_col_idx,
+            source_fk_col,
+            source_fk,
+            source_fields,
+            source_binding,
+            source_ot,
+            target_ot,
+            target_index,
+            converted_filters,
+            filter_field_names,
+            prop_map,
+        )
+
+        paged = matched[offset : offset + limit]
+        explain["scanned_rows"] = {
+            source_ot: source_scanned,
+            target_ot: target_scanned,
+        }
+        explain["scan_limit"] = scan_limit
+        explain["scan_truncated"] = {
+            source_ot: source_truncated,
+            target_ot: target_truncated,
+        }
+        explain["matched_before_paging"] = len(matched)
+
+        response: dict[str, Any] = {
+            "rows": paged,
+            "row_count": len(paged),
+            "explain": explain,
+        }
+
+        type_errors = source_type_errors + target_type_errors
+        if type_errors:
+            response["type_errors"] = type_errors
+            response["row_count"] = None
+
+        # Audit must succeed before returning.
+        final_outcome = (
+            "failure" if type_errors
+            else "empty" if len(paged) == 0
+            else "success"
+        )
+        _record_audit(
+            db,
+            **audit_base,
+            field_names=audit_field_names,
+            filter_field_names=audit_filter_names,
+            link_type_api_names=audit_link_type_api_names,
+            binding_ids=audit_binding_ids,
+            dataset_ids=audit_dataset_ids,
+            outcome=final_outcome,
+            row_count=len(paged) if not type_errors else None,
+            error_code=_sanitized_code("type_conversion") if type_errors else None,
+            error_summary=(
+                f"{len(type_errors)} type conversion error(s)"
+                if type_errors else None
+            ),
+        )
+        db.commit()
+
+        return response
+
+    # Two-hop path (R2F): chain OT0 -> OT1 -> OT2.
+
+
+    ots = path  # [ot0, ot1, ot2]
+    hops_pairs = [(ots[0], ots[1]), (ots[1], ots[2])]
+
+    # Resolve links for both hops.
+    links: list[dict] = []
+    for src_ot, tgt_ot in hops_pairs:
+        try:
+            lk = _resolve_link(ctx, src_ot, tgt_ot)
+        except ValueError as exc:
+            msg = str(exc)
+            code = "ambiguous_link_type" if "ambiguous" in msg.lower() else "no_link_type"
+            return _fail(code, msg)
+        if not lk.get("source_fk_property"):
+            return _fail("fk_property_not_in_contract",
+                         f"Link '{lk.get('api_name', '?')}' has no source_fk_property")
+        if not lk.get("target_pk_property"):
+            return _fail("fk_property_not_in_contract",
+                         f"Link '{lk.get('api_name', '?')}' has no target_pk_property")
+        links.append(lk)
+
+    audit_link_type_api_names.extend(lk.get("api_name", "") for lk in links)
+
+    # Resolve bindings for all 3 OTs.
+    bindings: list[OntologyDatasetBinding] = []
+    for ot in ots:
+        try:
+            b = _resolve_binding(db, pkg.id, group_id, project_id, ot)
+        except ValueError as exc:
+            return _fail("no_binding_for_hop", str(exc))
+        bindings.append(b)
+
+    audit_binding_ids.extend(b.id for b in bindings)
+
+    # Validate fields per OT.  For intermediate OT (ots[1]) we must include
+    # the FK property of the *second* hop so it is available during the
+    # flat-dict join.
+    per_ot_fields: list[list[str]] = []
+    for i, ot in enumerate(ots):
+        requested = fields.get(ot) if fields else None
+        index_fields = list(requested) if requested else None
+        # Ensure the second-hop FK property is present in OT1's index fields
+        if i == 1:
+            fk2 = links[1].get("source_fk_property", "")
+            if fk2 and (index_fields is None or fk2 not in index_fields):
+                if index_fields is None:
+                    # Compute all valid fields, then ensure FK is included
+                    all_valid = _validate_ot_fields(ot, None, bindings[i], fields_by_ot)
+                    index_fields = list(dict.fromkeys(all_valid + [fk2]))
+                else:
+                    index_fields = list(dict.fromkeys(index_fields + [fk2]))
+        try:
+            ot_fields = _validate_ot_fields(ot, index_fields, bindings[i], fields_by_ot)
+        except ValueError as exc:
+            return _fail("invalid_fields", str(exc))
+        per_ot_fields.append(ot_fields)
+
+    # The *output* fields strip the join-only FK from OT1 (if user didn't request it).
+    output_fields: list[list[str]] = []
+    for i, ot in enumerate(ots):
+        requested = fields.get(ot) if fields else None
+        if requested:
+            output_fields.append([f for f in per_ot_fields[i] if f in requested])
+        else:
+            output_fields.append(list(per_ot_fields[i]))
+
+    # Root filters on path[0].
     try:
         filter_field_names, converted_filters = _validate_root_filters(
-            filters,
-            source_ot,
-            source_binding,
-            fields_by_ot,
-            prop_map,
+            filters, ots[0], bindings[0], fields_by_ot, prop_map,
         )
     except ValueError as exc:
         code = "type_conversion" if "cannot be converted" in str(exc).lower() else "invalid_filter"
         return _fail(code, str(exc))
 
-    # Column resolution.
-    source_fk_col = source_binding.property_mappings.get(source_fk)
-    if source_fk_col is None:
-        return _fail(
-            "fk_property_not_in_contract",
-            f"source_fk_property '{source_fk}' is not in binding "
-            f"property_mappings for '{source_ot}'",
-        )
-    target_pk_col = target_binding.property_mappings.get(target_pk)
-    if target_pk_col is None:
-        return _fail(
-            "fk_property_not_in_contract",
-            f"target_pk_property '{target_pk}' is not in binding "
-            f"property_mappings for '{target_ot}'",
-        )
+    # FK/PK column resolution per hop.
+    hop_fk_cols: list[str] = []
+    hop_pk_cols: list[str] = []
+    for i, lk in enumerate(links):
+        src_fk = lk["source_fk_property"]
+        tgt_pk = lk["target_pk_property"]
+        fk_col = bindings[i].property_mappings.get(src_fk)
+        pk_col = bindings[i + 1].property_mappings.get(tgt_pk)
+        if fk_col is None:
+            return _fail("fk_property_not_in_contract",
+                         f"FK property '{src_fk}' not in binding for '{ots[i]}'")
+        if pk_col is None:
+            return _fail("fk_property_not_in_contract",
+                         f"PK property '{tgt_pk}' not in binding for '{ots[i + 1]}'")
+        hop_fk_cols.append(fk_col)
+        hop_pk_cols.append(pk_col)
 
-    # Dataset resolution.
-    try:
-        source_dataset, source_file = _resolve_dataset_and_path(
-            db, source_binding, group_id, project_id, source_ot,
-        )
-    except ValueError as exc:
-        code = "cross_package_traversal" if "does not belong" in str(exc).lower() else "dataset_not_ready"
-        return _fail(code, str(exc))
-    try:
-        target_dataset, target_file = _resolve_dataset_and_path(
-            db, target_binding, group_id, project_id, target_ot,
-        )
-    except ValueError as exc:
-        code = "cross_package_traversal" if "does not belong" in str(exc).lower() else "dataset_not_ready"
-        return _fail(code, str(exc))
+    # Resolve datasets for all 3 OTs.
+    datasets: list[DatasetAsset] = []
+    files: list[str] = []
+    for i, ot in enumerate(ots):
+        try:
+            ds, fp = _resolve_dataset_and_path(db, bindings[i], group_id, project_id, ot)
+        except ValueError as exc:
+            code = "cross_package_traversal" if "does not belong" in str(exc).lower() else "dataset_not_ready"
+            return _fail(code, str(exc))
+        datasets.append(ds)
+        files.append(fp)
 
-    audit_dataset_ids.extend([source_dataset.id, target_dataset.id])
+    audit_dataset_ids.extend(d.id for d in datasets)
 
-    # Build explain metadata. No data values, no paths.
-    # Flat prefixed field names for audit
-    audit_field_names = [
-        f"{source_ot}__{f}" for f in source_fields
-    ] + [
-        f"{target_ot}__{f}" for f in target_fields
-    ]
-    audit_filter_names = [
-        f"{source_ot}__{f}" for f in filter_field_names
-    ]
+    # Build explain.
+    explain_hops: list[dict] = []
+    for i, lk in enumerate(links):
+        explain_hops.append({
+            "hop_index": i,
+            "link_type_api_name": lk.get("api_name", ""),
+            "source_object_type": ots[i],
+            "target_object_type": ots[i + 1],
+            "cardinality": lk.get("cardinality", ""),
+            "source_binding_id": bindings[i].id,
+            "target_binding_id": bindings[i + 1].id,
+            "source_dataset_id": datasets[i].id,
+            "target_dataset_id": datasets[i + 1].id,
+            "source_fk_property": lk.get("source_fk_property", ""),
+            "target_pk_property": lk.get("target_pk_property", ""),
+            "source_fk_column": hop_fk_cols[i],
+            "target_pk_column": hop_pk_cols[i],
+        })
+
+    # Flat prefixed audit field/filter names.
+    audit_field_names = []
+    for i, ot in enumerate(ots):
+        audit_field_names.extend(f"{ot}__{f}" for f in output_fields[i])
+    audit_filter_names = [f"{ots[0]}__{f}" for f in filter_field_names]
 
     explain: dict[str, Any] = {
         "package_id": pkg.id,
         "package_version": pkg.version,
         "package_semantic_hash": ctx["semantic_hash"],
         "path": path,
-        "hops": [
-            {
-                "hop_index": 0,
-                "link_type_api_name": link.get("api_name", ""),
-                "source_object_type": source_ot,
-                "target_object_type": target_ot,
-                "cardinality": link.get("cardinality", ""),
-                "source_binding_id": source_binding.id,
-                "target_binding_id": target_binding.id,
-                "source_dataset_id": source_dataset.id,
-                "target_dataset_id": target_dataset.id,
-                "source_fk_property": source_fk,
-                "target_pk_property": target_pk,
-                "source_fk_column": source_fk_col,
-                "target_pk_column": target_pk_col,
-            }
-        ],
+        "hops": explain_hops,
         "selected_fields_by_ot": {
-            source_ot: source_fields,
-            target_ot: target_fields,
+            ot: output_fields[i] for i, ot in enumerate(ots)
         },
-        "filter_field_names_by_ot": {source_ot: filter_field_names},
+        "filter_field_names_by_ot": {ots[0]: filter_field_names},
         "limit": limit,
         "offset": offset,
     }
@@ -291,80 +566,84 @@ def execute_traversal(
         db.commit()
         return {"rows": [], "row_count": None, "explain": explain}
 
-    # Read datasets.
+    # Read all datasets.
     settings = get_settings()
     scan_limit = settings.dataset_max_scan_rows
 
-    try:
-        source_header, source_rows, source_scanned, source_truncated = (
-            _read_dataset_rows(
-                source_file, source_dataset.file_format, max_rows=scan_limit,
+    all_headers: list[list[str]] = []
+    all_rows_raw: list[list[list[str | None]]] = []
+    all_scanned: list[int] = []
+    all_truncated: list[bool] = []
+    all_type_errors: list[dict] = []
+
+    for i, ot in enumerate(ots):
+        try:
+            hdr, rows, sc, tr = _read_dataset_rows(
+                files[i], datasets[i].file_format, max_rows=scan_limit,
             )
-        )
-    except Exception:
-        return _fail("read_error",
-                      f"Failed to read source dataset for '{source_ot}'")
-    try:
-        target_header, target_rows, target_scanned, target_truncated = (
-            _read_dataset_rows(
-                target_file, target_dataset.file_format, max_rows=scan_limit,
-            )
-        )
-    except Exception:
-        return _fail("read_error",
-                      f"Failed to read target dataset for '{target_ot}'")
+        except Exception:
+            return _fail("read_error",
+                          f"Failed to read dataset for '{ot}'")
+        all_headers.append(hdr)
+        all_rows_raw.append(rows)
+        all_scanned.append(sc)
+        all_truncated.append(tr)
 
-    source_col_idx = {name: i for i, name in enumerate(source_header)}
-    target_col_idx = {name: i for i, name in enumerate(target_header)}
-    if source_fk_col not in source_col_idx:
-        return _fail(
-            "no_matching_column",
-            f"FK column '{source_fk_col}' not found in source dataset "
-            f"'{source_ot}'",
-        )
-    if target_pk_col not in target_col_idx:
-        return _fail(
-            "no_matching_column",
-            f"PK column '{target_pk_col}' not found in target dataset "
-            f"'{target_ot}'",
-        )
+    # Column index helpers.
+    col_indices = [{name: i for i, name in enumerate(hdr)} for hdr in all_headers]
 
-    target_index, target_type_errors = _build_target_index(
-        target_rows,
-        target_col_idx,
-        target_pk_col,
-        target_pk,
-        target_fields,
-        target_binding,
-        target_ot,
-        prop_map,
+    for i, (fk_col, ot) in enumerate(zip(hop_fk_cols, ots)):
+        if fk_col not in col_indices[i]:
+            return _fail("no_matching_column",
+                         f"FK column '{fk_col}' not found in dataset for '{ot}'")
+    for i, (pk_col, ot) in enumerate(zip(hop_pk_cols, ots[1:])):
+        if pk_col not in col_indices[i + 1]:
+            return _fail("no_matching_column",
+                         f"PK column '{pk_col}' not found in dataset for '{ot}'")
+
+    # Hop 0: build target index on OT1, join OT0 -> OT1 (raw rows).
+    idx1, te1 = _build_target_index(
+        all_rows_raw[1], col_indices[1],
+        hop_pk_cols[0], links[0]["target_pk_property"],
+        per_ot_fields[1], bindings[1], ots[1], prop_map,
     )
-    matched, source_type_errors = _join_source_rows(
-        source_rows,
-        source_col_idx,
-        source_fk_col,
-        source_fk,
-        source_fields,
-        source_binding,
-        source_ot,
-        target_ot,
-        target_index,
-        converted_filters,
-        filter_field_names,
-        prop_map,
+    all_type_errors.extend(te1)
+
+    intermediate, te0 = _join_source_rows(
+        all_rows_raw[0], col_indices[0],
+        hop_fk_cols[0], links[0]["source_fk_property"],
+        per_ot_fields[0], bindings[0], ots[0], ots[1],
+        idx1, converted_filters, filter_field_names, prop_map,
+    )
+    all_type_errors.extend(te0)
+
+    # Hop 1: build target index on OT2, join intermediate -> OT2.
+    idx2, te2 = _build_target_index(
+        all_rows_raw[2], col_indices[2],
+        hop_pk_cols[1], links[1]["target_pk_property"],
+        per_ot_fields[2], bindings[2], ots[2], prop_map,
+    )
+    all_type_errors.extend(te2)
+
+    final_rows = _join_flat_rows(
+        intermediate, ots[1], links[1]["source_fk_property"],
+        idx2, ots[2],
     )
 
-    paged = matched[offset : offset + limit]
-    explain["scanned_rows"] = {
-        source_ot: source_scanned,
-        target_ot: target_scanned,
-    }
+    # Strip join-only fields: only keep output_fields for each OT.
+    keep_keys: set[str] = set()
+    for i, ot in enumerate(ots):
+        keep_keys.update(f"{ot}__{f}" for f in output_fields[i])
+    final_rows = [
+        {k: v for k, v in row.items() if k in keep_keys}
+        for row in final_rows
+    ]
+
+    paged = final_rows[offset : offset + limit]
+    explain["scanned_rows"] = {ot: all_scanned[i] for i, ot in enumerate(ots)}
     explain["scan_limit"] = scan_limit
-    explain["scan_truncated"] = {
-        source_ot: source_truncated,
-        target_ot: target_truncated,
-    }
-    explain["matched_before_paging"] = len(matched)
+    explain["scan_truncated"] = {ot: all_truncated[i] for i, ot in enumerate(ots)}
+    explain["matched_before_paging"] = len(final_rows)
 
     response: dict[str, Any] = {
         "rows": paged,
@@ -372,14 +651,12 @@ def execute_traversal(
         "explain": explain,
     }
 
-    type_errors = source_type_errors + target_type_errors
-    if type_errors:
-        response["type_errors"] = type_errors
+    if all_type_errors:
+        response["type_errors"] = all_type_errors
         response["row_count"] = None
 
-    # Audit must succeed before returning.
     final_outcome = (
-        "failure" if type_errors
+        "failure" if all_type_errors
         else "empty" if len(paged) == 0
         else "success"
     )
@@ -392,11 +669,11 @@ def execute_traversal(
         binding_ids=audit_binding_ids,
         dataset_ids=audit_dataset_ids,
         outcome=final_outcome,
-        row_count=len(paged) if not type_errors else None,
-        error_code=_sanitized_code("type_conversion") if type_errors else None,
+        row_count=len(paged) if not all_type_errors else None,
+        error_code=_sanitized_code("type_conversion") if all_type_errors else None,
         error_summary=(
-            f"{len(type_errors)} type conversion error(s)"
-            if type_errors else None
+            f"{len(all_type_errors)} type conversion error(s)"
+            if all_type_errors else None
         ),
     )
     db.commit()
@@ -614,6 +891,36 @@ def _join_source_rows(
             matched.append(flat)
 
     return matched, type_errors
+
+
+def _join_flat_rows(
+    source_dicts: list[dict[str, Any]],
+    source_ot: str,
+    source_fk_property: str,
+    target_index: dict[Any, list[dict[str, Any]]],
+    target_ot: str,
+) -> list[dict[str, Any]]:
+    """Join pre-joined flat dicts against a target PK index (hop N > 0).
+
+    Each source dict already contains {source_ot}__{prop} and earlier-OT
+    prefixed keys.  The FK value is extracted from the source-OT prefixed
+    key matching source_fk_property.
+    """
+    matched: list[dict[str, Any]] = []
+    fk_key = f"{source_ot}__{source_fk_property}"
+
+    for row in source_dicts:
+        fk_value = row.get(fk_key)
+        if fk_value is None:
+            continue
+        for target_row in target_index.get(fk_value, []):
+            merged = dict(row)
+            merged.update(
+                {f"{target_ot}__{f}": v for f, v in target_row.items()}
+            )
+            matched.append(merged)
+
+    return matched
 
 
 def _convert_row_fields(
