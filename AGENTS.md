@@ -27,7 +27,7 @@ Load additional context only when the task matches:
 
 - Product or roadmap: `PRODUCT.md`, `docs/product-alignment-prd.md`, `docs/project-roadmap.md`.
 - Phase closeout or handoff: `docs/agent-handoff.md` and the relevant latest engineering-memory entry.
-- Architecture, call-chain, route, symbol, or impact analysis: use `codebase-memory-mcp` first when available; project name is `F-semantic-lighthouse`.
+- Code structure, architecture, symbol, call-chain, route, or impact analysis: use the current project's configured `codebase-memory-mcp` first. Call `list_projects`; use the returned project name that matches this repo as authoritative. Use `rg` for ordinary text search, exact-string search, non-code files, and fallback when the MCP tool is unavailable.
 - Backend/API/auth/group isolation/migrations/RAG/Ontology: relevant `src/`, `tests/`, `alembic/`, and phase docs.
 - Frontend: relevant `static/js/`, `static/styles.css`, `docs/frontend-f2-planning.md`, and `docs/frontend-redesign-plan.md`.
 - Deployment/cloud: `docs/cloud-smoke-playbook.md`, `docs/deployment-v3-cloud.md`, Docker files, and deployment scripts.
@@ -39,6 +39,7 @@ Load additional context only when the task matches:
 - Agent behavior is a controlled coordination layer. Backend services own permission checks, status transitions, hash checks, CRUD, and audit writes.
 - Write-like Agent/action behavior includes role authorization, server-side group scope, audit/provenance, and user confirmation before the write.
 - MCP is a future Agent-facing adapter candidate. Runtime MCP work starts only after a dedicated Safety Lane phase approves scope, SDK/dependency, identity, group authorization, audit, provenance, and HITL boundaries.
+- `codebase-memory-mcp` is a development exploration tool only. It does not authorize or imply product runtime MCP.
 - Runtime data exposure stays bounded: provenance can explain source objects, while storage paths, raw secrets, and unreviewed external data stay out of responses and artifacts.
 - Phase 19 offline ontology artifacts represent JSON/markdown output scope only; DB-backed governance feedback and AdventureWorks support require separate delivery records.
 

@@ -9,16 +9,10 @@ When Claude Code leaves `@import` as literal text, read `AGENTS.md`, then read i
 ## Claude-Specific Context Budget
 
 - Start with built-in file, shell, git, and search tools.
-- Enable extra MCP servers only for the task that needs them, then return to the minimal surface.
-- `codebase-memory-mcp` is the approved developer code-graph exception for architecture, symbols, routes, call chains, impact analysis, and snippets. Project name: `F-semantic-lighthouse`.
-- Product MCP runtime remains governed by `AGENTS.md` and `docs/project-status.toml`.
-
-## Claude Local MCP Notes
-
-- Session allowlist lives in `.claude/settings.local.json`.
-- Add a server name to `enabledMcpjsonServers` only for the current task.
-- Restore `"enabledMcpjsonServers": []` after the task when the extra server leaves the active scope.
-- Keep personal account handles, instance IDs, tokens, cookies, and keys out of committed settings and docs.
+- Use the current project's configured `codebase-memory-mcp` per `AGENTS.md` for code structure, architecture, symbols, routes, call chains, impact analysis, and snippets.
+- Treat the project name returned by `list_projects` as authoritative.
+- Use `rg` for ordinary text search, exact-string search, non-code files, and fallback when the MCP tool is unavailable.
+- Product runtime MCP remains governed by `AGENTS.md` and `docs/project-status.toml`.
 
 ## Default Handoff
 
