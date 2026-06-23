@@ -1,5 +1,17 @@
 # Highlight Log
 
+## R2 Relationship Runtime Query — Four-Chain Route Closed The Relationship Gap
+
+- Date: 2026-06-23
+- Version: R2A–R2F (closeout)
+- Type: implementation
+- Context: The Palantir Ontology gap analysis identified four chains: object, action, permission, and relationship. The project was strong on object/permission but had no runtime relationship traversal. R1 extracted the query core; R2 built the missing relationship chain on top of it.
+- What happened: Delivered the full R2 chain in six slices over one session. R2B extended the compiled business contract with FK/PK property annotations on link_types. R2C built `execute_traversal()` — a single-hop hash join over CSV/XLSX datasets using the compiled link_map for FK/PK column resolution through binding.property_mappings. R2D added `POST /runtime/traverse` with Pydantic schemas, member+ permission wiring, and group/project isolation. R2E added immutable audit (migration 0029: 5 nullable columns) with fail-closed semantics mirroring `execute_query()`. R2F generalized to two-hop chaining via `_join_flat_rows()`. All 63 tests pass; 11 existing runtime audit tests show zero regression.
+- Engineering judgment: Relationship traversal does NOT require a graph database. The existing compiled business contract (`link_types[]`) plus deterministic hash joins over CSV/XLSX produce correct, auditable, permission-bounded traversal without Neo4j, Graph RAG, SQL DSL, or Agent writeback. The key insight: FK/PK column resolution through `binding.property_mappings` (already proven in single-object queries) generalizes cleanly to cross-dataset joins. The flat `{ot}__{field}` output convention avoids the complexity of nested response shapes while remaining forward-compatible.
+- Risk if ignored: Without R2, the project has a "read-only object catalog" instead of an ontology operating layer — objects are queryable but relationships between them are invisible at runtime. The four-chain gap analysis would remain an academic critique without measurable closure.
+- Fix or control: R2 is bounded: max 2 hops, root filters only, flat output, no aggregation/sorting. These are deferred to R3+ candidates. The delivered scope proves the relationship chain is real and auditable without overbuilding infrastructure.
+- Verification: 63 traverse tests + 11 existing audit tests, ruff clean, doc alignment PASS, git diff --check clean, migration 0029 at head. Detailed design in `docs/r2-relationship-runtime-query-planning.md`.
+
 ## Four-Chain Ontology Route Beats Graph-Database Drift
 
 - Date: 2026-06-23

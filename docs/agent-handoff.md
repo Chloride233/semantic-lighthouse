@@ -679,6 +679,19 @@ No circular imports. All backward-compatible re-exports preserved.
 - All group/project/package isolation enforced per-OT.
 - Audit covers full path, all hops, all bindings, all datasets.
 
+## R2 Closeout Review
+
+**Status**: Complete (2026-06-23). **Lane**: Standard.
+
+R2A-R2F are closed end-to-end: contract link_type FK/PK context, 1-2 hop
+runtime traversal, REST API, audit/provenance, migration 0029, and closeout
+documentation are aligned. Active docs no longer describe R2 as single-hop only.
+
+Validation remains targeted: 63 traversal tests, 11 existing runtime audit tests,
+ruff on changed runtime files, doc alignment, and `git diff --check`.
+
+Next gate is an explicit R3 planning decision, not automatic feature expansion.
+
 ---
 
 ## R2B — Contract Context Extension

@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R2F multi-hop traversal delivered"
-description = "R2F complete. execute_traversal generalized to support 2 or 3 object_types (1-2 hops). Two-hop chain: resolve all links/bindings/datasets upfront, hash-join OT0→OT1 (raw rows) then intermediate→OT2 (flat dicts via _join_flat_rows). Root filters on path[0], field whitelist per OT, limit/offset after full join. explain.hops contains N entries. audit.path/hop_count/link_type_api_names/binding_ids/dataset_ids cover full path. 11 two-hop tests + 52 existing = 63 total. No DB migration needed."
+current = "R2 closeout complete"
+description = "R2 Relationship Runtime Query closeout complete. R2A-R2F delivered contract link_type FK/PK context, 1-2 hop hash-join traversal, POST /runtime/traverse API, immutable audit/provenance, and migration 0029. Boundaries preserved: max 2 hops, root filters only, flat output, member+ permission, group/project/package isolation, no SQL/DSL/Graph RAG/MCP/Agent/action writeback. 63 traverse tests and 11 existing runtime audit tests pass."
 
 [next_decision_gate]
-name = "R2 closeout / R3 planning"
-description = "R2 (1-hop + 2-hop traversal) delivered end-to-end. Next candidates: R3 nested response shape, bidirectional traversal, filter pushdown, aggregation, sorting; or pivot to Phase 20+ ontology governance, AdventureWorks benchmark, or frontend enhancements."
+name = "R3 planning decision"
+description = "Choose next direction: R3 runtime query enhancements (nested/grouped response, bidirectional traversal, filter pushdown, aggregation, sorting), Phase 20+ ontology governance, AdventureWorks benchmark, or frontend/product polish."
 
 [mcp]
 runtime_status = "not started"

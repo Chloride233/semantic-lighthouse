@@ -17,7 +17,7 @@
 | V3.3 | RAG run audit persistence, group-scoped replay | Stable |
 | V3.4 | Async ETL pipeline, structure-aware chunking, ingestion jobs, HNSW | Stable (hardened) |
 
-**Metrics**: 749 non-E2E pytest passed, ruff clean, alembic `0023` at head (2026-06-20). Production safety checks delivered (APP_ENV, JWT/cookie/database validation).
+**Metrics**: 848 non-E2E pytest passed, ruff clean, alembic `0029` at head (2026-06-23). Production safety checks delivered (APP_ENV, JWT/cookie/database validation). R2 relationship traversal (1–2 hop) delivered with audit/provenance.
 
 ---
 
@@ -389,6 +389,31 @@ See `docs/phase18-planning.md`. Closeout review passed 2026-06-21: 28/28 Postgre
 | 18.5 | Closeout review | ✅ Complete: 8 gates PASS, smoke rerun confirmed, docs aligned. |
 
 **Out of scope**: Cloud resource creation, image push, real API keys, real data, frontend, MCP, Graph RAG, Kubernetes, HTTPS, CI/CD.
+
+---
+
+## R2: Relationship Runtime Query ← COMPLETE (2026-06-23)
+
+**Goal**: Close the relationship chain gap — make package-declared link_types traversable at runtime with the same permission/isolation/audit discipline as single-object queries.
+
+Six slices delivered end-to-end:
+
+| Slice | Scope | Tests |
+|-------|-------|-------|
+| R2A | Planning and design (docs only) | 0 |
+| R2B | Contract context — link_type FK/PK resolution in `_build_contract_context` | 9 |
+| R2C | Traversal core — single-hop hash join via `execute_traversal()` | 25 |
+| R2D | Router + API — `POST /runtime/traverse` with schemas, permissions, isolation | 17 |
+| R2E | Audit + provenance — migration 0029, fail-closed audit, 5 new nullable columns | 10 |
+| R2F | Multi-hop — two-hop hash join chaining, 3-OT paths | 11 |
+
+**Total**: 63 traverse-specific tests + 11 existing audit = all pass. Migration `0029` at head.
+
+**Key design decisions**: Flat `{ot}__{field}` output, filter-before-traversal (root OT only), max 2 hops, member+ permission, no SQL/DSL/Graph RAG/Agent/action writeback. See `docs/r2-relationship-runtime-query-planning.md`.
+
+**R2 closeout**: 2026-06-23 — all boundaries preserved, no code regressions, docs consistent.
+
+**Next candidates (R3+)**: nested/grouped response shape, bidirectional traversal, filter pushdown on intermediate OTs, aggregation, sorting, FK indexing for large datasets.
 
 ---
 

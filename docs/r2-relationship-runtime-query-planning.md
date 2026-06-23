@@ -1,8 +1,8 @@
 # R2 Relationship Runtime Query Planning
 
-Status: R2A planning + R2B contract context + R2C traversal core delivered, 2026-06-23.
-Lane: R2A Safety (design); R2B+R2C Standard (compiler/validator/context + traversal service, no DB/API).
-Scope: R2A design + R2B compiler/validator/context + R2C single-hop hash join traversal. No router, no endpoint, no migration.
+Status: R2A–R2F delivered (closeout), 2026-06-23.
+Lane: R2A Safety (design); R2B–R2D Standard; R2E–R2F Safety.
+Scope: Full R2 delivery chain complete — contract link_type FK/PK context, single-hop + two-hop hash join traversal, REST API endpoint, immutable audit/provenance, migration 0029.
 
 Canonical state remains `docs/project-status.toml`.
 

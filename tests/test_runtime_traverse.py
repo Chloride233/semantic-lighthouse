@@ -1,9 +1,11 @@
-"""Tests for R2C runtime relationship traversal core.
+"""Tests for R2C-R2F runtime relationship traversal.
 
-Covers: single-hop hash join, FK/PK column resolution, field whitelist,
-root filters, limit/offset, explain_only, error cases (no link_type,
-no binding, no FK column, missing FK/PK annotation, path length),
-provenance safety (no storage_path, no FK values, no filter values).
+Covers: single-hop + two-hop hash join, FK/PK column resolution, field
+whitelist, root filters, limit/offset, explain_only, error cases
+(no link_type, no binding, no FK column, missing FK/PK annotation,
+path length), provenance safety (no storage_path, no FK values, no
+filter values), router permissions/isolation, audit (success/empty/
+failure/explain_only/provenance/fail-closed), multi-hop chaining.
 """
 
 from __future__ import annotations
