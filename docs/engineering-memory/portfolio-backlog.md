@@ -85,8 +85,7 @@ Documents/Data → Dataset Profiling → Modeling Drafts → Human Review (accep
 
 ## Current Portfolio Workflow
 
-ECC has been removed from the local workflow. Future portfolio work should use
-the normal CC/Codex handoff pattern:
+Portfolio work uses the normal CC/Codex handoff pattern:
 
 1. Read `docs/project-status.toml`, `docs/agent-handoff.md`, and the target
    portfolio document.
