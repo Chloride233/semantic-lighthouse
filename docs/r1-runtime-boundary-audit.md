@@ -207,6 +207,8 @@ R1D remains worthwhile because query-core extraction prepares the runtime for
 the next high-value product capability: limited relationship traversal over
 package-declared links.
 
+R1B, R1C, and R1D are complete. R1E binding/activation extraction remains optional (no maintainability pressure detected). R1 refactor is closed — next capability work is R2 relationship runtime query.
+
 After R1D, do not keep refactoring by default. Use
 `docs/palantir-ontology-four-chain-gap-analysis.md` as the route check:
 

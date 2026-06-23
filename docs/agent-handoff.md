@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-22 (frontend visual closeout accepted)
+Last updated: 2026-06-23 (R2A relationship runtime query planning delivered)
 
 ## State Source
 
@@ -560,12 +560,47 @@ No circular imports. All backward-compatible re-exports preserved.
 - No action writeback before a separate HITL/audit design.
 - No Agent/MCP write path.
 
+## R2A — Relationship Runtime Query Planning
+
+**Status**: Delivered (2026-06-23). **Lane**: Safety, design only.
+
+### Changes
+
+- `docs/r2-relationship-runtime-query-planning.md` (new): Complete R2 v1 design covering all 8 required questions. Key decisions: new `POST /runtime/traverse` endpoint (not extending `/runtime/query`), flat joined response with `{ot}__{prop}` prefix convention, declarative path model (ordered object_type list), filter-before-traversal semantics (filters only on root OT in v1), max 2 hops, per-hop group/project/package isolation, extended audit fields (path, hop_count, link_type_api_names, binding_ids, dataset_ids).
+- `docs/project-status.toml`: Focus updated to R2A delivered, next gate R2B.
+- `docs/r1-runtime-boundary-audit.md`: Added R1 closure note.
+- `docs/agent-handoff.md`: This entry.
+
+### Core Design Conclusions
+
+1. **Relationship info lives in compiled business contract `link_types`** — validated, versioned, but NOT extracted into runtime context today (`_build_contract_context` omits link_types).
+2. **Existing runtime binding is insufficient** — one binding = one OT → one dataset, no FK column concept, no cross-dataset capability.
+3. **R2 v1 minimum query**: `POST /runtime/traverse` with `{"path": ["equipment", "equipment_maintenance"], "fields": {...}, "filters": {...}}`.
+4. **Key prerequisite for R2B**: link_type entity must be extended with `source_fk_property` and `target_pk_property` to enable FK/PK column resolution through bindings.
+5. **Implementation slices**: R2B (contract context) → R2C (traversal core) → R2D (router) → R2E (audit) → R2F (multi-hop).
+
+### Boundaries
+
+- No code, no migrations, no API changes, no frontend.
+- No Neo4j / graph database / Graph RAG.
+- No action writeback or Agent/MCP tool exposure.
+- No cross-package or cross-project traversal.
+
+### R2B Readiness
+
+R2B can begin implementation immediately:
+- Scope is narrow: extend `_build_contract_context` + compiler `LINK_FIELDS` + validator `_validate_link_type`.
+- No migration, no runtime traversal logic yet.
+- Existing test infrastructure (94 runtime tests) provides regression safety net.
+- Risk: FK property annotation requires ontology draft schema awareness (Phase 20 follow-up). For R2B, the compiler extension is mechanical — add fields to the compiled output, validate they reference real properties.
+
 ## Next Decision Gate
 
-**R1D complete**: R1 refactor is done. Next: R2 relationship runtime query
-planning — limited package-declared relationship traversal using the extracted
-query core. R1E binding/activation extraction remains optional (no maintainability
-pressure detected).
+**R2A complete**: Relationship runtime query design is documented. Next: R2B
+contract context extension — add link_types to `_build_contract_context()`,
+extend `LINK_FIELDS` for FK/PK properties, update validator. R1E
+binding/activation extraction remains optional (no maintainability pressure
+detected).
 
 ## Phase 15 Delivery Summary
 
