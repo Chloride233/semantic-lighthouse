@@ -1032,3 +1032,69 @@ class PilotOutcomeSummaryResponse(BaseModel):
     decision_summary: str = ""
     risks: list[str] = Field(default_factory=list)
     next_actions: list[str] = Field(default_factory=list)
+
+
+# R2D: runtime relationship traversal.
+
+
+class RuntimeTraverseRequest(BaseModel):
+    """Declarative path traversal over bound dataset Object Types.
+
+    Single-hop only in v1 (path exactly 2 OTs). Filters are per-OT;
+    only root OT filters applied (filter-before-traversal semantics).
+    No SQL, no DSL, no expression strings.
+    """
+
+    path: list[str] = Field(..., min_length=2, max_length=2)
+    fields: dict[str, list[str]] | None = Field(default=None)
+    filters: dict[str, dict[str, str | int | float | bool | None]] | None = Field(
+        default=None,
+    )
+    limit: int = Field(default=20, ge=1, le=100)
+    offset: int = Field(default=0, ge=0, le=10000)
+    explain_only: bool = Field(default=False)
+
+
+class HopExplain(BaseModel):
+    """Per-hop explain detail: metadata only, never data values."""
+
+    hop_index: int
+    link_type_api_name: str
+    source_object_type: str
+    target_object_type: str
+    cardinality: str
+    source_binding_id: str
+    target_binding_id: str
+    source_dataset_id: str
+    target_dataset_id: str
+    source_fk_property: str
+    target_pk_property: str
+    source_fk_column: str = ""
+    target_pk_column: str = ""
+
+
+class TraverseExplain(BaseModel):
+    """Traversal explain block: metadata only, never data values or paths."""
+
+    package_id: str
+    package_version: int
+    package_semantic_hash: str
+    path: list[str]
+    hops: list[HopExplain]
+    selected_fields_by_ot: dict[str, list[str]]
+    filter_field_names_by_ot: dict[str, list[str]]
+    limit: int
+    offset: int
+    scanned_rows: dict[str, int] | None = None
+    scan_limit: int | None = None
+    scan_truncated: dict[str, bool] | None = None
+    matched_before_paging: int | None = None
+
+
+class RuntimeTraverseResponse(BaseModel):
+    """Flat joined rows with {object_type}__{field} prefix convention."""
+
+    rows: list[dict]
+    row_count: int | None
+    explain: TraverseExplain
+    type_errors: list[dict] | None = None

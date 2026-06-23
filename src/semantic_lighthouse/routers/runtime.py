@@ -20,11 +20,16 @@ from semantic_lighthouse.dependencies import (
     require_group_role,
 )
 from semantic_lighthouse.models import User
+from semantic_lighthouse.schemas import (
+    RuntimeTraverseRequest,
+    RuntimeTraverseResponse,
+)
 from semantic_lighthouse.services.runtime import (
     activate_pilot,
     execute_query,
     generate_bindings,
 )
+from semantic_lighthouse.services.runtime_traverse import execute_traversal
 
 router = APIRouter(
     prefix="/groups/{group_id}/projects/{project_id}/runtime",
@@ -259,6 +264,83 @@ def query_runtime(
         )
 
     return RuntimeQueryResponse(**result)
+
+
+# POST /runtime/traverse: member+ read (single-hop traversal).
+
+
+@router.post("/traverse", response_model=RuntimeTraverseResponse)
+def traverse_runtime(
+    group_id: str,
+    project_id: str,
+    body: RuntimeTraverseRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> RuntimeTraverseResponse:
+    """Execute a single-hop relationship traversal over bound datasets.
+
+    Member+. Only package-declared link_types. No SQL, no DSL.
+    Filters only on root object_type in v1.
+    """
+    get_membership_or_404(db, current_user.id, group_id)
+
+    # Project must exist and be active
+    from semantic_lighthouse.models import BusinessProject
+
+    project = db.get(BusinessProject, project_id)
+    if project is None or project.group_id != group_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+    if project.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Project is archived",
+        )
+
+    # Extract root OT filters (filter-before-traversal semantics)
+    root_ot = body.path[0]
+    native_filters: dict[str, str | int | float | bool | None] | None = None
+    if body.filters:
+        non_root_filters = [ot for ot in body.filters if ot != root_ot]
+        if non_root_filters:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Traversal filters are only supported on the root object_type",
+            )
+        if root_ot in body.filters:
+            native_filters = dict(body.filters[root_ot])
+
+    try:
+        result = execute_traversal(
+            db,
+            group_id=group_id,
+            project_id=project_id,
+            path=body.path,
+            user_id=current_user.id,
+            fields=body.fields,
+            filters=native_filters,
+            limit=body.limit,
+            offset=body.offset,
+            explain_only=body.explain_only,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    if result.get("type_errors"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Type conversion errors in traversal results",
+                "type_errors": result["type_errors"],
+            },
+        )
+
+    return RuntimeTraverseResponse(**result)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -573,3 +573,498 @@ class TestTraverseExplainSafety:
         assert result["explain"]["package_semantic_hash"] == "sha256:abc123"
 
 
+# R2D integration tests: router-level FastAPI TestClient.
+
+
+def _mock_traverse_success(**overrides):
+    """Return a valid execute_traversal result dict for router tests."""
+    result = {
+        "rows": [
+            {
+                "equipment__name": "Pump-A",
+                "equipment__status": "active",
+                "maintenance__type": "preventive",
+                "maintenance__hours": 2.5,
+            },
+        ],
+        "row_count": 1,
+        "explain": {
+            "package_id": "pkg-test",
+            "package_version": 1,
+            "package_semantic_hash": "sha256:deadbeef",
+            "path": ["equipment", "maintenance"],
+            "hops": [
+                {
+                    "hop_index": 0,
+                    "link_type_api_name": "equipment_maintenance",
+                    "source_object_type": "equipment",
+                    "target_object_type": "maintenance",
+                    "cardinality": "one_to_many",
+                    "source_binding_id": "bind-src",
+                    "target_binding_id": "bind-tgt",
+                    "source_dataset_id": "ds-src",
+                    "target_dataset_id": "ds-tgt",
+                    "source_fk_property": "equipment_id",
+                    "target_pk_property": "equipment_fk",
+                    "source_fk_column": "eq_id",
+                    "target_pk_column": "equipment_id",
+                },
+            ],
+            "selected_fields_by_ot": {
+                "equipment": ["name", "status"],
+                "maintenance": ["type", "hours"],
+            },
+            "filter_field_names_by_ot": {"equipment": []},
+            "limit": 20,
+            "offset": 0,
+            "scanned_rows": {"equipment": 5, "maintenance": 20},
+            "scan_limit": 10000,
+            "scan_truncated": {"equipment": False, "maintenance": False},
+            "matched_before_paging": 1,
+        },
+    }
+    result.update(overrides)
+    return result
+
+
+def _mock_traverse_explain_only():
+    """Return an explain_only result."""
+    return {
+        "rows": [],
+        "row_count": None,
+        "explain": {
+            "package_id": "pkg-test",
+            "package_version": 1,
+            "package_semantic_hash": "sha256:deadbeef",
+            "path": ["equipment", "maintenance"],
+            "hops": [
+                {
+                    "hop_index": 0,
+                    "link_type_api_name": "equipment_maintenance",
+                    "source_object_type": "equipment",
+                    "target_object_type": "maintenance",
+                    "cardinality": "one_to_many",
+                    "source_binding_id": "bind-src",
+                    "target_binding_id": "bind-tgt",
+                    "source_dataset_id": "ds-src",
+                    "target_dataset_id": "ds-tgt",
+                    "source_fk_property": "equipment_id",
+                    "target_pk_property": "equipment_fk",
+                    "source_fk_column": "eq_id",
+                    "target_pk_column": "equipment_id",
+                },
+            ],
+            "selected_fields_by_ot": {
+                "equipment": ["name", "status"],
+                "maintenance": ["type", "hours"],
+            },
+            "filter_field_names_by_ot": {"equipment": []},
+            "limit": 20,
+            "offset": 0,
+        },
+    }
+
+
+def _setup_traverse_project(client):
+    """Create group + project + member user. Returns (gid, pid, owner_h, member_h)."""
+    from conftest import register_and_login
+
+    _, _, owner_h = register_and_login(client, "r2d-own@test.com")
+    _, mem_resp, mem_h = register_and_login(client, "r2d-mem@test.com")
+    gid = None
+    r = client.post("/groups", json={"name": "R2D Traverse Test"}, headers=owner_h)
+    assert r.status_code == 201, r.text
+    gid = r.json()["id"]
+
+    # Invite + join member
+    inv = client.post(f"/groups/{gid}/invites", headers=owner_h)
+    assert inv.status_code == 201
+    r = client.post(
+        "/groups/join-by-invite",
+        json={"invite_code": inv.json()["invite_code"]},
+        headers=mem_h,
+    )
+    assert r.status_code == 200
+
+    # Create project
+    r = client.post(
+        f"/groups/{gid}/projects",
+        json={"name": "Traverse Project", "entry_mode": "problem_first"},
+        headers=owner_h,
+    )
+    assert r.status_code == 201, r.text
+    pid = r.json()["id"]
+    return gid, pid, owner_h, mem_h
+
+
+# Permissions.
+
+
+class TestTraverseRouterPermissions:
+    def test_member_can_traverse(self, client, monkeypatch):
+        """Member can call POST /runtime/traverse and get a 200."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+
+        mock_result = _mock_traverse_success()
+        monkeypatch.setattr(
+            "semantic_lighthouse.routers.runtime.execute_traversal",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "fields": {"equipment": ["name"], "maintenance": ["type"]},
+            },
+            headers=mem_h,
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data["row_count"] == 1
+        assert len(data["rows"]) == 1
+        assert "explain" in data
+
+    def test_non_member_rejected_403(self, client):
+        """User not in group gets 403."""
+        from conftest import register_and_login
+
+        _, _, owner_h = register_and_login(client, "r2d-nm-own@test.com")
+        _, _, outsider_h = register_and_login(client, "r2d-nm-out@test.com")
+
+        r = client.post("/groups", json={"name": "NM Group"}, headers=owner_h)
+        assert r.status_code == 201
+        gid = r.json()["id"]
+
+        r = client.post(
+            f"/groups/{gid}/projects",
+            json={"name": "NM Project", "entry_mode": "problem_first"},
+            headers=owner_h,
+        )
+        assert r.status_code == 201
+        pid = r.json()["id"]
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={"path": ["equipment", "maintenance"]},
+            headers=outsider_h,
+        )
+        assert r.status_code == 403, r.text
+
+    def test_outsider_rejected_403(self, client):
+        """Unrelated user gets 403 on all runtime traverse operations."""
+        from conftest import register_and_login
+
+        _, _, owner_h = register_and_login(client, "r2d-out-own@test.com")
+        _, _, outsider_h = register_and_login(client, "r2d-out-x@test.com")
+
+        r = client.post("/groups", json={"name": "Outsider Group"}, headers=owner_h)
+        assert r.status_code == 201
+        gid = r.json()["id"]
+
+        r = client.post(
+            f"/groups/{gid}/projects",
+            json={"name": "Out Project", "entry_mode": "problem_first"},
+            headers=owner_h,
+        )
+        assert r.status_code == 201
+        pid = r.json()["id"]
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={"path": ["equipment", "maintenance"]},
+            headers=outsider_h,
+        )
+        assert r.status_code == 403
+
+    def test_project_from_another_group_404(self, client):
+        """Project that doesn't belong to the URL group returns 404."""
+        from conftest import register_and_login
+
+        _, _, h1 = register_and_login(client, "r2d-cg-1@test.com")
+        _, _, h2 = register_and_login(client, "r2d-cg-2@test.com")
+
+        r = client.post("/groups", json={"name": "CG Group 1"}, headers=h1)
+        assert r.status_code == 201
+        gid1 = r.json()["id"]
+
+        r = client.post("/groups", json={"name": "CG Group 2"}, headers=h2)
+        assert r.status_code == 201
+        gid2 = r.json()["id"]
+
+        r = client.post(
+            f"/groups/{gid1}/projects",
+            json={"name": "CG Project", "entry_mode": "problem_first"},
+            headers=h1,
+        )
+        assert r.status_code == 201
+        pid = r.json()["id"]
+
+        # Access group 1's project under group 2's URL
+        r = client.post(
+            f"/groups/{gid2}/projects/{pid}/runtime/traverse",
+            json={"path": ["equipment", "maintenance"]},
+            headers=h2,
+        )
+        assert r.status_code == 404
+
+    def test_archived_project_rejected_409(self, client, db_session):
+        """Archived project returns 409 even for members."""
+        from conftest import register_and_login
+        from semantic_lighthouse.models import BusinessProject
+
+        _, _, owner_h = register_and_login(client, "r2d-arch-own@test.com")
+        _, _, mem_h = register_and_login(client, "r2d-arch-mem@test.com")
+
+        r = client.post("/groups", json={"name": "Archive Group"}, headers=owner_h)
+        assert r.status_code == 201
+        gid = r.json()["id"]
+
+        inv = client.post(f"/groups/{gid}/invites", headers=owner_h)
+        assert inv.status_code == 201
+        r = client.post(
+            "/groups/join-by-invite",
+            json={"invite_code": inv.json()["invite_code"]},
+            headers=mem_h,
+        )
+        assert r.status_code == 200
+
+        r = client.post(
+            f"/groups/{gid}/projects",
+            json={"name": "Archive Project", "entry_mode": "problem_first"},
+            headers=owner_h,
+        )
+        assert r.status_code == 201
+        pid = r.json()["id"]
+
+        # Archive the project directly in DB
+        project = db_session.get(BusinessProject, pid)
+        assert project is not None
+        project.status = "archived"
+        db_session.commit()
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={"path": ["equipment", "maintenance"]},
+            headers=mem_h,
+        )
+        assert r.status_code == 409, r.text
+        assert "archived" in r.json()["detail"].lower()
+
+
+# Error mapping.
+
+
+class TestTraverseRouterErrors:
+    def _setup_with_mock(self, client, monkeypatch, mock_fn):
+        """Create group + project + member, install mock, return (gid, pid, mem_h)."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+        monkeypatch.setattr(
+            "semantic_lighthouse.routers.runtime.execute_traversal",
+            mock_fn,
+        )
+        return gid, pid, mem_h
+
+    def test_no_link_type_returns_422(self, client, monkeypatch):
+        """ValueError with 'No link_type connects' maps to 422."""
+        def _fail(*args, **kwargs):
+            raise ValueError("No link_type connects 'equipment' -> 'nonexistent'")
+        gid, pid, mem_h = self._setup_with_mock(client, monkeypatch, _fail)
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={"path": ["equipment", "nonexistent"]},
+            headers=mem_h,
+        )
+        assert r.status_code == 422, r.text
+        assert "No link_type connects" in r.json()["detail"]
+
+    def test_invalid_fields_returns_422(self, client, monkeypatch):
+        """ValueError about invalid fields maps to 422."""
+        def _fail(*args, **kwargs):
+            raise ValueError(
+                "Fields not in contract for 'equipment': bad_field"
+            )
+        gid, pid, mem_h = self._setup_with_mock(client, monkeypatch, _fail)
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "fields": {"equipment": ["bad_field"]},
+            },
+            headers=mem_h,
+        )
+        assert r.status_code == 422, r.text
+        assert "bad_field" in r.json()["detail"]
+
+    def test_no_package_returns_422(self, client, monkeypatch):
+        """ValueError about missing package maps to 422."""
+        def _fail(*args, **kwargs):
+            raise ValueError("No project package found for this project")
+        gid, pid, mem_h = self._setup_with_mock(client, monkeypatch, _fail)
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={"path": ["equipment", "maintenance"]},
+            headers=mem_h,
+        )
+        assert r.status_code == 422, r.text
+        assert "No project package" in r.json()["detail"]
+
+    def test_path_too_short_pydantic_422(self, client):
+        """Path with < 2 elements rejected by Pydantic validation."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={"path": ["equipment"]},
+            headers=mem_h,
+        )
+        assert r.status_code == 422, r.text
+
+    def test_path_too_long_pydantic_422(self, client):
+        """Path with > 2 elements rejected by Pydantic validation."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={"path": ["a", "b", "c"]},
+            headers=mem_h,
+        )
+        assert r.status_code == 422, r.text
+
+    def test_limit_exceeds_max_pydantic_422(self, client):
+        """Limit > 100 rejected by Pydantic."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={"path": ["equipment", "maintenance"], "limit": 101},
+            headers=mem_h,
+        )
+        assert r.status_code == 422, r.text
+
+    def test_non_root_filter_rejected_422(self, client, monkeypatch):
+        """Filters on non-root object_types are rejected, not ignored."""
+        gid, pid, mem_h = self._setup_with_mock(
+            client,
+            monkeypatch,
+            lambda *args, **kwargs: _mock_traverse_success(),
+        )
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "filters": {"maintenance": {"type": "preventive"}},
+            },
+            headers=mem_h,
+        )
+        assert r.status_code == 422, r.text
+        assert "root object_type" in r.json()["detail"]
+
+
+# Response shape and provenance safety.
+
+
+class TestTraverseRouterResponse:
+    def _setup_with_success_mock(self, client, monkeypatch, mock_result=None):
+        """Create project + install success mock. Returns (gid, pid, mem_h)."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+        monkeypatch.setattr(
+            "semantic_lighthouse.routers.runtime.execute_traversal",
+            lambda *args, **kwargs: mock_result or _mock_traverse_success(),
+        )
+        return gid, pid, mem_h
+
+    def test_explain_only_works(self, client, monkeypatch):
+        """explain_only=True returns empty rows and full explain."""
+        gid, pid, mem_h = self._setup_with_success_mock(
+            client, monkeypatch, _mock_traverse_explain_only(),
+        )
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "explain_only": True,
+            },
+            headers=mem_h,
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data["row_count"] is None
+        assert data["rows"] == []
+        explain = data["explain"]
+        assert explain["path"] == ["equipment", "maintenance"]
+        assert len(explain["hops"]) == 1
+        assert explain["hops"][0]["link_type_api_name"] == "equipment_maintenance"
+
+    def test_response_no_storage_path(self, client, monkeypatch):
+        """API response must not contain storage_path."""
+        gid, pid, mem_h = self._setup_with_success_mock(client, monkeypatch)
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={"path": ["equipment", "maintenance"]},
+            headers=mem_h,
+        )
+        assert r.status_code == 200, r.text
+        response_str = r.text.lower()
+        assert "storage_path" not in response_str
+        assert "dataset-storage" not in response_str
+
+    def test_response_no_filter_values(self, client, monkeypatch):
+        """API response explain must not leak filter values."""
+        gid, pid, mem_h = self._setup_with_success_mock(client, monkeypatch)
+
+        # Use filters with a value that should NOT appear in explain
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "filters": {"equipment": {"status": "active"}},
+            },
+            headers=mem_h,
+        )
+        assert r.status_code == 200, r.text
+        explain_str = str(r.json()["explain"]).lower()
+        # "active" is a filter value; it must not appear in explain.
+        assert "active" not in explain_str
+
+    def test_response_no_fk_pk_data_values(self, client, monkeypatch):
+        """API response explain must not leak FK/PK data values."""
+        gid, pid, mem_h = self._setup_with_success_mock(client, monkeypatch)
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "fields": {"equipment": ["name"], "maintenance": ["type"]},
+            },
+            headers=mem_h,
+        )
+        assert r.status_code == 200, r.text
+        explain_str = str(r.json()["explain"]).lower()
+        # FK/PK column *names* (metadata) are OK; data *values* like "eq1" are NOT
+        assert "eq1" not in explain_str
+        assert "pump-a" not in explain_str
+
+    def test_response_includes_package_and_binding_ids(self, client, monkeypatch):
+        """Response explain includes package and binding metadata."""
+        gid, pid, mem_h = self._setup_with_success_mock(client, monkeypatch)
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={"path": ["equipment", "maintenance"]},
+            headers=mem_h,
+        )
+        assert r.status_code == 200, r.text
+        explain = r.json()["explain"]
+        assert explain["package_id"] == "pkg-test"
+        hop = explain["hops"][0]
+        assert hop["source_binding_id"] == "bind-src"
+        assert hop["target_binding_id"] == "bind-tgt"
+        assert hop["source_dataset_id"] == "ds-src"
+        assert hop["target_dataset_id"] == "ds-tgt"

@@ -586,6 +586,35 @@ No circular imports. All backward-compatible re-exports preserved.
 - No cross-package traversal.
 - No frontend changes.
 
+## R2D — Router And API
+
+**Status**: Delivered (2026-06-23). **Lane**: Standard.
+
+### Changes
+
+- `src/semantic_lighthouse/schemas.py`: Added `RuntimeTraverseRequest`, `RuntimeTraverseResponse`, `HopExplain`, `TraverseExplain` Pydantic models. Request: path (min_length=2, max_length=2), optional fields/filters per OT, limit/offset, explain_only. Response: flat joined rows, row_count, explain block, optional type_errors.
+- `src/semantic_lighthouse/routers/runtime.py`: Added `POST /groups/{gid}/projects/{pid}/runtime/traverse` endpoint. Member+ via `get_membership_or_404`. Project group/status validation (404 cross-group, 409 archived). Root OT filter extraction from nested `{ot: {field: value}}` body. Non-root filters are rejected with 422 instead of silently ignored. ValueError → 422 mapping. Type errors → 422 with detail.
+- `tests/test_runtime_traverse.py`: Added 17 integration tests across 3 classes — `TestTraverseRouterPermissions` (5: member success, non-member 403, outsider 403, cross-group 404, archived 409), `TestTraverseRouterErrors` (7: no_link_type 422, invalid_fields 422, no_package 422, path too short/long 422, limit > 100 422, non-root filter 422), `TestTraverseRouterResponse` (5: explain_only, no storage_path leak, no filter value leak, no FK/PK data value leak, package/binding metadata).
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Pytest (test_runtime_traverse.py) | 42/42 passed (25 R2C + 17 R2D), 18.98s |
+| Ruff (changed files) | clean |
+| Doc alignment | PASS |
+| git diff --check | clean |
+
+### Boundaries Preserved
+
+- No DB migration, no Alembic changes.
+- No audit implementation (deferred to R2E).
+- No multi-hop (deferred to R2F).
+- No frontend changes.
+- No Graph RAG, SQL DSL, Agent/MCP, action writeback.
+- Permissions mirror existing /runtime/query pattern (member+).
+- Group/project isolation enforced server-side; body group/project not trusted.
+
 ---
 
 ## R2B — Contract Context Extension

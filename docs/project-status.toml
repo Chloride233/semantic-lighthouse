@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R2C traversal core delivered"
-description = "R2C complete. New services/runtime_traverse.py with execute_traversal() — single-hop hash join over CSV/XLSX using compiled link_map for FK/PK column resolution through binding.property_mappings. Supports fields per OT, root filters, limit/offset, explain_only. Flat output with {ot}__{field} prefix. 25 unit tests covering traversal, filters, limit/offset, explain, error cases, provenance safety. 174/174 tests pass. No router, no API, no DB migration."
+current = "R2D router and API delivered"
+description = "R2D complete. POST /groups/{gid}/projects/{pid}/runtime/traverse endpoint wired in routers/runtime.py with RuntimeTraverseRequest/RuntimeTraverseResponse schemas (schemas.py). Member+ permissions mirroring /runtime/query. Group/project isolation enforced (404 for cross-group, 409 for archived). ValueError → 422 mapping. Non-root filters rejected with 422. 17 integration tests: permissions (5), error mapping (7), response shape/provenance (5). 42 total traverse tests pass. No audit, no multi-hop, no DB migration."
 
 [next_decision_gate]
-name = "R2D router and API"
-description = "Add POST /runtime/traverse endpoint in routers/runtime.py. Wire RuntimeTraverseRequest/RuntimeTraverseResponse schemas. Integrate execute_traversal with permission checks (member+), group/project isolation, and error-to-HTTP mapping. Integration tests crossing group/project boundaries."
+name = "R2E audit and provenance"
+description = "Extend OntologyRuntimeAudit for traverse operation. Add path, hop_count, link_type_api_names, binding_ids, dataset_ids columns (all nullable). Audit success/failure/fail-closed tests. Provenance no-leak tests. One Alembic migration."
 
 [mcp]
 runtime_status = "not started"
