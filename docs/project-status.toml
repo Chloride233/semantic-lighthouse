@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Four-chain ontology route accepted after R1C"
-description = "docs/palantir-ontology-four-chain-gap-analysis.md is now the strategic route check: object chain and permission chain are strongest; relationship runtime traversal and controlled action/writeback remain the real gaps. R1D remains useful as the final high-value query-core extraction, but R1 should not become indefinite refactor work."
+current = "R1D query core extraction delivered"
+description = "Extracted _convert_value, _convert_filter_value, execute_query, and limit constants into services/runtime_query.py. All public entry points (generate_bindings, execute_query, activate_pilot) unchanged via runtime.py re-exports. 94/94 runtime tests pass, ruff clean, doc alignment PASS. No API, permission, migration, or query semantic changes. R1 refactor complete — next is R2 relationship runtime query planning."
 
 [next_decision_gate]
-name = "R1D query core extraction, then R2 relationship runtime query"
-description = "Next: one behavior-preserving R1D slice to extract value/filter conversion and read-only query execution. After R1D, pivot to R2: limited package-declared relationship traversal. Do not default to more low-value refactor, graph database adoption, Graph RAG, or action writeback before explicit planning."
+name = "R2 relationship runtime query planning"
+description = "Now that R1 extraction is complete, pivot to R2: limited package-declared relationship traversal over the same bound dataset Object Types, using the extracted query core. This closes the largest remaining gap in the ontology four-chain route (object/permission chains strong, relationship chain needs runtime support). Do not default to graph database adoption, Graph RAG, or action writeback without explicit Safety Lane plan."
 
 [mcp]
 runtime_status = "not started"

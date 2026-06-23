@@ -492,10 +492,47 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 - No database model or migration changes.
 - No query semantic changes.
 - No new dependencies.
-- No value/filter conversion or query core extraction (deferred to R1D).
-- No binding or activation extraction (deferred to R1E).
+- No value/filter conversion or query core extraction (completed in R1D).
+- No binding or activation extraction (deferred to R1E, optional).
 
-## Next Decision Gate
+## R1D — Query Core Extraction
+
+**Status**: Delivered (2026-06-23). **Lane**: Standard.
+
+### Changes
+
+- `src/semantic_lighthouse/services/runtime_query.py` (new): `_convert_value`, `_convert_filter_value`, `execute_query`, `_DEFAULT_LIMIT`/`_MAX_LIMIT`/`_MAX_OFFSET` — value/filter type conversion and read-only query execution.
+- `src/semantic_lighthouse/services/runtime.py`: Removed extracted functions and cleaned unused imports (`datetime`, `typing.Any`, `get_settings`); imports and re-exports `execute_query` for `activate_pilot` and router backward compatibility.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Pytest (test_project_runtime.py) | 94/94 passed, 80.81s |
+| Ruff (changed files) | clean |
+| Doc alignment | PASS |
+| git diff --check | clean |
+
+### Boundaries Preserved
+
+- No router path, request body, response body, permission, or stage gate changes.
+- No database model or migration changes.
+- No query semantic changes (still single object_type, field whitelist, equality filters, filter-before-offset-before-limit).
+- No relationship traversal, join, Graph RAG, Neo4j, SQL/DSL/AST.
+- No new dependencies.
+- No binding or activation extraction (R1E remains optional).
+- `activate_pilot` smoke still calls the same extracted `execute_query` via re-export.
+
+### R1 Refactor Summary
+
+After R1B–R1D, `services/runtime.py` contains only `generate_bindings` and `activate_pilot`. The extracted modules form a clean dependency chain:
+
+```
+runtime_query → runtime_contract, runtime_audit, runtime_dataset_io
+runtime.py    → runtime_query, runtime_contract, runtime_audit, runtime_dataset_io
+```
+
+No circular imports. All backward-compatible re-exports preserved.
 
 ## Four-Chain Ontology Route Alignment
 
@@ -525,9 +562,10 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 
 ## Next Decision Gate
 
-**R1C + four-chain route complete**: Next: R1D query core extraction, then R2
-relationship runtime query. R1E binding/activation extraction is optional and
-should only run if R1D reveals concrete maintainability pressure.
+**R1D complete**: R1 refactor is done. Next: R2 relationship runtime query
+planning — limited package-declared relationship traversal using the extracted
+query core. R1E binding/activation extraction remains optional (no maintainability
+pressure detected).
 
 ## Phase 15 Delivery Summary
 

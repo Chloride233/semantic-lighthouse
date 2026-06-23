@@ -143,7 +143,7 @@ Verification:
 - targeted runtime dataset/path tests in `tests/test_project_runtime.py`
 - `verify_ui.py` only if imports or runtime route behavior changed in a way that could affect the UI smoke
 
-### R1D: Query Core Extraction
+### R1D: Query Core Extraction  ✅ Delivered 2026-06-23
 
 Move:
 
