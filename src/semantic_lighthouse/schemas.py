@@ -1053,6 +1053,7 @@ class RuntimeTraverseRequest(BaseModel):
     limit: int = Field(default=20, ge=1, le=100)
     offset: int = Field(default=0, ge=0, le=10000)
     explain_only: bool = Field(default=False)
+    response_shape: str = Field(default="flat", pattern="^(flat|grouped)$")
 
 
 class HopExplain(BaseModel):
@@ -1085,6 +1086,7 @@ class TraverseExplain(BaseModel):
     filter_field_names_by_ot: dict[str, list[str]]
     limit: int
     offset: int
+    response_shape: str = "flat"
     scanned_rows: dict[str, int] | None = None
     scan_limit: int | None = None
     scan_truncated: dict[str, bool] | None = None
@@ -1092,7 +1094,7 @@ class TraverseExplain(BaseModel):
 
 
 class RuntimeTraverseResponse(BaseModel):
-    """Flat joined rows with {object_type}__{field} prefix convention."""
+    """Traversal response rows — flat prefixed or grouped nested, per response_shape."""
 
     rows: list[dict]
     row_count: int | None

@@ -692,6 +692,24 @@ ruff on changed runtime files, doc alignment, and `git diff --check`.
 
 Next gate is an explicit R3 planning decision, not automatic feature expansion.
 
+## R3A — Enhancement Planning
+
+**Status**: Delivered (2026-06-23). **Lane**: Fast, planning/docs only.
+
+### Changes
+
+- `docs/r3-relationship-runtime-enhancement-planning.md` (new): Evaluates 5 R3 candidate directions — grouped response (R3B), filter pushdown (R3C), bidirectional traversal (R3D), aggregation/sorting (R3E), FK indexing (R3F). Each candidate assessed for user value, technical risk, API/schema change, DB migration need, test scope, and non-goals.
+- Recommendation: R3B group_by_root response shape first. Highest demo/readability ROI, lowest risk, no migration, backward-compatible via `response_shape="flat"` default. Post-processing transformation on already-joined rows — zero change to join/auth/audit.
+- Primary R3 risk identified: incremental feature accumulation must not become an ad-hoc SQL/DSL. Six guardrails defined: no expression strings, no cross-OT expressions, bounded function set, explain-only metadata, no query planner, review gate before parameterized computation slices.
+- `docs/project-status.toml`: Focus updated to R3A planning delivered, next gate R3B.
+- `docs/project-roadmap.md`: R3 candidate entry added.
+
+### Boundaries
+
+- No code, no API changes, no tests, no DB migration.
+- No frontend, no MCP/Agent, no Graph RAG.
+- R3B–R3F implementation deferred to explicit user decision.
+
 ---
 
 ## R2B — Contract Context Extension

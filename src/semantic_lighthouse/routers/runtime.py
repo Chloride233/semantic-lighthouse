@@ -324,6 +324,7 @@ def traverse_runtime(
             limit=body.limit,
             offset=body.offset,
             explain_only=body.explain_only,
+            response_shape=body.response_shape,
         )
     except ValueError as exc:
         raise HTTPException(

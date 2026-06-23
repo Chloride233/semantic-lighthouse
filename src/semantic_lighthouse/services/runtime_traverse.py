@@ -49,6 +49,7 @@ def execute_traversal(
     limit: int = _DEFAULT_LIMIT,
     offset: int = 0,
     explain_only: bool = False,
+    response_shape: str = "flat",
 ) -> dict:
     """Execute a 1-2 hop relationship traversal over bound datasets."""
     path_len = len(path)
@@ -275,6 +276,7 @@ def execute_traversal(
             "filter_field_names_by_ot": {source_ot: filter_field_names},
             "limit": limit,
             "offset": offset,
+            "response_shape": response_shape,
         }
 
         if explain_only:
@@ -367,9 +369,20 @@ def execute_traversal(
         }
         explain["matched_before_paging"] = len(matched)
 
+        # Grouped response shape: nest children under root OT.
+        rows: list[dict] = paged
+        audit_row_count = len(paged)
+        if response_shape == "grouped" and paged:
+            rows = _group_flat_rows(
+                paged, path,
+                [source_fields, target_fields],
+                [link.get("cardinality", "one_to_many")],
+            )
+            audit_row_count = len(rows)
+
         response: dict[str, Any] = {
-            "rows": paged,
-            "row_count": len(paged),
+            "rows": rows,
+            "row_count": audit_row_count,
             "explain": explain,
         }
 
@@ -381,7 +394,7 @@ def execute_traversal(
         # Audit must succeed before returning.
         final_outcome = (
             "failure" if type_errors
-            else "empty" if len(paged) == 0
+            else "empty" if audit_row_count == 0
             else "success"
         )
         _record_audit(
@@ -393,7 +406,7 @@ def execute_traversal(
             binding_ids=audit_binding_ids,
             dataset_ids=audit_dataset_ids,
             outcome=final_outcome,
-            row_count=len(paged) if not type_errors else None,
+            row_count=audit_row_count if not type_errors else None,
             error_code=_sanitized_code("type_conversion") if type_errors else None,
             error_summary=(
                 f"{len(type_errors)} type conversion error(s)"
@@ -549,6 +562,7 @@ def execute_traversal(
         "filter_field_names_by_ot": {ots[0]: filter_field_names},
         "limit": limit,
         "offset": offset,
+        "response_shape": response_shape,
     }
 
     if explain_only:
@@ -645,9 +659,17 @@ def execute_traversal(
     explain["scan_truncated"] = {ot: all_truncated[i] for i, ot in enumerate(ots)}
     explain["matched_before_paging"] = len(final_rows)
 
+    # Grouped response shape: two-level nesting following cardinalities.
+    rows: list[dict] = paged
+    audit_row_count = len(paged)
+    if response_shape == "grouped" and paged:
+        cardinalities = [lk.get("cardinality", "one_to_many") for lk in links]
+        rows = _group_flat_rows(paged, path, output_fields, cardinalities)
+        audit_row_count = len(rows)
+
     response: dict[str, Any] = {
-        "rows": paged,
-        "row_count": len(paged),
+        "rows": rows,
+        "row_count": audit_row_count,
         "explain": explain,
     }
 
@@ -657,7 +679,7 @@ def execute_traversal(
 
     final_outcome = (
         "failure" if all_type_errors
-        else "empty" if len(paged) == 0
+        else "empty" if audit_row_count == 0
         else "success"
     )
     _record_audit(
@@ -669,7 +691,7 @@ def execute_traversal(
         binding_ids=audit_binding_ids,
         dataset_ids=audit_dataset_ids,
         outcome=final_outcome,
-        row_count=len(paged) if not all_type_errors else None,
+        row_count=audit_row_count if not all_type_errors else None,
         error_code=_sanitized_code("type_conversion") if all_type_errors else None,
         error_summary=(
             f"{len(all_type_errors)} type conversion error(s)"
@@ -921,6 +943,101 @@ def _join_flat_rows(
             matched.append(merged)
 
     return matched
+
+
+def _group_flat_rows(
+    flat_rows: list[dict[str, Any]],
+    path: list[str],
+    output_fields: list[list[str]],
+    cardinalities: list[str],
+) -> list[dict[str, Any]]:
+    """Group flat {ot}__{field} rows into nested tree following path.
+
+    Root OT fields form unique groups.  Child OTs are nested following
+    hop cardinality: one_to_one/many_to_one → single object,
+    one_to_many/many_to_many → array of objects.
+    Empty children are [] (array card) or {} (single card).
+    """
+    if not flat_rows:
+        return []
+
+    root_ot = path[0]
+    root_fields_list = output_fields[0]
+    prefix = f"{root_ot}__"
+
+    # Bucket by root-OT field values.
+    buckets: dict[tuple, list[dict]] = {}
+    for row in flat_rows:
+        key = tuple(row.get(f"{prefix}{f}") for f in root_fields_list)
+        buckets.setdefault(key, []).append(row)
+
+    result: list[dict[str, Any]] = []
+    for _key, bucket in buckets.items():
+        entry: dict[str, Any] = {
+            root_ot: {
+                f: bucket[0].get(f"{prefix}{f}") for f in root_fields_list
+            },
+        }
+
+        if len(path) >= 2:
+            child_ot = path[1]
+            child_fields = output_fields[1]
+            child_card = cardinalities[0]
+            child_prefix = f"{child_ot}__"
+
+            if len(path) == 2:
+                # Single-hop: children are leaf rows.
+                seen: set[tuple] = set()
+                child_rows: list[dict] = []
+                for row in bucket:
+                    ck = tuple(row.get(f"{child_prefix}{f}") for f in child_fields)
+                    if ck not in seen:
+                        seen.add(ck)
+                        child_rows.append(
+                            {f: row.get(f"{child_prefix}{f}") for f in child_fields}
+                        )
+                entry[child_ot] = child_rows if child_card in (
+                    "one_to_many", "many_to_many",
+                ) else (child_rows[0] if child_rows else {})
+            else:
+                # Two-hop: group by OT1, then nest OT2.
+                sub_buckets: dict[tuple, list[dict]] = {}
+                for row in bucket:
+                    sk = tuple(row.get(f"{child_prefix}{f}") for f in child_fields)
+                    sub_buckets.setdefault(sk, []).append(row)
+
+                child_items: list[dict] = []
+                for _sk, sub in sub_buckets.items():
+                    sub_entry: dict[str, Any] = {
+                        f: sub[0].get(f"{child_prefix}{f}") for f in child_fields
+                    }
+                    grand_ot = path[2]
+                    grand_fields = output_fields[2]
+                    grand_card = cardinalities[1]
+                    grand_prefix = f"{grand_ot}__"
+
+                    gseen: set[tuple] = set()
+                    grands: list[dict] = []
+                    for row in sub:
+                        gk = tuple(row.get(f"{grand_prefix}{f}") for f in grand_fields)
+                        if gk not in gseen:
+                            gseen.add(gk)
+                            grands.append(
+                                {f: row.get(f"{grand_prefix}{f}") for f in grand_fields}
+                            )
+                    sub_entry[grand_ot] = grands if grand_card in (
+                        "one_to_many", "many_to_many",
+                    ) else (grands[0] if grands else {})
+
+                    child_items.append(sub_entry)
+
+                entry[child_ot] = child_items if child_card in (
+                    "one_to_many", "many_to_many",
+                ) else (child_items[0] if child_items else {})
+
+        result.append(entry)
+
+    return result
 
 
 def _convert_row_fields(

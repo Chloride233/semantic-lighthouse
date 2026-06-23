@@ -1751,3 +1751,331 @@ class TestTwoHopTraversal:
         assert "equipment__equipment_name" in a.field_names
         assert "maintenance__maint_type" in a.field_names
         assert "work_orders__wo_description" in a.field_names
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  R3B grouped response shape tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestGroupedResponseShape:
+    """Single-hop and two-hop grouped response (group_by_root)."""
+
+    # ── single-hop grouped ──────────────────────────────────────────────
+
+    def _setup_single(self, monkeypatch, src_csv, tgt_csv):
+        tmp = tempfile.mkdtemp()
+        src_path = os.path.join(tmp, "equipment.csv")
+        tgt_path = os.path.join(tmp, "maintenance.csv")
+        _write_csv(src_path, src_csv)
+        _write_csv(tgt_path, tgt_csv)
+
+        pkg = _mock_package()
+        ctx = _contract_context()
+        src_b = _mock_binding("bind-src", pkg.id, "ds-src", "equipment",
+                              {"equipment_id": "eq_id", "equipment_name": "eq_name",
+                               "status": "status"})
+        tgt_b = _mock_binding("bind-tgt", pkg.id, "ds-tgt", "maintenance",
+                              {"maintenance_id": "maint_id", "equipment_fk": "equipment_id",
+                               "maint_type": "type", "downtime_hours": "hours"})
+        src_ds = _mock_dataset("ds-src", src_path)
+        tgt_ds = _mock_dataset("ds-tgt", tgt_path)
+
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+            lambda sp, gid, pid: Path(sp),
+        )
+        import itertools
+        _scalar_cycle = itertools.cycle([src_b, tgt_b])
+        db = MagicMock()
+        db.scalar = MagicMock(side_effect=lambda stmt: next(_scalar_cycle))
+        db.get = MagicMock(side_effect=lambda model, ds_id:
+                           {"ds-src": src_ds, "ds-tgt": tgt_ds}.get(ds_id))
+        return db, "g1", "p1", ["equipment", "maintenance"], "user-1"
+
+    def test_single_hop_grouped(self, monkeypatch):
+        """Grouped single-hop: root OT as object, children as array."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,2.5\nM2,EQ1,corrective,8.0\n")
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"]},
+            response_shape="grouped",
+        )
+        assert result["row_count"] == 1  # one root group
+        rows = result["rows"]
+        assert len(rows) == 1
+        assert rows[0]["equipment"] == {"equipment_name": "Pump-A"}
+        assert len(rows[0]["maintenance"]) == 2
+        assert rows[0]["maintenance"][0]["maint_type"] == "preventive"
+        assert rows[0]["maintenance"][1]["maint_type"] == "corrective"
+
+    def test_single_hop_grouped_multiple_roots(self, monkeypatch):
+        """Grouped with multiple root OTs produces multiple groups."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\nEQ2,Motor-B,inactive\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,2.5\nM2,EQ2,preventive,1.0\n")
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"]},
+            response_shape="grouped",
+        )
+        assert result["row_count"] == 2
+        names = sorted(r["equipment"]["equipment_name"] for r in result["rows"])
+        assert names == ["Motor-B", "Pump-A"]
+
+    def test_single_hop_grouped_empty(self, monkeypatch):
+        """Grouped with 0 matches returns empty rows."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ999,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            response_shape="grouped",
+        )
+        assert result["row_count"] == 0
+        assert result["rows"] == []
+
+    def test_single_hop_grouped_field_whitelist(self, monkeypatch):
+        """Grouped respects per-OT field whitelist."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"]},
+            response_shape="grouped",
+        )
+        root = result["rows"][0]["equipment"]
+        assert "equipment_name" in root
+        assert "status" not in root
+        child = result["rows"][0]["maintenance"][0]
+        assert "maint_type" in child
+        assert "downtime_hours" not in child
+
+    def test_single_hop_grouped_explain_has_response_shape(self, monkeypatch):
+        """Grouped explain includes response_shape metadata."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            response_shape="grouped",
+        )
+        assert result["explain"]["response_shape"] == "grouped"
+
+    def test_single_hop_grouped_explain_only(self, monkeypatch):
+        """Grouped explain_only returns empty rows with explain metadata."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            response_shape="grouped", explain_only=True,
+        )
+        assert result["row_count"] is None
+        assert result["rows"] == []
+        assert result["explain"]["response_shape"] == "grouped"
+
+    # ── two-hop grouped ────────────────────────────────────────────────
+
+    def _setup_two(self, monkeypatch, eq_csv, maint_csv, wo_csv):
+        tmp = tempfile.mkdtemp()
+        eq_path = os.path.join(tmp, "equipment.csv")
+        maint_path = os.path.join(tmp, "maintenance.csv")
+        wo_path = os.path.join(tmp, "work_orders.csv")
+        _write_csv(eq_path, eq_csv)
+        _write_csv(maint_path, maint_csv)
+        _write_csv(wo_path, wo_csv)
+
+        pkg = _mock_package(pkg_id="pkg-2h")
+        ctx = _two_hop_context()
+        eq_b = _mock_binding("b-eq", pkg.id, "ds-eq", "equipment",
+                             {"equipment_id": "eq_id", "equipment_name": "eq_name",
+                              "status": "status"})
+        m_b = _mock_binding("b-m", pkg.id, "ds-m", "maintenance",
+                            {"maintenance_id": "maint_id", "equipment_fk": "equipment_id",
+                             "maint_type": "type", "downtime_hours": "hours"})
+        wo_b = _mock_binding("b-wo", pkg.id, "ds-wo", "work_orders",
+                             {"work_order_id": "wo_id", "maintenance_fk": "maint_ref",
+                              "wo_description": "description", "priority": "priority"})
+        eq_ds = _mock_dataset("ds-eq", eq_path)
+        m_ds = _mock_dataset("ds-m", maint_path)
+        wo_ds = _mock_dataset("ds-wo", wo_path)
+
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+            lambda sp, gid, pid: Path(sp),
+        )
+        import itertools
+        _scalar_cycle = itertools.cycle([eq_b, m_b, wo_b])
+        db = MagicMock()
+        db.scalar = MagicMock(side_effect=lambda stmt: next(_scalar_cycle))
+        db.get = MagicMock(side_effect=lambda model, ds_id:
+                           {"ds-eq": eq_ds, "ds-m": m_ds, "ds-wo": wo_ds}.get(ds_id))
+        return db, "g1", "p1", ["equipment", "maintenance", "work_orders"], "user-1"
+
+    def test_two_hop_grouped(self, monkeypatch):
+        """Two-hop grouped: nested OT2 under OT1 under OT0."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = ("maint_id,equipment_id,type,hours\n"
+                     "M1,EQ1,preventive,2.5\nM2,EQ1,corrective,8.0\n")
+        wo_csv = ("wo_id,maint_ref,description,priority\n"
+                  "W1,M1,Replace bearing,high\nW2,M1,Inspect seal,low\n"
+                  "W3,M2,Lubricate,medium\n")
+
+        db, gid, pid, path, uid = self._setup_two(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"],
+                    "work_orders": ["wo_description"]},
+            response_shape="grouped",
+        )
+        assert result["row_count"] == 1
+        root = result["rows"][0]
+        assert root["equipment"] == {"equipment_name": "Pump-A"}
+        assert len(root["maintenance"]) == 2
+
+        # M1 has 2 WOs
+        m1 = root["maintenance"][0]
+        assert m1["maint_type"] == "preventive"
+        assert len(m1["work_orders"]) == 2
+        assert m1["work_orders"][0]["wo_description"] == "Replace bearing"
+
+        # M2 has 1 WO
+        m2 = root["maintenance"][1]
+        assert m2["maint_type"] == "corrective"
+        assert len(m2["work_orders"]) == 1
+
+    def test_two_hop_grouped_inner_join_excludes_unmatched(self, monkeypatch):
+        """Maintenance with no work_orders excluded by inner join (not empty array)."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = ("maint_id,equipment_id,type,hours\n"
+                     "M1,EQ1,preventive,2.5\nM2,EQ1,corrective,8.0\n")
+        wo_csv = "wo_id,maint_ref,description,priority\nW1,M1,Replace,high\n"
+
+        db, gid, pid, path, uid = self._setup_two(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"],
+                    "work_orders": ["wo_description"]},
+            response_shape="grouped",
+        )
+        # M2 has no work_orders → not in flat rows → not in grouped output
+        root = result["rows"][0]
+        assert len(root["maintenance"]) == 1
+        assert root["maintenance"][0]["maint_type"] == "preventive"
+
+    def test_two_hop_grouped_explain_has_response_shape(self, monkeypatch):
+        """Two-hop grouped explain includes response_shape."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = "wo_id,maint_ref,description,priority\nW1,M1,Replace,high\n"
+
+        db, gid, pid, path, uid = self._setup_two(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            response_shape="grouped",
+        )
+        assert result["explain"]["response_shape"] == "grouped"
+
+    def test_flat_still_works(self, monkeypatch):
+        """Default flat response still produces prefixed rows."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(db, gid, pid, path, uid)
+        row = result["rows"][0]
+        assert "equipment__equipment_name" in row
+        assert "maintenance__maint_type" in row
+        assert "equipment" not in row  # no un-prefixed keys
+        assert result["explain"]["response_shape"] == "flat"
+
+
+class TestGroupedResponseRouter:
+    """Router-level tests for grouped response shape."""
+
+    def test_invalid_response_shape_rejected(self, client):
+        """Invalid response_shape returns 422."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={"path": ["equipment", "maintenance"], "response_shape": "invalid"},
+            headers=mem_h,
+        )
+        assert r.status_code == 422
+
+    def test_grouped_response_no_storage_path(self, client, monkeypatch):
+        """Grouped response must not contain storage_path."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+        mock_result = _mock_traverse_success()
+        monkeypatch.setattr(
+            "semantic_lighthouse.routers.runtime.execute_traversal",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={"path": ["equipment", "maintenance"], "response_shape": "grouped"},
+            headers=mem_h,
+        )
+        assert r.status_code == 200
+        assert "storage_path" not in r.text.lower()
+        assert "dataset-storage" not in r.text.lower()
+
+    def test_grouped_response_no_filter_values(self, client, monkeypatch):
+        """Grouped response explain must not leak filter values."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+        mock_result = _mock_traverse_success()
+        monkeypatch.setattr(
+            "semantic_lighthouse.routers.runtime.execute_traversal",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "filters": {"equipment": {"status": "active"}},
+                "response_shape": "grouped",
+            },
+            headers=mem_h,
+        )
+        assert r.status_code == 200
+        explain_str = str(r.json()["explain"]).lower()
+        assert "active" not in explain_str

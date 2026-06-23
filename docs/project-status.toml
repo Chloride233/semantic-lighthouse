@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R2 closeout complete"
-description = "R2 Relationship Runtime Query closeout complete. R2A-R2F delivered contract link_type FK/PK context, 1-2 hop hash-join traversal, POST /runtime/traverse API, immutable audit/provenance, and migration 0029. Boundaries preserved: max 2 hops, root filters only, flat output, member+ permission, group/project/package isolation, no SQL/DSL/Graph RAG/MCP/Agent/action writeback. 63 traverse tests and 11 existing runtime audit tests pass."
+current = "R3B grouped response shape delivered"
+description = "R3B complete. RuntimeTraverseRequest gains response_shape='flat'|'grouped' (default flat, backward compat). _group_flat_rows() post-processes joined rows into nested tree: root OT fields form groups, child OTs nest as arrays/single-objects following hop cardinalities. row_count reflects group count in grouped mode. explain.response_shape metadata added. 13 new tests (10 service + 3 router). 76 total traverse tests pass. No join/auth/audit changes, no DB migration."
 
 [next_decision_gate]
-name = "R3 planning decision"
-description = "Choose next direction: R3 runtime query enhancements (nested/grouped response, bidirectional traversal, filter pushdown, aggregation, sorting), Phase 20+ ontology governance, AdventureWorks benchmark, or frontend/product polish."
+name = "R3C filter pushdown"
+description = "Remove non-root filter rejection in router. Allow filters dict keys for any OT in path. Apply filters at each hop: root before first join, intermediate during join, target after final join. AND semantics within each OT. explain/audit record filter_field_names_by_ot for all filtered OTs. ~10 tests. Lane: Safety (changes filter semantics)."
 
 [mcp]
 runtime_status = "not started"

@@ -1,6 +1,6 @@
 # Semantic Lighthouse — Project Roadmap
 
-**Last updated**: 2026-06-20
+**Last updated**: 2026-06-23 (R3A planning)
 **Current phase**: See `docs/project-status.toml` — canonical project state.
 
 ---
@@ -414,6 +414,24 @@ Six slices delivered end-to-end:
 **R2 closeout**: 2026-06-23 — all boundaries preserved, no code regressions, docs consistent.
 
 **Next candidates (R3+)**: nested/grouped response shape, bidirectional traversal, filter pushdown on intermediate OTs, aggregation, sorting, FK indexing for large datasets.
+
+---
+
+## R3: Relationship Runtime Enhancement ← PLANNING (R3A delivered)
+
+**Goal**: Incrementally enhance R2 traversal with higher-quality output and query expressiveness — without becoming a SQL/DSL, Graph RAG, or Agent writeback path.
+
+R3A planning complete (`docs/r3-relationship-runtime-enhancement-planning.md`). Five candidates evaluated and priority-ordered:
+
+| Slice | Scope | Priority | Risk | Migration |
+|-------|-------|----------|------|-----------|
+| R3B | Grouped response shape (`group_by_root`) | ⭐ Highest | Low | No |
+| R3C | Filter pushdown on intermediate/target OTs | ⭐ High | Medium | No |
+| R3D | Bidirectional traversal design | Medium | Medium-High | No |
+| R3E | Aggregation + sorting | Medium-Low | High | No |
+| R3F | FK indexing / performance | Low | Medium | No |
+
+**Recommended first slice**: R3B — highest demo/readability ROI, lowest risk, backward-compatible, no migration. See planning doc for detailed design boundaries.
 
 ---
 
