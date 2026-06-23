@@ -110,7 +110,7 @@ This split keeps the router stable and does not require API changes.
 
 ## Suggested Slices
 
-### R1B: Contract And Audit Extraction
+### R1B: Contract And Audit Extraction  ✅ Delivered 2026-06-23
 
 Move only pure-ish boundary helpers:
 

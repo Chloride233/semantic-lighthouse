@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R1A runtime boundary audit delivered"
-description = "Runtime boundary audit documented in docs/r1-runtime-boundary-audit.md. Current runtime is correct but dense: services/runtime.py owns contract lookup, binding generation, dataset IO, query execution, audit, and activation. R1 should proceed as behavior-preserving extraction slices only, starting with contract/audit helpers."
+current = "R1B contract and audit extraction delivered"
+description = "Extracted _get_latest_project_package and _build_contract_context into services/runtime_contract.py; extracted _record_audit, _SANITIZED_ERROR_CODES, and _sanitized_code into services/runtime_audit.py. All public entry points (generate_bindings, execute_query, activate_pilot) unchanged. 94/94 runtime tests pass, ruff clean, doc alignment PASS. No API, permission, migration, or query semantic changes."
 
 [next_decision_gate]
-name = "R1B contract and audit extraction"
-description = "Behavior-preserving refactor candidate: extract latest package/contract context and runtime audit helpers from services/runtime.py without API, migration, permission, query, or frontend changes. Alternative gates: AdventureWorks benchmark, DB-backed governance feedback, or portfolio/demo video capture."
+name = "R1C dataset IO extraction"
+description = "Behavior-preserving refactor candidate: extract dataset path validation and CSV/XLSX row readers from services/runtime.py into services/runtime_dataset_io.py. No query logic changes. Alternative gates: R1D query core extraction, AdventureWorks benchmark, DB-backed governance feedback, or portfolio/demo video capture."
 
 [mcp]
 runtime_status = "not started"

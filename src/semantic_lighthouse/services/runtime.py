@@ -28,56 +28,20 @@ from semantic_lighthouse.models import (
     DatasetAsset,
     OntologyDatasetBinding,
     OntologyModelingDraft,
-    OntologyModelPackage,
-    OntologyRuntimeAudit,
+    OntologyRuntimeAudit,  # noqa: F401 — re-exported for test backward compat
 )
-from semantic_lighthouse.services.business_contract_compiler import (
-    compile_business_contract,
+from semantic_lighthouse.services.runtime_audit import (
+    _record_audit,
+    _sanitized_code,
+)
+from semantic_lighthouse.services.runtime_contract import (
+    _build_contract_context,
+    _get_latest_project_package,
 )
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  audit
+#  audit — re-exported from runtime_audit
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-def _record_audit(
-    db: Session,
-    user_id: str,
-    group_id: str,
-    project_id: str,
-    operation: str,
-    *,
-    object_type: str | None = None,
-    field_names: list[str] | None = None,
-    filter_field_names: list[str] | None = None,
-    limit_val: int | None = None,
-    offset_val: int | None = None,
-    outcome: str,
-    row_count: int | None = None,
-    error_code: str | None = None,
-    error_summary: str | None = None,
-) -> OntologyRuntimeAudit:
-    """Write an immutable runtime audit record.
-
-    Never records filter values, raw data, storage_path, PII, or secrets.
-    """
-    record = OntologyRuntimeAudit(
-        user_id=user_id,
-        group_id=group_id,
-        project_id=project_id,
-        operation=operation,
-        object_type=object_type,
-        field_names=field_names,
-        filter_field_names=filter_field_names,
-        limit_val=limit_val,
-        offset_val=offset_val,
-        outcome=outcome,
-        row_count=row_count,
-        error_code=error_code,
-        error_summary=error_summary,
-    )
-    db.add(record)
-    return record
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -226,78 +190,11 @@ def _convert_filter_value(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  sanitized error helpers
-# ═══════════════════════════════════════════════════════════════════════════
-
-_SANITIZED_ERROR_CODES = {
-    "path_outside_root": "dataset_path_outside_root",
-    "path_outside_project": "dataset_path_outside_project",
-    "file_not_found": "dataset_file_not_found",
-    "no_package": "no_project_package",
-    "no_binding": "no_active_binding",
-    "dataset_not_ready": "dataset_not_ready",
-    "read_error": "file_read_error",
-    "type_conversion": "type_conversion_error",
-    "binding_missing": "missing_binding",
-    "smoke_failed": "smoke_query_failed",
-    "archive": "project_archived",
-    "stage": "stage_not_allowed",
-}
-
-
-def _sanitized_code(error_type: str) -> str:
-    """Map internal error type to stable, non-leaking error code."""
-    return _SANITIZED_ERROR_CODES.get(error_type, "internal_error")
+#  sanitized error codes — re-exported from runtime_audit
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  compiled contract context — single source of truth for runtime
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-def _build_contract_context(pkg: OntologyModelPackage) -> dict:
-    """Compile the package into a runtime-ready context.
-
-    Returns dict with:
-      - manifest: the compiled business manifest
-      - semantic_hash: from manifest
-      - ot_map: {api_name: {primary_key, ...}}
-      - prop_map: {api_name: {object_type, value_type, required}}
-      - fields_by_ot: {object_type_api_name: [prop_api_names]}
-    """
-    compiled = compile_business_contract(pkg)
-    manifest = compiled["manifest"]
-
-    ot_map: dict[str, dict] = {}
-    for ot in compiled.get("object_types", []):
-        an = ot.get("api_name")
-        if an:
-            ot_map[an] = {
-                "primary_key": ot.get("primary_key", ""),
-                "display_name": ot.get("display_name", ""),
-            }
-
-    prop_map: dict[str, dict] = {}
-    fields_by_ot: dict[str, list[str]] = {}
-    for prop in compiled.get("properties", []):
-        an = prop.get("api_name")
-        ot = prop.get("object_type", "")
-        vt = prop.get("value_type", "string")
-        if an:
-            prop_map[an] = {
-                "object_type": ot,
-                "value_type": vt,
-                "required": prop.get("required", False),
-            }
-            fields_by_ot.setdefault(ot, []).append(an)
-
-    return {
-        "manifest": manifest,
-        "semantic_hash": manifest.get("semantic_hash", ""),
-        "ot_map": ot_map,
-        "prop_map": prop_map,
-        "fields_by_ot": fields_by_ot,
-    }
+#  compiled contract context — re-exported from runtime_contract
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -456,23 +353,7 @@ def _validate_dataset_path(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  latest project package helper
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-def _get_latest_project_package(
-    db: Session, group_id: str, project_id: str,
-) -> OntologyModelPackage | None:
-    """Return the latest (highest version) project-scoped package."""
-    return db.scalar(
-        select(OntologyModelPackage)
-        .where(
-            OntologyModelPackage.group_id == group_id,
-            OntologyModelPackage.scope_key == f"project:{project_id}",
-        )
-        .order_by(OntologyModelPackage.version.desc())
-        .limit(1)
-    )
+#  _get_latest_project_package — re-exported from runtime_contract
 
 
 # ═══════════════════════════════════════════════════════════════════════════

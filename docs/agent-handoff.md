@@ -440,11 +440,37 @@ mapping_contract.json, rule_validation_report.json, governance_feedback.json.
 - No query language, joins, Graph RAG, MCP runtime, Agent writes, external
   connectors, or frontend redesign.
 
+## R1B — Contract And Audit Extraction
+
+**Status**: Delivered (2026-06-23). **Lane**: Standard.
+
+### Changes
+
+- `src/semantic_lighthouse/services/runtime_contract.py` (new): `_get_latest_project_package`, `_build_contract_context` — latest package lookup and compiled contract context.
+- `src/semantic_lighthouse/services/runtime_audit.py` (new): `_record_audit`, `_SANITIZED_ERROR_CODES`, `_sanitized_code` — immutable audit record creation and sanitized error codes.
+- `src/semantic_lighthouse/services/runtime.py`: Removed extracted functions; imports and re-exports from `runtime_contract` and `runtime_audit`. All public entry points (`generate_bindings`, `execute_query`, `activate_pilot`) unchanged.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Pytest (test_project_runtime.py) | 94/94 passed, 65.87s |
+| Ruff (changed files) | clean |
+| Doc alignment | PASS |
+| git diff --check | clean |
+
+### Boundaries Preserved
+
+- No router path, request body, response body, permission, or stage gate changes.
+- No database model or migration changes.
+- No query semantic changes.
+- No new dependencies.
+- No dataset IO, query core, binding, or activation extraction (deferred to R1C/R1D/R1E).
+- `OntologyRuntimeAudit` kept as re-export in `runtime.py` for test backward compatibility.
+
 ## Next Decision Gate
 
-**R1A complete**: Next: R1B contract and audit extraction, AdventureWorks
-benchmark, Safety Lane DB-backed governance feedback, or portfolio/demo video
-capture.
+**R1B complete**: Next: R1C dataset IO extraction, R1D query core extraction, AdventureWorks benchmark, Safety Lane DB-backed governance feedback, or portfolio/demo video capture.
 
 ## Phase 15 Delivery Summary
 
