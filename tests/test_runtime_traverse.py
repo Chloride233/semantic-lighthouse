@@ -3202,3 +3202,90 @@ class TestSortingRouter:
         )
         assert r.status_code == 200, r.text
         assert "storage_path" not in r.text.lower()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  R3F FK indexing tests — correctness, not performance
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestFKIndexing:
+    """Verify join correctness after R3F index-building optimizations."""
+
+    def _setup_single(self, monkeypatch, src_csv, tgt_csv):
+        tmp = tempfile.mkdtemp()
+        src_path = os.path.join(tmp, "equipment.csv")
+        tgt_path = os.path.join(tmp, "maintenance.csv")
+        _write_csv(src_path, src_csv)
+        _write_csv(tgt_path, tgt_csv)
+
+        pkg = _mock_package()
+        ctx = _contract_context()
+        src_b = _mock_binding("bind-src", pkg.id, "ds-src", "equipment",
+                              {"equipment_id": "eq_id", "equipment_name": "eq_name",
+                               "status": "status"})
+        tgt_b = _mock_binding("bind-tgt", pkg.id, "ds-tgt", "maintenance",
+                              {"maintenance_id": "maint_id", "equipment_fk": "equipment_id",
+                               "maint_type": "type", "downtime_hours": "hours"})
+        src_ds = _mock_dataset("ds-src", src_path)
+        tgt_ds = _mock_dataset("ds-tgt", tgt_path)
+
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+            lambda sp, gid, pid: Path(sp),
+        )
+        import itertools
+        _scalar_cycle = itertools.cycle([src_b, tgt_b])
+        db = MagicMock()
+        db.scalar = MagicMock(side_effect=lambda stmt: next(_scalar_cycle))
+        db.get = MagicMock(side_effect=lambda model, ds_id:
+                           {"ds-src": src_ds, "ds-tgt": tgt_ds}.get(ds_id))
+        return db, "g1", "p1", ["equipment", "maintenance"], "user-1"
+
+    def test_duplicate_pk_in_target_index_joins_all(self, monkeypatch):
+        """Index correctly groups all target rows with the same PK."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,1.0\n"
+                   "M2,EQ1,corrective,2.0\n"
+                   "M3,EQ1,inspection,3.0\n"
+                   "M4,EQ1,overhaul,4.0\n"
+                   "M5,EQ1,cleanup,5.0\n")
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["downtime_hours"]},
+        )
+        # All 5 maintenance rows for EQ1 are joined
+        assert result["row_count"] == 5
+        hours = sorted(r["maintenance__downtime_hours"] for r in result["rows"])
+        assert hours == [1.0, 2.0, 3.0, 4.0, 5.0]
+
+    def test_index_multiple_pk_groups_across_sources(self, monkeypatch):
+        """Target index handles multiple distinct PK groups from different source rows."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\nEQ2,Motor-B,inactive\nEQ3,Compressor-C,active\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,1.0\n"
+                   "M2,EQ1,corrective,2.0\n"
+                   "M3,EQ2,preventive,3.0\n")
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["downtime_hours"]},
+        )
+        # EQ1 → 2 rows, EQ2 → 1 row, EQ3 → 0 rows (inner join)
+        assert result["row_count"] == 3
+        names = set(r["equipment__equipment_name"] for r in result["rows"])
+        assert names == {"Pump-A", "Motor-B"}

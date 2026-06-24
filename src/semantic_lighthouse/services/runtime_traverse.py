@@ -10,6 +10,7 @@ No SQL, no DSL, no AST, no LLM, no Graph RAG, no writes.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Any
 
 from sqlalchemy import select
@@ -996,7 +997,7 @@ def _build_target_index(
     target_ot: str,
     prop_map: dict,
 ) -> tuple[dict[Any, list[dict[str, Any]]], list[dict]]:
-    target_index: dict[Any, list[dict[str, Any]]] = {}
+    target_index: dict[Any, list[dict[str, Any]]] = defaultdict(list)
     type_errors: list[dict] = []
     pk_col_idx = target_col_idx[target_pk_col]
     pk_value_type = prop_map.get(target_pk, {}).get("value_type", "string")
@@ -1017,7 +1018,7 @@ def _build_target_index(
                 if value is None
             )
             continue
-        target_index.setdefault(pk_value, []).append(converted)
+        target_index[pk_value].append(converted)
 
     return target_index, type_errors
 
@@ -1223,6 +1224,12 @@ def _convert_row_fields(
     object_type: str,
     prop_map: dict,
 ) -> tuple[dict[str, Any], bool]:
+    # Pre-compute value types once per field list (R3F: avoids repeated
+    # prop_map.get(field, {}).get("value_type", ...) for every row).
+    _field_vt: dict[str, str] = {
+        f: prop_map.get(f, {}).get("value_type", "string") for f in fields
+    }
+
     converted: dict[str, Any] = {}
     row_ok = True
     for field in fields:
@@ -1230,9 +1237,10 @@ def _convert_row_fields(
         if col is None or col not in col_idx:
             converted[field] = None
             continue
-        value_type = prop_map.get(field, {}).get("value_type", "string")
         try:
-            converted[field] = _convert_value(row[col_idx[col]], value_type, field)
+            converted[field] = _convert_value(
+                row[col_idx[col]], _field_vt[field], field,
+            )
         except ValueError:
             converted[field] = None
             row_ok = False
