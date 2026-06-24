@@ -20,20 +20,20 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R3E1 sorting delivered"
-description = "R3E1 complete. RuntimeTraverseRequest gains optional order_by field (list of {field, direction} with direction defaulting to asc). New OrderByClause Pydantic model. _validate_order_by() checks the full OT-qualified field is selected, rejects FK/PK internals, enforces {ot}__{prop} format. _sort_flat_rows() applies stable multi-key Python sorted() after join/filter, before offset/limit. explain gains order_by metadata (field names + directions, no values). Compatible with flat/grouped/reverse/explain_only. 19 new tests (120 total, including Codex review fix). No migration, no audit schema change, no aggregation/group_by/having/expressions."
+current = "R3F FK indexing delivered"
+description = "R3F complete. Two local micro-optimizations in runtime_traverse.py: _build_target_index uses defaultdict(list) instead of setdefault() to avoid wasted [] allocations per row; _convert_row_fields pre-computes field→value_type mapping once per field list instead of calling prop_map.get().get() for every row/field. Both optimizations are zero-behavior-change. Existing scan_limit and scan_truncated were already delivered pre-R3F. 2 new tests (122 total). No migration, no API/schema change, no new dependencies."
 
 [next_decision_gate]
-name = "R3F FK indexing"
-description = "R3E1 sorting delivered. Aggregation (R3E2) deferred indefinitely per design decision. Next candidate: R3F FK indexing — performance optimization for large datasets (build PK index before scan if FK column indexed). Standard lane. No migration, no API/schema change."
+name = "R3 runtime closeout complete / next product decision"
+description = "R3A-R3F all delivered. Runtime enhancement line is complete: R3A planning, R3B grouped response, R3C filter pushdown, R3D bidirectional traversal, R3E1 sorting, R3F FK indexing. Aggregation (R3E2) deferred indefinitely per design decision. Next product direction requires explicit user decision — no automatic phase expansion to R4, Phase 20, MCP, or new feature lines."
 
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "28c09d5"
+latest_commit = "67aeae7"
 backend_pytest = 848
 ruff = "clean"
 migration_head = "0029"
-traverse_tests = 120
+traverse_tests = 122

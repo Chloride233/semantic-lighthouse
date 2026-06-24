@@ -1,8 +1,8 @@
 # R3 Relationship Runtime Enhancement Planning
 
-Status: R3A planning delivered, 2026-06-23.
-Lane: R3A Fast (planning/docs only). No code, no API changes, no tests.
-Scope: R3 candidate evaluation and direction selection. Implementation deferred to R3B+ slices.
+Status: R3A-R3F all delivered, closeout complete 2026-06-24.
+Lane: R3A Fast (planning only). R3B-R3F Standard/Safety.
+Scope: 6 implementation slices, 122 traverse tests. Aggregation (R3E2) deferred.
 
 Canonical state remains `docs/project-status.toml`. R2 baseline is `docs/r2-relationship-runtime-query-planning.md`.
 
@@ -346,10 +346,13 @@ The primary R3 risk is incremental feature addition that accumulates into an ad-
 5. **Explain, don't optimize**: The explain block exposes what happened, not an execution plan. No query planner, no cost model.
 6. **Review gate**: Before any R3 slice that adds parameterized computation (R3C, R3E), review against this checklist and confirm no SQL/DSL boundary creep.
 
-## 8. Next Steps
+## 8. Delivery Status (Complete)
 
-1. **R3B implementation**: Add `response_shape` parameter, `_group_flat_rows()` post-processing function, grouped response model, and tests. Lane: Standard. ✅ Delivered (2026-06-23).
-2. **R3C (after R3B)**: Filter pushdown on intermediate/target OTs. Lane: Safety (changes filter semantics). ✅ Delivered (2026-06-23).
-3. **R3D**: Bidirectional traversal. Lane: Standard. ✅ Delivered (2026-06-24).
-4. **R3E design decision**: See `docs/r3e-aggregation-sorting-design.md` (2026-06-24). Recommendation: R3E1 sorting only, skip aggregation indefinitely.
-5. **R3F**: FK indexing. Deferred until R3E1 is delivered or skipped.
+1. **R3B** ✅ Delivered (2026-06-23) — Grouped response shape.
+2. **R3C** ✅ Delivered (2026-06-23) — Filter pushdown.
+3. **R3D** ✅ Delivered (2026-06-24) — Bidirectional traversal.
+4. **R3E1** ✅ Delivered (2026-06-24) — Sorting (ORDER BY). R3E2 aggregation deferred.
+5. **R3F** ✅ Delivered (2026-06-24) — FK indexing (micro-optimizations: defaultdict + pre-computed value_type).
+6. **R3 closeout** ✅ Complete (2026-06-24) — 122 tests, all docs aligned.
+
+**Next**: Explicit user decision for next product direction. No automatic expansion.

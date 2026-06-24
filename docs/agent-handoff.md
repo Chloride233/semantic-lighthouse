@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-24 (R3E1 sorting delivered)
+Last updated: 2026-06-24 (R3F FK indexing + R3 closeout)
 
 ## State Source
 
@@ -788,6 +788,54 @@ join → filter → sort → offset → limit → serialize
 - No migration, no frontend, no MCP, no permission changes.
 - Flat/grouped/reverse/explain_only all compatible.
 - Backward compatible: `order_by` defaults to `None`.
+
+## R3F — FK Indexing
+
+**Status**: Delivered (2026-06-24). **Lane**: Standard.
+
+### Changes
+
+- `src/semantic_lighthouse/services/runtime_traverse.py`: Two local micro-optimizations. `_build_target_index` uses `defaultdict(list)` instead of `dict.setdefault()` — avoids allocating a throwaway `[]` on every cache hit (previously `setdefault` evaluated `[]` for every row). `_convert_row_fields` pre-computes `field → value_type` mapping via one dict comprehension per field list, instead of calling `prop_map.get(field, {}).get("value_type", "string")` for every row×field.
+- `tests/test_runtime_traverse.py`: 2 new `TestFKIndexing` tests — duplicate PK grouping in index (5 target rows for 1 source), multiple PK groups across sources (verify inner-join exclusion).
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Pytest (test_runtime_traverse.py) | **122/122 passed** (120 existing + 2 R3F), 34.60s |
+| Ruff (changed files) | All clean |
+| Doc alignment | PASS |
+| git diff --check | clean |
+
+### Boundaries Preserved
+
+- No API/schema/route change — pure internal optimization.
+- No migration, no new dependencies, no new import beyond `collections.defaultdict`.
+- No behavior change — both optimizations are zero-behavior-change.
+- Scan limit and truncation warning already existed pre-R3F (delivered during R2).
+- Aggregation (R3E2) remains deferred indefinitely.
+
+---
+
+## R3 Closeout
+
+**Status**: Complete (2026-06-24). **Lane**: Standard.
+
+R3A-R3F are closed end-to-end:
+
+| Slice | Feature | Tests | Status |
+|-------|---------|-------|--------|
+| R3A | Enhancement planning | 0 | Delivered (planning only) |
+| R3B | Grouped response shape | 13 | Delivered |
+| R3C | Filter pushdown | 11 | Delivered |
+| R3D | Bidirectional traversal | 14 | Delivered |
+| R3E1 | Sorting (ORDER BY) | 18 | Delivered |
+| R3F | FK indexing | 2 | Delivered |
+| **Total** | | **122** | |
+
+**Deferred**: R3E2 aggregation (COUNT/SUM/AVG/HASH) — separate design gate with measured demand evidence required.
+
+**Next**: Explicit user decision for next product direction. No automatic expansion to R4, Phase 20, MCP, or new feature lines.
 
 ---
 
