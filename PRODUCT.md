@@ -47,27 +47,27 @@ The experience should feel like a professional semantic operating layer workspac
 - V3.3: RAG run audit and history replay
 - V3.4: asynchronous ETL pipeline and ingestion jobs
 - V4: conversations and controlled tool calling
-- Phase 6: Chinese frontend console and knowledge问答 experience
+- Phase 6: Chinese frontend console and knowledge Q&A experience
 - Phase 7: lightweight Agent orchestration with audit trail
 - Product alignment: actionable RAG loop from evidence-backed answer to user-confirmed task
 - Phase 8: experience integration for the demonstrable loop: RAG -> user-confirmed task -> Agent/HITL -> audit
-- Phase 9 delivered: Ontology Core v1 — schema/frontmatter validation, entity extraction, wikilink relation extraction, governance issue list, ontology graph, and entity detail UI. Real KB demo: 74 docs → 74 entities, 186 relations, 97 issues.
-- Phase 10 delivered: Governance Operations — issue triage, real KB curation demo (97 issues → 39 backlog entries), graph UX polish, evidence-to-ontology bridge, end-to-end review.
-- Phase 11/12 delivered: Ontology Modeling Drafts v1 + Model Quality & Contract Packages v1 — see `docs/phase11-planning.md` and `docs/phase12-planning.md`.
-- Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 — delivered.
-- Phase 14: Business Pilot Project main chain (goal→data→model→validate→pilot) — COMPLETE (backend + frontend F2).
-- Frontend F2: Guided Business Pilot workspace — F2 Complete (F2A+F2B+F2C delivered).
-- Phase 15 delivered: Evidence-to-Ontology Feedback Loop v1 — save RAG answer as project evidence, evidence review surface, evidence-backed modeling draft candidates. 22 evidence-draft tests.
-- Phase 16 delivered: Pilot Outcome & FDE Delivery Record v1 — immutable outcome records (CRUD), JSON outcome-summary aggregation, bounded markdown artifact export. 66 tests. 16.3 UI deferred.
-- Phase 17 delivered: FDE Demo Readiness & Operational Smoke v1 — seed scenario contract (manufacturing), 11-step smoke script (~0.8s, fake providers), inline artifact quality gate (PASS, 0 findings), refreshed interview/demo script with 5-min demo flow and FAQ.
-- Phase 18 delivered: Cloud Deployment Smoke — PostgreSQL migration (28/28), HTTP API smoke (9/9 PASS), base-url adapter, config audit (11 items). Frontend visual baseline (Minimalism & Swiss Style, 53/53 UI checks).
-- Phase 19 delivered: Ontology Operationalization — manufacturing data pack contract (13 tables), mapping contract v1 (13 object types, 15 relationships, controlled vocabularies), business rule validation (8 categories, 4,528 checks), governance feedback (3 candidate types, 4 severity levels). 29 tests. Full offline pipeline: CSV → manifest → mapping_contract → rule_validation → governance_feedback. AdventureWorks external benchmark planned.
+- Phase 9 delivered: Ontology Core v1 - schema/frontmatter validation, entity extraction, wikilink relation extraction, governance issue list, ontology graph, and entity detail UI. Real KB demo: 74 docs -> 74 entities, 186 relations, 97 issues.
+- Phase 10 delivered: Governance Operations - issue triage, real KB curation demo (97 issues -> 39 backlog entries), graph UX polish, evidence-to-ontology bridge, end-to-end review.
+- Phase 11/12 delivered: Ontology Modeling Drafts v1 + Model Quality & Contract Packages v1 - see `docs/phase11-planning.md` and `docs/phase12-planning.md`.
+- Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 - delivered.
+- Phase 14: Business Pilot Project main chain (goal -> data -> model -> validate -> pilot) - COMPLETE (backend + frontend F2).
+- Frontend F2: Guided Business Pilot workspace - F2 Complete (F2A+F2B+F2C delivered).
+- Phase 15 delivered: Evidence-to-Ontology Feedback Loop v1 - save RAG answer as project evidence, evidence review surface, evidence-backed modeling draft candidates. 22 evidence-draft tests.
+- Phase 16 delivered: Pilot Outcome & FDE Delivery Record v1 - immutable outcome records (CRUD), JSON outcome-summary aggregation, bounded markdown artifact export. 66 tests. 16.3 UI deferred.
+- Phase 17 delivered: FDE Demo Readiness & Operational Smoke v1 - seed scenario contract (manufacturing), 11-step smoke script (~0.8s, fake providers), inline artifact quality gate (PASS, 0 findings), refreshed interview/demo script with 5-min demo flow and FAQ.
+- Phase 18 delivered: Cloud Deployment Smoke - PostgreSQL migration (28/28), HTTP API smoke (9/9 PASS), base-url adapter, config audit (11 items). Frontend visual baseline (Minimalism & Swiss Style, 53/53 UI checks).
+- Phase 19 delivered: Ontology Operationalization - manufacturing data pack contract (13 tables), mapping contract v1 (13 object types, 15 relationships, controlled vocabularies), business rule validation (8 categories, 4,528 checks), governance feedback (3 candidate types, 4 severity levels). 29 tests. Full offline pipeline: CSV -> manifest -> mapping_contract -> rule_validation -> governance_feedback. AdventureWorks external benchmark planned.
 
-- **R2/R3 Relationship Runtime**: 1–2 hop traverse over bound datasets via `POST /runtime/traverse`. Flat `{ot}__{prop}` and grouped (nested tree) response shapes. Per-OT filter pushdown (equality, any OT in path). Bidirectional traversal (forward/reverse). Stable multi-key sorting by selected fields before offset/limit. Fail-closed audit with provenance safety. FK-indexing micro-optimizations. 122 tests. No SQL, no DSL, no Graph RAG. Aggregation (R3E2) deferred.
+- **R2/R3 Relationship Runtime**: 1-2 hop traverse over bound datasets via `POST /runtime/traverse`. Flat `{ot}__{prop}` and grouped (nested tree) response shapes. Per-OT filter pushdown (equality, any OT in path). Bidirectional traversal (forward/reverse). Stable multi-key sorting by selected fields before offset/limit. Fail-closed audit with provenance safety. FK-indexing micro-optimizations. 122 tests. No SQL, no DSL, no Graph RAG. Aggregation (R3E2) deferred.
 
-**Current strongest demo**: `.\.venv\Scripts\python scripts\smoke_fde_demo.py --data-pack .tmp\phase19-manufacturing` — 11/11 PASS, artifact gate PASS (0 findings). Full chain: data pack → manifest → mapping → rules → governance → group → project → evidence → package → runtime → outcome → markdown artifact.
+**Current strongest demo**: `.\.venv\Scripts\python scripts\smoke_fde_demo.py --data-pack .tmp\phase19-manufacturing` - 11/11 PASS, artifact gate PASS (0 findings). Full chain: data pack -> manifest -> mapping -> rules -> governance -> group -> project -> evidence -> package -> runtime -> outcome -> markdown artifact.
 
-The relationship runtime (`POST /runtime/traverse`) adds a second demo anchor: equipment → maintenance → work_orders traversal with grouped output and sorting demonstrates the ontology-as-query-surface capability.
+The relationship runtime (`POST /runtime/traverse`) adds a second demo anchor: equipment -> maintenance -> work_orders traversal with grouped output and sorting demonstrates the ontology-as-query-surface capability.
 
 The project has progressed from RAG/Agent foundations through ontology operationalization to a **runtime relationship traversal surface with governed contracts**. It is still not a complete SaaS, not production-deployed, and not an MCP runtime. Portfolio narrative: `docs/portfolio-demo-narrative.md`.
 
@@ -104,4 +104,4 @@ A feature is not considered finished until:
 - production deployment must protect secrets and runtime storage
 - Agent workflow should remain controlled and auditable before adding framework complexity. The next product gap is not backend Agent capability, but making existing controlled Agent workflows visible and usable in the frontend.
 - deterministic backend rules should not be replaced by LLM decisions
-- Ontology direction must not be reduced to "more RAG." Phase 9–10 made the knowledge base governable. Phase 11–13 delivered modeling drafts, quality-gated packages, and typed business contracts. Phase 14 delivered the five-stage business pilot chain. Phase 15 added evidence-to-ontology feedback. Phase 16 delivered FDE outcome records with bounded artifacts. Phase 17 delivered demo readiness with operational smoke. Phase 18 delivered cloud deployment and visual polish. Phase 19 delivered the full manufacturing ontology pipeline — from CSV data to governance feedback candidates — proving the project is an Ontology semantic operating layer, not a generic RAG demo. See `docs/project-status.toml` and `docs/portfolio-demo-narrative.md` for current state.
+- Ontology direction must not be reduced to "more RAG." Phase 9-10 made the knowledge base governable. Phase 11-13 delivered modeling drafts, quality-gated packages, and typed business contracts. Phase 14 delivered the five-stage business pilot chain. Phase 15 added evidence-to-ontology feedback. Phase 16 delivered FDE outcome records with bounded artifacts. Phase 17 delivered demo readiness with operational smoke. Phase 18 delivered cloud deployment and visual polish. Phase 19 delivered the full manufacturing ontology pipeline - from CSV data to governance feedback candidates - proving the project is an Ontology semantic operating layer, not a generic RAG demo. See `docs/project-status.toml` and `docs/portfolio-demo-narrative.md` for current state.
