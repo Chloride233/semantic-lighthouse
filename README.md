@@ -113,6 +113,7 @@ Auth + group isolation
 -> business contracts
 -> dataset bindings
 -> runtime query
+-> relationship traversal (1–2 hop, bidirectional, sortable)
 -> outcome artifacts
 -> governance feedback
 ```
@@ -132,19 +133,21 @@ The implementation intentionally favors explainable backend boundaries over broa
 - Business pilot workflow: Goal -> Data -> Model -> Validate -> Pilot.
 - Dataset profiling, deterministic modeling draft generation, explicit dataset bindings.
 - FDE outcome records, outcome summaries, and bounded markdown artifacts.
+- Relationship runtime traversal: 1–2 hop hash joins via `POST /runtime/traverse`, per-OT field whitelist, filters on any OT, bidirectional (forward/reverse), grouped/flat response shapes, stable multi-key sorting, explain-only mode, fail-closed audit, FK-indexing optimizations. 122 tests. No SQL, no DSL, no Graph RAG. Aggregation deferred.
 - Phase 19 offline data-governance chain: data pack -> mapping -> rules -> governance feedback.
 
 ## Intentional Boundaries
 
 These are deliberate design boundaries, not missing checkboxes:
 
-- No MCP runtime yet. MCP remains a future Agent-facing adapter candidate.
-- No Graph RAG yet. The project has ontology entities/relations, but retrieval is still hybrid search.
-- No autonomous Agent writes. High-risk write behavior requires backend permission checks and human confirmation.
-- No real enterprise data. The manufacturing data pack is realistic synthetic data.
-- No AdventureWorks implementation yet. It is planned as a future external benchmark.
-- No DB-backed governance feedback yet. Phase 19 produces offline candidates only.
-- No Neo4j, OWL reasoner, LangGraph, OSDK, or Kubernetes dependency in the core runtime.
+- **No MCP runtime.** MCP remains a future Agent-facing adapter candidate. Design doc only.
+- **No Graph RAG.** The project has ontology entities/relations, but retrieval is still hybrid search.
+- **No R3E2 aggregation.** COUNT/SUM/AVG deferred indefinitely — crosses from "traversal" into "analytics query" DSL territory.
+- **No autonomous Agent writes.** High-risk write behavior requires backend permission checks and human confirmation.
+- **No real enterprise data.** The manufacturing data pack is realistic synthetic data.
+- **No AdventureWorks implementation yet.** It is planned as a future external benchmark.
+- **No DB-backed governance feedback yet.** Phase 19 produces offline candidates only.
+- **No Neo4j, OWL reasoner, LangGraph, OSDK, or Kubernetes dependency in the core runtime.**
 
 ## Local Setup
 
@@ -203,14 +206,32 @@ Full backend regression and UI smoke are lane-dependent. See `docs/development-w
 
 ## Current Status
 
-Current canonical status lives in:
+Canonical project state: `docs/project-status.toml`.
 
-```text
-docs/project-status.toml
-```
+### Delivered
 
-As of Phase 19 closeout, the project has delivered the full offline ontology operationalization chain and portfolio narrative. Recommended next options:
+| Line | Scope | Status |
+|------|-------|--------|
+| Phase 1–18 | Auth, ingestion, retrieval, RAG, Agent, ontology governance, modeling, contracts, pilot workflow, outcomes, deployment smoke, frontend baseline | Complete |
+| Phase 19 | Offline ontology operationalization (CSV → manifest → mapping → rules → governance feedback) | Complete |
+| R2 | Relationship runtime traversal foundation (1–2 hop, API, audit) | Complete |
+| R3A–R3F | Runtime enhancements: grouped response, filter pushdown, bidirectional traversal, sorting, FK indexing | Complete |
 
-1. Public demo video / screenshot package.
-2. AdventureWorks external benchmark implementation planning.
-3. Safety Lane for DB-backed governance feedback from confirmed candidates.
+### Deferred
+
+| Item | Reason |
+|------|--------|
+| R3E2 aggregation (COUNT/SUM/AVG) | Crosses DSL boundary; needs measured demand |
+| MCP runtime | Future candidate; design doc only |
+| Graph RAG | Deferred until entity/relation read model is reliable |
+| AdventureWorks benchmark | Planned external benchmark, not implemented |
+| DB-backed governance feedback | Safety Lane candidate; offline candidates exist |
+
+### Next Step Candidates
+
+The project is at a decision gate. No automatic expansion to new phases. Candidates require explicit user choice:
+
+1. **Product onboarding / guided workflow** — improve the first-time Pilot experience.
+2. **Pilot narrative / demo hardening** — tighten the manufacturing demo into a 5-minute portfolio narrative.
+3. **Ontology governance deeper slice** — turn offline governance feedback into DB-backed issues.
+4. **MCP design-only** — refine the MCP boundary design without implementation.

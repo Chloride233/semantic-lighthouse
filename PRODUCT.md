@@ -63,9 +63,13 @@ The experience should feel like a professional semantic operating layer workspac
 - Phase 18 delivered: Cloud Deployment Smoke — PostgreSQL migration (28/28), HTTP API smoke (9/9 PASS), base-url adapter, config audit (11 items). Frontend visual baseline (Minimalism & Swiss Style, 53/53 UI checks).
 - Phase 19 delivered: Ontology Operationalization — manufacturing data pack contract (13 tables), mapping contract v1 (13 object types, 15 relationships, controlled vocabularies), business rule validation (8 categories, 4,528 checks), governance feedback (3 candidate types, 4 severity levels). 29 tests. Full offline pipeline: CSV → manifest → mapping_contract → rule_validation → governance_feedback. AdventureWorks external benchmark planned.
 
+- **R2/R3 Relationship Runtime**: 1–2 hop traverse over bound datasets via `POST /runtime/traverse`. Flat `{ot}__{prop}` and grouped (nested tree) response shapes. Per-OT filter pushdown (equality, any OT in path). Bidirectional traversal (forward/reverse). Stable multi-key sorting by selected fields before offset/limit. Fail-closed audit with provenance safety. FK-indexing micro-optimizations. 122 tests. No SQL, no DSL, no Graph RAG. Aggregation (R3E2) deferred.
+
 **Current strongest demo**: `.\.venv\Scripts\python scripts\smoke_fde_demo.py --data-pack .tmp\phase19-manufacturing` — 11/11 PASS, artifact gate PASS (0 findings). Full chain: data pack → manifest → mapping → rules → governance → group → project → evidence → package → runtime → outcome → markdown artifact.
 
-The project has progressed from RAG/Agent foundations to **ontology operationalization with a formal data pack contract and governance feedback loop**. It is still not a complete SaaS, not production-deployed, and not an MCP runtime. Portfolio narrative: `docs/portfolio-demo-narrative.md`.
+The relationship runtime (`POST /runtime/traverse`) adds a second demo anchor: equipment → maintenance → work_orders traversal with grouped output and sorting demonstrates the ontology-as-query-surface capability.
+
+The project has progressed from RAG/Agent foundations through ontology operationalization to a **runtime relationship traversal surface with governed contracts**. It is still not a complete SaaS, not production-deployed, and not an MCP runtime. Portfolio narrative: `docs/portfolio-demo-narrative.md`.
 
 ## Product Non-Goals For Now
 

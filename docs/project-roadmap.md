@@ -1,6 +1,6 @@
 # Semantic Lighthouse — Project Roadmap
 
-**Last updated**: 2026-06-23 (R3A planning)
+**Last updated**: 2026-06-24 (R3 closeout complete)
 **Current phase**: See `docs/project-status.toml` — canonical project state.
 
 ---
@@ -17,7 +17,7 @@
 | V3.3 | RAG run audit persistence, group-scoped replay | Stable |
 | V3.4 | Async ETL pipeline, structure-aware chunking, ingestion jobs, HNSW | Stable (hardened) |
 
-**Metrics**: 848 non-E2E pytest passed, ruff clean, alembic `0029` at head (2026-06-23). Production safety checks delivered (APP_ENV, JWT/cookie/database validation). R2 relationship traversal (1–2 hop) delivered with audit/provenance.
+**Metrics**: 848 non-E2E pytest passed, ruff clean, alembic `0029` at head. Production safety checks delivered (APP_ENV, JWT/cookie/database validation). R2 relationship traversal (1–2 hop) + R3 enhancements (grouped/bidirectional/sorting/FK index) delivered with audit/provenance — 122 traverse tests.
 
 ---
 
@@ -413,51 +413,48 @@ Six slices delivered end-to-end:
 
 **R2 closeout**: 2026-06-23 — all boundaries preserved, no code regressions, docs consistent.
 
-**Next candidates (R3+)**: nested/grouped response shape, bidirectional traversal, filter pushdown on intermediate OTs, aggregation, sorting, FK indexing for large datasets.
+**R3 follow-on**: All planned R3 candidates delivered (R3B–R3F). See R3 section below. Aggregation (R3E2) deferred.
 
 ---
 
-## R3: Relationship Runtime Enhancement ← PLANNING (R3A delivered)
+## R3: Relationship Runtime Enhancement ← COMPLETE (R3A–R3F, 2026-06-24)
 
 **Goal**: Incrementally enhance R2 traversal with higher-quality output and query expressiveness — without becoming a SQL/DSL, Graph RAG, or Agent writeback path.
 
-R3A planning complete (`docs/r3-relationship-runtime-enhancement-planning.md`). Five candidates evaluated and priority-ordered:
+All slices delivered end-to-end. 122 traverse tests. No migration beyond R2E (0029). Full planning: `docs/r3-relationship-runtime-enhancement-planning.md`.
 
-| Slice | Scope | Priority | Risk | Migration |
-|-------|-------|----------|------|-----------|
-| R3B | Grouped response shape (`group_by_root`) | ⭐ Highest | Low | No |
-| R3C | Filter pushdown on intermediate/target OTs | ⭐ High | Medium | No |
-| R3D | Bidirectional traversal design | Medium | Medium-High | No |
-| R3E | Aggregation + sorting | Medium-Low | High | No |
-| R3F | FK indexing / performance | Low | Medium | No |
+| Slice | Feature | Tests | Status |
+|-------|---------|-------|--------|
+| R3A | Enhancement planning and candidate evaluation | 0 | Delivered (docs only) |
+| R3B | Grouped response shape (`response_shape: flat\|grouped`) | 13 | Delivered |
+| R3C | Filter pushdown on intermediate/target OTs | 11 | Delivered |
+| R3D | Bidirectional traversal (`direction: forward\|reverse`) | 14 | Delivered |
+| R3E1 | Sorting (`order_by` on selected fields, stable multi-key) | 18 | Delivered |
+| R3F | FK indexing micro-optimizations (`defaultdict`, pre-computed value_type) | 2 | Delivered |
 
-**Recommended first slice**: R3B — highest demo/readability ROI, lowest risk, backward-compatible, no migration. See planning doc for detailed design boundaries.
+### Deferred: R3E2 Aggregation
+
+COUNT/SUM/AVG/MIN/MAX deliberately deferred. Grouped response (R3B) already provides structural aggregation. Further aggregation crosses from "relationship traversal" into "analytics query" DSL territory. Requires a separate design gate with measured demand evidence. See `docs/r3e-aggregation-sorting-design.md`.
+
+### R3 DSL Creep Guardrails (all preserved)
+
+- No expression strings — structured JSON objects only.
+- No cross-OT computation expressions.
+- No arbitrary WHERE/HAVING DSL.
+- No joins beyond traverse path.
+- No write operations.
+- No sub-queries or nesting.
+- No custom functions or UDFs.
+
+**R3 closeout**: 2026-06-24 — all boundaries preserved, 122 tests pass, docs aligned, no regressions.
 
 ---
 
-## Future Candidate: MCP Read-only Gateway v1 ← NOT STARTED
+## Future Candidate: MCP Read-only Gateway v1 ← NOT STARTED (design only)
 
-**Timing**: Candidate after Phase 13 review. The originally proposed Phase 12
-number is no longer available because Phase 12 has already delivered Model
-Quality & Contract Packages. A future phase number will be assigned only if the
-Phase 13 review approves this direction.
+**Status**: Design doc exists (`docs/mcp-agent-boundary-design.md`). No MCP server, client, SDK, dependency, resource, or tool implemented. The design describes a read-only gateway with caller-to-user mapping, group-scoped permission enforcement, and invocation audit. Requires a dedicated Safety Lane plan before any implementation.
 
-**Candidate scope**:
-
-- MCP server only; no client, external enterprise integration, or orchestration.
-- Read-only `search_evidence`, `get_entity`, `list_relations`,
-  `list_modeling_drafts`, and `get_governance_issues`.
-- Authenticated caller mapping to Semantic Lighthouse user/group membership.
-- Server-side `group_id` and role checks on every invocation.
-- Durable invocation audit and bounded, provenance-preserving output.
-- Shared service logic with REST/Agent paths; no direct table access or duplicated
-  business rules.
-
-**Not included**: writes, draft review/publish, Ontology mutation, external KB
-repair, Graph RAG, CRM/ERP/BI integration, frontend UI, or multi-MCP orchestration.
-
-See `docs/mcp-agent-boundary-design.md`. This candidate is planning context, not
-authorization to implement runtime.
+**This is planning context, not authorization to implement.**
 
 
 ## Explicitly Out of Scope (current phases only)
