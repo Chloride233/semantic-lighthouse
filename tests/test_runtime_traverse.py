@@ -2734,3 +2734,471 @@ class TestBidirectionalTraversal:
             headers=outsider_h,
         )
         assert r.status_code == 403, r.text
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  R3E1 sorting tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSortingSingleHop:
+    """ORDER BY on single-hop flat/grouped responses."""
+
+    def _setup(self, monkeypatch, src_csv, tgt_csv):
+        tmp = tempfile.mkdtemp()
+        src_path = os.path.join(tmp, "equipment.csv")
+        tgt_path = os.path.join(tmp, "maintenance.csv")
+        _write_csv(src_path, src_csv)
+        _write_csv(tgt_path, tgt_csv)
+
+        pkg = _mock_package()
+        ctx = _contract_context()
+        src_b = _mock_binding("bind-src", pkg.id, "ds-src", "equipment",
+                              {"equipment_id": "eq_id", "equipment_name": "eq_name",
+                               "status": "status"})
+        tgt_b = _mock_binding("bind-tgt", pkg.id, "ds-tgt", "maintenance",
+                              {"maintenance_id": "maint_id", "equipment_fk": "equipment_id",
+                               "maint_type": "type", "downtime_hours": "hours"})
+        src_ds = _mock_dataset("ds-src", src_path)
+        tgt_ds = _mock_dataset("ds-tgt", tgt_path)
+
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+            lambda sp, gid, pid: Path(sp),
+        )
+        import itertools
+        _scalar_cycle = itertools.cycle([src_b, tgt_b])
+        db = MagicMock()
+        db.scalar = MagicMock(side_effect=lambda stmt: next(_scalar_cycle))
+        db.get = MagicMock(side_effect=lambda model, ds_id:
+                           {"ds-src": src_ds, "ds-tgt": tgt_ds}.get(ds_id))
+        return db, "g1", "p1", ["equipment", "maintenance"], "user-1"
+
+    def test_order_by_asc_single_field(self, monkeypatch):
+        """Single field ascending sort puts rows in correct order."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\nEQ2,Motor-B,inactive\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ2,preventive,1.0\nM2,EQ1,corrective,8.0\n"
+                   "M3,EQ1,preventive,2.5\n")
+        db, gid, pid, path, uid = self._setup(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["downtime_hours"]},
+            order_by=[{"field": "maintenance__downtime_hours", "direction": "asc"}],
+        )
+        assert result["row_count"] == 3
+        hours = [r["maintenance__downtime_hours"] for r in result["rows"]]
+        assert hours == [1.0, 2.5, 8.0]
+
+    def test_order_by_desc_single_field(self, monkeypatch):
+        """Single field descending sort."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\nEQ2,Motor-B,inactive\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ2,preventive,1.0\nM2,EQ1,corrective,8.0\n"
+                   "M3,EQ1,preventive,2.5\n")
+        db, gid, pid, path, uid = self._setup(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["downtime_hours"]},
+            order_by=[{"field": "maintenance__downtime_hours", "direction": "desc"}],
+        )
+        hours = [r["maintenance__downtime_hours"] for r in result["rows"]]
+        assert hours == [8.0, 2.5, 1.0]
+
+    def test_order_by_equipment_name_asc(self, monkeypatch):
+        """Sort by root OT field (equipment__equipment_name)."""
+        src_csv = "eq_id,eq_name,status\nEQ2,Motor-B,inactive\nEQ1,Pump-A,active\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,2.5\nM2,EQ2,preventive,1.0\n")
+        db, gid, pid, path, uid = self._setup(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["downtime_hours"]},
+            order_by=[{"field": "equipment__equipment_name", "direction": "asc"}],
+        )
+        names = [r["equipment__equipment_name"] for r in result["rows"]]
+        assert names == ["Motor-B", "Pump-A"]
+
+    def test_order_by_multi_field(self, monkeypatch):
+        """Multiple sort keys: primary then secondary."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\nEQ2,Motor-B,inactive\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,2.5\nM2,EQ2,preventive,1.0\n"
+                   "M3,EQ1,corrective,8.0\n")
+        db, gid, pid, path, uid = self._setup(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["downtime_hours"]},
+            order_by=[
+                {"field": "equipment__equipment_name", "direction": "asc"},
+                {"field": "maintenance__downtime_hours", "direction": "desc"},
+            ],
+        )
+        # Motor-B with 1.0, then Pump-A with 8.0, then Pump-A with 2.5
+        pairs = [(r["equipment__equipment_name"], r["maintenance__downtime_hours"])
+                 for r in result["rows"]]
+        assert pairs == [("Motor-B", 1.0), ("Pump-A", 8.0), ("Pump-A", 2.5)]
+
+    def test_order_by_with_limit_top_n(self, monkeypatch):
+        """order_by + limit gives top-N rows."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,1.0\nM2,EQ1,corrective,8.0\n"
+                   "M3,EQ1,inspection,3.0\nM4,EQ1,overhaul,4.0\n")
+        db, gid, pid, path, uid = self._setup(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["downtime_hours"]},
+            order_by=[{"field": "maintenance__downtime_hours", "direction": "desc"}],
+            limit=2,
+        )
+        assert result["row_count"] == 2
+        hours = [r["maintenance__downtime_hours"] for r in result["rows"]]
+        assert hours == [8.0, 4.0]
+
+    def test_order_by_grouped_response(self, monkeypatch):
+        """Sort flat rows before grouping: groups appear in sorted root order."""
+        src_csv = "eq_id,eq_name,status\nEQ2,Motor-B,inactive\nEQ1,Pump-A,active\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,2.5\nM2,EQ2,preventive,1.0\n")
+        db, gid, pid, path, uid = self._setup(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["downtime_hours"]},
+            order_by=[{"field": "equipment__equipment_name", "direction": "desc"}],
+            response_shape="grouped",
+        )
+        assert result["row_count"] == 2
+        names = [r["equipment"]["equipment_name"] for r in result["rows"]]
+        assert names == ["Pump-A", "Motor-B"]
+
+    def test_order_by_reverse_traversal(self, monkeypatch):
+        """Sort works with reverse direction traversal."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\nEQ2,Motor-B,inactive\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ2,preventive,1.0\nM2,EQ1,corrective,8.0\n"
+                   "M3,EQ1,preventive,2.5\n")
+        ctx = _contract_context()
+        pkg = _mock_package()
+        tmp = tempfile.mkdtemp()
+        src_path = os.path.join(tmp, "src.csv")
+        tgt_path = os.path.join(tmp, "tgt.csv")
+        _write_csv(src_path, src_csv)
+        _write_csv(tgt_path, tgt_csv)
+
+        tgt_b = _mock_binding("bind-tgt", pkg.id, "ds-tgt", "maintenance",
+                              {"maintenance_id": "maint_id", "equipment_fk": "equipment_id",
+                               "maint_type": "type", "downtime_hours": "hours"})
+        src_b = _mock_binding("bind-src", pkg.id, "ds-src", "equipment",
+                              {"equipment_id": "eq_id", "equipment_name": "eq_name",
+                               "status": "status"})
+        src_ds = _mock_dataset("ds-src", src_path)
+        tgt_ds = _mock_dataset("ds-tgt", tgt_path)
+
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+            lambda sp, gid, pid: Path(sp),
+        )
+        import itertools
+        _scalar_cycle = itertools.cycle([tgt_b, src_b])
+        db = MagicMock()
+        db.scalar = MagicMock(side_effect=lambda stmt: next(_scalar_cycle))
+        db.get = MagicMock(side_effect=lambda model, ds_id:
+                           {"ds-src": src_ds, "ds-tgt": tgt_ds}.get(ds_id))
+
+        result = execute_traversal(
+            db, "g1", "p1", ["maintenance", "equipment"], "u1",
+            fields={"maintenance": ["downtime_hours"],
+                    "equipment": ["equipment_name"]},
+            order_by=[{"field": "maintenance__downtime_hours", "direction": "asc"}],
+            direction="reverse",
+        )
+        hours = [r["maintenance__downtime_hours"] for r in result["rows"]]
+        assert hours == [1.0, 2.5, 8.0]
+
+    def test_order_by_explain_only_returns_metadata(self, monkeypatch):
+        """explain_only records order_by metadata without reading data."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["downtime_hours"]},
+            order_by=[{"field": "maintenance__downtime_hours", "direction": "desc"}],
+            explain_only=True,
+        )
+        assert result["row_count"] is None
+        assert result["rows"] == []
+        explain = result["explain"]
+        assert explain["order_by"] == [
+            {"field": "maintenance__downtime_hours", "direction": "desc"},
+        ]
+
+    def test_order_by_without_order_by_explain_is_none(self, monkeypatch):
+        """When order_by not provided, explain.order_by is None."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(db, gid, pid, path, uid)
+        assert result["explain"]["order_by"] is None
+
+    def test_order_by_unselected_field_rejected(self, monkeypatch):
+        """Sorting by a field not in selected fields raises ValueError."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup(monkeypatch, src_csv, tgt_csv)
+
+        with pytest.raises(ValueError, match="not a selected field"):
+            execute_traversal(
+                db, gid, pid, path, uid,
+                fields={"equipment": ["equipment_name"],
+                        "maintenance": ["maint_type"]},
+                order_by=[{"field": "maintenance__downtime_hours",
+                           "direction": "asc"}],
+            )
+
+    def test_order_by_invalid_field_format_rejected(self, monkeypatch):
+        """Sort field without ot__prop format raises ValueError."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup(monkeypatch, src_csv, tgt_csv)
+
+        with pytest.raises(ValueError, match="must use .* format"):
+            execute_traversal(
+                db, gid, pid, path, uid,
+                fields={"equipment": ["equipment_name"],
+                        "maintenance": ["maint_type"]},
+                order_by=[{"field": "downtime_hours", "direction": "asc"}],
+            )
+
+    def test_order_by_wrong_ot_prefix_rejected(self, monkeypatch):
+        """Sort field must match a selected OT-qualified field, not just prop name."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup(monkeypatch, src_csv, tgt_csv)
+
+        with pytest.raises(ValueError, match="not a selected field"):
+            execute_traversal(
+                db, gid, pid, path, uid,
+                fields={"equipment": ["equipment_name"]},
+                order_by=[{"field": "maintenance__equipment_name", "direction": "asc"}],
+            )
+
+    def test_order_by_with_filter_and_sort(self, monkeypatch):
+        """Sort after filter: filtered-out rows excluded from sort."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\nEQ2,Motor-B,inactive\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,2.5\nM2,EQ2,preventive,1.0\n"
+                   "M3,EQ1,corrective,8.0\n")
+        db, gid, pid, path, uid = self._setup(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["downtime_hours"]},
+            filters={"equipment": {"status": "active"}},
+            order_by=[{"field": "maintenance__downtime_hours", "direction": "desc"}],
+        )
+        # Only EQ1 (Pump-A) rows survive filter
+        assert result["row_count"] == 2
+        assert result["rows"][0]["equipment__equipment_name"] == "Pump-A"
+        hours = [r["maintenance__downtime_hours"] for r in result["rows"]]
+        assert hours == [8.0, 2.5]
+
+
+class TestSortingTwoHop:
+    """ORDER BY on two-hop traversals."""
+
+    def _setup(self, monkeypatch, eq_csv, maint_csv, wo_csv):
+        tmp = tempfile.mkdtemp()
+        eq_path = os.path.join(tmp, "equipment.csv")
+        maint_path = os.path.join(tmp, "maintenance.csv")
+        wo_path = os.path.join(tmp, "work_orders.csv")
+        _write_csv(eq_path, eq_csv)
+        _write_csv(maint_path, maint_csv)
+        _write_csv(wo_path, wo_csv)
+
+        pkg = _mock_package(pkg_id="pkg-2h")
+        ctx = _two_hop_context()
+        eq_b = _mock_binding("b-eq", pkg.id, "ds-eq", "equipment",
+                             {"equipment_id": "eq_id", "equipment_name": "eq_name",
+                              "status": "status"})
+        m_b = _mock_binding("b-m", pkg.id, "ds-m", "maintenance",
+                            {"maintenance_id": "maint_id", "equipment_fk": "equipment_id",
+                             "maint_type": "type", "downtime_hours": "hours"})
+        wo_b = _mock_binding("b-wo", pkg.id, "ds-wo", "work_orders",
+                             {"work_order_id": "wo_id", "maintenance_fk": "maint_ref",
+                              "wo_description": "description", "priority": "priority"})
+        eq_ds = _mock_dataset("ds-eq", eq_path)
+        m_ds = _mock_dataset("ds-m", maint_path)
+        wo_ds = _mock_dataset("ds-wo", wo_path)
+
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+            lambda sp, gid, pid: Path(sp),
+        )
+        import itertools
+        _scalar_cycle = itertools.cycle([eq_b, m_b, wo_b])
+        db = MagicMock()
+        db.scalar = MagicMock(side_effect=lambda stmt: next(_scalar_cycle))
+        db.get = MagicMock(side_effect=lambda model, ds_id:
+                           {"ds-eq": eq_ds, "ds-m": m_ds, "ds-wo": wo_ds}.get(ds_id))
+        return db, "g1", "p1", ["equipment", "maintenance", "work_orders"], "user-1"
+
+    def test_two_hop_order_by_target_ot_field(self, monkeypatch):
+        """Sort two-hop results by work_orders__priority (desc)."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = ("wo_id,maint_ref,description,priority\n"
+                  "W1,M1,Replace bearing,low\nW2,M1,Inspect seal,high\n")
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"],
+                    "work_orders": ["wo_description", "priority"]},
+            order_by=[{"field": "work_orders__priority", "direction": "desc"}],
+        )
+        priorities = [r["work_orders__priority"] for r in result["rows"]]
+        assert priorities == ["low", "high"]
+
+    def test_two_hop_order_by_root_ot_field(self, monkeypatch):
+        """Sort two-hop by root OT field then target OT field."""
+        eq_csv = "eq_id,eq_name,status\nEQ2,Motor-B,inactive\nEQ1,Pump-A,active\n"
+        maint_csv = ("maint_id,equipment_id,type,hours\n"
+                     "M1,EQ1,preventive,2.5\nM2,EQ2,preventive,1.0\n")
+        wo_csv = ("wo_id,maint_ref,description,priority\n"
+                  "W1,M1,Replace,high\nW2,M2,Check,medium\n")
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"],
+                    "work_orders": ["priority"]},
+            order_by=[{"field": "equipment__equipment_name", "direction": "asc"}],
+        )
+        names = [r["equipment__equipment_name"] for r in result["rows"]]
+        assert names == ["Motor-B", "Pump-A"]
+
+    def test_two_hop_order_by_with_limit(self, monkeypatch):
+        """Two-hop order_by + limit top-N."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        wo_csv = ("wo_id,maint_ref,description,priority\n"
+                  "W1,M1,Replace bearing,low\nW2,M1,Inspect seal,high\n")
+        db, gid, pid, path, uid = self._setup(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"],
+                    "work_orders": ["priority"]},
+            order_by=[{"field": "work_orders__priority", "direction": "asc"}],
+            limit=1,
+        )
+        assert result["row_count"] == 1
+        assert result["rows"][0]["work_orders__priority"] == "high"
+
+
+class TestSortingRouter:
+    """Router-level tests for order_by validation and error mapping."""
+
+    def test_invalid_direction_rejected_422(self, client):
+        """Pydantic rejects invalid direction at router level (422)."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "order_by": [{"field": "maintenance__downtime_hours",
+                              "direction": "backward"}],
+            },
+            headers=mem_h,
+        )
+        assert r.status_code == 422, r.text
+
+    def test_order_by_with_flat_response_ok(self, client, monkeypatch):
+        """Router accepts order_by with flat response and returns 200."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+        mock_result = _mock_traverse_success()
+        monkeypatch.setattr(
+            "semantic_lighthouse.routers.runtime.execute_traversal",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "order_by": [{"field": "maintenance__hours",
+                              "direction": "desc"}],
+            },
+            headers=mem_h,
+        )
+        assert r.status_code == 200, r.text
+
+    def test_order_by_explain_only_no_storage_path(self, client, monkeypatch):
+        """explain with order_by must not leak storage_path."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+        mock_result = _mock_traverse_explain_only()
+        mock_result["explain"]["order_by"] = [
+            {"field": "maintenance__hours", "direction": "desc"},
+        ]
+        monkeypatch.setattr(
+            "semantic_lighthouse.routers.runtime.execute_traversal",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "order_by": [{"field": "maintenance__hours",
+                              "direction": "desc"}],
+            },
+            headers=mem_h,
+        )
+        assert r.status_code == 200, r.text
+        assert "storage_path" not in r.text.lower()

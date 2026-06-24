@@ -1037,12 +1037,22 @@ class PilotOutcomeSummaryResponse(BaseModel):
 # R2D: runtime relationship traversal.
 
 
+class OrderByClause(BaseModel):
+    """R3E1 — sort key on a selected joined field.
+
+    No expression strings, no cross-OT computation, no aggregate references.
+    """
+
+    field: str = Field(..., min_length=1)
+    direction: str = Field(default="asc", pattern="^(asc|desc)$")
+
+
 class RuntimeTraverseRequest(BaseModel):
     """Declarative path traversal over bound dataset Object Types.
 
-    Supports 1-2 hops (path of 2 or 3 OTs). Filters are per-OT;
-    only root OT filters applied (filter-before-traversal semantics).
-    No SQL, no DSL, no expression strings.
+    Supports 1-2 hops (path of 2 or 3 OTs). Filters are per-OT.
+    order_by sorts joined rows by selected {ot}__{prop} fields before
+    offset/limit. No SQL, no DSL, no expression strings.
     """
 
     path: list[str] = Field(..., min_length=2, max_length=3)
@@ -1050,6 +1060,7 @@ class RuntimeTraverseRequest(BaseModel):
     filters: dict[str, dict[str, str | int | float | bool | None]] | None = Field(
         default=None,
     )
+    order_by: list[OrderByClause] | None = Field(default=None)
     limit: int = Field(default=20, ge=1, le=100)
     offset: int = Field(default=0, ge=0, le=10000)
     explain_only: bool = Field(default=False)
@@ -1089,6 +1100,7 @@ class TraverseExplain(BaseModel):
     offset: int
     response_shape: str = "flat"
     direction: str = "forward"
+    order_by: list[dict] | None = None
     scanned_rows: dict[str, int] | None = None
     scan_limit: int | None = None
     scan_truncated: dict[str, bool] | None = None

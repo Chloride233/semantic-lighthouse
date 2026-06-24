@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-24 (R3E aggregation/sorting design decision)
+Last updated: 2026-06-24 (R3E1 sorting delivered)
 
 ## State Source
 
@@ -753,34 +753,41 @@ Next gate is an explicit R3 planning decision, not automatic feature expansion.
 - explain_only, filters, limit/offset continue to work.
 - Backward compatible: default `direction="forward"` preserves all existing behavior.
 
-## R3E — Aggregation/Sorting Design Decision
+## R3E1 — Sorting (ORDER BY)
 
-**Status**: Design-only (2026-06-24). **Lane**: Fast (no code).
+**Status**: Delivered (2026-06-24). **Lane**: Standard.
 
-### Decision
+### Changes
 
-- **R3E1 sorting (ORDER BY)**: Recommended. Minimal risk, high utility. Simple
-  `sorted()` call on joined rows before offset/limit. No DSL creep.
-- **R3E2 aggregation (COUNT/SUM/AVG)**: NOT recommended now. Crosses from
-  "relationship traversal" into "analytics query." Grouped response (R3B)
-  already provides structural aggregation. Revisit after measured demand.
-- **Sequencing**: R3E1 sorting → R3F FK indexing → (gated, indefinite) R3E2.
+- `src/semantic_lighthouse/schemas.py`: New `OrderByClause` model (`field: str`, `direction: str = "asc"` with pattern `^(asc|desc)$`). `RuntimeTraverseRequest` gains optional `order_by: list[OrderByClause] | None`. `TraverseExplain` gains `order_by: list[dict] | None`.
+- `src/semantic_lighthouse/routers/runtime.py`: `traverse_runtime` passes `body.order_by` through as list of dicts to `execute_traversal()`.
+- `src/semantic_lighthouse/services/runtime_traverse.py`: `execute_traversal()` accepts `order_by` parameter. New `_validate_order_by()` validates each clause — field must be `{ot}__{prop}` format, prop must be in selected fields, FK/PK internal props rejected. New `_sort_flat_rows()` applies stable multi-key Python `sorted()` after join/filter, before offset/limit. `explain.order_by` records validated sort clauses (field names + directions, never values). Applied in both single-hop and two-hop branches, and validated for explain_only path.
+- `tests/test_runtime_traverse.py`: 18 new tests — `TestSortingSingleHop` (12: asc, desc, multi-field, top-N limit, grouped, reverse, explain_only, no-order_by explain=None, unselected field error, invalid format error, filter+sort), `TestSortingTwoHop` (3: target OT, root OT, limit), `TestSortingRouter` (3: invalid direction 422, flat response 200, no storage_path leak).
 
-### Design Artifacts
+### Verification
 
-- `docs/r3e-aggregation-sorting-design.md` — full design: request structure,
-  explain/audit impact, guardrails, forbidden items, test scope.
+| Check | Result |
+|-------|--------|
+| Pytest (test_runtime_traverse.py) | **120/120 passed** (101 existing + 18 R3E1 + 1 Codex review fix), 40.11s |
+| Ruff (4 changed files) | All clean |
+| git diff --check | clean |
 
-### Key Boundaries
+### Pipeline
 
-- Sorting by selected fields only (validated against contract).
-- No expression strings, no cross-OT expressions, no aggregation in v1.
+```
+join → filter → sort → offset → limit → serialize
+```
+
+### Boundaries Preserved
+
+- No aggregation, no GROUP BY, no HAVING, no SUM/AVG/MIN/MAX.
+- No expression strings — structured `{field, direction}` objects only.
+- No cross-OT sort keys — each key references a single `{ot}__{prop}`.
+- No sort-by-aggregate or sort-by-expression.
 - No new audit columns — existing `field_names` covers sort metadata.
-- explain gains `order_by` metadata (field names + directions).
-- If aggregation is ever done: COUNT only, grouped response only, no GROUP BY,
-  no SUM/AVG/MIN/MAX, no HAVING, separate design gate required.
-
-### No code, no runtime changes, no tests, no migration, no commit.
+- No migration, no frontend, no MCP, no permission changes.
+- Flat/grouped/reverse/explain_only all compatible.
+- Backward compatible: `order_by` defaults to `None`.
 
 ---
 

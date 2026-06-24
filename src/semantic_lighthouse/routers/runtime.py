@@ -317,6 +317,10 @@ def traverse_runtime(
             user_id=current_user.id,
             fields=body.fields,
             filters=native_filters,
+            order_by=[
+                {"field": ob.field, "direction": ob.direction}
+                for ob in body.order_by
+            ] if body.order_by else None,
             limit=body.limit,
             offset=body.offset,
             explain_only=body.explain_only,

@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R3D bidirectional traversal delivered"
-description = "R3D complete. RuntimeTraverseRequest gains direction field (forward|reverse, default forward). When reverse, _resolve_link swaps source/target match criteria; FK/PK property assignment swaps source_fk_property↔target_pk_property. Both single-hop and two-hop supported. explain.direction records the traversal direction. Grouped/flat response shapes both work. explain_only + reverse works. Invalid direction rejected at both Pydantic (422) and service (ValueError) layers. 14 new tests (101 total). No migration, no audit schema change, no aggregation/sorting, no per-hop direction override."
+current = "R3E1 sorting delivered"
+description = "R3E1 complete. RuntimeTraverseRequest gains optional order_by field (list of {field, direction} with direction defaulting to asc). New OrderByClause Pydantic model. _validate_order_by() checks the full OT-qualified field is selected, rejects FK/PK internals, enforces {ot}__{prop} format. _sort_flat_rows() applies stable multi-key Python sorted() after join/filter, before offset/limit. explain gains order_by metadata (field names + directions, no values). Compatible with flat/grouped/reverse/explain_only. 19 new tests (120 total, including Codex review fix). No migration, no audit schema change, no aggregation/group_by/having/expressions."
 
 [next_decision_gate]
-name = "R3E1 sorting implementation or R3F FK indexing"
-description = "R3E design decision complete (docs/r3e-aggregation-sorting-design.md): sorting (ORDER BY) recommended as R3E1 — minimal risk, implemented as sorted() on joined rows before offset/limit. Aggregation (COUNT/SUM/AVG) deferred indefinitely — crosses DSL boundary. Next implementation candidates: R3E1 sorting (Standard lane, ~10 tests) or R3F FK indexing (Standard lane, performance optimization). R3E2 aggregation requires a separate design gate with measured demand evidence."
+name = "R3F FK indexing"
+description = "R3E1 sorting delivered. Aggregation (R3E2) deferred indefinitely per design decision. Next candidate: R3F FK indexing — performance optimization for large datasets (build PK index before scan if FK column indexed). Standard lane. No migration, no API/schema change."
 
 [mcp]
 runtime_status = "not started"
@@ -36,4 +36,4 @@ latest_commit = "5bd4bd0"
 backend_pytest = 848
 ruff = "clean"
 migration_head = "0029"
-traverse_tests = 101
+traverse_tests = 120

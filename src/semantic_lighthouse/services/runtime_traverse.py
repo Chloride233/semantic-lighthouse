@@ -46,6 +46,7 @@ def execute_traversal(
     user_id: str,
     fields: dict[str, list[str]] | None = None,
     filters: dict[str, dict[str, str | int | float | bool | None]] | None = None,
+    order_by: list[dict] | None = None,
     limit: int = _DEFAULT_LIMIT,
     offset: int = 0,
     explain_only: bool = False,
@@ -56,6 +57,9 @@ def execute_traversal(
 
     direction: "forward" follows link_type source→target (default);
                "reverse" traverses the same link_type target→source.
+    order_by: optional sort keys [{field, direction}] on selected
+              {ot}__{prop} fields; applied after join/filter, before
+              offset/limit. No aggregation, no expressions.
     """
     if direction not in ("forward", "reverse"):
         raise ValueError(
@@ -270,6 +274,20 @@ def execute_traversal(
         for ot_name, fnames in all_filter_names.items():
             audit_filter_names.extend(f"{ot_name}__{f}" for f in fnames)
 
+        # R3E1: validate order_by for explain (data path re-validates).
+        _internal_fields = {
+            f"{source_ot}__{source_fk}",
+            f"{target_ot}__{target_pk}",
+        }
+        _all_sel = {
+            f"{source_ot}__{field}" for field in source_fields
+        } | {
+            f"{target_ot}__{field}" for field in target_fields
+        }
+        _sort_clauses = _validate_order_by(
+            order_by or [], _all_sel, _internal_fields,
+        )
+
         explain: dict[str, Any] = {
             "package_id": pkg.id,
             "package_version": pkg.version,
@@ -301,6 +319,7 @@ def execute_traversal(
             "offset": offset,
             "response_shape": response_shape,
             "direction": direction,
+            "order_by": _sort_clauses or None,
         }
 
         if explain_only:
@@ -385,6 +404,24 @@ def execute_traversal(
         target_converted = all_converted_filters.get(target_ot, {})
         if target_converted:
             matched = _apply_flat_filters(matched, target_ot, target_converted)
+
+        # R3E1: validate and apply order_by before paging.
+        internal_props = {
+            f"{source_ot}__{source_fk}",
+            f"{target_ot}__{target_pk}",
+        }
+        all_selected = {
+            f"{source_ot}__{field}" for field in source_fields
+        } | {
+            f"{target_ot}__{field}" for field in target_fields
+        }
+        sort_clauses = _validate_order_by(
+            order_by or [], all_selected, internal_props,
+        )
+        if sort_clauses:
+            matched = _sort_flat_rows(matched, sort_clauses)
+
+        explain["order_by"] = sort_clauses or None
 
         paged = matched[offset : offset + limit]
         explain["scanned_rows"] = {
@@ -610,6 +647,21 @@ def execute_traversal(
             "target_pk_column": hop_pk_cols[i],
         })
 
+    # R3E1: validate order_by for explain (data path re-validates).
+    _internal_props = {
+        f"{ots[i]}__{hop_fk_props[i]}" for i in range(len(hop_fk_props))
+    } | {
+        f"{ots[i + 1]}__{hop_pk_props[i]}" for i in range(len(hop_pk_props))
+    }
+    _all_sel = {
+        f"{ots[i]}__{field}"
+        for i, fields_for_ot in enumerate(output_fields)
+        for field in fields_for_ot
+    }
+    _sort_clauses = _validate_order_by(
+        order_by or [], _all_sel, _internal_props,
+    )
+
     # Flat prefixed audit field/filter names.
     audit_field_names = []
     for i, ot in enumerate(ots):
@@ -632,6 +684,7 @@ def execute_traversal(
         "offset": offset,
         "response_shape": response_shape,
         "direction": direction,
+        "order_by": _sort_clauses or None,
     }
 
     if explain_only:
@@ -731,6 +784,25 @@ def execute_traversal(
         {k: v for k, v in row.items() if k in keep_keys}
         for row in final_rows
     ]
+
+    # R3E1: validate and apply order_by before paging.
+    internal_props = {
+        f"{ots[i]}__{hop_fk_props[i]}" for i in range(len(hop_fk_props))
+    } | {
+        f"{ots[i + 1]}__{hop_pk_props[i]}" for i in range(len(hop_pk_props))
+    }
+    all_selected = {
+        f"{ots[i]}__{field}"
+        for i, fields_for_ot in enumerate(output_fields)
+        for field in fields_for_ot
+    }
+    sort_clauses = _validate_order_by(
+        order_by or [], all_selected, internal_props,
+    )
+    if sort_clauses:
+        final_rows = _sort_flat_rows(final_rows, sort_clauses)
+
+    explain["order_by"] = sort_clauses or None
 
     paged = final_rows[offset : offset + limit]
     explain["scanned_rows"] = {ot: all_scanned[i] for i, ot in enumerate(ots)}
@@ -1208,6 +1280,74 @@ def _apply_flat_filters(
         row for row in rows
         if all(row.get(f"{ot}__{f}") == v for f, v in converted_filters.items())
     ]
+
+
+def _validate_order_by(
+    order_by: list[dict],
+    selected_fields: set[str],
+    internal_props: set[str],
+) -> list[dict]:
+    """Validate order_by clauses against selected fields, rejecting internals.
+
+    Returns validated order_by list. Raises ValueError with sanitized message
+    (no field names from user input exposed verbatim in error detail, but
+    invalid field name is contract metadata — safe to include).
+    """
+    if not order_by:
+        return []
+
+    for clause in order_by:
+        field = clause.get("field", "")
+        # Parse {ot}__{prop} format
+        parts = field.split("__", 1)
+        if len(parts) != 2:
+            raise ValueError(
+                f"order_by field must use '{{ot}}__{{prop}}' format, "
+                f"got '{field}'"
+            )
+        ot, prop = parts
+        # Check field is selected
+        if field not in selected_fields:
+            raise ValueError(
+                f"order_by field '{field}' is not a selected field "
+                f"(must be specified in fields['{ot}'])"
+            )
+        # Reject internal FK/PK join properties
+        if field in internal_props:
+            raise ValueError(
+                f"order_by field '{field}' is an internal FK/PK join "
+                f"column and cannot be used for sorting"
+            )
+        # Validate direction (defense in depth — Pydantic catches this first)
+        direction = clause.get("direction", "asc")
+        if direction not in ("asc", "desc"):
+            raise ValueError(
+                f"order_by direction must be 'asc' or 'desc', "
+                f"got '{direction}'"
+            )
+
+    return order_by
+
+
+def _sort_flat_rows(
+    rows: list[dict[str, Any]],
+    order_by: list[dict],
+) -> list[dict[str, Any]]:
+    """Sort flat dict rows by the given order_by clauses. Stable sort."""
+    if not order_by or not rows:
+        return rows
+
+    reverse_flags = [ob.get("direction", "asc") == "desc" for ob in order_by]
+
+    # Sort one key at a time in reverse order for stable multi-key sort
+    # (last key is the primary tiebreaker in Python's stable sort).
+    result = list(rows)
+    for i in range(len(order_by) - 1, -1, -1):
+        field = order_by[i]["field"]
+        rev = reverse_flags[i]
+        result.sort(key=lambda r: (r.get(field) is None, r.get(field)),
+                   reverse=rev)
+    return result
 
 
 def _type_error(object_type: str, field: str, prop_map: dict) -> dict:
