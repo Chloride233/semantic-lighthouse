@@ -722,6 +722,39 @@ Next gate is an explicit R3 planning decision, not automatic feature expansion.
 
 ### Verification: 76/76 tests passed, ruff clean, doc alignment PASS.
 
+## R3D — Bidirectional Traversal
+
+**Status**: Delivered (2026-06-24). **Lane**: Standard.
+
+### Changes
+
+- `src/semantic_lighthouse/schemas.py`: `RuntimeTraverseRequest` gains `direction` field (default `"forward"`, pattern `^(forward|reverse)$`). `TraverseExplain` gains `direction` metadata field.
+- `src/semantic_lighthouse/routers/runtime.py`: `traverse_runtime` passes `body.direction` to `execute_traversal`. Docstring updated.
+- `src/semantic_lighthouse/services/runtime_traverse.py`: `execute_traversal()` accepts `direction` parameter with validation. `_resolve_link()` accepts direction — when `"reverse"`, matches where `link.target == source_ot AND link.source == target_ot` (swapped criteria). In single-hop branch: FK/PK assignment swaps `source_fk_property`↔`target_pk_property` when reverse. In two-hop branch: per-hop FK/PK properties (stored in new `hop_fk_props`/`hop_pk_props` lists) swapped when reverse; all join/index calls use direction-aware properties. Both explain dicts include `"direction"`. Validation accepts only `"forward"` or `"reverse"`.
+- `tests/test_runtime_traverse.py`: 14 new `TestBidirectionalTraversal` tests — single-hop forward unchanged, single-hop reverse from target to source, reverse with filter, reverse no-match, two-hop reverse, grouped+reverse, explain.direction forward/reverse, explain_only+reverse, invalid direction ValueError, reverse no-link error, router 200 with reverse, router 422 invalid direction, reverse permissions unchanged (403 for outsider).
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| Pytest (test_runtime_traverse.py) | **101/101 passed** (87 existing + 14 R3D), 32.83s |
+| Ruff (changed files) | To be verified |
+| Doc alignment | To be verified |
+| git diff --check | To be verified |
+
+### Boundaries Preserved
+
+- No aggregation/sorting (R3E deferred).
+- No per-hop direction override — one direction for the entire path.
+- No SQL/DSL, no Graph RAG, no frontend, no MCP.
+- No migration, no audit schema change.
+- FK/PK security boundary unchanged — same inner join semantics.
+- Flat/grouped response shapes both work with reverse.
+- explain_only, filters, limit/offset continue to work.
+- Backward compatible: default `direction="forward"` preserves all existing behavior.
+
+---
+
 ## R3C — Filter Pushdown
 
 **Status**: Delivered (2026-06-23). **Lane**: Safety.

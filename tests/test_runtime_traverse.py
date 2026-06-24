@@ -2383,3 +2383,354 @@ class TestFilterPushdown:
         fbn = result["explain"]["filter_field_names_by_ot"]
         assert "equipment" in fbn
         assert "maintenance" in fbn
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  R3D bidirectional traversal tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestBidirectionalTraversal:
+    """Single-hop reverse, two-hop reverse, grouped + reverse, explain, errors."""
+
+    # ── single-hop reverse ───────────────────────────────────────────────
+
+    def _setup_single(self, monkeypatch, src_csv, tgt_csv):
+        """Create temp CSVs for equipment + maintenance, patch mocks."""
+        tmp = tempfile.mkdtemp()
+        src_path = os.path.join(tmp, "equipment.csv")
+        tgt_path = os.path.join(tmp, "maintenance.csv")
+        _write_csv(src_path, src_csv)
+        _write_csv(tgt_path, tgt_csv)
+
+        pkg = _mock_package()
+        ctx = _contract_context()
+        src_b = _mock_binding("bind-src", pkg.id, "ds-src", "equipment",
+                              {"equipment_id": "eq_id", "equipment_name": "eq_name",
+                               "status": "status"})
+        tgt_b = _mock_binding("bind-tgt", pkg.id, "ds-tgt", "maintenance",
+                              {"maintenance_id": "maint_id", "equipment_fk": "equipment_id",
+                               "maint_type": "type", "downtime_hours": "hours"})
+        src_ds = _mock_dataset("ds-src", src_path)
+        tgt_ds = _mock_dataset("ds-tgt", tgt_path)
+
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+            lambda sp, gid, pid: Path(sp),
+        )
+        import itertools
+        _scalar_cycle = itertools.cycle([tgt_b, src_b])  # note: reversed order for reverse path
+        db = MagicMock()
+        db.scalar = MagicMock(side_effect=lambda stmt: next(_scalar_cycle))
+        db.get = MagicMock(side_effect=lambda model, ds_id:
+                           {"ds-src": src_ds, "ds-tgt": tgt_ds}.get(ds_id))
+        return db, "g1", "p1", ["maintenance", "equipment"], "user-1"
+
+    def test_single_hop_forward_still_works(self, monkeypatch):
+        """Forward direction (default) unchanged."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        helper = TestSingleHopTraversal()
+        db, gid, pid, path, uid = helper._setup(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"equipment": ["equipment_name"],
+                    "maintenance": ["maint_type"]},
+            direction="forward",
+        )
+        assert result["row_count"] == 1
+        assert result["rows"][0]["equipment__equipment_name"] == "Pump-A"
+        assert result["explain"]["direction"] == "forward"
+
+    def test_single_hop_reverse_traverses_target_to_source(self, monkeypatch):
+        """Reverse: maintenance → equipment finds equipment for each maint row."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\nEQ2,Motor-B,inactive\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,2.5\nM2,EQ1,corrective,8.0\n"
+                   "M3,EQ2,preventive,1.0\n")
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"maintenance": ["maint_type"],
+                    "equipment": ["equipment_name"]},
+            direction="reverse",
+        )
+        assert result["row_count"] == 3
+        # Each maintenance row joined back to its equipment
+        types = sorted(r["maintenance__maint_type"] for r in result["rows"])
+        assert types == ["corrective", "preventive", "preventive"]
+        for r in result["rows"]:
+            assert "maintenance__maint_type" in r
+            assert "equipment__equipment_name" in r
+
+    def test_single_hop_reverse_with_filter(self, monkeypatch):
+        """Reverse with filter on source OT (maintenance) narrows results."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,2.5\nM2,EQ1,corrective,8.0\n")
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"maintenance": ["maint_type"],
+                    "equipment": ["equipment_name"]},
+            filters={"maintenance": {"maint_type": "preventive"}},
+            direction="reverse",
+        )
+        assert result["row_count"] == 1
+        assert result["rows"][0]["maintenance__maint_type"] == "preventive"
+
+    def test_single_hop_reverse_no_match(self, monkeypatch):
+        """Reverse with no matching FK yields empty."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ999,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            direction="reverse",
+        )
+        assert result["row_count"] == 0
+        assert result["rows"] == []
+
+    # ── two-hop reverse ──────────────────────────────────────────────────
+
+    def _setup_two(self, monkeypatch, eq_csv, maint_csv, wo_csv):
+        """Build equipment→maintenance→work_orders context, reverse path."""
+        tmp = tempfile.mkdtemp()
+        eq_path = os.path.join(tmp, "equipment.csv")
+        maint_path = os.path.join(tmp, "maintenance.csv")
+        wo_path = os.path.join(tmp, "work_orders.csv")
+        _write_csv(eq_path, eq_csv)
+        _write_csv(maint_path, maint_csv)
+        _write_csv(wo_path, wo_csv)
+
+        pkg = _mock_package(pkg_id="pkg-2h")
+        ctx = _two_hop_context()
+        eq_b = _mock_binding("b-eq", pkg.id, "ds-eq", "equipment",
+                             {"equipment_id": "eq_id", "equipment_name": "eq_name",
+                              "status": "status"})
+        m_b = _mock_binding("b-m", pkg.id, "ds-m", "maintenance",
+                            {"maintenance_id": "maint_id", "equipment_fk": "equipment_id",
+                             "maint_type": "type", "downtime_hours": "hours"})
+        wo_b = _mock_binding("b-wo", pkg.id, "ds-wo", "work_orders",
+                             {"work_order_id": "wo_id", "maintenance_fk": "maint_ref",
+                              "wo_description": "description", "priority": "priority"})
+        eq_ds = _mock_dataset("ds-eq", eq_path)
+        m_ds = _mock_dataset("ds-m", maint_path)
+        wo_ds = _mock_dataset("ds-wo", wo_path)
+
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._get_latest_project_package",
+            lambda db, gid, pid: pkg,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._build_contract_context",
+            lambda pkg: ctx,
+        )
+        monkeypatch.setattr(
+            "semantic_lighthouse.services.runtime_traverse._validate_dataset_path",
+            lambda sp, gid, pid: Path(sp),
+        )
+        # Bindings in reverse path order: work_orders, maintenance, equipment
+        import itertools
+        _scalar_cycle = itertools.cycle([wo_b, m_b, eq_b])
+        db = MagicMock()
+        db.scalar = MagicMock(side_effect=lambda stmt: next(_scalar_cycle))
+        db.get = MagicMock(side_effect=lambda model, ds_id:
+                           {"ds-eq": eq_ds, "ds-m": m_ds, "ds-wo": wo_ds}.get(ds_id))
+        return db, "g1", "p1", ["work_orders", "maintenance", "equipment"], "user-1"
+
+    def test_two_hop_reverse_works(self, monkeypatch):
+        """Two-hop reverse: work_orders → maintenance → equipment."""
+        eq_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        maint_csv = ("maint_id,equipment_id,type,hours\n"
+                     "M1,EQ1,preventive,2.5\nM2,EQ1,corrective,8.0\n")
+        wo_csv = ("wo_id,maint_ref,description,priority\n"
+                  "W1,M1,Replace bearing,high\nW2,M1,Inspect seal,low\n"
+                  "W3,M2,Lubricate,medium\n")
+
+        db, gid, pid, path, uid = self._setup_two(monkeypatch, eq_csv, maint_csv, wo_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"work_orders": ["wo_description"],
+                    "maintenance": ["maint_type"],
+                    "equipment": ["equipment_name"]},
+            direction="reverse",
+        )
+        assert result["row_count"] == 3
+        for r in result["rows"]:
+            assert "work_orders__wo_description" in r
+            assert "maintenance__maint_type" in r
+            assert "equipment__equipment_name" in r
+        # All involve EQ1
+        for r in result["rows"]:
+            assert r["equipment__equipment_name"] == "Pump-A"
+
+    # ── grouped + reverse ────────────────────────────────────────────────
+
+    def test_grouped_reverse_works(self, monkeypatch):
+        """Grouped response shape with direction=reverse."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = ("maint_id,equipment_id,type,hours\n"
+                   "M1,EQ1,preventive,2.5\nM2,EQ1,corrective,8.0\n")
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            fields={"maintenance": ["maint_type"],
+                    "equipment": ["equipment_name"]},
+            direction="reverse",
+            response_shape="grouped",
+        )
+        # Two maintenance rows with different maint_type → two groups
+        assert result["row_count"] == 2
+        assert len(result["rows"]) == 2
+        types = sorted(r["maintenance"]["maint_type"] for r in result["rows"])
+        assert types == ["corrective", "preventive"]
+        for r in result["rows"]:
+            assert r["equipment"] == {"equipment_name": "Pump-A"}
+
+    # ── explain direction ────────────────────────────────────────────────
+
+    def test_explain_direction_forward(self, monkeypatch):
+        """explain.direction is 'forward' when default."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        helper = TestSingleHopTraversal()
+        db, gid, pid, path, uid = helper._setup(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(db, gid, pid, path, uid, explain_only=True)
+        assert result["explain"]["direction"] == "forward"
+
+    def test_explain_direction_reverse(self, monkeypatch):
+        """explain.direction is 'reverse' when requested."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            direction="reverse", explain_only=True,
+        )
+        assert result["explain"]["direction"] == "reverse"
+        assert result["rows"] == []
+        assert result["row_count"] is None
+
+    def test_explain_only_reverse_single_hop(self, monkeypatch):
+        """explain_only=True with reverse returns correct hop metadata."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        result = execute_traversal(
+            db, gid, pid, path, uid,
+            direction="reverse", explain_only=True,
+        )
+        explain = result["explain"]
+        assert explain["direction"] == "reverse"
+        assert len(explain["hops"]) == 1
+        hop = explain["hops"][0]
+        assert hop["link_type_api_name"] == "equipment_maintenance"
+        assert hop["source_object_type"] == "maintenance"
+        assert hop["target_object_type"] == "equipment"
+
+    # ── error cases ──────────────────────────────────────────────────────
+
+    def test_invalid_direction_rejected(self, monkeypatch):
+        """Invalid direction raises ValueError (maps to 422 in router)."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        with pytest.raises(ValueError, match="direction must be"):
+            execute_traversal(db, gid, pid, path, uid, direction="backward")
+
+    def test_reverse_no_link_type_connects(self, monkeypatch):
+        """Reverse path with no matching reverse link raises error."""
+        src_csv = "eq_id,eq_name,status\nEQ1,Pump-A,active\n"
+        tgt_csv = "maint_id,equipment_id,type,hours\nM1,EQ1,preventive,2.5\n"
+        db, gid, pid, _path, uid = self._setup_single(monkeypatch, src_csv, tgt_csv)
+
+        # equipment -> nonexistent in reverse: looks for link where
+        # target=equipment AND source=nonexistent → no match
+        with pytest.raises(ValueError, match="No link_type connects"):
+            execute_traversal(
+                db, gid, pid, ["equipment", "nonexistent"], uid,
+                direction="reverse",
+            )
+
+    # ── router-level tests ───────────────────────────────────────────────
+
+    def test_router_reverse_works(self, client, monkeypatch):
+        """Router accepts direction=reverse and returns 200."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+        mock_result = _mock_traverse_success()
+        monkeypatch.setattr(
+            "semantic_lighthouse.routers.runtime.execute_traversal",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "direction": "reverse",
+            },
+            headers=mem_h,
+        )
+        assert r.status_code == 200, r.text
+
+    def test_router_invalid_direction_422(self, client):
+        """Invalid direction rejected by Pydantic validation as 422."""
+        gid, pid, _owner_h, mem_h = _setup_traverse_project(client)
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "direction": "backward",
+            },
+            headers=mem_h,
+        )
+        assert r.status_code == 422, r.text
+
+    def test_reverse_permissions_unchanged(self, client):
+        """Reverse traverse: non-member still gets 403."""
+        from conftest import register_and_login
+
+        _, _, owner_h = register_and_login(client, "r3d-rev-own@test.com")
+        _, _, outsider_h = register_and_login(client, "r3d-rev-out@test.com")
+
+        r = client.post("/groups", json={"name": "R3D Reverse Group"}, headers=owner_h)
+        assert r.status_code == 201
+        gid = r.json()["id"]
+
+        r = client.post(
+            f"/groups/{gid}/projects",
+            json={"name": "R3D Project", "entry_mode": "problem_first"},
+            headers=owner_h,
+        )
+        assert r.status_code == 201
+        pid = r.json()["id"]
+
+        r = client.post(
+            f"/groups/{gid}/projects/{pid}/runtime/traverse",
+            json={
+                "path": ["equipment", "maintenance"],
+                "direction": "reverse",
+            },
+            headers=outsider_h,
+        )
+        assert r.status_code == 403, r.text

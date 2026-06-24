@@ -281,6 +281,8 @@ def traverse_runtime(
 
     Member+. Only package-declared link_types. No SQL, no DSL.
     Filters accepted on any OT in the path (AND within each OT).
+    direction: "forward" (default) follows link_type source→target;
+               "reverse" traverses the same link_type in the opposite direction.
     """
     get_membership_or_404(db, current_user.id, group_id)
 
@@ -319,6 +321,7 @@ def traverse_runtime(
             offset=body.offset,
             explain_only=body.explain_only,
             response_shape=body.response_shape,
+            direction=body.direction,
         )
     except ValueError as exc:
         raise HTTPException(

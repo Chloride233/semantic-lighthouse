@@ -1054,6 +1054,7 @@ class RuntimeTraverseRequest(BaseModel):
     offset: int = Field(default=0, ge=0, le=10000)
     explain_only: bool = Field(default=False)
     response_shape: str = Field(default="flat", pattern="^(flat|grouped)$")
+    direction: str = Field(default="forward", pattern="^(forward|reverse)$")
 
 
 class HopExplain(BaseModel):
@@ -1087,6 +1088,7 @@ class TraverseExplain(BaseModel):
     limit: int
     offset: int
     response_shape: str = "flat"
+    direction: str = "forward"
     scanned_rows: dict[str, int] | None = None
     scan_limit: int | None = None
     scan_truncated: dict[str, bool] | None = None

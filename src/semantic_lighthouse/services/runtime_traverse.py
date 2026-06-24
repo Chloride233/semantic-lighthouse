@@ -50,8 +50,18 @@ def execute_traversal(
     offset: int = 0,
     explain_only: bool = False,
     response_shape: str = "flat",
+    direction: str = "forward",
 ) -> dict:
-    """Execute a 1-2 hop relationship traversal over bound datasets."""
+    """Execute a 1-2 hop relationship traversal over bound datasets.
+
+    direction: "forward" follows link_type source→target (default);
+               "reverse" traverses the same link_type target→source.
+    """
+    if direction not in ("forward", "reverse"):
+        raise ValueError(
+            f"direction must be 'forward' or 'reverse', got '{direction}'"
+        )
+
     path_len = len(path)
     if path_len < 2 or path_len > _MAX_PATH_LENGTH:
         summary = (
@@ -131,7 +141,7 @@ def execute_traversal(
 
         # Link resolution.
         try:
-            link = _resolve_link(ctx, source_ot, target_ot)
+            link = _resolve_link(ctx, source_ot, target_ot, direction)
         except ValueError as exc:
             msg = str(exc)
             code = (
@@ -143,8 +153,12 @@ def execute_traversal(
 
         audit_link_type_api_names.append(link.get("api_name", ""))
 
-        source_fk = link.get("source_fk_property", "")
-        target_pk = link.get("target_pk_property", "")
+        if direction == "forward":
+            source_fk = link.get("source_fk_property", "")
+            target_pk = link.get("target_pk_property", "")
+        else:
+            source_fk = link.get("target_pk_property", "")
+            target_pk = link.get("source_fk_property", "")
         if not source_fk:
             return _fail(
                 "fk_property_not_in_contract",
@@ -286,6 +300,7 @@ def execute_traversal(
             "limit": limit,
             "offset": offset,
             "response_shape": response_shape,
+            "direction": direction,
         }
 
         if explain_only:
@@ -387,10 +402,13 @@ def execute_traversal(
         rows: list[dict] = paged
         audit_row_count = len(paged)
         if response_shape == "grouped" and paged:
+            child_cardinality = link.get("cardinality", "one_to_many")
+            if direction == "reverse":
+                child_cardinality = _reverse_cardinality(child_cardinality)
             rows = _group_flat_rows(
                 paged, path,
                 [source_fields, target_fields],
-                [link.get("cardinality", "one_to_many")],
+                [child_cardinality],
             )
             audit_row_count = len(rows)
 
@@ -441,17 +459,27 @@ def execute_traversal(
     links: list[dict] = []
     for src_ot, tgt_ot in hops_pairs:
         try:
-            lk = _resolve_link(ctx, src_ot, tgt_ot)
+            lk = _resolve_link(ctx, src_ot, tgt_ot, direction)
         except ValueError as exc:
             msg = str(exc)
             code = "ambiguous_link_type" if "ambiguous" in msg.lower() else "no_link_type"
             return _fail(code, msg)
-        if not lk.get("source_fk_property"):
-            return _fail("fk_property_not_in_contract",
-                         f"Link '{lk.get('api_name', '?')}' has no source_fk_property")
-        if not lk.get("target_pk_property"):
-            return _fail("fk_property_not_in_contract",
-                         f"Link '{lk.get('api_name', '?')}' has no target_pk_property")
+        if direction == "forward":
+            if not lk.get("source_fk_property"):
+                return _fail("fk_property_not_in_contract",
+                             f"Link '{lk.get('api_name', '?')}' has no source_fk_property")
+            if not lk.get("target_pk_property"):
+                return _fail("fk_property_not_in_contract",
+                             f"Link '{lk.get('api_name', '?')}' has no target_pk_property")
+        else:
+            if not lk.get("target_pk_property"):
+                return _fail("fk_property_not_in_contract",
+                             f"Link '{lk.get('api_name', '?')}' has no target_pk_property "
+                             "(needed as FK in reverse)")
+            if not lk.get("source_fk_property"):
+                return _fail("fk_property_not_in_contract",
+                             f"Link '{lk.get('api_name', '?')}' has no source_fk_property "
+                             "(needed as PK in reverse)")
         links.append(lk)
 
     audit_link_type_api_names.extend(lk.get("api_name", "") for lk in links)
@@ -476,7 +504,11 @@ def execute_traversal(
         index_fields = list(requested) if requested else None
         # Ensure the second-hop FK property is present in OT1's index fields
         if i == 1:
-            fk2 = links[1].get("source_fk_property", "")
+            fk2 = (
+                links[1].get("source_fk_property", "")
+                if direction == "forward"
+                else links[1].get("target_pk_property", "")
+            )
             if fk2 and (index_fields is None or fk2 not in index_fields):
                 if index_fields is None:
                     # Compute all valid fields, then ensure FK is included
@@ -521,11 +553,17 @@ def execute_traversal(
     root_filter_names = all_filter_names.get(ots[0], [])
 
     # FK/PK column resolution per hop.
+    hop_fk_props: list[str] = []
+    hop_pk_props: list[str] = []
     hop_fk_cols: list[str] = []
     hop_pk_cols: list[str] = []
     for i, lk in enumerate(links):
-        src_fk = lk["source_fk_property"]
-        tgt_pk = lk["target_pk_property"]
+        if direction == "forward":
+            src_fk = lk["source_fk_property"]
+            tgt_pk = lk["target_pk_property"]
+        else:
+            src_fk = lk["target_pk_property"]
+            tgt_pk = lk["source_fk_property"]
         fk_col = bindings[i].property_mappings.get(src_fk)
         pk_col = bindings[i + 1].property_mappings.get(tgt_pk)
         if fk_col is None:
@@ -534,6 +572,8 @@ def execute_traversal(
         if pk_col is None:
             return _fail("fk_property_not_in_contract",
                          f"PK property '{tgt_pk}' not in binding for '{ots[i + 1]}'")
+        hop_fk_props.append(src_fk)
+        hop_pk_props.append(tgt_pk)
         hop_fk_cols.append(fk_col)
         hop_pk_cols.append(pk_col)
 
@@ -564,8 +604,8 @@ def execute_traversal(
             "target_binding_id": bindings[i + 1].id,
             "source_dataset_id": datasets[i].id,
             "target_dataset_id": datasets[i + 1].id,
-            "source_fk_property": lk.get("source_fk_property", ""),
-            "target_pk_property": lk.get("target_pk_property", ""),
+            "source_fk_property": hop_fk_props[i],
+            "target_pk_property": hop_pk_props[i],
             "source_fk_column": hop_fk_cols[i],
             "target_pk_column": hop_pk_cols[i],
         })
@@ -591,6 +631,7 @@ def execute_traversal(
         "limit": limit,
         "offset": offset,
         "response_shape": response_shape,
+        "direction": direction,
     }
 
     if explain_only:
@@ -646,14 +687,14 @@ def execute_traversal(
     # Hop 0: build target index on OT1, join OT0 -> OT1 (raw rows).
     idx1, te1 = _build_target_index(
         all_rows_raw[1], col_indices[1],
-        hop_pk_cols[0], links[0]["target_pk_property"],
+        hop_pk_cols[0], hop_pk_props[0],
         per_ot_fields[1], bindings[1], ots[1], prop_map,
     )
     all_type_errors.extend(te1)
 
     intermediate, te0 = _join_source_rows(
         all_rows_raw[0], col_indices[0],
-        hop_fk_cols[0], links[0]["source_fk_property"],
+        hop_fk_cols[0], hop_fk_props[0],
         per_ot_fields[0], bindings[0], ots[0], ots[1],
         idx1, root_converted, root_filter_names, prop_map,
     )
@@ -667,13 +708,13 @@ def execute_traversal(
     # Hop 1: build target index on OT2, join intermediate -> OT2.
     idx2, te2 = _build_target_index(
         all_rows_raw[2], col_indices[2],
-        hop_pk_cols[1], links[1]["target_pk_property"],
+        hop_pk_cols[1], hop_pk_props[1],
         per_ot_fields[2], bindings[2], ots[2], prop_map,
     )
     all_type_errors.extend(te2)
 
     final_rows = _join_flat_rows(
-        intermediate, ots[1], links[1]["source_fk_property"],
+        intermediate, ots[1], hop_fk_props[1],
         idx2, ots[2],
     )
 
@@ -702,6 +743,8 @@ def execute_traversal(
     audit_row_count = len(paged)
     if response_shape == "grouped" and paged:
         cardinalities = [lk.get("cardinality", "one_to_many") for lk in links]
+        if direction == "reverse":
+            cardinalities = [_reverse_cardinality(card) for card in cardinalities]
         rows = _group_flat_rows(paged, path, output_fields, cardinalities)
         audit_row_count = len(rows)
 
@@ -741,7 +784,8 @@ def execute_traversal(
     return response
 
 
-def _resolve_link(ctx: dict, source_ot: str, target_ot: str) -> dict:
+def _resolve_link(ctx: dict, source_ot: str, target_ot: str,
+                   direction: str = "forward") -> dict:
     link_map = ctx.get("link_map", {})
     if not link_map:
         raise ValueError("Package has no link_types in compiled contract")
@@ -749,8 +793,18 @@ def _resolve_link(ctx: dict, source_ot: str, target_ot: str) -> dict:
     matching_links = [
         link
         for link in link_map.values()
-        if link.get("source_object_type") == source_ot
-        and link.get("target_object_type") == target_ot
+        if (
+            (
+                direction == "forward"
+                and link.get("source_object_type") == source_ot
+                and link.get("target_object_type") == target_ot
+            )
+            or (
+                direction == "reverse"
+                and link.get("target_object_type") == source_ot
+                and link.get("source_object_type") == target_ot
+            )
+        )
     ]
     if not matching_links:
         raise ValueError(f"No link_type connects '{source_ot}' -> '{target_ot}'")
@@ -1076,6 +1130,17 @@ def _group_flat_rows(
         result.append(entry)
 
     return result
+
+
+def _reverse_cardinality(cardinality: str) -> str:
+    """Return the effective cardinality when traversing a link in reverse."""
+    reverse_map = {
+        "one_to_many": "many_to_one",
+        "many_to_one": "one_to_many",
+        "one_to_one": "one_to_one",
+        "many_to_many": "many_to_many",
+    }
+    return reverse_map.get(cardinality, cardinality)
 
 
 def _convert_row_fields(

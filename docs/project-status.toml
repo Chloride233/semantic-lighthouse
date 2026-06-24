@@ -20,19 +20,20 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R3C filter pushdown delivered"
-description = "R3C complete. Router no longer rejects non-root filters. execute_traversal filters parameter changed to per-OT dict[str,dict[str,value]]. _prepare_ot_filters validates/converts per-OT. _apply_flat_filters filters joined flat rows by {ot}__{field} keys. Single-hop: root filter in _join_source_rows, target OT filter after join. Two-hop: root in hop 0, intermediate after hop 0, target after hop 1. explain.filter_field_names_by_ot and audit filter names cover all filtered OTs. AND within each OT, intersection across OTs. 11 new tests. 87 total traverse tests pass. No migration, no audit schema change."
+current = "R3D bidirectional traversal delivered"
+description = "R3D complete. RuntimeTraverseRequest gains direction field (forward|reverse, default forward). When reverse, _resolve_link swaps source/target match criteria; FK/PK property assignment swaps source_fk_property↔target_pk_property. Both single-hop and two-hop supported. explain.direction records the traversal direction. Grouped/flat response shapes both work. explain_only + reverse works. Invalid direction rejected at both Pydantic (422) and service (ValueError) layers. 14 new tests (101 total). No migration, no audit schema change, no aggregation/sorting, no per-hop direction override."
 
 [next_decision_gate]
-name = "R3D bidirectional traversal or R3E aggregation"
-description = "Next candidates: R3D bidirectional traversal (reverse FK/PK direction per hop), R3E aggregation/sorting (COUNT/SUM/AVG/ORDER BY on joined rows). Both need dedicated design docs before implementation. R3D is lower risk; R3E has higher SQL-creep risk and should wait for measured demand."
+name = "R3E aggregation/sorting design or R3F FK indexing"
+description = "R3D bidirectional traversal delivered. Next candidates: R3E aggregation/sorting (COUNT/SUM/AVG/ORDER BY on joined rows — SQL-creep risk, needs dedicated design doc) or R3F FK indexing (build PK index before scan if FK column indexed). Both should wait for measured demand; no automatic expansion."
 
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "17a8598"
+latest_commit = "5736d5f"
 backend_pytest = 848
 ruff = "clean"
 migration_head = "0029"
+traverse_tests = 101
