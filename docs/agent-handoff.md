@@ -1,6 +1,6 @@
 # Agent Handoff Snapshot
 
-Last updated: 2026-06-23 (R2A relationship runtime query planning delivered)
+Last updated: 2026-06-24 (R3E aggregation/sorting design decision)
 
 ## State Source
 
@@ -752,6 +752,35 @@ Next gate is an explicit R3 planning decision, not automatic feature expansion.
 - Flat/grouped response shapes both work with reverse.
 - explain_only, filters, limit/offset continue to work.
 - Backward compatible: default `direction="forward"` preserves all existing behavior.
+
+## R3E — Aggregation/Sorting Design Decision
+
+**Status**: Design-only (2026-06-24). **Lane**: Fast (no code).
+
+### Decision
+
+- **R3E1 sorting (ORDER BY)**: Recommended. Minimal risk, high utility. Simple
+  `sorted()` call on joined rows before offset/limit. No DSL creep.
+- **R3E2 aggregation (COUNT/SUM/AVG)**: NOT recommended now. Crosses from
+  "relationship traversal" into "analytics query." Grouped response (R3B)
+  already provides structural aggregation. Revisit after measured demand.
+- **Sequencing**: R3E1 sorting → R3F FK indexing → (gated, indefinite) R3E2.
+
+### Design Artifacts
+
+- `docs/r3e-aggregation-sorting-design.md` — full design: request structure,
+  explain/audit impact, guardrails, forbidden items, test scope.
+
+### Key Boundaries
+
+- Sorting by selected fields only (validated against contract).
+- No expression strings, no cross-OT expressions, no aggregation in v1.
+- No new audit columns — existing `field_names` covers sort metadata.
+- explain gains `order_by` metadata (field names + directions).
+- If aggregation is ever done: COUNT only, grouped response only, no GROUP BY,
+  no SUM/AVG/MIN/MAX, no HAVING, separate design gate required.
+
+### No code, no runtime changes, no tests, no migration, no commit.
 
 ---
 

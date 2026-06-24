@@ -348,7 +348,8 @@ The primary R3 risk is incremental feature addition that accumulates into an ad-
 
 ## 8. Next Steps
 
-1. **R3B implementation**: Add `response_shape` parameter, `_group_flat_rows()` post-processing function, grouped response model, and tests. Lane: Standard.
-2. **R3C (after R3B)**: Filter pushdown on intermediate/target OTs. Lane: Safety (changes filter semantics).
-3. **R3D**: Bidirectional traversal. Lane: Standard.
-4. **R3E/R3F**: Deferred until R3B–R3D are delivered and measured demand exists.
+1. **R3B implementation**: Add `response_shape` parameter, `_group_flat_rows()` post-processing function, grouped response model, and tests. Lane: Standard. ✅ Delivered (2026-06-23).
+2. **R3C (after R3B)**: Filter pushdown on intermediate/target OTs. Lane: Safety (changes filter semantics). ✅ Delivered (2026-06-23).
+3. **R3D**: Bidirectional traversal. Lane: Standard. ✅ Delivered (2026-06-24).
+4. **R3E design decision**: See `docs/r3e-aggregation-sorting-design.md` (2026-06-24). Recommendation: R3E1 sorting only, skip aggregation indefinitely.
+5. **R3F**: FK indexing. Deferred until R3E1 is delivered or skipped.

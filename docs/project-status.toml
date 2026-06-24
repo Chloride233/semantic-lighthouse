@@ -24,8 +24,8 @@ current = "R3D bidirectional traversal delivered"
 description = "R3D complete. RuntimeTraverseRequest gains direction field (forward|reverse, default forward). When reverse, _resolve_link swaps source/target match criteria; FK/PK property assignment swaps source_fk_property↔target_pk_property. Both single-hop and two-hop supported. explain.direction records the traversal direction. Grouped/flat response shapes both work. explain_only + reverse works. Invalid direction rejected at both Pydantic (422) and service (ValueError) layers. 14 new tests (101 total). No migration, no audit schema change, no aggregation/sorting, no per-hop direction override."
 
 [next_decision_gate]
-name = "R3E aggregation/sorting design or R3F FK indexing"
-description = "R3D bidirectional traversal delivered. Next candidates: R3E aggregation/sorting (COUNT/SUM/AVG/ORDER BY on joined rows — SQL-creep risk, needs dedicated design doc) or R3F FK indexing (build PK index before scan if FK column indexed). Both should wait for measured demand; no automatic expansion."
+name = "R3E1 sorting implementation or R3F FK indexing"
+description = "R3E design decision complete (docs/r3e-aggregation-sorting-design.md): sorting (ORDER BY) recommended as R3E1 — minimal risk, implemented as sorted() on joined rows before offset/limit. Aggregation (COUNT/SUM/AVG) deferred indefinitely — crosses DSL boundary. Next implementation candidates: R3E1 sorting (Standard lane, ~10 tests) or R3F FK indexing (Standard lane, performance optimization). R3E2 aggregation requires a separate design gate with measured demand evidence."
 
 [mcp]
 runtime_status = "not started"
