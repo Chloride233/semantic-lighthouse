@@ -1,4 +1,6 @@
-# Semantic Lighthouse / 语义灯塔
+﻿# Semantic Lighthouse
+
+[Chinese](README.zh-CN.md) | [English](README.md)
 
 Semantic Lighthouse is an **ontology-oriented semantic operating layer workspace** for enterprise AI transformation. It shows how fragmented documents, knowledge, datasets, workflows, permissions, evidence, and Agent-facing interfaces can be turned into an auditable business semantic layer.
 
