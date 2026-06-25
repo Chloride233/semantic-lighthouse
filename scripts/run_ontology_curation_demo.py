@@ -18,6 +18,7 @@ import sys
 from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -38,6 +39,21 @@ from sqlalchemy import select
 
 DEFAULT_KB = Path(os.environ.get("KNOWLEDGE_BASE_PATH", "./knowledge-graph"))
 DEFAULT_REPORT = Path("docs/ontology-curation-demo-report.md")
+
+
+def _sanitize_db_url(db_url: str) -> str:
+    """Return a safe DB descriptor for reports without embedding credentials."""
+    if not db_url or db_url == "N/A":
+        return "N/A"
+    if db_url.startswith("sqlite"):
+        return db_url
+    parts = urlsplit(db_url)
+    if not parts.scheme:
+        return "configured"
+    host = parts.hostname or "configured"
+    port = f":{parts.port}" if parts.port else ""
+    path = parts.path or ""
+    return urlunsplit((parts.scheme, f"{host}{port}", path, "", ""))
 
 KB_ENTITY_DIRS = {
     "concepts", "vendors", "products", "methodologies",
@@ -344,7 +360,7 @@ def main() -> int:
         # ── Markdown report ────────────────────────────────────────
         lines = _build_report(
             kb_root=kb_root,
-            db_url=os.environ.get("DATABASE_URL", "N/A"),
+            db_url=_sanitize_db_url(os.environ.get("DATABASE_URL", "N/A")),
             imported=imported,
             skipped=skipped,
             scanned=sr["scanned_count"],
@@ -402,7 +418,7 @@ def _build_report(
         "",
         f"**Date**: {today}",
         f"**KB**: {kb_root}",
-        f"**DB**: temporary SQLite (`{db_url}`)",
+        f"**DB**: `{db_url}`",
         "",
         "## Import & Scan",
         "",

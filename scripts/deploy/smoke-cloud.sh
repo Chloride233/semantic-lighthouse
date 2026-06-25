@@ -3,7 +3,7 @@ set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://127.0.0.1:8000}"
 EMAIL="smoke-$(date +%s)@example.com"
-PASSWORD="${SMOKE_PASSWORD:-SmokeTest123!}"
+PASSWORD="${SMOKE_PASSWORD:-}"
 TMP_DIR="$(mktemp -d)"
 
 cleanup() {
@@ -16,6 +16,11 @@ json_field() {
 }
 
 echo "Base URL: $BASE_URL"
+
+if [[ -z "$PASSWORD" ]]; then
+  echo "ERROR: set SMOKE_PASSWORD before running this script." >&2
+  exit 1
+fi
 
 curl -fsS "$BASE_URL/health" >/dev/null
 echo "health ok"

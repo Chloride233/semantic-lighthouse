@@ -15,6 +15,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -34,6 +35,21 @@ from sqlalchemy import select
 
 DEFAULT_KB = Path(os.environ.get("KNOWLEDGE_BASE_PATH", "./knowledge-graph"))
 DEFAULT_REPORT = Path("docs/ontology-governance-demo-report.md")
+
+
+def _sanitize_db_url(db_url: str) -> str:
+    """Return a safe DB descriptor for reports without embedding credentials."""
+    if not db_url or db_url == "N/A":
+        return "N/A"
+    if db_url.startswith("sqlite"):
+        return db_url
+    parts = urlsplit(db_url)
+    if not parts.scheme:
+        return "configured"
+    host = parts.hostname or "configured"
+    port = f":{parts.port}" if parts.port else ""
+    path = parts.path or ""
+    return urlunsplit((parts.scheme, f"{host}{port}", path, "", ""))
 
 
 def main() -> int:
@@ -109,7 +125,7 @@ def main() -> int:
         lines = [
             "# Ontology Governance Demo Report", "",
             "**Date**: 2026-06-18", f"**KB**: {kb_root}",
-            f"**DB**: temporary SQLite (`{os.environ.get('DATABASE_URL', 'N/A')}`)", "",
+            f"**DB**: `{_sanitize_db_url(os.environ.get('DATABASE_URL', 'N/A'))}`", "",
             "## Import & Scan", "",
             "| Metric | Count |", "|--------|-------|",
             f"| Imported | {imported} |", f"| Skipped | {skipped} |",

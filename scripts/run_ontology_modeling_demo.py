@@ -20,6 +20,7 @@ import sys
 from collections import defaultdict
 from datetime import date as date_type
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -36,6 +37,21 @@ from sqlalchemy import func, select
 
 DEFAULT_GROUP_NAME = "Ontology Curation Demo"
 DEFAULT_REPORT = Path("docs/ontology-modeling-draft-demo-report.md")
+
+
+def _sanitize_db_url(db_url: str) -> str:
+    """Return a safe DB descriptor for reports without embedding credentials."""
+    if not db_url or db_url == "N/A":
+        return "N/A"
+    if db_url.startswith("sqlite"):
+        return db_url
+    parts = urlsplit(db_url)
+    if not parts.scheme:
+        return "configured"
+    host = parts.hostname or "configured"
+    port = f":{parts.port}" if parts.port else ""
+    path = parts.path or ""
+    return urlunsplit((parts.scheme, f"{host}{port}", path, "", ""))
 
 # ── Pure helpers (testable without DB) ──────────────────────────────────
 
@@ -298,7 +314,7 @@ def main() -> int:
             single_actions=single_actions,
             props_per_ot=props_per_ot,
             samples=samples,
-            db_url=os.environ.get("DATABASE_URL", "N/A"),
+            db_url=_sanitize_db_url(os.environ.get("DATABASE_URL", "N/A")),
             validator_status=qr["status"],
             validator_errors=qr["error_count"],
             validator_warnings=qr["warning_count"],

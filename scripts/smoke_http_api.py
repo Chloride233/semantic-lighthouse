@@ -115,7 +115,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description="HTTP API Smoke")
     p.add_argument("--base-url", default=None, help="Remote API base URL")
     p.add_argument("--email-prefix", default="smoke-http-api", help="Email prefix")
-    p.add_argument("--password", default=os.environ.get("SMOKE_PASSWORD", "SmokePass1!"), help="Password")
+    p.add_argument("--password", default=os.environ.get("SMOKE_PASSWORD"), help="Password")
     p.add_argument("--timeout-seconds", type=int, default=10, help="HTTP timeout")
     args = p.parse_args()
 
@@ -129,6 +129,10 @@ def main() -> int:
     # ═══════════════════════════════════════════════════════════════════════
     proc = None
     db_path = None
+
+    if not password:
+        print("  [FAIL] password — provide --password or set SMOKE_PASSWORD")
+        return 1
 
     if base_url is None:
         # Temp SQLite DB
