@@ -193,7 +193,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 8.2 | Agent run/step/HITL frontend page | ✅ Agent console page with run lifecycle, step timeline, and HITL confirm/reject/stop (2026-06-18); `verify_ui` smoke coverage |
 | 8.3 | Task source_type expansion | ✅ `conversation`, `agent_run`, `manual` source types alongside existing `rag_run` (2026-06-18) |
 | 8.4 | Conversation UX hardening | ✅ Visible citations, knowledge gaps, context indicators, tool details, send/error states (2026-06-18) |
-| 8.5 | Demo scenario scripts | ✅ `docs/interview-demo-questions.md` refreshed with Ontology-oriented Phase 8 full-loop demo script (2026-06-18) |
+| 8.5 | Demo scenario scripts | ✅ Interview/demo script refreshed with Ontology-oriented Phase 8 full-loop demo script (2026-06-18) |
 
 **Acceptance**: ✅ Phase 8 demonstrable complete. Full loop — RAG answer → task creation → Agent tool execution → HITL → audit trail — visible from the frontend. Real DeepSeek smoke passed.
 
@@ -227,7 +227,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 
 ## Phase 10: Governance Operations & Demo Polish ← COMPLETE (10.1–10.4 delivered, 10.5 review passed)
 
-**Goal**: Operationalize governance findings, polish the demo loop, and build the evidence-to-ontology bridge before Graph RAG or modeling studio. See `docs/phase10-planning.md`.
+**Goal**: Operationalize governance findings, polish the demo loop, and build the evidence-to-ontology bridge before Graph RAG or modeling studio.
 
 | # | Task | Description |
 |---|------|-------------|
@@ -242,7 +242,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 
 ## Phase 11: Ontology Modeling Drafts v1 ← BACKEND COMPLETE (11.1–11.4+11.6 delivered, 11.5 UI deferred)
 
-**Goal**: Turn the governed entity/relation/issue read model into human-reviewable Object Type, Property, Link Type, and Action Type drafts — without Graph RAG, a full modeling studio, or Agent auto-write. See `docs/phase11-planning.md`.
+**Goal**: Turn the governed entity/relation/issue read model into human-reviewable Object Type, Property, Link Type, and Action Type drafts — without Graph RAG, a full modeling studio, or Agent auto-write.
 
 | # | Task | Description |
 |---|------|-------------|
@@ -251,20 +251,20 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 11.3 | Draft generation | ✅ Deterministic rules from existing entities/relations, no LLM |
 | 11.4 | Human review workflow | ✅ proposed → accepted/rejected, reviewer audit, single + batch API, atomic semantics, status transition rules, 33 tests (2026-06-19) |
 | 11.5 | UI modeling panel | **Deferred** — entity detail panel + draft list deferred. F2B delivered model/validate/pilot UI through the Pilot project workspace instead. |
-| 11.6 | Agent/MCP Boundary Design | ✅ Design-only boundary: existing Agent registry plus future MCP identity mapping, server-side group authorization, invocation audit, bounded/provenance-preserving output, and no-write gates. See `docs/ontology-agent-boundary.md` and `docs/mcp-agent-boundary-design.md`. No MCP runtime or dependency. |
+| 11.6 | Agent/MCP Boundary Design | ✅ Design-only boundary: existing Agent registry plus future MCP identity mapping, server-side group authorization, invocation audit, bounded/provenance-preserving output, and no-write gates. See `docs/mcp-agent-boundary-design.md`. No MCP runtime or dependency. |
 
 **Out of scope**: Full modeling studio, Graph RAG, graph database, Agent auto-write, external KB auto-fix, draft-to-production pipeline. Phase 11.5 entity UI deferred — model/validate/pilot UI delivered through F2B Pilot workspace.
 
-**Next**: Phase 13 is PLANNED — see `docs/phase13-planning.md`. Phase 12 is complete.
+**Next**: Phase 13 is PLANNED. Phase 12 is complete.
 
 
 ## Phase 12: Ontology Model Quality & Contract Packages v1 ← COMPLETE (12.1–12.6 delivered)
 
-**Goal**: Turn Phase 11 accepted drafts into verified, quality-gated, immutable model contract packages — without treating accepted as production, without Graph RAG, without Agent auto-write. See `docs/phase12-planning.md`.
+**Goal**: Turn Phase 11 accepted drafts into verified, quality-gated, immutable model contract packages — without treating accepted as production, without Graph RAG, without Agent auto-write.
 
 | # | Task | Description |
 |---|------|-------------|
-| 12.1 | Real KB modeling draft demo | ✅ 76 drafts (8 OT, 48 prop, 17 link, 3 action) from real KB. Technical integrity PASS. All hard checks 0, idempotent. Report: `docs/ontology-modeling-draft-demo-report.md` (2026-06-19) |
+| 12.1 | Real KB modeling draft demo | ✅ 76 drafts (8 OT, 48 prop, 17 link, 3 action) from real KB. Technical integrity PASS. All hard checks 0, idempotent. (2026-06-19) |
 | 12.2 | Draft quality gates | ✅ Validator service + API. 9 error codes, 7 warning codes. Real validation: 0 errors, 53 warnings, WARN status. `GET /drafts/quality` (member+). 16 tests (2026-06-19) |
 | 12.3 | Immutable model package read model | ✅ Migration 0017 + builder service. Accepted-only, quality gate, dependency gate, content hash, versioned, idempotent. 27 tests (2026-06-19) |
 | 12.4 | Package read/export API | ✅ POST create + GET list/detail/export. Owner/admin create, member+ read. No PATCH/DELETE. 8 API tests (2026-06-19) |
@@ -278,7 +278,7 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 
 ## Phase 13: Typed Business Ontology Contract & Manufacturing Pilot v1 ← **COMPLETE** (13.1–13.6 all delivered, 12/12 gates PASS)
 
-**Goal**: Advance the Phase 12 audit-type model package into a deterministically validated, application-readable business Ontology contract with stable type definitions — without publishing to production, storing object instances, executing Actions, or generating an SDK. See `docs/phase13-planning.md`.
+**Goal**: Advance the Phase 12 audit-type model package into a deterministically validated, application-readable business Ontology contract with stable type definitions — without publishing to production, storing object instances, executing Actions, or generating an SDK.
 
 | # | Task | Description |
 |---|------|-------------|
@@ -287,14 +287,14 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | 13.3 | Business contract compiler | ✅ `compile_business_contract()` — field whitelist, deterministic sort, semantic_hash (sha256:), provenance block. Raises `BusinessContractCompilationError` on validator FAIL. 7 tests. (2026-06-19) |
 | 13.4 | Read-only contract export API | ✅ `GET /packages/{pid}/contract` — member+ read, outsider 403, cross-group 404, 422 on validation failure. Reuses compiler directly. 8 API tests. (2026-06-19) |
 | 13.5 | Manufacturing pilot v1 | ✅ Independent demo group, 11 business_v1 drafts (2 OT + 6 Prop + 2 Link + 1 Action). Full pipeline: draft create → batch review → package build → contract export → idempotent rebuild → cross-group isolation. PASS quality, semantic_hash stable. Demo script + 7 tests. (2026-06-19) |
-| 13.6 | Phase 13 review | ✅ All 12 review gates PASS. 495 non-E2E tests, ruff clean. Minor fix: `parameters: None` double-reporting. Decision: Phase 13 COMPLETE. Frontend F1/F2 subsequently delivered by CC (Swiss app shell + Guided Pilot workspace). See `docs/phase13-review.md`. (2026-06-19) |
+| 13.6 | Phase 13 review | ✅ All 12 review gates PASS. 495 non-E2E tests, ruff clean. Minor fix: `parameters: None` double-reporting. Decision: Phase 13 COMPLETE. Frontend F1/F2 subsequently delivered by CC (Swiss app shell + Guided Pilot workspace). (2026-06-19) |
 
 **Out of scope**: Frontend, modeling UI, business object instance tables, package activate/publish, Action execution, Functions runtime, OSDK/code generation, MCP/Agent tool registration, Graph RAG, ERP/MES/PLC integration, external KB modification, knowledge_meta→business_v1 auto-conversion, full JSON Schema/OpenAPI generation, generic manufacturing framework.
 
 
 ## Phase 14: Business Pilot Project ← Data → Model → Validate → Pilot ← **COMPLETE** (14.1–14.5 all delivered)
 
-**Goal**: Shift the product from parallel features toward a guided five-stage business pilot main chain, ending with a deterministic, permission-isolated, explainable read runtime that proves the Ontology contract can read real business objects. See `docs/phase14-planning.md`.
+**Goal**: Shift the product from parallel features toward a guided five-stage business pilot main chain, ending with a deterministic, permission-isolated, explainable read runtime that proves the Ontology contract can read real business objects.
 
 | # | Task | Description |
 |---|------|-------------|
@@ -316,8 +316,6 @@ Phase 11 delivered human-reviewed Ontology Modeling Drafts v1. Phase 12 delivere
 | F2B | Model → Validate → Pilot full operation loop (drafts/review/quality/package/bindings/activate/query) | ✅ Delivered |
 | F2C | Responsive/accessibility polish, old entry consolidation | ✅ Delivered |
 
-See `docs/frontend-f2-planning.md`.
-
 **F2A delivered**: Navigation restructured to Pilot/Ontology/工作区/更多工具. Pilot is default landing page. Project list + detail (goal/data stages). Dataset upload with multipart. Metadata-only profile display. API error handling (FormData support, human-readable errors). Minimalism & Swiss Style.
 
 **Out of scope**: delete/recover, Object Runtime, SDK, MCP, Graph RAG, old feature removal, Pilot outcome/KPI dashboard, relation joins, Action execution, data write-back, custom query language.
@@ -326,13 +324,11 @@ See `docs/frontend-f2-planning.md`.
 
 **Goal**: Turn useful project-scoped evidence into deliberate, auditable inputs for the Ontology semantic operating layer without automatic writes.
 
-See `docs/phase15-planning.md`.
-
 | # | Task | Description |
 |---|------|-------------|
 | 15.1 | Save scoped RAG answer as project evidence | ✅ Delivered. User-confirmed save from Pilot scoped Ask into `ProjectEvidenceLink` with `evidence_type=rag_run` and `role=decision`. Owner/admin-only write action. No auto-linking. |
 | 15.2 | Project evidence review surface | ✅ Delivered. Pilot evidence summary distinguishes saved RAG answers from document evidence and shows type, role, saved time, safe provenance, and unavailable state without raw prompts/answers or path leaks. |
-| 15.3 | Evidence-backed modeling draft candidate endpoint + UI | ✅ Delivered. Slice A: `POST /groups/{gid}/projects/{pid}/evidence-draft` creates proposed `OntologyModelingDraft` from active `ProjectEvidenceLink` records with bounded evidence_refs, safe provenance, idempotency. Slice B: frontend checkbox selection + proposal dialog in Pilot goal stage, owner/admin only. 22 backend tests + 53 UI tests pass. Design: `docs/phase15.3-design.md`. |
+| 15.3 | Evidence-backed modeling draft candidate endpoint + UI | ✅ Delivered. Slice A: `POST /groups/{gid}/projects/{pid}/evidence-draft` creates proposed `OntologyModelingDraft` from active `ProjectEvidenceLink` records with bounded evidence_refs, safe provenance, idempotency. Slice B: frontend checkbox selection + proposal dialog in Pilot goal stage, owner/admin only. 22 backend tests + 53 UI tests pass. |
 
 **Out of scope**: MCP runtime, Graph RAG, Agent auto-writing Ontology, external KB modification, full modeling studio, page hiding, LLM-only draft generation, auto-accept/publish.
 
@@ -341,7 +337,7 @@ See `docs/phase15-planning.md`.
 
 **Goal**: Turn the completed Pilot workflow chain into a durable, auditable delivery record suitable for FDE handoff, interview demonstration, and portfolio evidence.
 
-See `docs/phase16-planning.md`. Closeout review passed 2026-06-21: permissions correct, group/project isolation hard, GET endpoints side-effect-free, privacy bounded, sorting stable, 66 tests pass.
+Closeout review passed 2026-06-21: permissions correct, group/project isolation hard, GET endpoints side-effect-free, privacy bounded, sorting stable, 66 tests pass.
 
 | # | Task | Description |
 |---|------|-------------|
@@ -352,7 +348,7 @@ See `docs/phase16-planning.md`. Closeout review passed 2026-06-21: permissions c
 
 **Out of scope**: Graph RAG, MCP runtime, Agent auto-write, external KB write, autonomous publish, new framework/dependency, full PM system, full reporting engine.
 
-**Next**: Phase 17 complete — FDE demo chain runnable, verifiable, interview-ready. See `docs/phase17-planning.md` and `docs/project-status.toml`.
+**Next**: Phase 17 complete — FDE demo chain runnable, verifiable, interview-ready. See `docs/project-status.toml`.
 
 ---
 
@@ -360,14 +356,14 @@ See `docs/phase16-planning.md`. Closeout review passed 2026-06-21: permissions c
 
 **Goal**: Make the delivered Phase 14–16 backend chain demonstrable in 5 minutes without tribal knowledge.
 
-See `docs/phase17-planning.md`. Closeout review passed 2026-06-21: smoke 11/11 PASS, artifact gate PASS (0 findings), interview script refreshed, docs aligned.
+Closeout review passed 2026-06-21: smoke 11/11 PASS, artifact gate PASS (0 findings), interview script refreshed, docs aligned.
 
 | # | Task | Description |
 |---|------|-------------|
 | 17.1 | Demo seed scenario contract | Define a manufacturing/generic business pilot seed (project, dataset shape, expected evidence/packages/outcome). Doc-only. |
 | 17.2 | Backend operational smoke script | `scripts/smoke_fde_demo.py` — full-chain API smoke from register to markdown artifact. Step-by-step pass/fail with timing. |
 | 17.3 | Artifact quality gate | Validation function that checks markdown artifact for required sections and forbidden terms. |
-| 17.4 | Interview/demo script refresh | ✅ Delivered: `docs/interview-demo-questions.md` refreshed — FDE narrative, 5-min demo script, 5 FAQ items, risk boundaries, engineering value. |
+| 17.4 | Interview/demo script refresh | ✅ Delivered: FDE narrative, 5-min demo script, 5 FAQ items, risk boundaries, engineering value. |
 | 17.5 | Phase 17 closeout review | ✅ Complete: smoke 11/11 PASS, artifact gate PASS (0 findings), docs aligned, no regressions. |
 
 **Out of scope**: Frontend UI, PDF/HTML reports, MCP runtime, Graph RAG, Agent auto-write, external KB repair, production deployment overhaul.
@@ -378,7 +374,7 @@ See `docs/phase17-planning.md`. Closeout review passed 2026-06-21: smoke 11/11 P
 
 **Goal**: Prove the FDE demo chain runs on PostgreSQL + pgvector via Docker Compose, not just local SQLite/TestClient. Validates deployability — the strongest portfolio signal.
 
-See `docs/phase18-planning.md`. Closeout review passed 2026-06-21: 28/28 PostgreSQL migrations, 9/9 HTTP API smoke, config audit 11/11, Alembic VARCHAR(32) fix with migration 0028.
+Closeout review passed 2026-06-21: 28/28 PostgreSQL migrations, 9/9 HTTP API smoke, config audit 11/11, Alembic VARCHAR(32) fix with migration 0028.
 
 | # | Task | Description |
 |---|------|-------------|
@@ -409,7 +405,7 @@ Six slices delivered end-to-end:
 
 **Total**: 63 traverse-specific tests + 11 existing audit = all pass. Migration `0029` at head.
 
-**Key design decisions**: Flat `{ot}__{field}` output, filter-before-traversal (root OT only), max 2 hops, member+ permission, no SQL/DSL/Graph RAG/Agent/action writeback. See `docs/r2-relationship-runtime-query-planning.md`.
+**Key design decisions**: Flat `{ot}__{field}` output, filter-before-traversal (root OT only), max 2 hops, member+ permission, no SQL/DSL/Graph RAG/Agent/action writeback.
 
 **R2 closeout**: 2026-06-23 — all boundaries preserved, no code regressions, docs consistent.
 
@@ -421,7 +417,7 @@ Six slices delivered end-to-end:
 
 **Goal**: Incrementally enhance R2 traversal with higher-quality output and query expressiveness — without becoming a SQL/DSL, Graph RAG, or Agent writeback path.
 
-All slices delivered end-to-end. 122 traverse tests. No migration beyond R2E (0029). Full planning: `docs/r3-relationship-runtime-enhancement-planning.md`.
+All slices delivered end-to-end. 122 traverse tests. No migration beyond R2E (0029).
 
 | Slice | Feature | Tests | Status |
 |-------|---------|-------|--------|
@@ -501,6 +497,5 @@ These items are not permanently rejected. They are deferred until the earlier en
 
 A phase is complete when:
 1. All acceptance criteria are met with passing tests.
-2. `docs/agent-handoff.md` is updated with verification results.
-3. A phase retrospective is written in `docs/engineering-memory/`.
-4. The next phase's first task is de-risked (no blocking unknowns).
+2. `docs/project-status.toml` is updated with verification results.
+3. The next phase's first task is de-risked (no blocking unknowns).

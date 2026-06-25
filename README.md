@@ -191,18 +191,24 @@ Use targeted checks instead of defaulting to full regression:
 
 Full backend regression and UI smoke are lane-dependent. See `docs/development-workflow.md`.
 
-## Portfolio And Interview Docs
+## Key Documents
 
 | Document | Purpose |
 |----------|---------|
-| `docs/portfolio-demo-narrative.md` | Portfolio-level project story and demo narrative |
-| `docs/interview-demo-questions.md` | Interview demo script and FAQ |
-| `docs/project-status.toml` | Canonical current project state |
-| `docs/agent-handoff.md` | Operational handoff for future sessions |
-| `docs/phase19-planning.md` | Phase 19 delivery record |
-| `docs/adventureworks-benchmark-planning.md` | Future external benchmark plan |
-| `docs/phase19-architecture-tech-selection-judgment.md` | Architecture and technology selection rationale |
 | `PRODUCT.md` | Product positioning and boundaries |
+| `docs/project-status.toml` | Canonical current project state |
+| `docs/project-roadmap.md` | Project roadmap |
+| `docs/deployment-v3-cloud.md` | Cloud deployment guide |
+| `docs/CODEMAPS/` | Architecture, backend, data, and frontend structure |
+
+## Public Repository Boundary
+
+This is a personal project showcase repository. Please note:
+
+- **No real production configuration.** `.env.production` is not committed. All example files use placeholder values.
+- **No real API keys or secrets.** `.env.example` has empty key fields. Production safety checks enforce non-default secrets at runtime (`config.py:validate_runtime_safety()`).
+- **No private knowledge base.** The default `knowledge_base_path` is `./knowledge-graph` (a local directory you create yourself). The external knowledge base referenced in some demo scripts is not included.
+- **Deployment docs are reference guides**, not snapshots of any real server. They describe a generic Ubuntu deployment flow.
 
 ## Current Status
 

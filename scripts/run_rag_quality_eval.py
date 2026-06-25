@@ -1,7 +1,7 @@
 r"""P1 RAG Quality Eval — real ontology KB, 10 audit questions.
 
 Usage:
-    cd f:/semantic-lighthouse
+    cd semantic-lighthouse
     .venv/Scripts/python scripts/run_rag_quality_eval.py
 
 Output: JSON report to stdout + optional markdown report.
@@ -35,7 +35,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="starlette
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="fastapi")
 os.environ.setdefault("JWT_SECRET_KEY", "eval-secret-key-at-least-32-bytes")
 
-ONTOLOGY_PATH = Path(r"F:\ontology-kb\knowledge-graph")
+ONTOLOGY_PATH = Path(os.environ.get("KNOWLEDGE_BASE_PATH", "./knowledge-graph"))
 TOP_K = 5
 
 # ── 10 Quality Audit Questions ──────────────────────────────────────────────

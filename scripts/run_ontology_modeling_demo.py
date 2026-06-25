@@ -8,7 +8,7 @@ Pre-requisites:
   1. alembic upgrade head against DATABASE_URL.
   2. scripts/run_ontology_curation_demo.py has been run against the same DB
      (creates "Ontology Curation Demo" group with scanned/triaged data).
-  3. Does NOT modify F:\\ontology-kb\\knowledge-graph.
+  3. Does NOT modify the external knowledge base.
   4. Does NOT call web, LLM, or Agent.
 """
 

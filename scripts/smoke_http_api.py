@@ -8,7 +8,7 @@ Usage:
   Deployment mode (target existing server):
     .venv/Scripts/python scripts/smoke_http_api.py --base-url http://HOST:PORT
     .venv/Scripts/python scripts/smoke_http_api.py --base-url http://127.0.0.1:8000 \\
-        --email-prefix deploy-smoke --password DeployPass1! --timeout-seconds 10
+        --email-prefix deploy-smoke --password <your-password> --timeout-seconds 10
 
 Phase 18.3/18.4 — 2026-06-21.
 """
@@ -115,7 +115,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description="HTTP API Smoke")
     p.add_argument("--base-url", default=None, help="Remote API base URL")
     p.add_argument("--email-prefix", default="smoke-http-api", help="Email prefix")
-    p.add_argument("--password", default="SmokePass1!", help="Password")
+    p.add_argument("--password", default=os.environ.get("SMOKE_PASSWORD", "SmokePass1!"), help="Password")
     p.add_argument("--timeout-seconds", type=int, default=10, help="HTTP timeout")
     args = p.parse_args()
 

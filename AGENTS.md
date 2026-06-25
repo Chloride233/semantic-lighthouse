@@ -1,6 +1,6 @@
 # Semantic Lighthouse Agent Instructions
 
-These instructions apply to `F:\semantic-lighthouse`.
+These instructions apply to the Semantic Lighthouse repository.
 
 @import docs/project-status.toml
 @import docs/development-workflow.md
@@ -26,12 +26,12 @@ When your agent runner leaves `@import` as literal text, open the imported files
 Load additional context only when the task matches:
 
 - Product or roadmap: `PRODUCT.md`, `docs/product-alignment-prd.md`, `docs/project-roadmap.md`.
-- Phase closeout or handoff: `docs/agent-handoff.md` and the relevant latest engineering-memory entry.
+- Phase closeout or handoff: `docs/project-status.toml`.
 - Code structure, architecture, symbol, call-chain, route, or impact analysis: use the current project's configured `codebase-memory-mcp` first. Call `list_projects`; use the returned project name that matches this repo as authoritative. Use `rg` for ordinary text search, exact-string search, non-code files, and fallback when the MCP tool is unavailable.
 - Backend/API/auth/group isolation/migrations/RAG/Ontology: relevant `src/`, `tests/`, `alembic/`, and phase docs.
-- Frontend: relevant `static/js/`, `static/styles.css`, `docs/frontend-f2-planning.md`, and `docs/frontend-redesign-plan.md`.
+- Frontend: relevant `static/js/` and `static/styles.css`.
 - Deployment/cloud: `docs/cloud-smoke-playbook.md`, `docs/deployment-v3-cloud.md`, Docker files, and deployment scripts.
-- Enterprise AI transformation, Ontology, RAG, Agent, Palantir, vendors, or methodology: inspect `F:\ontology-kb\knowledge-graph\INDEX.md` and `schema.md`.
+- Enterprise AI transformation, Ontology, RAG, Agent, Palantir, vendors, or methodology: inspect the external knowledge base `INDEX.md` and `schema.md` (if available locally).
 
 ## Architecture Invariants
 
@@ -75,8 +75,8 @@ git status --short
 SQLite migration smoke uses a temporary DB:
 
 ```powershell
-$dbPath = "F:\semantic-lighthouse\.tmp\migration-smoke.db"
-New-Item -ItemType Directory -Force -Path "F:\semantic-lighthouse\.tmp" | Out-Null
+$dbPath = ".tmp\migration-smoke.db"
+New-Item -ItemType Directory -Force -Path ".tmp" | Out-Null
 if (Test-Path $dbPath) { Remove-Item $dbPath -Force }
 $env:DATABASE_URL = "sqlite+pysqlite:///" + $dbPath.Replace("\\","/").Replace("\","/")
 .\.venv\Scripts\python -m alembic upgrade head
@@ -90,7 +90,7 @@ $env:DATABASE_URL = "sqlite+pysqlite:///" + $dbPath.Replace("\\","/").Replace("\
 - `JWT_SECRET_KEY` must be at least 32 bytes for local app runs.
 - Fake-provider smoke uses `EMBEDDING_PROVIDER=fake`, `CHAT_PROVIDER=fake`, `EMBEDDING_MODEL=fake`, `CHAT_MODEL=fake`, and `EMBEDDING_DIMENSION=8`.
 - Real embedding/chat runs require provider keys such as `DASHSCOPE_API_KEY` or `DEEPSEEK_API_KEY`.
-- Knowledge-base default path is `F:\ontology-kb\knowledge-graph`.
+- Knowledge-base default path is `./knowledge-graph` (configurable via `KNOWLEDGE_BASE_PATH` env var).
 - Runtime storage paths include `document-storage`, `upload-tmp`, and `dataset-storage`; keep them out of commits.
 
 ## Frontend Work

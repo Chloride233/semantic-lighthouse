@@ -1,10 +1,8 @@
 # Cloud Deployment Guide (V7)
 
-Deploy Semantic Lighthouse on a small Ubuntu 24.04 cloud server.
-Updated 2026-06-16 after Tencent Cloud Lighthouse verification.
+Deploy Semantic Lighthouse on an Ubuntu 24.04 cloud server.
 
-Baseline target server: 2 vCPU / 2 GiB RAM / Ubuntu 24.04 x64 / 3 Mbps.
-Verified Tencent Cloud server: Lighthouse 4 vCPU / 4 GiB RAM / 40 GiB system disk / Ubuntu Server 24.04 LTS Docker CE image.
+Recommended minimum: 2 vCPU / 2 GiB RAM / Ubuntu 24.04 x64.
 
 ## Goal
 
@@ -23,7 +21,7 @@ Verified Tencent Cloud server: Lighthouse 4 vCPU / 4 GiB RAM / 40 GiB system dis
 
 ## Server Bootstrap
 
-SSH into the server, then run:
+Connect to the server via SSH, then run:
 
 ```bash
 cd /opt
@@ -39,7 +37,7 @@ bash scripts/deploy/bootstrap-ubuntu.sh
 
 If the project has not been copied to the server yet, copy it first, then run the script from the project root.
 
-Tencent Cloud note: the Docker CE application image already includes Docker and Compose. Still run the version checks and keep the bootstrap script available for missing packages or swap setup:
+Some cloud provider images (e.g. Docker CE application images) already include Docker and Compose. Still run the version checks and keep the bootstrap script available for missing packages or swap setup:
 
 ```bash
 docker --version
@@ -57,17 +55,11 @@ The production deployment uses:
 - `.env.production`
 - `scripts/docker/start-api.sh`
 
-If using the Tencent Cloud console file upload, upload the clean deploy archive to:
-
-```text
-/home/ubuntu
-```
-
-Then extract it into the stable deployment path:
+Upload the clean deploy archive to the server (via SCP, SFTP, or cloud console file upload), then extract it into the deployment path:
 
 ```bash
 sudo mkdir -p /opt/semantic-lighthouse
-sudo chown ubuntu:ubuntu /opt/semantic-lighthouse
+sudo chown $USER:$USER /opt/semantic-lighthouse
 tar -xzf ~/semantic-lighthouse-deploy.tar.gz -C /opt/semantic-lighthouse
 cd /opt/semantic-lighthouse
 ```
@@ -145,7 +137,7 @@ Expected:
 If `docker compose` fails with `permission denied while trying to connect to the Docker daemon socket`, use `sudo docker compose` for deployment. To remove the need for `sudo`, add the user to the `docker` group and re-login:
 
 ```bash
-sudo usermod -aG docker ubuntu
+sudo usermod -aG docker $USER
 ```
 
 ## Smoke Test
@@ -183,7 +175,7 @@ This verifies:
 To smoke test the public endpoint instead of localhost:
 
 ```bash
-BASE_URL=http://SERVER_PUBLIC_IP:8000 bash scripts/deploy/smoke-cloud.sh
+BASE_URL=http://<SERVER_PUBLIC_IP>:8000 bash scripts/deploy/smoke-cloud.sh
 ```
 
 ## Real Provider Smoke
@@ -210,9 +202,7 @@ Expected result:
 - RAG answer returns a DeepSeek model name
 - answer is grounded in the uploaded citation
 
-Verified on 2026-06-11 with Alibaba Cloud ECS, Aliyun embedding, pgvector, and DeepSeek chat.
-
-Verified on 2026-06-16 with Tencent Cloud Lighthouse, Ubuntu Server 24.04 Docker CE image, PostgreSQL/pgvector, real provider environment variables configured on the server, and `scripts/deploy/smoke-cloud.sh` passing with one citation.
+Verified on Ubuntu 24.04 with PostgreSQL/pgvector, real provider environment variables configured on the server, and `scripts/deploy/smoke-cloud.sh` passing with one citation.
 
 From your local browser:
 
@@ -235,17 +225,7 @@ TCP 8000   0.0.0.0/0 for temporary demo access
 ICMP       optional
 ```
 
-Remove:
-
-```text
-TCP 3389      0.0.0.0/0
-TCP 1/65535   0.0.0.0/0
-```
-
-Risk if ignored:
-
-- `TCP 1/65535` exposes every listening service on the instance.
-- `TCP 3389` is unnecessary for Ubuntu and should not be open.
+Remove overly broad rules (e.g. `TCP 1/65535` from `0.0.0.0/0` or `TCP 3389` from `0.0.0.0/0`). Risk if ignored: any exposed service on the instance could be reachable from the public internet.
 
 Later, replace public `8000` with HTTPS through a reverse proxy or cloud gateway.
 

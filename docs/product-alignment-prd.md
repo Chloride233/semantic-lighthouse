@@ -113,14 +113,14 @@ Phase 11–14 delivered. See `docs/project-status.toml` for current state.
 
 ## 5. Phases 9–14 Delivered
 
-Phase 9 Ontology Core v1 — delivered (2026-06-18). All planned capabilities delivered and verified against real KB (74 documents, 74 entities, 186 relations, 97 issues). See `docs/ontology-governance-demo-report.md`.
+Phase 9 Ontology Core v1 — delivered (2026-06-18). All planned capabilities delivered and verified against real KB (74 documents, 74 entities, 186 relations, 97 issues).
 
 Actual findings (from real KB scan):
 - 90 unresolved wikilinks (mostly `research/*` missing)
 - 7 stale eval gold IDs (concepts/agent, concepts/ontology-sdk, vendors/palantir-foundry, etc.)
 - KB has good entity identity quality (no duplicate titles/aliases)
 
-Phase 10 is delivered (governance operations & demo polish — issue triage, curation demo, graph UX polish, evidence bridge, review). See `docs/phase10-planning.md` for full task breakdown.
+Phase 10 is delivered (governance operations & demo polish — issue triage, curation demo, graph UX polish, evidence bridge, review).
 
 ## 6. Feature Boundaries
 

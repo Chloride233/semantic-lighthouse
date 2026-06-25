@@ -253,9 +253,7 @@ Before any R3E implementation begins, confirm:
 | File | Change |
 |------|--------|
 | `docs/r3e-aggregation-sorting-design.md` | This document (created) |
-| `docs/agent-handoff.md` | Add R3E design decision entry |
 | `docs/project-status.toml` | Update `next_decision_gate` to reflect R3E1 sorting decision |
-| `docs/r3-relationship-runtime-enhancement-planning.md` | Add forward reference to this doc |
 
 **Not changed:** No Python files, no tests, no schemas, no models, no migrations.
 

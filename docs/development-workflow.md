@@ -37,8 +37,7 @@ The lane determines verification depth, documentation burden, and planning overh
 
 - Do NOT run full `pytest`
 - Do NOT run `ruff check` on the full project
-- Do NOT update `docs/agent-handoff.md`
-- Do NOT update engineering memory (`pitfall-log.md`, `highlight-log.md`, learning reviews)
+- Do NOT update `docs/project-status.toml`
 - Do NOT write a long plan
 
 ### Commit
@@ -103,8 +102,7 @@ The lane determines verification depth, documentation burden, and planning overh
 ### Required
 
 - Explicit risk description (what could break, who is affected)
-- Update `docs/agent-handoff.md` with verification results and risks
-- Update engineering memory (`pitfall-log.md` or `highlight-log.md` as appropriate)
+- Update `docs/project-status.toml` with verification results and risks
 - Commit with a conventional commit message
 
 ---
@@ -115,7 +113,7 @@ The project uses `docs/project-status.toml` as the single source of truth for cu
 
 - **General iterations**: do NOT update all entry documents. State changes go only in `project-status.toml`.
 - **Roadmap**: append delivery records only at phase boundaries. Do not self-declare "Current phase" in the header — reference `project-status.toml` instead.
-- **Handoff**: maintain a single current handoff at `docs/agent-handoff.md`. Old delivery logs live in `docs/archive/`. Never mix stale `Next` directives from old phases into the current handoff.
+- **Status**: `docs/project-status.toml` is the single source of truth for current state.
 - **Doc/phase closeout**: run `scripts/check_doc_alignment.py` to catch stale expressions and missing status references.
 - **No Git hooks, Claude hooks, dependencies, or CI tasks** are added for doc alignment — it runs manually at doc boundaries.
 
@@ -176,7 +174,7 @@ These rules apply regardless of lane:
 
 1. **Do NOT write a long plan for Fast Lane work.** A one-line reason is enough.
 2. **Do NOT run full `pytest` on Fast Lane.** It wastes time and masks the real verification boundary.
-3. **Do NOT update all entry-point docs for small changes.** `docs/agent-handoff.md`, engineering memory, and learning reviews are Safety Lane artifacts.
+3. **Do NOT update all entry-point docs for small changes.** `docs/project-status.toml` is the single status artifact.
 4. **Do NOT use `python -c`, heredoc, or Bash to generate large blocks of code** to work around tool restrictions. If `Edit`/`Write` is blocked by GateGuard, fix the workflow or disable the hook — do not reach for fragile shell-based file writing.
 5. **Do NOT cargo-cult the full Safety Lane checklist into Fast or Standard work.** Each lane exists to prevent over-process.
 

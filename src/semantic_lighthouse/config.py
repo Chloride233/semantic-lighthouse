@@ -13,7 +13,7 @@ class Settings(BaseModel):
     refresh_cookie_name: str = "semantic_lighthouse_refresh"
     cookie_secure: bool = False
     cookie_samesite: str = "lax"
-    knowledge_base_path: str = r"F:\ontology-kb\knowledge-graph"
+    knowledge_base_path: str = "./knowledge-graph"
     max_markdown_upload_bytes: int = 1024 * 1024
     document_storage_path: str = "./document-storage"
     upload_tmp_path: str = "./upload-tmp"

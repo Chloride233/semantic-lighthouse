@@ -5,7 +5,7 @@ Usage:
   .venv/Scripts/python scripts/run_ontology_curation_demo.py
 
 Pre-requisite: alembic upgrade head must have been run against DATABASE_URL.
-Does NOT modify F:\\ontology-kb\\knowledge-graph.
+Does NOT modify the external knowledge base.
 Does NOT call web, LLM, or Agent.
 """
 
@@ -36,7 +36,7 @@ from semantic_lighthouse.services.ontology import scan_group
 from semantic_lighthouse.services.ontology_drafts import determine_action_type
 from sqlalchemy import select
 
-DEFAULT_KB = Path("F:/ontology-kb/knowledge-graph")
+DEFAULT_KB = Path(os.environ.get("KNOWLEDGE_BASE_PATH", "./knowledge-graph"))
 DEFAULT_REPORT = Path("docs/ontology-curation-demo-report.md")
 
 KB_ENTITY_DIRS = {

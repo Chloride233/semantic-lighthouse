@@ -6,7 +6,7 @@ Usage:
 
 Pre-requisites:
   1. alembic upgrade head against DATABASE_URL.
-  2. Does NOT modify F:\\ontology-kb\\knowledge-graph.
+  2. Does NOT modify the external knowledge base.
   3. Does NOT call web, LLM, Agent, ERP, MES, or PLC.
   4. Does NOT execute CreateWorkOrder — declared only.
 """
@@ -33,7 +33,10 @@ from semantic_lighthouse.models import (
 
 REPORT_PATH = Path("docs/manufacturing-pilot-demo-report.md")
 GROUP_NAME = "Manufacturing Pilot Demo v1"
-PILOT_BASE = "F:\\ontology-kb\\knowledge-graph\\proposals\\manufacturing-mid-size-ontology-pilot.md"
+PILOT_BASE = os.environ.get(
+    "PILOT_BASE_PATH",
+    "proposals/manufacturing-mid-size-ontology-pilot.md",
+)
 
 # ── Fixed business model ──────────────────────────────────────────────────
 
@@ -416,7 +419,7 @@ Group: {GROUP_NAME} ({gid})
 - CreateWorkOrder declared, never executed.
 - No SDK, MCP, Graph RAG, or Agent tooling.
 - Independent demo group — does not share data with Phase 12 knowledge_meta group.
-- F:\\ontology-kb\\knowledge-graph unchanged.
+- External knowledge base unchanged.
 """
     REPORT_PATH.write_text(report, encoding="utf-8")
     _log(f"Report written to {REPORT_PATH}")

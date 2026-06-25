@@ -65,7 +65,7 @@ rag ok
 citation_count: 1
 ```
 
-Verified on Tencent Cloud Lighthouse on 2026-06-16 with Ubuntu Server 24.04 Docker CE image, PostgreSQL/pgvector containers healthy, `/health` returning 200, and the quick smoke script returning one citation.
+Verified on Ubuntu 24.04 with PostgreSQL/pgvector containers healthy, `/health` returning 200, and the quick smoke script returning one citation.
 
 ## Manual Smoke Commands
 
@@ -76,7 +76,7 @@ Run from the cloud server. Each chain uses the same auth setup from Chain 1.
 ```bash
 BASE_URL=http://127.0.0.1:8000
 EMAIL="smoke-$(date +%s)@e.com"
-PASSWORD="Passw0rd!"
+PASSWORD="${SMOKE_PASSWORD:-SmokeTest123!}"
 ```
 
 ### Chain 1: RAG Answer (V3 baseline)
@@ -221,7 +221,7 @@ cd /opt/semantic-lighthouse
 .venv/Scripts/python scripts/smoke_http_api.py \
   --base-url http://127.0.0.1:8000 \
   --email-prefix deploy-smoke \
-  --password DeployPass1!
+  --password "${DEPLOY_PASSWORD:-DeployPass123!}"
 ```
 
 **Local FDE full-chain smoke (TestClient, faster)**:

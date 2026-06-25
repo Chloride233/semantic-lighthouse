@@ -5,7 +5,7 @@ Usage:
   .venv/Scripts/python scripts/run_ontology_governance_demo.py
 
 Pre-requisite: alembic upgrade head must have been run against DATABASE_URL.
-Does NOT modify F:\\ontology-kb\\knowledge-graph.
+Does NOT modify the external knowledge base.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from semantic_lighthouse.services.document_ingestion import ingest_markdown, sho
 from semantic_lighthouse.services.ontology import scan_group
 from sqlalchemy import select
 
-DEFAULT_KB = Path("F:/ontology-kb/knowledge-graph")
+DEFAULT_KB = Path(os.environ.get("KNOWLEDGE_BASE_PATH", "./knowledge-graph"))
 DEFAULT_REPORT = Path("docs/ontology-governance-demo-report.md")
 
 
