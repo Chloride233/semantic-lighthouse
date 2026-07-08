@@ -72,6 +72,7 @@ async function loadTasks(gid, statusFilter) {
     }
 
     const onStatusChange = async () => { await loadTasks(gid, statusFilter); };
+    sourceCache.clear();
     el.innerHTML = tasks.map(t => taskCard(t, gid, onStatusChange, SOURCE_LABELS)).join('');
     bindTaskCardEvents(el, gid, onStatusChange);
     bindExpandEvents(el, gid);
@@ -85,6 +86,7 @@ function bindExpandEvents(container, gid) {
     card.addEventListener('click', async () => {
       const sourceType = card.dataset.sourceType;
       const sourceId = card.dataset.sourceId;
+      const taskId = card.dataset.taskId;
       const detailEl = card.querySelector('.taskSourceDetail');
       if (!detailEl) return;
 
@@ -94,25 +96,36 @@ function bindExpandEvents(container, gid) {
         return;
       }
 
-      if (sourceType !== 'rag_run') {
-        detailEl.innerHTML = '<p class="muted" style="padding:12px">暂不支持预览此来源类型。</p>';
-        detailEl.style.display = 'block';
-        return;
-      }
-
-      detailEl.innerHTML = '<div class="loading" style="padding:16px"><span class="spinner"></span>加载来源...</div>';
+      detailEl.innerHTML = '<div class="loading" style="padding:16px"><span class="spinner"></span>加载证据...</div>';
       detailEl.style.display = 'block';
 
-      const cacheKey = `${sourceType}:${sourceId}`;
+      const cacheKey = `task:${taskId}`;
       if (sourceCache.has(cacheKey)) {
         detailEl.innerHTML = sourceCache.get(cacheKey);
         return;
       }
 
       try {
-        const run = await api(`/groups/${gid}/rag/runs/${sourceId}`);
-        const oIdx = await loadOntologyEntityIndex(gid);
-        const html = buildSourceDetail(run, sourceId, gid, oIdx);
+        const task = await api(`/groups/${gid}/tasks/${taskId}`);
+        const packetHtml = buildEvidencePacket(task.evidence_packet);
+        if (sourceType !== 'rag_run') {
+          sourceCache.set(cacheKey, packetHtml);
+          detailEl.innerHTML = packetHtml;
+          return;
+        }
+
+        let sourceHtml;
+        try {
+          const run = await api(`/groups/${gid}/rag/runs/${sourceId}`);
+          const oIdx = await loadOntologyEntityIndex(gid);
+          sourceHtml = buildSourceDetail(run, sourceId, gid, oIdx);
+        } catch (err) {
+          let errMsg = '加载来源失败';
+          if (err.status === 404) errMsg = '来源已删除';
+          else if (err.status === 403) errMsg = '无权访问该 RAG 运行记录';
+          sourceHtml = `<p class="muted" style="padding:12px">${errMsg}</p>`;
+        }
+        const html = `${packetHtml}${sourceHtml}`;
         sourceCache.set(cacheKey, html);
         detailEl.innerHTML = html;
       } catch (err) {
@@ -123,6 +136,47 @@ function bindExpandEvents(container, gid) {
       }
     });
   });
+}
+
+function buildEvidencePacket(packet) {
+  if (!packet) return '<p class="muted" style="padding:12px">暂无证据包。</p>';
+  const riskClass = { low: 'badgeOk', medium: 'badgeWarn', high: 'badgeErr' }[packet.risk?.level] || 'badgeMuted';
+  const riskLabel = { low: '低风险', medium: '中风险', high: '高风险' }[packet.risk?.level] || packet.risk?.level || '-';
+  const source = packet.source || {};
+  const action = packet.proposed_action || {};
+  const scope = packet.affected_scope || {};
+  const link = source.project_evidence_link;
+  const reasons = packet.risk?.reasons || [];
+  const checks = packet.review_requirements?.required_checks || [];
+  const anchors = packet.evidence_anchors || [];
+
+  return `
+    <div class="taskEvidencePacket">
+      <div class="taskEvidenceHead">
+        <span>证据包 v${esc(packet.packet_version || '1.0')}</span>
+        <span class="badge ${riskClass}">${esc(riskLabel)}</span>
+      </div>
+      <div class="taskEvidenceGrid">
+        <div><span>来源</span><strong>${esc(sourceLabel(source.source_type))}</strong></div>
+        <div><span>状态</span><strong>${esc(source.source_status || '-')}</strong></div>
+        <div><span>置信</span><strong>${esc(source.confidence || '-')}</strong></div>
+        <div><span>引用</span><strong>${source.citation_count ?? 0}</strong></div>
+      </div>
+      ${source.question ? `<div class="taskEvidenceLine"><span>问题</span><p>${esc(source.question)}</p></div>` : ''}
+      <div class="taskEvidenceLine"><span>行动</span><p>${esc(action.title || '')}${action.description ? ` · ${esc(action.description)}` : ''}</p></div>
+      <div class="taskEvidenceLine"><span>范围</span><p>${esc(scope.project_id || '无项目')} · ${esc(scope.source_type || '-')} · ${esc(scope.source_id || '-')}</p></div>
+      ${link ? `<div class="taskEvidenceLine"><span>项目证据</span><p>${esc(link.role || '-')} · ${esc(link.status || '-')}</p></div>` : ''}
+      ${reasons.length ? `<ul class="taskEvidenceList">${reasons.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}
+      ${anchors.length ? `<div class="taskEvidenceAnchors">${anchors.map(a => `
+        <div class="taskEvidenceAnchor">
+          <strong>${esc(a.title || '未命名证据')}</strong>
+          <span>${esc(a.file_name || '-')} · #${esc(String(a.chunk_index ?? '-'))} · ${esc(a.retrieval_method || '-')}</span>
+          ${a.heading_path ? `<span>${esc(a.heading_path)}</span>` : ''}
+          ${a.match_reason ? `<p>${esc(a.match_reason)}</p>` : ''}
+        </div>`).join('')}</div>` : ''}
+      ${checks.length ? `<div class="taskEvidenceChecks">${checks.map(c => `<span>${esc(c)}</span>`).join('')}</div>` : ''}
+      <div class="taskEvidenceRollback">${esc(packet.rollback_note || '')}</div>
+    </div>`;
 }
 
 function buildSourceDetail(run, sourceId, gid, ontologyIndex = null) {
@@ -139,6 +193,10 @@ function buildSourceDetail(run, sourceId, gid, ontologyIndex = null) {
 function retrievalLabel(m) {
   const map = { hybrid: '混合检索', keyword: '关键词检索', semantic: '语义检索', auto: '自动选择' };
   return map[m] || m;
+}
+
+function sourceLabel(type) {
+  return SOURCE_LABELS[type] || type || '未知';
 }
 
 export { STATUS_LABELS, SOURCE_LABELS };

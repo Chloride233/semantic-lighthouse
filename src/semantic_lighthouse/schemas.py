@@ -497,6 +497,62 @@ class TaskUpdateRequest(BaseModel):
     description: str | None = None
 
 
+class TaskEvidenceSource(BaseModel):
+    source_type: str
+    source_id: str
+    source_status: str
+    question: str | None = None
+    confidence: str | None = None
+    retrieval_method: str | None = None
+    citation_count: int | None = None
+    project_evidence_link: dict | None = None
+
+
+class TaskProposedAction(BaseModel):
+    title: str
+    description: str
+    current_status: str
+
+
+class TaskAffectedScope(BaseModel):
+    group_id: str
+    project_id: str | None = None
+    source_type: str
+    source_id: str
+
+
+class TaskRisk(BaseModel):
+    level: str = Field(pattern="^(low|medium|high)$")
+    reasons: list[str]
+
+
+class TaskReviewRequirements(BaseModel):
+    requires_human_review: bool
+    required_checks: list[str]
+
+
+class TaskEvidenceAnchor(BaseModel):
+    document_id: str
+    chunk_id: str
+    title: str
+    file_name: str
+    chunk_index: int
+    heading_path: str | None = None
+    retrieval_method: str
+    match_reason: str = ""
+
+
+class TaskEvidencePacket(BaseModel):
+    packet_version: str = "1.0"
+    source: TaskEvidenceSource
+    proposed_action: TaskProposedAction
+    affected_scope: TaskAffectedScope
+    risk: TaskRisk
+    rollback_note: str
+    review_requirements: TaskReviewRequirements
+    evidence_anchors: list[TaskEvidenceAnchor] = Field(default_factory=list)
+
+
 class TaskResponse(BaseModel):
     id: str
     group_id: str
@@ -509,6 +565,7 @@ class TaskResponse(BaseModel):
     created_by: str
     created_at: datetime
     updated_at: datetime
+    evidence_packet: TaskEvidencePacket | None = None
 
 
 class TaskListResponse(BaseModel):

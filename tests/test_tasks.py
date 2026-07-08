@@ -8,8 +8,10 @@ Only creator can edit title/description.
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from conftest import register_and_login
+from semantic_lighthouse.models import ProjectEvidenceLink, RagRun, new_id
 
 
 def _create_group(client: TestClient, headers: dict[str, str], name: str = "Team") -> str:
@@ -36,14 +38,87 @@ def _create_task(
     title: str = "补充知识库文档",
     source_type: str = "rag_run",
     source_id: str = "abc-123-run",
+    project_id: str | None = None,
 ) -> dict:
+    payload = {"title": title, "source_type": source_type, "source_id": source_id}
+    if project_id is not None:
+        payload["project_id"] = project_id
     r = client.post(
         f"/groups/{gid}/tasks",
-        json={"title": title, "source_type": source_type, "source_id": source_id},
+        json=payload,
         headers=h,
     )
     assert r.status_code == 201
     return r.json()
+
+
+def _create_project(client: TestClient, gid: str, h: dict[str, str]) -> dict:
+    r = client.post(
+        f"/groups/{gid}/projects",
+        json={
+            "name": "HITL evidence packet pilot",
+            "entry_mode": "problem_first",
+            "business_goal": "Review task evidence before action",
+        },
+        headers=h,
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def _add_project_rag_source(
+    db: Session,
+    gid: str,
+    pid: str,
+    user_id: str,
+    *,
+    status: str = "success",
+) -> str:
+    run_id = new_id()
+    db.add(
+        RagRun(
+            id=run_id,
+            group_id=gid,
+            user_id=user_id,
+            project_id=pid,
+            question="Which supplier action should we confirm?",
+            answer="Sensitive answer body must not be copied into the evidence packet.",
+            confidence="high",
+            retrieval_method="hybrid",
+            model="fake",
+            citations=[
+                {
+                    "document_id": "doc-safe",
+                    "chunk_id": "chunk-safe",
+                    "title": "Supplier SOP",
+                    "source_path": r"C:\unsafe\raw\supplier.md",
+                    "file_name": "supplier.md",
+                    "chunk_index": 3,
+                    "heading_path": "Review > Supplier",
+                    "snippet": "Sensitive citation snippet should stay out of anchors.",
+                    "retrieval_method": "hybrid",
+                    "match_reason": "标题包含「supplier」等问题关键词。",
+                }
+            ],
+            knowledge_gaps=[],
+            next_steps=[],
+            status=status,
+        )
+    )
+    db.add(
+        ProjectEvidenceLink(
+            group_id=gid,
+            project_id=pid,
+            evidence_type="rag_run",
+            evidence_id=run_id,
+            role="validation",
+            note="Review before task closure",
+            status="active",
+            created_by=user_id,
+        )
+    )
+    db.commit()
+    return run_id
 
 
 # ── P0: create ─────────────────────────────────────────────────────────────
@@ -272,4 +347,134 @@ def test_non_member_403_on_task_detail(client):
     t = _create_task(client, ga, h_a, title="group A task")
     # User B (member of group B only) tries to read group A task
     r = client.get(f"/groups/{ga}/tasks/{t['id']}", headers=h_b)
+    assert r.status_code == 403
+
+
+# ── HITL evidence packet v1 ────────────────────────────────────────────────
+
+def test_manual_task_detail_returns_conservative_evidence_packet(client):
+    _, _, h = register_and_login(client, "hitl-manual@t.com")
+    gid = _create_group(client, h)
+    task = _create_task(
+        client,
+        gid,
+        h,
+        title="Manual review task",
+        source_type="manual",
+        source_id="manual-source",
+    )
+
+    listed = client.get(f"/groups/{gid}/tasks", headers=h)
+    assert listed.status_code == 200
+    assert listed.json()["tasks"][0]["evidence_packet"] is None
+
+    detail = client.get(f"/groups/{gid}/tasks/{task['id']}", headers=h)
+    assert detail.status_code == 200
+    packet = detail.json()["evidence_packet"]
+    assert packet["packet_version"] == "1.0"
+    assert packet["source"]["source_type"] == "manual"
+    assert packet["source"]["source_status"] == "manual"
+    assert packet["proposed_action"]["title"] == "Manual review task"
+    assert packet["risk"]["level"] == "medium"
+    assert packet["review_requirements"]["requires_human_review"] is True
+    assert packet["evidence_anchors"] == []
+
+
+def test_project_rag_task_detail_returns_safe_evidence_packet(client, db_session):
+    owner, _, h = register_and_login(client, "hitl-rag@t.com")
+    gid = _create_group(client, h)
+    project = _create_project(client, gid, h)
+    run_id = _add_project_rag_source(db_session, gid, project["id"], owner["id"])
+    task = _create_task(
+        client,
+        gid,
+        h,
+        title="Confirm supplier action",
+        source_type="rag_run",
+        source_id=run_id,
+        project_id=project["id"],
+    )
+    r = client.patch(
+        f"/groups/{gid}/tasks/{task['id']}",
+        json={"description": "Check the evidence before marking done."},
+        headers=h,
+    )
+    assert r.status_code == 200
+    detail = client.get(f"/groups/{gid}/tasks/{task['id']}", headers=h)
+    assert detail.status_code == 200
+    packet = detail.json()["evidence_packet"]
+    assert packet["source"]["source_type"] == "rag_run"
+    assert packet["source"]["source_status"] == "success"
+    assert packet["source"]["question"] == "Which supplier action should we confirm?"
+    assert packet["source"]["confidence"] == "high"
+    assert packet["source"]["retrieval_method"] == "hybrid"
+    assert packet["source"]["citation_count"] == 1
+    assert packet["source"]["project_evidence_link"]["role"] == "validation"
+    assert packet["source"]["project_evidence_link"]["status"] == "active"
+    assert packet["affected_scope"]["project_id"] == project["id"]
+    assert packet["risk"]["level"] == "low"
+    assert packet["evidence_anchors"] == [
+        {
+            "document_id": "doc-safe",
+            "chunk_id": "chunk-safe",
+            "title": "Supplier SOP",
+            "file_name": "supplier.md",
+            "chunk_index": 3,
+            "heading_path": "Review > Supplier",
+            "retrieval_method": "hybrid",
+            "match_reason": "标题包含「supplier」等问题关键词。",
+        }
+    ]
+
+    body = detail.text
+    assert "source_path" not in body
+    assert "storage_path" not in body
+    assert r"C:\unsafe\raw\supplier.md" not in body
+    assert "Sensitive answer body" not in body
+    assert "Sensitive citation snippet" not in body
+
+
+def test_missing_rag_source_returns_high_risk_unavailable_packet(client, db_session):
+    owner, _, h = register_and_login(client, "hitl-missing@t.com")
+    gid = _create_group(client, h)
+    project = _create_project(client, gid, h)
+    run_id = _add_project_rag_source(db_session, gid, project["id"], owner["id"])
+    task = _create_task(
+        client,
+        gid,
+        h,
+        title="Confirm missing-source action",
+        source_type="rag_run",
+        source_id=run_id,
+        project_id=project["id"],
+    )
+    db_session.query(RagRun).filter(RagRun.id == run_id).delete()
+    db_session.commit()
+
+    detail = client.get(f"/groups/{gid}/tasks/{task['id']}", headers=h)
+    assert detail.status_code == 200
+    packet = detail.json()["evidence_packet"]
+    assert packet["source"]["source_status"] == "unavailable"
+    assert packet["risk"]["level"] == "high"
+    assert "Source evidence is unavailable." in packet["risk"]["reasons"]
+    assert packet["evidence_anchors"] == []
+
+
+def test_non_member_cannot_read_evidence_packet(client, db_session):
+    owner, _, owner_h = register_and_login(client, "hitl-owner@t.com")
+    _, _, outsider_h = register_and_login(client, "hitl-outsider@t.com")
+    gid = _create_group(client, owner_h)
+    project = _create_project(client, gid, owner_h)
+    run_id = _add_project_rag_source(db_session, gid, project["id"], owner["id"])
+    task = _create_task(
+        client,
+        gid,
+        owner_h,
+        title="Group-only evidence task",
+        source_type="rag_run",
+        source_id=run_id,
+        project_id=project["id"],
+    )
+
+    r = client.get(f"/groups/{gid}/tasks/{task['id']}", headers=outsider_h)
     assert r.status_code == 403

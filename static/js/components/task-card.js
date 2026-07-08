@@ -26,6 +26,7 @@ export function taskCard(task, gid, onStatusChange, sourceLabels) {
   return `
     <div class="taskCard${isCancelled ? ' cancelled' : ''}"
          data-task-id="${task.id}"
+         data-status="${task.status}"
          data-source-type="${task.source_type}"
          data-source-id="${task.source_id}">
       <div class="taskBar" style="background:${color}"></div>
@@ -54,6 +55,7 @@ export function bindTaskCardEvents(container, gid, onStatusChange) {
       e.stopPropagation();
       const taskId = btn.dataset.taskId;
       const newStatus = btn.dataset.newStatus;
+      const currentStatus = btn.closest('.taskCard')?.dataset.status;
       btn.disabled = true;
       btn.textContent = '...';
       try {
@@ -66,7 +68,7 @@ export function bindTaskCardEvents(container, gid, onStatusChange) {
       } catch (err) {
         showToast(err.detail || '更新失败', 'error');
         btn.disabled = false;
-        btn.textContent = STATUS_NEXT[taskId]?.label || '重试';
+        btn.textContent = STATUS_NEXT[currentStatus]?.label || '重试';
       }
     });
   });

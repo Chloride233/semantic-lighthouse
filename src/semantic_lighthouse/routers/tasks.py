@@ -18,15 +18,33 @@ from semantic_lighthouse.models import (
 )
 from semantic_lighthouse.schemas import (
     TaskCreateRequest,
+    TaskAffectedScope,
+    TaskEvidenceAnchor,
+    TaskEvidencePacket,
+    TaskEvidenceSource,
     TaskListResponse,
+    TaskProposedAction,
+    TaskReviewRequirements,
     TaskResponse,
+    TaskRisk,
     TaskUpdateRequest,
 )
 
 router = APIRouter(prefix="/groups/{group_id}/tasks", tags=["tasks"])
 
 
-def _task_response(task: Task) -> TaskResponse:
+def _task_response(
+    task: Task,
+    db: Session | None = None,
+    *,
+    include_evidence_packet: bool = False,
+) -> TaskResponse:
+    evidence_packet = None
+    if include_evidence_packet:
+        if db is None:
+            raise ValueError("db is required for evidence packets")
+        evidence_packet = _build_task_evidence_packet(db, task)
+
     return TaskResponse(
         id=task.id,
         group_id=task.group_id,
@@ -39,7 +57,162 @@ def _task_response(task: Task) -> TaskResponse:
         created_by=task.created_by,
         created_at=task.created_at,
         updated_at=task.updated_at,
+        evidence_packet=evidence_packet,
     )
+
+
+def _build_task_evidence_packet(
+    db: Session,
+    task: Task,
+) -> TaskEvidencePacket:
+    source_status = "limited"
+    question = None
+    confidence = None
+    retrieval_method = None
+    citation_count = None
+    project_evidence_link = None
+    evidence_anchors: list[TaskEvidenceAnchor] = []
+    risk_level = "medium"
+    risk_reasons = ["Reviewer must confirm the task context before changing status."]
+
+    if task.source_type == "manual":
+        source_status = "manual"
+        risk_reasons = ["Manual task has no system-verifiable source evidence."]
+    elif task.source_type == "rag_run":
+        link = _active_project_rag_link(db, task)
+        if link is not None:
+            project_evidence_link = {
+                "id": link.id,
+                "role": link.role,
+                "status": link.status,
+                "note": link.note,
+                "created_at": link.created_at.isoformat() if link.created_at else "",
+            }
+
+        run = db.scalar(
+            select(RagRun).where(
+                RagRun.id == task.source_id,
+                RagRun.group_id == task.group_id,
+            )
+        )
+        if run is None:
+            source_status = "unavailable"
+            risk_level = "high"
+            risk_reasons = ["Source evidence is unavailable."]
+        else:
+            source_status = run.status
+            question = run.question
+            confidence = run.confidence
+            retrieval_method = run.retrieval_method
+            stored_citations = run.citations or []
+            citation_count = len(stored_citations)
+            evidence_anchors = _safe_citation_anchors(stored_citations)
+
+            if run.status != "success":
+                risk_level = "high"
+                risk_reasons = [f"RAG source status is {run.status}."]
+            elif task.project_id and project_evidence_link is None:
+                risk_level = "high"
+                risk_reasons = ["RAG source is not active project evidence."]
+            elif not stored_citations:
+                risk_level = "medium"
+                risk_reasons = ["RAG source has no citation anchors."]
+            elif run.confidence == "low":
+                risk_level = "medium"
+                risk_reasons = ["RAG source confidence is low."]
+            else:
+                risk_level = "low"
+                risk_reasons = ["Evidence source is linked and available."]
+    elif task.source_type in ("conversation", "agent_run"):
+        risk_reasons = [
+            "Source type is supported for traceability, but v1 evidence packet is limited.",
+        ]
+
+    required_checks = [
+        "Review the proposed action against the source context.",
+        "Confirm affected project and source scope.",
+        "Use task status changes only after human review.",
+    ]
+    if risk_level == "high":
+        required_checks.insert(0, "Resolve high-risk evidence gaps before marking done.")
+
+    return TaskEvidencePacket(
+        source=TaskEvidenceSource(
+            source_type=task.source_type,
+            source_id=task.source_id,
+            source_status=source_status,
+            question=question,
+            confidence=confidence,
+            retrieval_method=retrieval_method,
+            citation_count=citation_count,
+            project_evidence_link=project_evidence_link,
+        ),
+        proposed_action=TaskProposedAction(
+            title=task.title,
+            description=task.description,
+            current_status=task.status,
+        ),
+        affected_scope=TaskAffectedScope(
+            group_id=task.group_id,
+            project_id=task.project_id,
+            source_type=task.source_type,
+            source_id=task.source_id,
+        ),
+        risk=TaskRisk(level=risk_level, reasons=risk_reasons),
+        rollback_note=(
+            "This packet is read-only. If the action is wrong, reopen or cancel the "
+            "task and keep the source artifact unchanged."
+        ),
+        review_requirements=TaskReviewRequirements(
+            requires_human_review=True,
+            required_checks=required_checks,
+        ),
+        evidence_anchors=evidence_anchors,
+    )
+
+
+def _active_project_rag_link(db: Session, task: Task) -> ProjectEvidenceLink | None:
+    if not task.project_id:
+        return None
+    return db.scalar(
+        select(ProjectEvidenceLink).where(
+            ProjectEvidenceLink.group_id == task.group_id,
+            ProjectEvidenceLink.project_id == task.project_id,
+            ProjectEvidenceLink.evidence_type == "rag_run",
+            ProjectEvidenceLink.evidence_id == task.source_id,
+            ProjectEvidenceLink.status == "active",
+        )
+    )
+
+
+def _safe_citation_anchors(citations: list) -> list[TaskEvidenceAnchor]:
+    anchors: list[TaskEvidenceAnchor] = []
+    for citation in citations:
+        if not isinstance(citation, dict):
+            continue
+        required = (
+            "document_id",
+            "chunk_id",
+            "title",
+            "file_name",
+            "chunk_index",
+            "retrieval_method",
+        )
+        if any(citation.get(key) is None for key in required):
+            continue
+        anchors.append(
+            TaskEvidenceAnchor(
+                document_id=str(citation["document_id"]),
+                chunk_id=str(citation["chunk_id"]),
+                title=str(citation["title"]),
+                file_name=str(citation["file_name"]),
+                chunk_index=int(citation["chunk_index"]),
+                heading_path=citation.get("heading_path"),
+                retrieval_method=str(citation["retrieval_method"]),
+                match_reason=str(citation.get("match_reason") or ""),
+            )
+        )
+    return anchors
 
 
 def _validate_project(db, group_id, project_id) -> BusinessProject | None:
@@ -185,7 +358,11 @@ def get_task(
     task = db.get(Task, task_id)
     if task is None or task.group_id != group_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-    return _task_response(task)
+    return _task_response(
+        task,
+        db,
+        include_evidence_packet=True,
+    )
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
