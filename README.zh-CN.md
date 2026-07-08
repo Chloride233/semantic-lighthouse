@@ -62,7 +62,16 @@ Artifact gate: PASS
 
 ## Phase 19 本体操作化流水线
 
-你可以按下面的顺序跑离线治理链：
+先跑完整的离线 Semantic CI gate：
+
+```powershell
+.\.venv\Scripts\python scripts\run_semantic_ci.py `
+    --data-pack .tmp\phase19-manufacturing
+```
+
+它会生成 `semantic_ci_report.json`，记录 gate 状态、artifact hashes、治理候选数量和人工审阅边界。
+
+如果需要拆开看每一步，你也可以按下面的顺序跑离线治理链：
 
 ```powershell
 # 1. 生成制造业数据包

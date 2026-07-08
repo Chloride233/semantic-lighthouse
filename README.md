@@ -62,7 +62,16 @@ The smoke uses fake embedding/chat providers, temporary SQLite, and no external 
 
 ## Phase 19 Ontology Pipeline
 
-Run the offline ontology operationalization chain:
+Run the full offline Semantic CI gate:
+
+```powershell
+.\.venv\Scripts\python scripts\run_semantic_ci.py `
+    --data-pack .tmp\phase19-manufacturing
+```
+
+This writes `semantic_ci_report.json` with gate status, artifact hashes, governance candidate counts, and the human-review boundary.
+
+To inspect each step separately, run the offline ontology operationalization chain:
 
 ```powershell
 # 1. Generate the manufacturing data pack
