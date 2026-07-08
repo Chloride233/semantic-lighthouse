@@ -1,75 +1,63 @@
-<!-- Generated: 2026-06-13 | Updated: R1 redesign | Files: 20 | ~550 tokens -->
+<!-- Updated: 2026-07-08 | Current snapshot, not generated -->
 
-# Frontend Console (R1 Redesign)
+# Frontend Console
 
 ## Stack
 
-Vanilla JS ES Modules + Hash Router + CSS Custom Properties. Zero npm/build. Served by FastAPI StaticFiles at `/console`.
+Vanilla JavaScript ES modules, hash router, CSS custom properties, and no npm/build step. FastAPI serves the console shell at `/console` through `static/console.html`.
 
-## R1 Route Map
+## Route Map
 
-| Hash | Page | Key API Calls | Notes |
-|------|------|---------------|-------|
-| `#/login` | auth.js | POST /auth/register, POST /auth/login, GET /auth/me | Tabbed Sign In / Register |
-| `#/onboarding` | onboarding.js | POST /groups | First-use workspace creation |
-| `#/ask` | ask.js | POST /groups/:gid/rag/answer, GET /rag/runs | **Primary home** |
-| `#/groups` | groups.js | GET /auth/me, POST /groups, POST /groups/join-by-invite | Linked as "Workspace" |
-| `#/groups/:gid/documents` | documents.js | GET /search, POST /upload, POST /{doc}/archive | Linked as "Knowledge" |
-| `#/groups/:gid/jobs` | jobs.js | GET /search + GET /{doc}/ingestion-jobs | Not in navbar (legacy) |
-| `#/groups/:gid/rag` | rag.js | POST /rag/answer, GET /rag/runs | Not in navbar (legacy) |
-| `#/groups/:gid/conversations` | conversations.js | GET/POST /conversations, POST /{id}/messages | Linked as "Conversations" |
+| Hash | Page Module | Primary Purpose |
+|------|-------------|-----------------|
+| `#/login` | `pages/auth.js` | Sign in/register/logout recovery path |
+| `#/onboarding` | `pages/onboarding.js` | First workspace creation |
+| `#/ask` | `pages/ask.js` | Lightweight ask/RAG entry |
+| `#/groups` | `pages/groups.js` | Workspace selection and membership operations |
+| `#/groups/:gid/projects` | `pages/projects.js` | Pilot project list and creation |
+| `#/groups/:gid/projects/:pid` | `pages/project.js` | Goal -> Data -> Model -> Validate -> Pilot workflow shell |
+| `#/groups/:gid/documents` | `pages/documents.js` | Knowledge upload/search/archive |
+| `#/groups/:gid/jobs` | `pages/jobs.js` | Ingestion job monitor, preserved legacy route |
+| `#/groups/:gid/rag` | `pages/rag.js` | RAG run console, preserved legacy route |
+| `#/groups/:gid/conversations` | `pages/conversations.js` | Multi-turn grounded conversations |
+| `#/groups/:gid/tasks` | `pages/tasks.js` | HITL task list and confirmation flow |
+| `#/groups/:gid/agent` | `pages/agent.js` | Controlled Agent run interface |
+| `#/groups/:gid/ontology` | `pages/ontology.js` | Ontology entities, relations, drafts, packages |
+
+## Current Navigation
+
+Primary navigation favors the ontology pilot surface:
+
+| Label | Target |
+|-------|--------|
+| Pilot | `#/groups/{gid}/projects` |
+| Ontology | `#/groups/{gid}/ontology` |
+| 工作区 | `#/groups` |
+
+The more-tools menu keeps supporting routes discoverable: 问答, 知识库, 对话, 任务, Agent.
 
 ## File Map
 
-```
+```text
 static/
-├── console.html              Shell (navbar#navbar + outlet#outlet) → loads js/app.js
-├── styles.css                Design tokens (teal/amber) + component + page styles (506 lines)
+├── console.html              SPA shell
+├── styles.css                Design tokens, layout, components, page styles
 └── js/
-    ├── app.js                Entry: route() × 8, initNavbar(), initRouter()
-    ├── api.js                fetch wrapper
-    ├── router.js             Hash router: pattern→regex, param extraction, 401 redirect
-    ├── state.js              Global store: accessToken, currentUser, groups[], currentGroupId, role
-    ├── components/
-    │   ├── navbar.js         R1: Ask/Knowledge/Conversations/Workspace labels
-    │   ├── panel.js          Reusable card: panel(title, body), panelGrid()
-    │   ├── badge.js          Badges: statusBadge(status), confidenceBadge(level)
-    │   └── answer-card.js    R1: confidence bar + citations + gaps + next steps
-    ├── pages/
-    │   ├── auth.js           R1: Tabbed Sign In / Register with brand
-    │   ├── onboarding.js     R1: First-use workspace creation
-    │   ├── ask.js            R1: Primary Q&A home
-    │   ├── groups.js         Workspace management (legacy, preserved)
-    │   ├── documents.js      Document upload/search/archive (legacy, preserved)
-    │   ├── jobs.js           Ingestion job monitor (legacy, preserved)
-    │   ├── rag.js            RAG console (legacy, preserved)
-    │   └── conversations.js  Multi-turn dialogue (legacy, preserved)
-    └── util/
-        ├── esc.js            R1: Shared HTML escape utility
-        └── toast.js          Toast notifications
+    ├── app.js                Route registration and app bootstrap
+    ├── api.js                Fetch wrapper
+    ├── router.js             Hash router with route params and auth redirect
+    ├── state.js              Shared client state
+    ├── components/           Navbar, panels, cards, badges
+    ├── pages/                Console page modules
+    └── util/                 Escape, task confirmation, ontology links, toast helpers
 ```
 
-## R1 Navbar → Routes
+## Design Direction
 
-| Nav Label | Target Route | Backed By |
-|-----------|-------------|------------|
-| **Ask** | `#/ask` | ask.js (new) |
-| **Knowledge** | `#/groups/:gid/documents` | documents.js (preserved) |
-| **Conversations** | `#/groups/:gid/conversations` | conversations.js (preserved) |
-| **Workspace** | `#/groups` | groups.js (preserved) |
+The console should stay work-focused: quiet navigation, clear evidence surfaces, explicit status, and dense but readable ontology/pilot workflows. Avoid turning the console into a marketing page or a generic chatbot skin.
 
-## State Flow (R1)
+## Preservation Notes
 
-```
-Login → groups.length > 0 → #/ask (home)
-Login → groups.length === 0 → #/onboarding
-Onboarding → POST /groups → #/groups/:gid/documents
-Logout → #/login
-401 → #/login
-```
-
-## CSS Design System (R1)
-
-**Direction**: "Warm Clarity" — guidance, trust, warmth.
-**Primary**: Teal `#0d9488`, **Accent**: Amber `#f59e0b`, **Bg**: `#f8faf9`.
-Tokens: `--brand`, `--brand-hover`, `--brand-light`, `--accent`, `--accent-light`, `--bg`, `--panel`, `--text`, `--muted`, `--line`, `--ok`, `--warn`, `--danger`, `--info`, shadows, radius, type scale.
+- Legacy console routes remain active unless a dedicated retirement task handles redirects, tests, and docs.
+- UI changes require `scripts\verify_ui.py` plus route-specific browser/Playwright checks for touched flows.
+- The deleted `static/learning.html` page was not wired into `static/js/app.js` or the navbar and is not part of the console route contract.

@@ -199,9 +199,9 @@ http://127.0.0.1:8000/docs
 |------|------|
 | `PRODUCT.md` | 产品定位与边界 |
 | `docs/project-status.toml` | 当前项目状态的唯一事实源 |
-| `docs/project-roadmap.md` | 项目路线图 |
+| `docs/project-roadmap.md` | 当前决策路线图 |
 | `docs/deployment-v3-cloud.md` | 云部署说明 |
-| `docs/CODEMAPS/` | 架构、后端、数据与前端结构 |
+| `docs/CODEMAPS/` | 架构、后端、数据与前端结构快照 |
 
 ## Public Repository Boundary
 
@@ -239,7 +239,8 @@ http://127.0.0.1:8000/docs
 
 当前项目处于一个 decision gate，不自动扩 phase。候选方向需要显式选择：
 
-1. **产品 onboarding / guided workflow**：提升第一次进入 Pilot 的引导体验
-2. **Pilot narrative / demo hardening**：把制造业 demo 打磨成更短更强的展示链
-3. **Ontology governance deeper slice**：把离线 governance feedback 变成 DB-backed issues
-4. **MCP design-only**：继续细化 MCP 边界设计，但不实现 runtime
+1. **Semantic CI/CD 产品化**：把 mapping、规则、证据和治理反馈变成可重复的交付纪律
+2. **HITL evidence packet**：在确认写入前展示证据、受影响对象、风险和 rollback notes
+3. **强/弱关系治理**：区分契约型关系、推断关系和弱关系，避免图谱边语义混杂
+4. **AdventureWorks benchmark**：加入更容易被外部理解的销售、订单、客户 benchmark
+5. **指标到本体映射 MVP**：把 KPI 连接到对象、属性、证据和 lineage，同时避免扩成通用 analytics DSL

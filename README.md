@@ -199,9 +199,9 @@ Full backend regression and UI smoke are lane-dependent. See `docs/development-w
 |----------|---------|
 | `PRODUCT.md` | Product positioning and boundaries |
 | `docs/project-status.toml` | Canonical current project state |
-| `docs/project-roadmap.md` | Project roadmap |
+| `docs/project-roadmap.md` | Current decision roadmap |
 | `docs/deployment-v3-cloud.md` | Cloud deployment guide |
-| `docs/CODEMAPS/` | Architecture, backend, data, and frontend structure |
+| `docs/CODEMAPS/` | Architecture, backend, data, and frontend structure snapshots |
 
 ## Public Repository Boundary
 
@@ -239,7 +239,8 @@ Canonical project state: `docs/project-status.toml`.
 
 The project is at a decision gate. No automatic expansion to new phases. Candidates require explicit user choice:
 
-1. **Product onboarding / guided workflow** - improve the first-time Pilot experience.
-2. **Pilot narrative / demo hardening** - tighten the manufacturing demo into a 5-minute portfolio narrative.
-3. **Ontology governance deeper slice** - turn offline governance feedback into DB-backed issues.
-4. **MCP design-only** - refine the MCP boundary design without implementation.
+1. **Semantic CI/CD productization** - turn mapping, rules, evidence, and governance feedback into a repeatable delivery discipline.
+2. **HITL evidence packet** - show evidence, affected objects, risk, and rollback notes before confirmed writes.
+3. **Strong/weak relation governance** - distinguish contractual relations from inferred or weak relations.
+4. **AdventureWorks benchmark** - add a recognizable external benchmark for sales/order/customer scenarios.
+5. **Metric-to-ontology mapping MVP** - connect KPIs to ontology objects, properties, evidence, and lineage without opening a broad analytics DSL.
