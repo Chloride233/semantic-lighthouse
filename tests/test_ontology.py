@@ -66,6 +66,35 @@ def _scan(client: TestClient, gid: str, headers: dict[str, str]) -> dict:
     return r.json()
 
 
+def _create_draft(
+    client: TestClient,
+    gid: str,
+    headers: dict[str, str],
+    draft_type: str,
+    name: str,
+    **extra,
+) -> dict:
+    body = {"draft_type": draft_type, "name": name, **extra}
+    r = client.post(f"/groups/{gid}/ontology/drafts", json=body, headers=headers)
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def _accept_draft(
+    client: TestClient,
+    gid: str,
+    draft_id: str,
+    headers: dict[str, str],
+) -> dict:
+    r = client.post(
+        f"/groups/{gid}/ontology/drafts/{draft_id}/review",
+        json={"status": "accepted"},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
 # ── P0: basic entity extraction ───────────────────────────────────────
 
 
@@ -341,6 +370,132 @@ class TestFiltering:
 
 
 class TestWikilinkRelations:
+    def _relation_fixture(self, client, email: str):
+        _, _, h = register_and_login(client, email)
+        gid = _create_group(client, h)
+        _upload_doc(client, gid, h, "src.md", {
+            "entityType": "Concept", "tags": ["src"], "created": "2026-01-01",
+        }, body="[[approved-target]] [[candidate-target]] [[missing-target]]")
+        _upload_doc(client, gid, h, "approved-target.md", {
+            "entityType": "Concept", "tags": ["approved"], "created": "2026-01-01",
+        }, body="approved")
+        _upload_doc(client, gid, h, "candidate-target.md", {
+            "entityType": "Concept", "tags": ["candidate"], "created": "2026-01-01",
+        }, body="candidate")
+        _scan(client, gid, h)
+        relations = client.get(
+            f"/groups/{gid}/ontology/relations?limit=100", headers=h
+        ).json()["relations"]
+        return gid, h, relations
+
+    def test_resolved_relation_defaults_to_candidate_governance(self, client):
+        gid, h, _ = self._relation_fixture(client, "wr-gov1@t.com")
+
+        r = client.get(
+            f"/groups/{gid}/ontology/relations?governance_layer=candidate_resolved",
+            headers=h,
+        )
+
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] >= 2
+        candidate = data["relations"][0]
+        assert candidate["governance_layer"] == "candidate_resolved"
+        assert candidate["governance_label"] == "候选关系"
+        assert candidate["review_required"] is True
+        assert candidate["hard_reasoning_allowed"] is False
+
+    def test_accepted_link_type_draft_marks_relation_as_approved_hard(self, client):
+        gid, h, relations = self._relation_fixture(client, "wr-gov2@t.com")
+        relation = next(r for r in relations if r["target_path"] == "approved-target.md")
+        draft = _create_draft(
+            client,
+            gid,
+            h,
+            "link_type",
+            "Approved Target Link",
+            source_relation_id=relation["id"],
+        )
+        _accept_draft(client, gid, draft["id"], h)
+
+        r = client.get(
+            f"/groups/{gid}/ontology/relations?governance_layer=approved_hard",
+            headers=h,
+        )
+
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] == 1
+        approved = data["relations"][0]
+        assert approved["id"] == relation["id"]
+        assert approved["governance_layer"] == "approved_hard"
+        assert approved["governance_label"] == "已批准硬关系"
+        assert approved["review_required"] is False
+        assert approved["hard_reasoning_allowed"] is True
+
+    def test_unresolved_relation_is_weak_signal_governance(self, client):
+        gid, h, _ = self._relation_fixture(client, "wr-gov3@t.com")
+
+        r = client.get(
+            f"/groups/{gid}/ontology/relations?governance_layer=weak_unresolved",
+            headers=h,
+        )
+
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] == 1
+        weak = data["relations"][0]
+        assert weak["status"] == "unresolved"
+        assert weak["governance_layer"] == "weak_unresolved"
+        assert weak["governance_label"] == "弱信号"
+        assert weak["review_required"] is True
+        assert weak["hard_reasoning_allowed"] is False
+
+    def test_hard_reasoning_allowed_filter_only_returns_approved_relations(self, client):
+        gid, h, relations = self._relation_fixture(client, "wr-gov4@t.com")
+        relation = next(r for r in relations if r["target_path"] == "approved-target.md")
+        draft = _create_draft(
+            client,
+            gid,
+            h,
+            "link_type",
+            "Approved Target Link",
+            source_relation_id=relation["id"],
+        )
+        _accept_draft(client, gid, draft["id"], h)
+
+        r = client.get(
+            f"/groups/{gid}/ontology/relations?hard_reasoning_allowed=true",
+            headers=h,
+        )
+
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] == 1
+        assert data["relations"][0]["id"] == relation["id"]
+        assert all(rel["hard_reasoning_allowed"] is True for rel in data["relations"])
+
+    def test_governance_filter_preserves_group_isolation(self, client):
+        _, _, h_a = register_and_login(client, "wr-gov5a@t.com")
+        _, _, h_b = register_and_login(client, "wr-gov5b@t.com")
+        ga = _create_group(client, h_a)
+        gb = _create_group(client, h_b)
+        _upload_doc(client, ga, h_a, "src.md", {
+            "entityType": "Concept", "tags": ["src"], "created": "2026-01-01",
+        }, body="[[target]]")
+        _upload_doc(client, ga, h_a, "target.md", {
+            "entityType": "Concept", "tags": ["target"], "created": "2026-01-01",
+        }, body="target")
+        _scan(client, ga, h_a)
+
+        r = client.get(
+            f"/groups/{gb}/ontology/relations?governance_layer=candidate_resolved",
+            headers=h_b,
+        )
+
+        assert r.status_code == 200
+        assert r.json()["total"] == 0
+
     def test_scan_extracts_resolved_relation(self, client):
         _, _, h = register_and_login(client, "wr1@t.com")
         gid = _create_group(client, h)

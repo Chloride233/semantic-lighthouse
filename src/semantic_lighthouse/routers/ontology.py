@@ -67,6 +67,16 @@ from semantic_lighthouse.services.ontology_draft_reviews import (
 
 router = APIRouter(prefix="/groups/{group_id}/ontology", tags=["ontology"])
 
+GOVERNANCE_LAYER_APPROVED_HARD = "approved_hard"
+GOVERNANCE_LAYER_CANDIDATE_RESOLVED = "candidate_resolved"
+GOVERNANCE_LAYER_WEAK_UNRESOLVED = "weak_unresolved"
+
+GOVERNANCE_LABELS = {
+    GOVERNANCE_LAYER_APPROVED_HARD: "已批准硬关系",
+    GOVERNANCE_LAYER_CANDIDATE_RESOLVED: "候选关系",
+    GOVERNANCE_LAYER_WEAK_UNRESOLVED: "弱信号",
+}
+
 
 # ── scan ──────────────────────────────────────────────────────────────
 
@@ -202,6 +212,8 @@ def list_relations(
     source_entity_id: str | None = Query(default=None),
     target_entity_id: str | None = Query(default=None),
     relation_type: str | None = Query(default=None),
+    governance_layer: str | None = Query(default=None),
+    hard_reasoning_allowed: bool | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),
@@ -220,16 +232,30 @@ def list_relations(
     if relation_type:
         base = base.where(OntologyRelation.relation_type == relation_type)
 
-    total = db.scalar(select(func.count()).select_from(base.subquery()))
-    rows = db.scalars(
-        base.order_by(OntologyRelation.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-    ).all()
+    approved_relation_ids = _approved_hard_relation_ids(db, group_id)
+    if governance_layer is None and hard_reasoning_allowed is None:
+        total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
+        paged_rows = db.scalars(
+            base.order_by(OntologyRelation.created_at.desc()).offset(offset).limit(limit)
+        ).all()
+    else:
+        rows = db.scalars(base.order_by(OntologyRelation.created_at.desc())).all()
+        filtered_rows = [
+            r
+            for r in rows
+            if _relation_matches_governance_filters(
+                r,
+                approved_relation_ids,
+                governance_layer=governance_layer,
+                hard_reasoning_allowed=hard_reasoning_allowed,
+            )
+        ]
+        total = len(filtered_rows)
+        paged_rows = filtered_rows[offset : offset + limit]
 
     return OntologyRelationListResponse(
-        relations=[_relation_response(r) for r in rows],
-        total=total or 0,
+        relations=[_relation_response(r, approved_relation_ids) for r in paged_rows],
+        total=total,
     )
 
 
@@ -745,7 +771,60 @@ def _draft_response(d: OntologyModelingDraft) -> OntologyModelingDraftResponse:
     )
 
 
-def _relation_response(r: OntologyRelation) -> OntologyRelationResponse:
+def _approved_hard_relation_ids(db: Session, group_id: str) -> set[str]:
+    relation_ids = db.scalars(
+        select(OntologyModelingDraft.source_relation_id).where(
+            OntologyModelingDraft.group_id == group_id,
+            OntologyModelingDraft.draft_type == "link_type",
+            OntologyModelingDraft.status == "accepted",
+            OntologyModelingDraft.source_relation_id.is_not(None),
+        )
+    ).all()
+    return {relation_id for relation_id in relation_ids if relation_id}
+
+
+def _relation_governance(
+    r: OntologyRelation,
+    approved_relation_ids: set[str],
+) -> dict[str, str | bool]:
+    if r.id in approved_relation_ids:
+        layer = GOVERNANCE_LAYER_APPROVED_HARD
+    elif r.status == "resolved" and r.target_entity_id:
+        layer = GOVERNANCE_LAYER_CANDIDATE_RESOLVED
+    else:
+        layer = GOVERNANCE_LAYER_WEAK_UNRESOLVED
+
+    return {
+        "governance_layer": layer,
+        "governance_label": GOVERNANCE_LABELS[layer],
+        "review_required": layer != GOVERNANCE_LAYER_APPROVED_HARD,
+        "hard_reasoning_allowed": layer == GOVERNANCE_LAYER_APPROVED_HARD,
+    }
+
+
+def _relation_matches_governance_filters(
+    r: OntologyRelation,
+    approved_relation_ids: set[str],
+    *,
+    governance_layer: str | None,
+    hard_reasoning_allowed: bool | None,
+) -> bool:
+    governance = _relation_governance(r, approved_relation_ids)
+    if governance_layer and governance["governance_layer"] != governance_layer:
+        return False
+    if (
+        hard_reasoning_allowed is not None
+        and bool(governance["hard_reasoning_allowed"]) != hard_reasoning_allowed
+    ):
+        return False
+    return True
+
+
+def _relation_response(
+    r: OntologyRelation,
+    approved_relation_ids: set[str] | None = None,
+) -> OntologyRelationResponse:
+    governance = _relation_governance(r, approved_relation_ids or set())
     return OntologyRelationResponse(
         id=r.id,
         group_id=r.group_id,
@@ -756,6 +835,10 @@ def _relation_response(r: OntologyRelation) -> OntologyRelationResponse:
         target_label=r.target_label,
         relation_type=r.relation_type,
         status=r.status,
+        governance_layer=str(governance["governance_layer"]),
+        governance_label=str(governance["governance_label"]),
+        review_required=bool(governance["review_required"]),
+        hard_reasoning_allowed=bool(governance["hard_reasoning_allowed"]),
         evidence_document_id=r.evidence_document_id,
         created_at=r.created_at,
     )

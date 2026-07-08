@@ -270,6 +270,31 @@ function selectEnt(id) {
   renderDetail(e || null);
 }
 
+function relationGovernanceLayer(r) {
+  if (r.governance_layer) return r.governance_layer;
+  return r.status === 'resolved' && r.target_entity_id ? 'candidate_resolved' : 'weak_unresolved';
+}
+
+function relationGovernanceLabel(r) {
+  return r.governance_label || ({
+    approved_hard: '已批准硬关系',
+    candidate_resolved: '候选关系',
+    weak_unresolved: '弱信号'
+  })[relationGovernanceLayer(r)] || '候选关系';
+}
+
+function relationGovernanceBadge(r) {
+  const layer = relationGovernanceLayer(r);
+  const cls = layer === 'approved_hard' ? 'badgeOk' : layer === 'weak_unresolved' ? 'badgeWarn' : 'badgeInfo';
+  return `<span class="badge ${cls}">${esc(relationGovernanceLabel(r))}</span>`;
+}
+
+function relationStatusBadge(r) {
+  return r.status === 'resolved'
+    ? '<span class="badge badgeOk">已解析</span>'
+    : '<span class="badge badgeMuted">未解析</span>';
+}
+
 function renderGraph(sel) {
   const c = document.getElementById('ontoGraph');
   if (!c) return;
@@ -327,9 +352,12 @@ function renderGraph(sel) {
       if (!a || !b) return;
       const srcEnt = _e.find(x => x.id === r.source_entity_id);
       const tgtEnt = _e.find(x => x.id === r.target_entity_id);
-      const dash = r.status === 'unresolved' ? 'stroke-dasharray:5,4' : '';
-      const color = r.status === 'unresolved' ? '#d97706' : '#cbd5e1';
-      svg += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${color}" stroke-width="1.5" ${dash} class="ontoEdge" data-sid="${r.source_entity_id}" data-tid="${r.target_entity_id}"><title>${esc((srcEnt?.title||r.source_entity_id))} → ${esc((tgtEnt?.title||r.target_path||'未解析'))} (${r.status==='resolved'?'已解析':'未解析'})</title></line>`;
+      const layer = relationGovernanceLayer(r);
+      const dash = layer === 'approved_hard' ? '' : 'stroke-dasharray:5,4';
+      const color = layer === 'approved_hard' ? '#0f766e' : layer === 'weak_unresolved' ? '#d97706' : '#94a3b8';
+      const width = layer === 'approved_hard' ? '2.4' : '1.5';
+      const statusLabel = r.status === 'resolved' ? '已解析' : '未解析';
+      svg += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${color}" stroke-width="${width}" ${dash} class="ontoEdge" data-sid="${r.source_entity_id}" data-tid="${r.target_entity_id}"><title>${esc((srcEnt?.title||r.source_entity_id))} → ${esc((tgtEnt?.title||r.target_path||'未解析'))} (${statusLabel} / ${esc(relationGovernanceLabel(r))})</title></line>`;
     });
     nodes.forEach(n => {
       const p = nm[n.id]; if (!p) return;
@@ -343,8 +371,9 @@ function renderGraph(sel) {
 
   const types = [...new Set(nodes.map(n => n.entity_type))].sort();
   html += `<div class="ontoLegend">
-    <span class="legendItem"><span class="legendLine legendLineSolid"></span> 已解析</span>
-    <span class="legendItem"><span class="legendLine legendLineDashed"></span> 未解析</span>
+    <span class="legendItem"><span class="legendLine legendLineSolid" style="border-color:#0f766e"></span> 已批准硬关系</span>
+    <span class="legendItem"><span class="legendLine legendLineDashed" style="border-color:#94a3b8"></span> 候选关系</span>
+    <span class="legendItem"><span class="legendLine legendLineDashed" style="border-color:#d97706"></span> 弱信号</span>
     ${types.map(t => `<span class="legendItem"><span class="legendDot" style="background:${ENTITY_COLORS[t]||'#888'}"></span> ${ELABEL[t]||t}</span>`).join('')}
   </div>`;
 
@@ -352,7 +381,7 @@ function renderGraph(sel) {
     const unique = new Map();
     unresolvedOut.forEach(r => { const k = r.target_path || '?'; if (!unique.has(k)) unique.set(k, r); });
     html += `<div class="ontoUnresolvedList"><div class="ontoUnresolvedTitle">未解析引用 (${unique.size})</div><ul>`;
-    unique.forEach((r, path) => { html += `<li><code>${esc(path)}</code>${r.target_label?` (${esc(r.target_label)})`:''}</li>`; });
+    unique.forEach((r, path) => { html += `<li><code>${esc(path)}</code>${r.target_label?` (${esc(r.target_label)})`:''} ${relationGovernanceBadge(r)}</li>`; });
     html += '</ul></div>';
   }
 
@@ -386,8 +415,8 @@ function renderDetail(e) {
       ${e.tags?.length ? `<div class="ontoDMeta">标签：${e.tags.map(t => `<span class="tag">${esc(t)}</span>`).join(' ')}</div>` : ''}
       <div class="ontoDMeta">路径：<code>${esc(e.source_path)}</code></div>
       <div class="ontoDMeta">文档：${esc(e.document_id)}</div>
-      ${out.length ? `<details class="ontoDRels" open><summary>发出关系 (${out.length})</summary><ul>${out.map(r => { const t = _e.find(x => x.id === r.target_entity_id); const badge = r.status==='resolved' ? '<span class="badge badgeOk">已解析</span>' : '<span class="badge badgeMuted">未解析</span>'; const tgt = t ? `<span class="ontoRelTarget" data-eid="${t.id}">${esc(t.title)}</span>` : `<code class="ontoRelPath">${esc(trunc(r.target_path,40))}</code>`; return `<li class="ontoRelItem">→ ${tgt}${r.target_label ? ` (${esc(r.target_label)})` : ''} ${badge}</li>`; }).join('')}</ul></details>` : '<div class="ontoDMeta">无发出关系</div>'}
-      ${inn.length ? `<details class="ontoDRels" open><summary>进入关系 (${inn.length})</summary><ul>${inn.map(r => { const s = _e.find(x => x.id === r.source_entity_id); const tgt = s ? `<span class="ontoRelTarget" data-eid="${s.id}">${esc(s.title)}</span>` : `<code>${esc(r.source_entity_id)}</code>`; return `<li class="ontoRelItem">${tgt} → ${esc(r.target_path)}${r.target_label ? ` (${esc(r.target_label)})` : ''}</li>`; }).join('')}</ul></details>` : '<div class="ontoDMeta">无进入关系</div>'}
+      ${out.length ? `<details class="ontoDRels" open><summary>发出关系 (${out.length})</summary><ul>${out.map(r => { const t = _e.find(x => x.id === r.target_entity_id); const tgt = t ? `<span class="ontoRelTarget" data-eid="${t.id}">${esc(t.title)}</span>` : `<code class="ontoRelPath">${esc(trunc(r.target_path,40))}</code>`; return `<li class="ontoRelItem">→ ${tgt}${r.target_label ? ` (${esc(r.target_label)})` : ''} ${relationStatusBadge(r)} ${relationGovernanceBadge(r)}</li>`; }).join('')}</ul></details>` : '<div class="ontoDMeta">无发出关系</div>'}
+      ${inn.length ? `<details class="ontoDRels" open><summary>进入关系 (${inn.length})</summary><ul>${inn.map(r => { const s = _e.find(x => x.id === r.source_entity_id); const tgt = s ? `<span class="ontoRelTarget" data-eid="${s.id}">${esc(s.title)}</span>` : `<code>${esc(r.source_entity_id)}</code>`; return `<li class="ontoRelItem">${tgt} → ${esc(r.target_path)}${r.target_label ? ` (${esc(r.target_label)})` : ''} ${relationStatusBadge(r)} ${relationGovernanceBadge(r)}</li>`; }).join('')}</ul></details>` : '<div class="ontoDMeta">无进入关系</div>'}
       ${eis.length ? `<details class="ontoDRels"><summary>相关问题 (${eis.length})</summary><ul>${eis.map(i => `<li><span class="badge ${i.severity==='error'?'badgeErr':'badgeWarn'}">${i.severity}</span> ${ICODE[i.code]||i.code} — ${esc(i.message)}</li>`).join('')}</ul></details>` : '<div class="ontoDMeta">无相关问题</div>'}
       ${edrafts.length ? `<details class="ontoDRels"><summary>关联草稿 (${edrafts.length})</summary><ul>${edrafts.map(d => `<li><span class="badge badgeInfo">${DRAFT_TYPE_LABEL[d.draft_type]||d.draft_type}</span> ${esc(d.name)} <span class="badge badgeMuted">${DRAFT_STATUS[d.status]||d.status}</span></li>`).join('')}</ul></details>` : ''}
     </div>`;

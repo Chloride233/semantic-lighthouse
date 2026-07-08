@@ -471,6 +471,10 @@ class OntologyRelationResponse(BaseModel):
     target_label: str | None = None
     relation_type: str
     status: str
+    governance_layer: str
+    governance_label: str
+    review_required: bool
+    hard_reasoning_allowed: bool
     evidence_document_id: str
     created_at: datetime
 
