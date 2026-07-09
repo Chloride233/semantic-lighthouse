@@ -112,6 +112,15 @@ the manufacturing contract, then run Semantic CI:
 .\.venv\Scripts\python scripts\inspect_governance_decision_csv.py `
     --csv .tmp\adventureworks-semantic\governance_review_decisions_template.csv
 
+.\.venv\Scripts\python scripts\fill_governance_decision_csv.py `
+    --csv .tmp\adventureworks-semantic\governance_review_decisions_template.csv `
+    --source-table equipment `
+    --derived-class at_risk_equipment `
+    --decision defer `
+    --reviewer ontology_steward `
+    --reviewed-at 2026-07-09T08:00:00+00:00 `
+    --rationale "Needs explicit equipment domain owner review."
+
 .\.venv\Scripts\python scripts\convert_governance_decision_csv.py `
     --csv .tmp\adventureworks-semantic\governance_review_decisions_template.csv `
     --output .tmp\adventureworks-semantic\governance_review_decisions.json `
@@ -159,6 +168,9 @@ the CSV, then convert it to `governance_review_decisions.json` before running
 precheck. Blank decision rows are skipped so partial review can be prechecked.
 `inspect_governance_decision_csv.py` reports whether the filled CSV is complete
 enough for the post-review runner and lists missing decision fields by row.
+`fill_governance_decision_csv.py` can write selected rows when a reviewer has
+already made an explicit decision; it requires at least one filter and does not
+infer or auto-accept candidates.
 The decision precheck validates the filled decision file before apply. It
 returns `FAIL` for unknown IDs, invalid decisions, missing reviewer,
 reviewed_at, or required rationale, and writes no accepted changes.

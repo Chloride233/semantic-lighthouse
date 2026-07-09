@@ -13,6 +13,7 @@ This directory contains active smoke checks, ontology pipeline utilities, deploy
 | `build_governance_decision_template.py` | Build human-fillable offline governance decision template from pending review items |
 | `build_governance_decision_csv.py` | Build human-fillable CSV governance decision template from pending review items |
 | `inspect_governance_decision_csv.py` | Inspect filled decision CSV completion before running the post-review loop |
+| `fill_governance_decision_csv.py` | Fill selected decision CSV rows from explicit reviewer decision inputs |
 | `convert_governance_decision_csv.py` | Convert filled CSV governance decisions into precheckable decision JSON |
 | `precheck_governance_review_decisions.py` | Validate human-filled offline governance decisions before applying them |
 | `apply_governance_review_decisions.py` | Apply offline governance review decisions into accepted-change artifacts |
