@@ -112,6 +112,9 @@ manufacturing contract，最后跑 Semantic CI：
 .\.venv\Scripts\python scripts\build_governance_review_briefing.py `
     --data-pack .tmp\adventureworks-semantic
 
+.\.venv\Scripts\python scripts\build_governance_review_workbench.py `
+    --data-pack .tmp\adventureworks-semantic
+
 .\.venv\Scripts\python scripts\inspect_governance_decision_csv.py `
     --csv .tmp\adventureworks-semantic\governance_review_decisions_template.csv
 
@@ -164,6 +167,7 @@ Decision template 会生成 `governance_review_decisions_template.json` 给人�
 如果更适合表格审阅，可以生成 `governance_review_decisions_template.csv`。在 CSV 里填写同样的 decision 字段后，先转换成 `governance_review_decisions.json`，再跑 precheck。空 decision 行会被跳过，便于分批审阅。
 `inspect_governance_decision_csv.py` 会检查已填写 CSV 是否足够完整，可以在跑 post-review runner 前按行列出缺失字段。
 `build_governance_review_briefing.py` 会按 source table 和 derived class 汇总待审项，并附带有边界的源行样本，方便 reviewer 逐批做明确决策。
+`build_governance_review_workbench.py` 会把同一批审阅数据渲染成离线 HTML 工作台，并在浏览器中导出填写后的 decision CSV。
 `fill_governance_decision_csv.py` 可以在 reviewer 已经做出明确决策后批量写入匹配行；它要求至少一个过滤条件，不会推断决策，也不会自动接受候选。
 Decision precheck 会在 apply 之前校验已填写的决策文件；遇到未知 ID、非法 decision、缺 reviewer、缺 reviewed_at 或 accept 缺 rationale 时返回 `FAIL`，且不会生成 accepted changes。
 Precheck 通过后，可以用 `run_post_review_semantic_loop.py` 一条命令跑完离线 post-review 链路：应用决策、生成 accepted drafts、构建离线 package、绑定 dataset、生成 runtime dry-run plan、生成语义资产反馈和 acceptance report。它仍然不会写数据库、不会发布 package、不会激活 runtime，也不会自动接受候选。
