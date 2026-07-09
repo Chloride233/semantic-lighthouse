@@ -105,6 +105,9 @@ the manufacturing contract, then run Semantic CI:
 
 .\.venv\Scripts\python scripts\apply_governance_review_decisions.py `
     --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\build_accepted_ontology_drafts.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
 
 The ontology seed writes `adventureworks_ontology_seed.json` and
@@ -132,6 +135,10 @@ decisions such as:
   ]
 }
 ```
+
+Accepted ontology drafts are still offline artifacts. They preserve reviewed
+evidence and rationale for the next package bridge, but they do not write to
+the database, apply model changes, publish a package, or become runtime facts.
 
 To inspect each step separately, run the offline ontology operationalization chain:
 

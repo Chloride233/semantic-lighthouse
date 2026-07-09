@@ -105,6 +105,9 @@ manufacturing contract，最后跑 Semantic CI：
 
 .\.venv\Scripts\python scripts\apply_governance_review_decisions.py `
     --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\build_accepted_ontology_drafts.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
 
 Ontology seed 会生成 `adventureworks_ontology_seed.json` 和
@@ -130,6 +133,8 @@ Review workspace 会为治理候选生成待决策记录，但不会应用模型
   ]
 }
 ```
+
+Accepted ontology drafts 仍然只是离线 artifact。它会保留已审阅证据和 rationale，作为下一步 package bridge 的输入；但不会写数据库、不会应用模型变更、不会发布 package，也不会成为 runtime facts。
 
 如果需要拆开看每一步，你也可以按下面的顺序跑离线治理链：
 
