@@ -96,7 +96,15 @@ manufacturing contract，最后跑 Semantic CI：
 
 .\.venv\Scripts\python scripts\build_governance_review_packet.py `
     --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\build_adventureworks_ontology_seed.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
+
+Ontology seed 会生成 `adventureworks_ontology_seed.json` 和
+`adventureworks_ontology_seed.md`。它只是离线审阅 artifact：对象类型、
+FK 关系候选和派生类候选仍需人工审阅，不能直接当作已发布模型包或 runtime
+硬推理来源。
 
 如果需要拆开看每一步，你也可以按下面的顺序跑离线治理链：
 
