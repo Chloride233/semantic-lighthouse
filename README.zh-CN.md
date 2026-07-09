@@ -99,12 +99,16 @@ manufacturing contract，最后跑 Semantic CI：
 
 .\.venv\Scripts\python scripts\build_adventureworks_ontology_seed.py `
     --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\build_governance_review_workspace.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
 
 Ontology seed 会生成 `adventureworks_ontology_seed.json` 和
 `adventureworks_ontology_seed.md`。它只是离线审阅 artifact：对象类型、
 FK 关系候选和派生类候选仍需人工审阅，不能直接当作已发布模型包或 runtime
 硬推理来源。
+Review workspace 会为治理候选生成待决策记录，但不会应用模型变更，也不会创建真实治理 issue。
 
 如果需要拆开看每一步，你也可以按下面的顺序跑离线治理链：
 
