@@ -109,6 +109,9 @@ the manufacturing contract, then run Semantic CI:
 .\.venv\Scripts\python scripts\build_governance_decision_csv.py `
     --data-pack .tmp\adventureworks-semantic
 
+.\.venv\Scripts\python scripts\build_governance_review_briefing.py `
+    --data-pack .tmp\adventureworks-semantic
+
 .\.venv\Scripts\python scripts\inspect_governance_decision_csv.py `
     --csv .tmp\adventureworks-semantic\governance_review_decisions_template.csv
 
@@ -168,6 +171,8 @@ the CSV, then convert it to `governance_review_decisions.json` before running
 precheck. Blank decision rows are skipped so partial review can be prechecked.
 `inspect_governance_decision_csv.py` reports whether the filled CSV is complete
 enough for the post-review runner and lists missing decision fields by row.
+`build_governance_review_briefing.py` groups pending review items by source
+table and derived class so reviewers can decide in explicit batches.
 `fill_governance_decision_csv.py` can write selected rows when a reviewer has
 already made an explicit decision; it requires at least one filter and does not
 infer or auto-accept candidates.
