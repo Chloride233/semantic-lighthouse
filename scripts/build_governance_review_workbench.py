@@ -233,6 +233,27 @@ button, input, select, textarea {
   font-size: 12px;
   line-height: 1.4;
 }
+.rubric {
+  display: grid;
+  gap: 8px;
+}
+.rubric-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgb(255 255 255 / 0.58);
+}
+.rubric-item strong {
+  display: block;
+  font-size: 13px;
+}
+.rubric-item span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
 .metric {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -338,7 +359,7 @@ button, input, select, textarea {
 }
 .work-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+  grid-template-columns: minmax(0, 0.9fr) minmax(260px, 0.8fr) minmax(0, 1.25fr);
   gap: 14px;
   align-items: start;
 }
@@ -394,6 +415,38 @@ button, input, select, textarea {
   font-size: 12px;
   max-width: 100%;
   overflow-wrap: anywhere;
+}
+.decision-help {
+  margin-top: 10px;
+  border-left: 3px solid var(--accent);
+  padding: 8px 10px;
+  background: var(--accent-soft);
+  color: #1b4f3c;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.decision-help strong {
+  display: block;
+  margin-bottom: 3px;
+}
+.field-guide {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.field-help {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fbfcfa;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.field-help strong {
+  color: var(--ink);
+}
+.field-help span {
+  color: var(--muted);
 }
 .field {
   display: grid;
@@ -463,6 +516,26 @@ const decisionLabels = {
   defer: "暂缓",
   needs_more_evidence: "需要更多证据",
 };
+const fieldHelp = {
+  equipment_id: "设备标识，用来确认是哪一台设备。",
+  work_center_id: "工作中心标识，用来定位设备所在生产区域。",
+  equipment_name: "设备名称，用来辅助人工识别设备。",
+  serial_number: "设备序列号，用来辅助核对唯一实物。",
+  install_date: "安装日期，可辅助判断设备使用年限。",
+  last_calibration: "最近校准日期，可辅助判断维护状态。",
+  status: "设备状态。当前规则把 degraded/down 作为风险信号。",
+  material_id: "物料标识，用来确认是哪一种物料。",
+  material_name: "物料名称，用来辅助人工识别物料。",
+  material_code: "物料编码，用来对齐源系统和采购/库存记录。",
+  supplier_id: "供应商标识，用来辅助判断供应来源。",
+  unit_of_measure: "计量单位，用来理解数量和成本口径。",
+  unit_cost: "单位成本，用来辅助判断材料价值。",
+  lead_time_days: "采购或补货提前期天数，用来辅助判断供应风险。",
+  safety_stock_qty: "安全库存数量，用来辅助理解库存策略。",
+  reorder_point: "再订货点，用来辅助理解补货触发阈值。",
+  abc_class: "ABC 分类。当前规则把 A 类作为高价值材料信号。",
+  is_batch_tracked: "是否批次追踪，用来辅助判断追溯要求。",
+};
 
 function csvEscape(value) {
   const text = String(value ?? "");
@@ -530,6 +603,19 @@ function renderWorkflow() {
       <div class="flow-step"><span class="flow-index">2</span><div><strong>核验证据</strong><div class="flow-note">${hasEvidence ? "查看源数据样例和规则证据" : "当前分组没有样例"}</div></div></div>
       <div class="flow-step"><span class="flow-index">3</span><div><strong>记录决策</strong><div class="flow-note">${pending} 条待处理，可批量或逐条填写</div></div></div>
       <div class="flow-step"><span class="flow-index">4</span><div><strong>导出CSV</strong><div class="flow-note">下载后交给 post-review runner</div></div></div>
+    </div>
+  `;
+}
+
+function renderDecisionGuide() {
+  const guide = document.querySelector("#decision-guide");
+  guide.innerHTML = `
+    <div class="section-label">决策怎么选</div>
+    <div class="rubric" id="decision-rubric">
+      <div class="rubric-item"><strong>接受</strong><span>接受: 业务含义成立，证据样例支持，且可以进入本体资产。</span></div>
+      <div class="rubric-item"><strong>拒绝</strong><span>拒绝: 不是稳定业务概念，或样例显示只是噪声/误报。</span></div>
+      <div class="rubric-item"><strong>暂缓</strong><span>暂缓: 方向可能成立，但需要领域负责人确认。</span></div>
+      <div class="rubric-item"><strong>需要更多证据</strong><span>需要更多证据: 当前样例或规则不足以支撑判断。</span></div>
     </div>
   `;
 }
@@ -603,6 +689,10 @@ function decisionEditor(group) {
           <div class="queue-meta">
             <span>推荐动作: ${row.recommended_decision || "无"}</span>
             <span>证据锚点: ${row.evidence_anchor || "无"}</span>
+          </div>
+          <div class="decision-help">
+            <strong>每条怎么做</strong>
+            先看源数据样例，再看推荐动作和证据锚点。理由模板: 我选择该决策，因为...
           </div>
         </div>
         <span class="row-status ${status}">${statusLabel(row)}</span>
@@ -700,6 +790,29 @@ function samples(group) {
   return wrap;
 }
 
+function renderFieldGuide(group) {
+  const keys = [];
+  group.source_row_samples.forEach((sample) => {
+    Object.keys(sample.values || {}).forEach((key) => {
+      if (!keys.includes(key)) keys.push(key);
+    });
+  });
+  const panel = document.createElement("div");
+  panel.className = "panel";
+  panel.innerHTML = `
+    <div class="group-title">
+      <div>
+        <h3>字段速读</h3>
+        <div class="muted">辅助解释基于字段名和当前规则，不替代源系统定义。</div>
+      </div>
+    </div>
+    <div class="field-guide">
+      ${keys.map((key) => `<div class="field-help"><strong>${key}:</strong> <span>${fieldHelp[key] || "未配置说明，请按源系统口径确认。"}</span></div>`).join("")}
+    </div>
+  `;
+  return panel;
+}
+
 function renderActiveGroupSummary(group) {
   const completed = groupCompletedCount(group);
   const pending = groupPendingCount(group);
@@ -767,6 +880,7 @@ function renderMain() {
   `;
   samplePanel.appendChild(samples(group));
   grid.appendChild(samplePanel);
+  grid.appendChild(renderFieldGuide(group));
   grid.appendChild(renderQueueOverview(group));
   main.appendChild(grid);
 }
@@ -795,6 +909,7 @@ function setReviewedAtNow() {
 
 function render() {
   renderWorkflow();
+  renderDecisionGuide();
   renderSidebar();
   renderSummary();
   renderMain();
@@ -818,6 +933,7 @@ render();
       <h1 class="title">治理审查工作台</h1>
       <p class="muted">离线审查界面。只编辑浏览器状态，并导出 CSV。</p>
       <div id="workflow"></div>
+      <div id="decision-guide"></div>
       <div id="summary"></div>
       <div class="toolbar">
         <button class="button" id="download" type="button">下载 CSV</button>

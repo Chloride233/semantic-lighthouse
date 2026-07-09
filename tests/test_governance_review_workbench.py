@@ -259,6 +259,53 @@ def test_workbench_explains_review_flow_and_current_work(tmp_path):
     assert "C:/unsafe" not in html
 
 
+def test_workbench_explains_how_to_choose_each_decision(tmp_path):
+    mod = _load_module()
+    _write_briefing(tmp_path)
+    csv_path = tmp_path / "governance_review_decisions_template.csv"
+    _write_decision_csv(csv_path)
+    output = tmp_path / "governance_review_workbench.html"
+
+    mod.write_governance_review_workbench(tmp_path, csv_path, output)
+
+    html = output.read_text(encoding="utf-8")
+    assert "决策怎么选" in html
+    assert "接受: 业务含义成立，证据样例支持，且可以进入本体资产。" in html
+    assert "拒绝: 不是稳定业务概念，或样例显示只是噪声/误报。" in html
+    assert "暂缓: 方向可能成立，但需要领域负责人确认。" in html
+    assert "需要更多证据: 当前样例或规则不足以支撑判断。" in html
+    assert "每条怎么做" in html
+    assert "先看源数据样例，再看推荐动作和证据锚点。" in html
+    assert "理由模板" in html
+    assert "我选择该决策，因为" in html
+    assert "renderDecisionGuide" in html
+    assert "decision-rubric" in html
+    assert "source_path" not in html
+    assert "C:/unsafe" not in html
+
+
+def test_workbench_explains_source_fields_without_raw_paths(tmp_path):
+    mod = _load_module()
+    _write_briefing(tmp_path)
+    csv_path = tmp_path / "governance_review_decisions_template.csv"
+    _write_decision_csv(csv_path)
+    output = tmp_path / "governance_review_workbench.html"
+
+    mod.write_governance_review_workbench(tmp_path, csv_path, output)
+
+    html = output.read_text(encoding="utf-8")
+    assert "字段速读" in html
+    assert "辅助解释基于字段名和当前规则，不替代源系统定义。" in html
+    assert 'equipment_id: "设备标识，用来确认是哪一台设备。"' in html
+    assert 'status: "设备状态。当前规则把 degraded/down 作为风险信号。"' in html
+    assert 'abc_class: "ABC 分类。当前规则把 A 类作为高价值材料信号。"' in html
+    assert 'unit_cost: "单位成本，用来辅助判断材料价值。"' in html
+    assert "renderFieldGuide" in html
+    assert "field-help" in html
+    assert "source_path" not in html
+    assert "C:/unsafe" not in html
+
+
 def test_missing_briefing_fails_clearly(tmp_path):
     mod = _load_module()
 
