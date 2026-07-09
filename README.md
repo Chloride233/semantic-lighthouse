@@ -114,6 +114,9 @@ the manufacturing contract, then run Semantic CI:
 
 .\.venv\Scripts\python scripts\build_offline_dataset_binding.py `
     --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\build_offline_runtime_query_plan.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
 
 The ontology seed writes `adventureworks_ontology_seed.json` and
@@ -150,6 +153,9 @@ accepted drafts exist; with no accepted drafts it reports `NO_ACCEPTED_DRAFTS`.
 The offline dataset binding bridge binds a built package to manifest and
 mapping-contract table metadata; when there is no built package it reports
 `NO_BINDABLE_PACKAGE` and keeps runtime activation out of scope.
+The offline runtime query dry run emits explain-only query plans for bindable
+datasets; when binding is not ready it reports `NO_RUNTIME_QUERY_READY` and
+does not read rows, execute runtime queries, or create audit records.
 
 To inspect each step separately, run the offline ontology operationalization chain:
 
