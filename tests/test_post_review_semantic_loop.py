@@ -271,6 +271,10 @@ def test_post_review_loop_stops_when_csv_review_is_incomplete(tmp_path):
     _write_required_inputs(tmp_path)
     csv_path = tmp_path / "governance_review_decisions_template.csv"
     _write_blank_decision_csv(csv_path)
+    _write_json(
+        tmp_path / "governance_review_decisions_precheck.json",
+        {"stale": True},
+    )
 
     result = mod.run_post_review_semantic_loop(
         tmp_path,
@@ -279,10 +283,20 @@ def test_post_review_loop_stops_when_csv_review_is_incomplete(tmp_path):
     )
 
     assert result["summary"]["run_status"] == "FAIL"
-    assert result["summary"]["precheck_status"] == "WARN"
+    assert result["summary"]["precheck_status"] is None
     assert result["summary"]["chain_status"] == "REVIEW_INCOMPLETE"
-    assert (tmp_path / "governance_review_decisions_precheck.json").is_file()
+    assert (
+        tmp_path / "governance_review_decisions_csv_inspection.json"
+    ).is_file()
+    assert not (tmp_path / "governance_review_decisions.json").exists()
     assert not (tmp_path / "accepted_governance_changes.json").exists()
+    assert (
+        result["artifacts"]["governance_review_decisions_csv_inspection"][
+            "path"
+        ]
+        is not None
+    )
+    assert result["artifacts"]["governance_review_decisions_precheck"]["path"] is None
     assert result["artifacts"]["accepted_governance_changes"]["path"] is None
 
 
@@ -314,7 +328,10 @@ def test_post_review_loop_builds_downstream_artifacts_after_valid_decisions(tmp_
         "requires_human_review": True,
         "requires_safety_lane_for_runtime": True,
     }
-    for artifact in result["artifacts"].values():
+    for name, artifact in result["artifacts"].items():
+        if name == "governance_review_decisions_csv_inspection":
+            assert artifact["path"] is None
+            continue
         assert artifact["path"]
         assert artifact["sha256"]
         assert Path(artifact["path"]).is_file()

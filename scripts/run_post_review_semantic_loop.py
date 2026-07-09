@@ -36,6 +36,9 @@ from build_offline_model_package import write_offline_model_package  # noqa: E40
 from build_offline_runtime_query_plan import write_offline_runtime_query_plan  # noqa: E402
 from build_semantic_asset_feedback import write_semantic_asset_feedback  # noqa: E402
 from convert_governance_decision_csv import convert_governance_decision_csv  # noqa: E402
+from inspect_governance_decision_csv import (  # noqa: E402
+    write_governance_decision_csv_inspection,
+)
 from precheck_governance_review_decisions import write_decision_precheck  # noqa: E402
 
 
@@ -90,6 +93,8 @@ def _missing_artifact() -> dict[str, str | None]:
 def _artifact_map(
     data_dir: Path,
     *,
+    include_csv_inspection: bool,
+    include_precheck: bool,
     include_downstream: bool,
 ) -> dict[str, dict[str, str | None]]:
     downstream_artifacts = {
@@ -102,8 +107,15 @@ def _artifact_map(
         "offline_acceptance_report": data_dir / "offline_acceptance_report.json",
     }
     return {
-        "governance_review_decisions_precheck": _artifact(
-            data_dir / "governance_review_decisions_precheck.json"
+        "governance_review_decisions_csv_inspection": (
+            _artifact(data_dir / "governance_review_decisions_csv_inspection.json")
+            if include_csv_inspection
+            else _missing_artifact()
+        ),
+        "governance_review_decisions_precheck": (
+            _artifact(data_dir / "governance_review_decisions_precheck.json")
+            if include_precheck
+            else _missing_artifact()
         ),
         **{
             name: _artifact(path) if include_downstream else _missing_artifact()
@@ -113,10 +125,10 @@ def _artifact_map(
 
 
 def _summary_from_acceptance(
-    precheck: dict[str, Any],
+    precheck: dict[str, Any] | None,
     acceptance: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    precheck_summary = precheck.get("summary", {})
+    precheck_summary = precheck.get("summary", {}) if precheck else {}
     if acceptance is None:
         precheck_status = precheck_summary.get("precheck_status")
         return {
@@ -152,8 +164,9 @@ def _summary_from_acceptance(
 def _report(
     *,
     data_dir: Path,
-    precheck: dict[str, Any],
+    precheck: dict[str, Any] | None,
     acceptance: dict[str, Any] | None,
+    include_csv_inspection: bool = False,
 ) -> dict[str, Any]:
     return {
         "report_version": REPORT_VERSION,
@@ -162,11 +175,13 @@ def _report(
         "data_pack": (
             acceptance.get("data_pack")
             if acceptance is not None
-            else precheck.get("data_pack", {"path": str(data_dir)})
+            else (precheck or {}).get("data_pack", {"path": str(data_dir)})
         ),
         "summary": _summary_from_acceptance(precheck, acceptance),
         "artifacts": _artifact_map(
             data_dir,
+            include_csv_inspection=include_csv_inspection,
+            include_precheck=precheck is not None,
             include_downstream=acceptance is not None,
         ),
         "boundaries": {
@@ -193,7 +208,22 @@ def run_post_review_semantic_loop(
 ) -> dict[str, Any]:
     if decisions_path is not None and decision_csv_path is not None:
         raise ValueError("Use either decisions_path or decision_csv_path, not both")
+    report_path = output_path or (data_dir / "post_review_semantic_loop_report.json")
     if decision_csv_path is not None:
+        inspection = write_governance_decision_csv_inspection(
+            decision_csv_path,
+            data_dir / "governance_review_decisions_csv_inspection.json",
+            data_dir / "governance_review_decisions_csv_inspection.md",
+        )
+        if not inspection["summary"]["ready_for_post_review_runner"]:
+            result = _report(
+                data_dir=data_dir,
+                precheck=None,
+                acceptance=None,
+                include_csv_inspection=True,
+            )
+            _write_json(report_path, result)
+            return result
         decisions_path = data_dir / "governance_review_decisions.json"
         convert_governance_decision_csv(
             decision_csv_path,
@@ -201,7 +231,6 @@ def run_post_review_semantic_loop(
             review_batch,
         )
 
-    report_path = output_path or (data_dir / "post_review_semantic_loop_report.json")
     precheck = write_decision_precheck(
         data_dir,
         data_dir / "governance_review_decisions_precheck.json",
@@ -209,7 +238,12 @@ def run_post_review_semantic_loop(
         decisions_path,
     )
     if precheck["summary"]["precheck_status"] != "PASS":
-        result = _report(data_dir=data_dir, precheck=precheck, acceptance=None)
+        result = _report(
+            data_dir=data_dir,
+            precheck=precheck,
+            acceptance=None,
+            include_csv_inspection=decision_csv_path is not None,
+        )
         _write_json(report_path, result)
         return result
 
@@ -249,7 +283,12 @@ def run_post_review_semantic_loop(
         data_dir / "offline_acceptance_report.json",
         data_dir / "offline_acceptance_report.md",
     )
-    result = _report(data_dir=data_dir, precheck=precheck, acceptance=acceptance)
+    result = _report(
+        data_dir=data_dir,
+        precheck=precheck,
+        acceptance=acceptance,
+        include_csv_inspection=decision_csv_path is not None,
+    )
     _write_json(report_path, result)
     return result
 

@@ -153,7 +153,7 @@ Decision template 会生成 `governance_review_decisions_template.json` 给人�
 `inspect_governance_decision_csv.py` 会检查已填写 CSV 是否足够完整，可以在跑 post-review runner 前按行列出缺失字段。
 Decision precheck 会在 apply 之前校验已填写的决策文件；遇到未知 ID、非法 decision、缺 reviewer、缺 reviewed_at 或 accept 缺 rationale 时返回 `FAIL`，且不会生成 accepted changes。
 Precheck 通过后，可以用 `run_post_review_semantic_loop.py` 一条命令跑完离线 post-review 链路：应用决策、生成 accepted drafts、构建离线 package、绑定 dataset、生成 runtime dry-run plan、生成语义资产反馈和 acceptance report。它仍然不会写数据库、不会发布 package、不会激活 runtime，也不会自动接受候选。
-Runner 默认要求 decision precheck 返回 `PASS`；CSV 里仍有未填写 decision 的行会得到 `WARN`，并在 apply 前停止。
+Runner 默认要求 decision precheck 返回 `PASS`；`--decision-csv` 会先跑 CSV inspection，CSV 里仍有未填写 decision 的行会在转换前停止，不会写出 `governance_review_decisions.json`。
 
 ```powershell
 .\.venv\Scripts\python scripts\run_post_review_semantic_loop.py `

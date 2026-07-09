@@ -169,7 +169,8 @@ build semantic asset feedback, and write the acceptance report. It still does
 not write to the database, publish packages, activate runtime, or auto-accept
 candidates.
 The runner requires the decision precheck to return `PASS`; incomplete CSV rows
-produce `WARN` and stop before apply.
+are caught by CSV inspection before conversion, so the runner stops before
+writing `governance_review_decisions.json`.
 
 ```powershell
 .\.venv\Scripts\python scripts\run_post_review_semantic_loop.py `
