@@ -94,16 +94,41 @@ def _semantic_ci_stage(semantic_ci: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def _governance_stage(workspace: dict[str, Any]) -> dict[str, Any]:
-    summary = workspace.get("summary", {})
-    pending = int(summary.get("pending_review_items", 0) or 0)
+def _effective_pending_review_items(
+    workspace: dict[str, Any],
+    changes: dict[str, Any],
+) -> int:
+    change_summary = changes.get("summary", {})
+    if "undecided_items" in change_summary:
+        return int(change_summary.get("undecided_items", 0) or 0)
+    workspace_summary = workspace.get("summary", {})
+    return int(workspace_summary.get("pending_review_items", 0) or 0)
+
+
+def _effective_total_review_items(
+    workspace: dict[str, Any],
+    changes: dict[str, Any],
+) -> int:
+    change_summary = changes.get("summary", {})
+    if "workspace_items" in change_summary:
+        return int(change_summary.get("workspace_items", 0) or 0)
+    workspace_summary = workspace.get("summary", {})
+    return int(workspace_summary.get("total_review_items", 0) or 0)
+
+
+def _governance_stage(
+    workspace: dict[str, Any],
+    changes: dict[str, Any],
+) -> dict[str, Any]:
+    pending = _effective_pending_review_items(workspace, changes)
     status = "PENDING_REVIEW" if pending else "REVIEW_COMPLETE"
     return _stage(
         "governance_review",
         status,
         {
-            "total_review_items": int(
-                summary.get("total_review_items", 0) or 0
+            "total_review_items": _effective_total_review_items(
+                workspace,
+                changes,
             ),
             "pending_review_items": pending,
         },
@@ -251,7 +276,6 @@ def _summary(
 ) -> dict[str, Any]:
     semantic_summary = semantic_ci.get("summary", {})
     data_pack = semantic_ci.get("data_pack", feedback.get("data_pack", {}))
-    workspace_summary = workspace.get("summary", {})
     change_summary = changes.get("summary", {})
     draft_summary = drafts.get("summary", {})
     package_summary = package.get("summary", {})
@@ -267,8 +291,9 @@ def _summary(
         "governance_candidates": int(
             semantic_summary.get("total_candidates", 0) or 0
         ),
-        "pending_review_items": int(
-            workspace_summary.get("pending_review_items", 0) or 0
+        "pending_review_items": _effective_pending_review_items(
+            workspace,
+            changes,
         ),
         "accepted_change_count": int(
             change_summary.get("accepted_change_count", 0) or 0
@@ -284,7 +309,7 @@ def _summary(
         "ready_for_db_backed_runtime": False,
         "requires_human_review": bool(
             feedback_summary.get("requires_human_review", False)
-            or workspace_summary.get("requires_human_review", False)
+            or _effective_pending_review_items(workspace, changes) > 0
         ),
     }
     summary["semantic_ci_hard_failures"] = int(
@@ -353,7 +378,7 @@ def build_offline_acceptance_report(data_dir: Path) -> dict[str, Any]:
         "summary": summary,
         "stages": [
             _semantic_ci_stage(semantic_ci),
-            _governance_stage(workspace),
+            _governance_stage(workspace, changes),
             _accepted_ontology_stage(changes, drafts),
             _package_stage(package),
             _binding_stage(binding),

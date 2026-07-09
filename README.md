@@ -157,6 +157,18 @@ precheck. Blank decision rows are skipped so partial review can be prechecked.
 The decision precheck validates the filled decision file before apply. It
 returns `FAIL` for unknown IDs, invalid decisions, missing reviewer,
 reviewed_at, or required rationale, and writes no accepted changes.
+After precheck passes, `run_post_review_semantic_loop.py` can run the offline
+post-review chain in one command: apply decisions, build accepted drafts,
+build the offline package, bind datasets, generate runtime dry-run plans,
+build semantic asset feedback, and write the acceptance report. It still does
+not write to the database, publish packages, activate runtime, or auto-accept
+candidates.
+
+```powershell
+.\.venv\Scripts\python scripts\run_post_review_semantic_loop.py `
+    --data-pack .tmp\adventureworks-semantic
+```
+
 To produce accepted changes, create
 `.tmp\adventureworks-semantic\governance_review_decisions.json` with reviewed
 decisions such as:

@@ -15,6 +15,7 @@ This directory contains active smoke checks, ontology pipeline utilities, deploy
 | `convert_governance_decision_csv.py` | Convert filled CSV governance decisions into precheckable decision JSON |
 | `precheck_governance_review_decisions.py` | Validate human-filled offline governance decisions before applying them |
 | `apply_governance_review_decisions.py` | Apply offline governance review decisions into accepted-change artifacts |
+| `run_post_review_semantic_loop.py` | Run the offline post-review chain from validated decisions through acceptance report |
 | `build_accepted_ontology_drafts.py` | Build offline accepted ontology drafts from accepted governance changes |
 | `build_offline_model_package.py` | Build offline model package bridge artifact from accepted ontology drafts |
 | `build_offline_dataset_binding.py` | Build offline dataset binding bridge artifact from a built model package and data-pack metadata |
