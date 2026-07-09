@@ -102,6 +102,9 @@ manufacturing contract，最后跑 Semantic CI：
 
 .\.venv\Scripts\python scripts\build_governance_review_workspace.py `
     --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\apply_governance_review_decisions.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
 
 Ontology seed 会生成 `adventureworks_ontology_seed.json` 和
@@ -109,6 +112,24 @@ Ontology seed 会生成 `adventureworks_ontology_seed.json` 和
 FK 关系候选和派生类候选仍需人工审阅，不能直接当作已发布模型包或 runtime
 硬推理来源。
 Review workspace 会为治理候选生成待决策记录，但不会应用模型变更，也不会创建真实治理 issue。
+如果要生成 accepted changes，需要先创建
+`.tmp\adventureworks-semantic\governance_review_decisions.json`，写入已审阅决策，例如：
+
+```json
+{
+  "decision_version": "1.0",
+  "review_batch": "pilot-review",
+  "decisions": [
+    {
+      "review_item_id": "gov-0001",
+      "decision": "accept",
+      "reviewer": "ontology_steward",
+      "reviewed_at": "2026-07-09T08:00:00+00:00",
+      "rationale": "Accepted for offline draft generation."
+    }
+  ]
+}
+```
 
 如果需要拆开看每一步，你也可以按下面的顺序跑离线治理链：
 

@@ -10,6 +10,7 @@ This directory contains active smoke checks, ontology pipeline utilities, deploy
 | `build_governance_review_packet.py` | Build offline reviewer-facing packets from Semantic CI governance candidates |
 | `build_adventureworks_ontology_seed.py` | Build offline AdventureWorks ontology seed JSON/Markdown from Semantic CI artifacts |
 | `build_governance_review_workspace.py` | Build offline pending-decision workspace for governance candidate review |
+| `apply_governance_review_decisions.py` | Apply offline governance review decisions into accepted-change artifacts |
 | `export_adventureworks.py` | Export a focused AdventureWorks raw CSV + manifest benchmark pack through SSH/sqlcmd |
 | `map_adventureworks_to_semantic_pack.py` | Map the raw AdventureWorks export into the 13-table Semantic CI manufacturing contract |
 | `smoke_fde_demo.py` | End-to-end Phase 19 FDE-style smoke chain using fake providers and temporary SQLite |

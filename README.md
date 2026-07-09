@@ -102,6 +102,9 @@ the manufacturing contract, then run Semantic CI:
 
 .\.venv\Scripts\python scripts\build_governance_review_workspace.py `
     --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\apply_governance_review_decisions.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
 
 The ontology seed writes `adventureworks_ontology_seed.json` and
@@ -110,6 +113,25 @@ object types, FK relationship candidates, and derived-class candidates still
 require human review before model package publication or runtime use.
 The review workspace writes pending decision records for governance candidates
 without applying model changes or creating real governance issues.
+To produce accepted changes, create
+`.tmp\adventureworks-semantic\governance_review_decisions.json` with reviewed
+decisions such as:
+
+```json
+{
+  "decision_version": "1.0",
+  "review_batch": "pilot-review",
+  "decisions": [
+    {
+      "review_item_id": "gov-0001",
+      "decision": "accept",
+      "reviewer": "ontology_steward",
+      "reviewed_at": "2026-07-09T08:00:00+00:00",
+      "rationale": "Accepted for offline draft generation."
+    }
+  ]
+}
+```
 
 To inspect each step separately, run the offline ontology operationalization chain:
 
