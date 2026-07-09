@@ -108,6 +108,9 @@ the manufacturing contract, then run Semantic CI:
 
 .\.venv\Scripts\python scripts\build_accepted_ontology_drafts.py `
     --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\build_offline_model_package.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
 
 The ontology seed writes `adventureworks_ontology_seed.json` and
@@ -139,6 +142,8 @@ decisions such as:
 Accepted ontology drafts are still offline artifacts. They preserve reviewed
 evidence and rationale for the next package bridge, but they do not write to
 the database, apply model changes, publish a package, or become runtime facts.
+The offline model package bridge writes a stable semantic hash only when
+accepted drafts exist; with no accepted drafts it reports `NO_ACCEPTED_DRAFTS`.
 
 To inspect each step separately, run the offline ontology operationalization chain:
 
