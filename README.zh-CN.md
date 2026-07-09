@@ -71,6 +71,13 @@ Artifact gate: PASS
 
 它会生成 `semantic_ci_report.json`，记录 gate 状态、artifact hashes、治理候选数量和人工审阅边界。
 
+生成面向 reviewer 的治理候选审阅包：
+
+```powershell
+.\.venv\Scripts\python scripts\build_governance_review_packet.py `
+    --data-pack .tmp\phase19-manufacturing
+```
+
 如果要跑 AdventureWorks benchmark，先导出 focused raw pack，再映射成
 manufacturing contract，最后跑 Semantic CI：
 
@@ -86,6 +93,9 @@ manufacturing contract，最后跑 Semantic CI：
 .\.venv\Scripts\python scripts\run_semantic_ci.py `
     --data-pack .tmp\adventureworks-semantic `
     --regenerate-mapping --allow-critical
+
+.\.venv\Scripts\python scripts\build_governance_review_packet.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
 
 如果需要拆开看每一步，你也可以按下面的顺序跑离线治理链：

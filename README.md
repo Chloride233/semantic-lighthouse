@@ -71,6 +71,13 @@ Run the full offline Semantic CI gate:
 
 This writes `semantic_ci_report.json` with gate status, artifact hashes, governance candidate counts, and the human-review boundary.
 
+Build a reviewer-facing packet for the governance candidates:
+
+```powershell
+.\.venv\Scripts\python scripts\build_governance_review_packet.py `
+    --data-pack .tmp\phase19-manufacturing
+```
+
 For an AdventureWorks benchmark, first export the focused raw pack, map it into
 the manufacturing contract, then run Semantic CI:
 
@@ -86,6 +93,9 @@ the manufacturing contract, then run Semantic CI:
 .\.venv\Scripts\python scripts\run_semantic_ci.py `
     --data-pack .tmp\adventureworks-semantic `
     --regenerate-mapping --allow-critical
+
+.\.venv\Scripts\python scripts\build_governance_review_packet.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
 
 To inspect each step separately, run the offline ontology operationalization chain:
