@@ -71,6 +71,23 @@ Artifact gate: PASS
 
 它会生成 `semantic_ci_report.json`，记录 gate 状态、artifact hashes、治理候选数量和人工审阅边界。
 
+如果要跑 AdventureWorks benchmark，先导出 focused raw pack，再映射成
+manufacturing contract，最后跑 Semantic CI：
+
+```powershell
+.\.venv\Scripts\python scripts\export_adventureworks.py `
+    --ssh-target ubuntu@<server-ip> `
+    --output .tmp\adventureworks
+
+.\.venv\Scripts\python scripts\map_adventureworks_to_semantic_pack.py `
+    --input .tmp\adventureworks `
+    --output .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\run_semantic_ci.py `
+    --data-pack .tmp\adventureworks-semantic `
+    --regenerate-mapping --allow-critical
+```
+
 如果需要拆开看每一步，你也可以按下面的顺序跑离线治理链：
 
 ```powershell
@@ -156,8 +173,10 @@ Phase 19 收口产物：
 - **没有 R3E2 aggregation**：COUNT/SUM/AVG 被刻意 deferred，避免 traversal 长成 DSL
 - **没有自治 Agent 写入**：高风险写操作必须经过后端权限和人工确认
 - **没有私有企业数据**：制造业数据包是 realistic synthetic data
-- **AdventureWorks 目前是 raw benchmark adapter**：`scripts/export_adventureworks.py`
-  可以导出外部 CSV + manifest；映射进完整 Semantic CI contract 仍是后续工作
+- **AdventureWorks 仍然是离线 benchmark 路径**：`scripts/export_adventureworks.py`
+  可以导出 focused raw CSV + manifest；
+  `scripts/map_adventureworks_to_semantic_pack.py` 可以把它映射进完整
+  Semantic CI contract。它不写入应用数据库，也不改变 runtime 行为
 - **还没有 DB-backed governance feedback**：Phase 19 当前只产出离线候选
 - **核心 runtime 不依赖 Neo4j、OWL reasoner、LangGraph、OSDK、Kubernetes**
 
@@ -242,7 +261,7 @@ http://127.0.0.1:8000/docs
 | R3E2 aggregation (COUNT/SUM/AVG) | 会跨入 DSL 边界，需要真实需求再开 |
 | MCP runtime | 未来候选，当前只有 design doc |
 | Graph RAG | 等 entity/relation read model 更稳定后再看 |
-| AdventureWorks benchmark | 已有 raw export adapter；Semantic CI 映射仍待完成 |
+| AdventureWorks benchmark | 已有 raw export adapter 和 Semantic CI mapping adapter |
 | DB-backed governance feedback | Safety Lane 候选，当前只有离线候选 |
 
 ### 下一步候选
@@ -252,5 +271,5 @@ http://127.0.0.1:8000/docs
 1. **Semantic CI/CD 产品化**：把 mapping、规则、证据和治理反馈变成可重复的交付纪律
 2. **HITL evidence packet**：在确认写入前展示证据、受影响对象、风险和 rollback notes
 3. **强/弱关系治理**：区分契约型关系、推断关系和弱关系，避免图谱边语义混杂
-4. **AdventureWorks benchmark**：把 raw 外部导出映射进 Semantic CI，并比较治理发现
+4. **AdventureWorks benchmark**：对比真实 benchmark 和合成制造业数据包的治理发现
 5. **指标到本体映射 MVP**：把 KPI 连接到对象、属性、证据和 lineage，同时避免扩成通用 analytics DSL

@@ -71,6 +71,23 @@ Run the full offline Semantic CI gate:
 
 This writes `semantic_ci_report.json` with gate status, artifact hashes, governance candidate counts, and the human-review boundary.
 
+For an AdventureWorks benchmark, first export the focused raw pack, map it into
+the manufacturing contract, then run Semantic CI:
+
+```powershell
+.\.venv\Scripts\python scripts\export_adventureworks.py `
+    --ssh-target ubuntu@<server-ip> `
+    --output .tmp\adventureworks
+
+.\.venv\Scripts\python scripts\map_adventureworks_to_semantic_pack.py `
+    --input .tmp\adventureworks `
+    --output .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\run_semantic_ci.py `
+    --data-pack .tmp\adventureworks-semantic `
+    --regenerate-mapping --allow-critical
+```
+
 To inspect each step separately, run the offline ontology operationalization chain:
 
 ```powershell
@@ -156,9 +173,11 @@ These are deliberate design boundaries, not missing checkboxes:
 - **No R3E2 aggregation.** COUNT/SUM/AVG deferred indefinitely - crosses from "traversal" into "analytics query" DSL territory.
 - **No autonomous Agent writes.** High-risk write behavior requires backend permission checks and human confirmation.
 - **No private enterprise data.** The manufacturing data pack is realistic synthetic data.
-- **AdventureWorks is a raw benchmark adapter only.** `scripts/export_adventureworks.py`
-  can export a focused external CSV + manifest pack; mapping it into the full
-  Semantic CI contract remains a follow-up.
+- **AdventureWorks remains an offline benchmark path.** `scripts/export_adventureworks.py`
+  exports the focused raw CSV + manifest pack, and
+  `scripts/map_adventureworks_to_semantic_pack.py` maps it into the full
+  Semantic CI contract. It does not write the app database or change runtime
+  behavior.
 - **No DB-backed governance feedback yet.** Phase 19 produces offline candidates only.
 - **No Neo4j, OWL reasoner, LangGraph, OSDK, or Kubernetes dependency in the core runtime.**
 
@@ -243,7 +262,7 @@ Canonical project state: `docs/project-status.toml`.
 | R3E2 aggregation (COUNT/SUM/AVG) | Crosses DSL boundary; needs measured demand |
 | MCP runtime | Future candidate; design doc only |
 | Graph RAG | Deferred until entity/relation read model is reliable |
-| AdventureWorks benchmark | Raw export adapter exists; Semantic CI mapping remains follow-up |
+| AdventureWorks benchmark | Raw export adapter and Semantic CI mapping adapter exist |
 | DB-backed governance feedback | Safety Lane candidate; offline candidates exist |
 
 ### Next Step Candidates
@@ -253,5 +272,5 @@ The project is at a decision gate. No automatic expansion to new phases. Candida
 1. **Semantic CI/CD productization** - turn mapping, rules, evidence, and governance feedback into a repeatable delivery discipline.
 2. **HITL evidence packet** - show evidence, affected objects, risk, and rollback notes before confirmed writes.
 3. **Strong/weak relation governance** - distinguish contractual relations from inferred or weak relations.
-4. **AdventureWorks benchmark** - map the raw external export into Semantic CI and compare governance findings.
+4. **AdventureWorks benchmark** - compare real benchmark governance findings against the synthetic manufacturing pack.
 5. **Metric-to-ontology mapping MVP** - connect KPIs to ontology objects, properties, evidence, and lineage without opening a broad analytics DSL.
