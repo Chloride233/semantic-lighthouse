@@ -11,6 +11,7 @@ This directory contains active smoke checks, ontology pipeline utilities, deploy
 | `build_adventureworks_ontology_seed.py` | Build offline AdventureWorks ontology seed JSON/Markdown from Semantic CI artifacts |
 | `build_governance_review_workspace.py` | Build offline pending-decision workspace for governance candidate review |
 | `build_governance_decision_template.py` | Build human-fillable offline governance decision template from pending review items |
+| `precheck_governance_review_decisions.py` | Validate human-filled offline governance decisions before applying them |
 | `apply_governance_review_decisions.py` | Apply offline governance review decisions into accepted-change artifacts |
 | `build_accepted_ontology_drafts.py` | Build offline accepted ontology drafts from accepted governance changes |
 | `build_offline_model_package.py` | Build offline model package bridge artifact from accepted ontology drafts |
