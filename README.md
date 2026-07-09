@@ -106,6 +106,14 @@ the manufacturing contract, then run Semantic CI:
 .\.venv\Scripts\python scripts\build_governance_decision_template.py `
     --data-pack .tmp\adventureworks-semantic
 
+.\.venv\Scripts\python scripts\build_governance_decision_csv.py `
+    --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\convert_governance_decision_csv.py `
+    --csv .tmp\adventureworks-semantic\governance_review_decisions_template.csv `
+    --output .tmp\adventureworks-semantic\governance_review_decisions.json `
+    --review-batch pilot-review
+
 .\.venv\Scripts\python scripts\precheck_governance_review_decisions.py `
     --data-pack .tmp\adventureworks-semantic `
     --decisions .tmp\adventureworks-semantic\governance_review_decisions.json
@@ -142,6 +150,10 @@ The decision template writes `governance_review_decisions_template.json` for
 human editing. It is not ready for apply until a reviewer fills decision,
 reviewer, reviewed_at, and rationale fields and saves the result as
 `governance_review_decisions.json`.
+For spreadsheet-style review, the CSV template writes
+`governance_review_decisions_template.csv`. Fill the same decision fields in
+the CSV, then convert it to `governance_review_decisions.json` before running
+precheck. Blank decision rows are skipped so partial review can be prechecked.
 The decision precheck validates the filled decision file before apply. It
 returns `FAIL` for unknown IDs, invalid decisions, missing reviewer,
 reviewed_at, or required rationale, and writes no accepted changes.
