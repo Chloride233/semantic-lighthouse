@@ -155,8 +155,9 @@ Phase 19 收口产物：
 - **没有 Graph RAG**：当前是 hybrid retrieval，不是 graph retrieval
 - **没有 R3E2 aggregation**：COUNT/SUM/AVG 被刻意 deferred，避免 traversal 长成 DSL
 - **没有自治 Agent 写入**：高风险写操作必须经过后端权限和人工确认
-- **没有真实企业数据**：制造业数据包是 realistic synthetic data
-- **还没有 AdventureWorks 实装**：只是未来 benchmark 候选
+- **没有私有企业数据**：制造业数据包是 realistic synthetic data
+- **AdventureWorks 目前是 raw benchmark adapter**：`scripts/export_adventureworks.py`
+  可以导出外部 CSV + manifest；映射进完整 Semantic CI contract 仍是后续工作
 - **还没有 DB-backed governance feedback**：Phase 19 当前只产出离线候选
 - **核心 runtime 不依赖 Neo4j、OWL reasoner、LangGraph、OSDK、Kubernetes**
 
@@ -241,7 +242,7 @@ http://127.0.0.1:8000/docs
 | R3E2 aggregation (COUNT/SUM/AVG) | 会跨入 DSL 边界，需要真实需求再开 |
 | MCP runtime | 未来候选，当前只有 design doc |
 | Graph RAG | 等 entity/relation read model 更稳定后再看 |
-| AdventureWorks benchmark | 计划中的外部 benchmark，尚未实现 |
+| AdventureWorks benchmark | 已有 raw export adapter；Semantic CI 映射仍待完成 |
 | DB-backed governance feedback | Safety Lane 候选，当前只有离线候选 |
 
 ### 下一步候选
@@ -251,5 +252,5 @@ http://127.0.0.1:8000/docs
 1. **Semantic CI/CD 产品化**：把 mapping、规则、证据和治理反馈变成可重复的交付纪律
 2. **HITL evidence packet**：在确认写入前展示证据、受影响对象、风险和 rollback notes
 3. **强/弱关系治理**：区分契约型关系、推断关系和弱关系，避免图谱边语义混杂
-4. **AdventureWorks benchmark**：加入更容易被外部理解的销售、订单、客户 benchmark
+4. **AdventureWorks benchmark**：把 raw 外部导出映射进 Semantic CI，并比较治理发现
 5. **指标到本体映射 MVP**：把 KPI 连接到对象、属性、证据和 lineage，同时避免扩成通用 analytics DSL

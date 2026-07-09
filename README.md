@@ -155,8 +155,10 @@ These are deliberate design boundaries, not missing checkboxes:
 - **No Graph RAG.** The project has ontology entities/relations, but retrieval is still hybrid search.
 - **No R3E2 aggregation.** COUNT/SUM/AVG deferred indefinitely - crosses from "traversal" into "analytics query" DSL territory.
 - **No autonomous Agent writes.** High-risk write behavior requires backend permission checks and human confirmation.
-- **No real enterprise data.** The manufacturing data pack is realistic synthetic data.
-- **No AdventureWorks implementation yet.** It is planned as a future external benchmark.
+- **No private enterprise data.** The manufacturing data pack is realistic synthetic data.
+- **AdventureWorks is a raw benchmark adapter only.** `scripts/export_adventureworks.py`
+  can export a focused external CSV + manifest pack; mapping it into the full
+  Semantic CI contract remains a follow-up.
 - **No DB-backed governance feedback yet.** Phase 19 produces offline candidates only.
 - **No Neo4j, OWL reasoner, LangGraph, OSDK, or Kubernetes dependency in the core runtime.**
 
@@ -241,7 +243,7 @@ Canonical project state: `docs/project-status.toml`.
 | R3E2 aggregation (COUNT/SUM/AVG) | Crosses DSL boundary; needs measured demand |
 | MCP runtime | Future candidate; design doc only |
 | Graph RAG | Deferred until entity/relation read model is reliable |
-| AdventureWorks benchmark | Planned external benchmark, not implemented |
+| AdventureWorks benchmark | Raw export adapter exists; Semantic CI mapping remains follow-up |
 | DB-backed governance feedback | Safety Lane candidate; offline candidates exist |
 
 ### Next Step Candidates
@@ -251,5 +253,5 @@ The project is at a decision gate. No automatic expansion to new phases. Candida
 1. **Semantic CI/CD productization** - turn mapping, rules, evidence, and governance feedback into a repeatable delivery discipline.
 2. **HITL evidence packet** - show evidence, affected objects, risk, and rollback notes before confirmed writes.
 3. **Strong/weak relation governance** - distinguish contractual relations from inferred or weak relations.
-4. **AdventureWorks benchmark** - add a recognizable external benchmark for sales/order/customer scenarios.
+4. **AdventureWorks benchmark** - map the raw external export into Semantic CI and compare governance findings.
 5. **Metric-to-ontology mapping MVP** - connect KPIs to ontology objects, properties, evidence, and lineage without opening a broad analytics DSL.

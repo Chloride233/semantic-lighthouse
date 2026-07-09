@@ -7,6 +7,7 @@ This directory contains active smoke checks, ontology pipeline utilities, deploy
 | Script | Purpose |
 |--------|---------|
 | `run_semantic_ci.py` | Offline Semantic CI gate for data-pack contract, mapping, rules, governance feedback, and artifact hashes |
+| `export_adventureworks.py` | Export a focused AdventureWorks raw CSV + manifest benchmark pack through SSH/sqlcmd |
 | `smoke_fde_demo.py` | End-to-end Phase 19 FDE-style smoke chain using fake providers and temporary SQLite |
 | `smoke_http_api.py` | HTTP API smoke coverage |
 | `verify_ui.py` | Frontend console smoke check |
