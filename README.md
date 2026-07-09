@@ -117,6 +117,9 @@ the manufacturing contract, then run Semantic CI:
 
 .\.venv\Scripts\python scripts\build_offline_runtime_query_plan.py `
     --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\build_semantic_asset_feedback.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
 
 The ontology seed writes `adventureworks_ontology_seed.json` and
@@ -156,6 +159,9 @@ mapping-contract table metadata; when there is no built package it reports
 The offline runtime query dry run emits explain-only query plans for bindable
 datasets; when binding is not ready it reports `NO_RUNTIME_QUERY_READY` and
 does not read rows, execute runtime queries, or create audit records.
+The semantic asset feedback loop converts review, package, binding, and query
+readiness gaps into an offline backlog artifact. It does not write the
+database or create real governance issues.
 
 To inspect each step separately, run the offline ontology operationalization chain:
 
