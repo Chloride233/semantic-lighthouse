@@ -163,10 +163,14 @@ build the offline package, bind datasets, generate runtime dry-run plans,
 build semantic asset feedback, and write the acceptance report. It still does
 not write to the database, publish packages, activate runtime, or auto-accept
 candidates.
+The runner requires the decision precheck to return `PASS`; incomplete CSV rows
+produce `WARN` and stop before apply.
 
 ```powershell
 .\.venv\Scripts\python scripts\run_post_review_semantic_loop.py `
-    --data-pack .tmp\adventureworks-semantic
+    --data-pack .tmp\adventureworks-semantic `
+    --decision-csv .tmp\adventureworks-semantic\governance_review_decisions_template.csv `
+    --review-batch pilot-review
 ```
 
 To produce accepted changes, create

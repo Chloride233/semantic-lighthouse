@@ -1,5 +1,6 @@
 """Tests for post-review offline semantic loop orchestration."""
 
+import csv
 import importlib.util
 import json
 import sys
@@ -183,11 +184,106 @@ def _write_invalid_decisions(data_dir: Path) -> None:
     )
 
 
+def _write_filled_decision_csv(path: Path) -> None:
+    rows = [
+        {
+            "review_item_id": "gov-0001",
+            "decision": "accept",
+            "reviewer": "ontology_steward",
+            "reviewed_at": "2026-07-09T08:00:00+00:00",
+            "rationale": "Accepted for offline draft generation.",
+            "recommended_decision": "consider_modeling",
+            "review_owner_role": "ontology_steward",
+            "severity": "info",
+            "source_table": "equipment",
+            "derived_class": "at_risk_equipment",
+            "finding_id": "derived_class-0001",
+            "rule_id": "derived_class",
+            "finding_message": "Equipment classified as at_risk_equipment",
+            "required_checks": "confirm_business_meaning",
+            "evidence_anchor": "",
+        }
+    ]
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_blank_decision_csv(path: Path) -> None:
+    rows = [
+        {
+            "review_item_id": "gov-0001",
+            "decision": "",
+            "reviewer": "",
+            "reviewed_at": "",
+            "rationale": "",
+            "recommended_decision": "consider_modeling",
+            "review_owner_role": "ontology_steward",
+            "severity": "info",
+            "source_table": "equipment",
+            "derived_class": "at_risk_equipment",
+            "finding_id": "derived_class-0001",
+            "rule_id": "derived_class",
+            "finding_message": "Equipment classified as at_risk_equipment",
+            "required_checks": "confirm_business_meaning",
+            "evidence_anchor": "",
+        }
+    ]
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def _write_required_inputs(data_dir: Path) -> None:
     _write_semantic_ci(data_dir)
     _write_manifest(data_dir)
     _write_mapping_contract(data_dir)
     _write_workspace(data_dir)
+
+
+def test_post_review_loop_accepts_filled_decision_csv(tmp_path):
+    mod = _load_module("run_post_review_semantic_loop", SCRIPT_PATH)
+    _write_required_inputs(tmp_path)
+    csv_path = tmp_path / "governance_review_decisions_template.csv"
+    _write_filled_decision_csv(csv_path)
+
+    result = mod.run_post_review_semantic_loop(
+        tmp_path,
+        decision_csv_path=csv_path,
+        review_batch="csv-pilot-review",
+    )
+
+    decisions = json.loads(
+        (tmp_path / "governance_review_decisions.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert decisions["pipeline"] == "governance_review_decision_csv"
+    assert decisions["review_batch"] == "csv-pilot-review"
+    assert result["summary"]["run_status"] == "PASS"
+    assert result["summary"]["chain_status"] == "READY_FOR_SAFETY_LANE"
+
+
+def test_post_review_loop_stops_when_csv_review_is_incomplete(tmp_path):
+    mod = _load_module("run_post_review_semantic_loop", SCRIPT_PATH)
+    _write_required_inputs(tmp_path)
+    csv_path = tmp_path / "governance_review_decisions_template.csv"
+    _write_blank_decision_csv(csv_path)
+
+    result = mod.run_post_review_semantic_loop(
+        tmp_path,
+        decision_csv_path=csv_path,
+        review_batch="csv-pilot-review",
+    )
+
+    assert result["summary"]["run_status"] == "FAIL"
+    assert result["summary"]["precheck_status"] == "WARN"
+    assert result["summary"]["chain_status"] == "REVIEW_INCOMPLETE"
+    assert (tmp_path / "governance_review_decisions_precheck.json").is_file()
+    assert not (tmp_path / "accepted_governance_changes.json").exists()
+    assert result["artifacts"]["accepted_governance_changes"]["path"] is None
 
 
 def test_post_review_loop_builds_downstream_artifacts_after_valid_decisions(tmp_path):

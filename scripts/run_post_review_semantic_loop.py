@@ -35,6 +35,7 @@ from build_offline_dataset_binding import write_offline_dataset_binding  # noqa:
 from build_offline_model_package import write_offline_model_package  # noqa: E402
 from build_offline_runtime_query_plan import write_offline_runtime_query_plan  # noqa: E402
 from build_semantic_asset_feedback import write_semantic_asset_feedback  # noqa: E402
+from convert_governance_decision_csv import convert_governance_decision_csv  # noqa: E402
 from precheck_governance_review_decisions import write_decision_precheck  # noqa: E402
 
 
@@ -117,10 +118,15 @@ def _summary_from_acceptance(
 ) -> dict[str, Any]:
     precheck_summary = precheck.get("summary", {})
     if acceptance is None:
+        precheck_status = precheck_summary.get("precheck_status")
         return {
             "run_status": "FAIL",
-            "precheck_status": precheck_summary.get("precheck_status"),
-            "chain_status": "PRECHECK_FAILED",
+            "precheck_status": precheck_status,
+            "chain_status": (
+                "PRECHECK_FAILED"
+                if precheck_status == "FAIL"
+                else "REVIEW_INCOMPLETE"
+            ),
             "accepted_change_count": 0,
             "draft_count": 0,
             "package_status": None,
@@ -182,7 +188,19 @@ def run_post_review_semantic_loop(
     data_dir: Path,
     decisions_path: Path | None = None,
     output_path: Path | None = None,
+    decision_csv_path: Path | None = None,
+    review_batch: str = "csv-review",
 ) -> dict[str, Any]:
+    if decisions_path is not None and decision_csv_path is not None:
+        raise ValueError("Use either decisions_path or decision_csv_path, not both")
+    if decision_csv_path is not None:
+        decisions_path = data_dir / "governance_review_decisions.json"
+        convert_governance_decision_csv(
+            decision_csv_path,
+            decisions_path,
+            review_batch,
+        )
+
     report_path = output_path or (data_dir / "post_review_semantic_loop_report.json")
     precheck = write_decision_precheck(
         data_dir,
@@ -190,7 +208,7 @@ def run_post_review_semantic_loop(
         data_dir / "governance_review_decisions_precheck.md",
         decisions_path,
     )
-    if precheck["summary"]["precheck_status"] == "FAIL":
+    if precheck["summary"]["precheck_status"] != "PASS":
         result = _report(data_dir=data_dir, precheck=precheck, acceptance=None)
         _write_json(report_path, result)
         return result
@@ -256,6 +274,20 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--decision-csv",
+        type=Path,
+        default=None,
+        help=(
+            "Filled decision CSV path. When provided, it is converted to "
+            "<data-pack>/governance_review_decisions.json before precheck."
+        ),
+    )
+    parser.add_argument(
+        "--review-batch",
+        default="csv-review",
+        help="Review batch label used when converting --decision-csv",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=None,
@@ -271,6 +303,8 @@ def main() -> int:
             args.data_pack,
             args.decisions,
             args.output,
+            args.decision_csv,
+            args.review_batch,
         )
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
