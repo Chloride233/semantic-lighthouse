@@ -111,6 +111,9 @@ the manufacturing contract, then run Semantic CI:
 
 .\.venv\Scripts\python scripts\build_offline_model_package.py `
     --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\build_offline_dataset_binding.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
 
 The ontology seed writes `adventureworks_ontology_seed.json` and
@@ -144,6 +147,9 @@ evidence and rationale for the next package bridge, but they do not write to
 the database, apply model changes, publish a package, or become runtime facts.
 The offline model package bridge writes a stable semantic hash only when
 accepted drafts exist; with no accepted drafts it reports `NO_ACCEPTED_DRAFTS`.
+The offline dataset binding bridge binds a built package to manifest and
+mapping-contract table metadata; when there is no built package it reports
+`NO_BINDABLE_PACKAGE` and keeps runtime activation out of scope.
 
 To inspect each step separately, run the offline ontology operationalization chain:
 

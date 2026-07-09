@@ -13,6 +13,7 @@ This directory contains active smoke checks, ontology pipeline utilities, deploy
 | `apply_governance_review_decisions.py` | Apply offline governance review decisions into accepted-change artifacts |
 | `build_accepted_ontology_drafts.py` | Build offline accepted ontology drafts from accepted governance changes |
 | `build_offline_model_package.py` | Build offline model package bridge artifact from accepted ontology drafts |
+| `build_offline_dataset_binding.py` | Build offline dataset binding bridge artifact from a built model package and data-pack metadata |
 | `export_adventureworks.py` | Export a focused AdventureWorks raw CSV + manifest benchmark pack through SSH/sqlcmd |
 | `map_adventureworks_to_semantic_pack.py` | Map the raw AdventureWorks export into the 13-table Semantic CI manufacturing contract |
 | `smoke_fde_demo.py` | End-to-end Phase 19 FDE-style smoke chain using fake providers and temporary SQLite |
