@@ -166,6 +166,41 @@ def _write_valid_decisions(data_dir: Path) -> None:
     )
 
 
+def _write_public_benchmark_decisions(data_dir: Path) -> None:
+    _write_json(
+        data_dir / "governance_review_decisions.json",
+        {
+            "decision_version": "1.0",
+            "pipeline": "public_benchmark_governance_decisions",
+            "review_batch": "public-benchmark-fixture",
+            "benchmark": {
+                "name": "AdventureWorks public benchmark",
+                "decision_mode": "public_benchmark_fixture",
+                "not_enterprise_human_review": True,
+            },
+            "decisions": [
+                {
+                    "review_item_id": "gov-0001",
+                    "decision": "accept",
+                    "reviewer": "public_benchmark_fixture",
+                    "reviewed_at": "2026-07-09T08:00:00+00:00",
+                    "rationale": (
+                        "Accepted as public benchmark fixture, not enterprise "
+                        "human approval."
+                    ),
+                    "decision_mode": "public_benchmark_fixture",
+                    "not_enterprise_human_review": True,
+                }
+            ],
+            "boundaries": {
+                "offline_only": True,
+                "not_enterprise_human_review": True,
+                "public_benchmark_fixture_only": True,
+            },
+        },
+    )
+
+
 def _write_invalid_decisions(data_dir: Path) -> None:
     _write_json(
         data_dir / "governance_review_decisions.json",
@@ -313,6 +348,8 @@ def test_post_review_loop_builds_downstream_artifacts_after_valid_decisions(tmp_
     assert result["summary"]["chain_status"] == "READY_FOR_SAFETY_LANE"
     assert result["summary"]["accepted_change_count"] == 1
     assert result["summary"]["draft_count"] == 1
+    assert result["summary"]["decision_mode"] == "human_review"
+    assert result["summary"]["not_enterprise_human_review"] is False
     assert result["summary"]["package_status"] == "BUILT"
     assert result["summary"]["binding_status"] == "BOUND"
     assert result["summary"]["query_status"] == "QUERY_PLANNED"
@@ -327,6 +364,8 @@ def test_post_review_loop_builds_downstream_artifacts_after_valid_decisions(tmp_
         "auto_accepts_candidates": False,
         "requires_human_review": True,
         "requires_safety_lane_for_runtime": True,
+        "not_enterprise_human_review": False,
+        "public_benchmark_fixture_only": False,
     }
     for name, artifact in result["artifacts"].items():
         if name == "governance_review_decisions_csv_inspection":
@@ -340,6 +379,32 @@ def test_post_review_loop_builds_downstream_artifacts_after_valid_decisions(tmp_
             encoding="utf-8"
         )
     ) == result
+
+
+def test_post_review_loop_preserves_public_benchmark_fixture_mode(tmp_path):
+    mod = _load_module("run_post_review_semantic_loop", SCRIPT_PATH)
+    _write_required_inputs(tmp_path)
+    _write_public_benchmark_decisions(tmp_path)
+
+    result = mod.run_post_review_semantic_loop(tmp_path)
+    acceptance = json.loads(
+        (tmp_path / "offline_acceptance_report.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert result["summary"]["run_status"] == "PASS"
+    assert result["summary"]["decision_mode"] == "public_benchmark_fixture"
+    assert result["summary"]["not_enterprise_human_review"] is True
+    assert result["summary"]["public_benchmark_fixture_only"] is True
+    assert result["boundaries"]["not_enterprise_human_review"] is True
+    assert result["boundaries"]["public_benchmark_fixture_only"] is True
+    assert acceptance["summary"]["decision_mode"] == "public_benchmark_fixture"
+    assert acceptance["summary"]["not_enterprise_human_review"] is True
+    assert {
+        "criterion": "Governance candidates have public benchmark fixture decisions",
+        "status": "PASS",
+    } in acceptance["acceptance_criteria"]
 
 
 def test_post_review_loop_stops_before_apply_when_precheck_fails(tmp_path):

@@ -26,6 +26,11 @@ from typing import Any
 
 
 ACCEPTANCE_VERSION = "1.0"
+DEFAULT_DECISION_CONTEXT = {
+    "decision_mode": "not_available",
+    "not_enterprise_human_review": False,
+    "public_benchmark_fixture_only": False,
+}
 
 
 def _utc_now() -> str:
@@ -77,6 +82,36 @@ def _criterion(criterion: str, status: str) -> dict[str, str]:
         "criterion": criterion,
         "status": status,
     }
+
+
+def _decision_context_from_decisions(decisions: dict[str, Any]) -> dict[str, Any]:
+    boundaries = decisions.get("boundaries", {})
+    benchmark = decisions.get("benchmark", {})
+    is_public_fixture = (
+        decisions.get("pipeline") == "public_benchmark_governance_decisions"
+        or benchmark.get("decision_mode") == "public_benchmark_fixture"
+        or boundaries.get("public_benchmark_fixture_only") is True
+    )
+    if is_public_fixture:
+        return {
+            "decision_mode": "public_benchmark_fixture",
+            "not_enterprise_human_review": True,
+            "public_benchmark_fixture_only": True,
+        }
+    if decisions.get("decisions"):
+        return {
+            "decision_mode": "human_review",
+            "not_enterprise_human_review": False,
+            "public_benchmark_fixture_only": False,
+        }
+    return dict(DEFAULT_DECISION_CONTEXT)
+
+
+def _decision_context(data_dir: Path) -> dict[str, Any]:
+    path = data_dir / "governance_review_decisions.json"
+    if not path.is_file():
+        return dict(DEFAULT_DECISION_CONTEXT)
+    return _decision_context_from_decisions(_read_json(path, path.name))
 
 
 def _semantic_ci_stage(semantic_ci: dict[str, Any]) -> dict[str, Any]:
@@ -235,13 +270,18 @@ def _acceptance_criteria(summary: dict[str, Any]) -> list[dict[str, str]]:
         "BACKLOG_OPEN",
         "NO_OPEN_FEEDBACK",
     }
+    review_criterion = "Governance candidates have review decisions"
+    if summary.get("decision_mode") == "public_benchmark_fixture":
+        review_criterion = (
+            "Governance candidates have public benchmark fixture decisions"
+        )
     return [
         _criterion(
             "Semantic CI completed without hard failures",
             "PASS" if semantic_ci_ok else "FAIL",
         ),
         _criterion(
-            "Governance candidates have human decisions",
+            review_criterion,
             "PASS" if review_done else "BLOCKED",
         ),
         _criterion(
@@ -273,6 +313,7 @@ def _summary(
     binding: dict[str, Any],
     query_plan: dict[str, Any],
     feedback: dict[str, Any],
+    decision_context: dict[str, Any],
 ) -> dict[str, Any]:
     semantic_summary = semantic_ci.get("summary", {})
     data_pack = semantic_ci.get("data_pack", feedback.get("data_pack", {}))
@@ -311,6 +352,13 @@ def _summary(
             feedback_summary.get("requires_human_review", False)
             or _effective_pending_review_items(workspace, changes) > 0
         ),
+        "decision_mode": decision_context["decision_mode"],
+        "not_enterprise_human_review": decision_context[
+            "not_enterprise_human_review"
+        ],
+        "public_benchmark_fixture_only": decision_context[
+            "public_benchmark_fixture_only"
+        ],
     }
     summary["semantic_ci_hard_failures"] = int(
         semantic_summary.get("hard_failures", 0) or 0
@@ -354,6 +402,7 @@ def build_offline_acceptance_report(data_dir: Path) -> dict[str, Any]:
         data_dir / "offline_runtime_query_plan.json",
         "offline_runtime_query_plan.json",
     )
+    decision_context = _decision_context(data_dir)
 
     summary = _summary(
         semantic_ci=semantic_ci,
@@ -364,6 +413,7 @@ def build_offline_acceptance_report(data_dir: Path) -> dict[str, Any]:
         binding=binding,
         query_plan=query_plan,
         feedback=feedback,
+        decision_context=decision_context,
     )
     criteria_summary = dict(summary)
     criteria_summary["semantic_ci_hard_failures"] = int(
@@ -390,6 +440,9 @@ def build_offline_acceptance_report(data_dir: Path) -> dict[str, Any]:
             "semantic_ci_report": _artifact(data_dir / "semantic_ci_report.json"),
             "governance_review_workspace": _artifact(
                 data_dir / "governance_review_workspace.json"
+            ),
+            "governance_review_decisions": _artifact(
+                data_dir / "governance_review_decisions.json"
             ),
             "accepted_governance_changes": _artifact(
                 data_dir / "accepted_governance_changes.json"
@@ -419,6 +472,12 @@ def build_offline_acceptance_report(data_dir: Path) -> dict[str, Any]:
             "activates_runtime": False,
             "executes_runtime_query": False,
             "requires_safety_lane_for_runtime": True,
+            "not_enterprise_human_review": decision_context[
+                "not_enterprise_human_review"
+            ],
+            "public_benchmark_fixture_only": decision_context[
+                "public_benchmark_fixture_only"
+            ],
         },
     }
 
@@ -435,6 +494,9 @@ def render_markdown(result: dict[str, Any]) -> str:
         f"- Rows: `{summary['total_rows']}`",
         f"- Pending review items: `{summary['pending_review_items']}`",
         f"- Feedback items: `{summary['feedback_items']}`",
+        f"- Decision mode: `{summary['decision_mode']}`",
+        "- Not enterprise human review: "
+        f"`{str(summary['not_enterprise_human_review']).lower()}`",
         "- Writes to database: `false`",
         "",
         "## Stages",

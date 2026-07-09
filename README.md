@@ -181,6 +181,11 @@ offline HTML workbench and exports a filled decision CSV from the browser.
 `fill_governance_decision_csv.py` can write selected rows when a reviewer has
 already made an explicit decision; it requires at least one filter and does not
 infer or auto-accept candidates.
+For public benchmark continuation only, `build_public_benchmark_decisions.py`
+can generate fixture decisions from the review workspace. This is explicitly
+not enterprise human review; it exists to exercise the offline chain with
+public sample data while keeping database writes, package publication, and
+runtime execution out of scope.
 The decision precheck validates the filled decision file before apply. It
 returns `FAIL` for unknown IDs, invalid decisions, missing reviewer,
 reviewed_at, or required rationale, and writes no accepted changes.
@@ -199,6 +204,19 @@ writing `governance_review_decisions.json`.
     --data-pack .tmp\adventureworks-semantic `
     --decision-csv .tmp\adventureworks-semantic\governance_review_decisions_template.csv `
     --review-batch pilot-review
+```
+
+For a public benchmark fixture run, generate explicit fixture decisions before
+the post-review loop:
+
+```powershell
+.\.venv\Scripts\python scripts\build_public_benchmark_decisions.py `
+    --data-pack .tmp\adventureworks-semantic `
+    --benchmark-name "AdventureWorks public benchmark"
+
+.\.venv\Scripts\python scripts\run_post_review_semantic_loop.py `
+    --data-pack .tmp\adventureworks-semantic `
+    --review-batch public-benchmark-fixture
 ```
 
 To produce accepted changes, create

@@ -169,6 +169,10 @@ Decision template 会生成 `governance_review_decisions_template.json` 给人�
 `build_governance_review_briefing.py` 会按 source table 和 derived class 汇总待审项，并附带有边界的源行样本，方便 reviewer 逐批做明确决策。
 `build_governance_review_workbench.py` 会把同一批审阅数据渲染成离线 HTML 工作台，并在浏览器中导出填写后的 decision CSV。
 `fill_governance_decision_csv.py` 可以在 reviewer 已经做出明确决策后批量写入匹配行；它要求至少一个过滤条件，不会推断决策，也不会自动接受候选。
+如果只是为了让公开 benchmark 继续跑通，可以用
+`build_public_benchmark_decisions.py` 从 review workspace 生成 fixture 决策。
+这明确不是企业人工审阅；它只用于公开样本数据的离线链路演示，并且仍然不写数据库、
+不发布 package、不执行 runtime query。
 Decision precheck 会在 apply 之前校验已填写的决策文件；遇到未知 ID、非法 decision、缺 reviewer、缺 reviewed_at 或 accept 缺 rationale 时返回 `FAIL`，且不会生成 accepted changes。
 Precheck 通过后，可以用 `run_post_review_semantic_loop.py` 一条命令跑完离线 post-review 链路：应用决策、生成 accepted drafts、构建离线 package、绑定 dataset、生成 runtime dry-run plan、生成语义资产反馈和 acceptance report。它仍然不会写数据库、不会发布 package、不会激活 runtime，也不会自动接受候选。
 Runner 默认要求 decision precheck 返回 `PASS`；`--decision-csv` 会先跑 CSV inspection，CSV 里仍有未填写 decision 的行会在转换前停止，不会写出 `governance_review_decisions.json`。
@@ -178,6 +182,19 @@ Runner 默认要求 decision precheck 返回 `PASS`；`--decision-csv` 会先跑
     --data-pack .tmp\adventureworks-semantic `
     --decision-csv .tmp\adventureworks-semantic\governance_review_decisions_template.csv `
     --review-batch pilot-review
+```
+
+如果是公开 benchmark fixture 路径，先生成明确标记的 fixture 决策，再跑
+post-review loop：
+
+```powershell
+.\.venv\Scripts\python scripts\build_public_benchmark_decisions.py `
+    --data-pack .tmp\adventureworks-semantic `
+    --benchmark-name "AdventureWorks public benchmark"
+
+.\.venv\Scripts\python scripts\run_post_review_semantic_loop.py `
+    --data-pack .tmp\adventureworks-semantic `
+    --review-batch public-benchmark-fixture
 ```
 
 如果要生成 accepted changes，需要先创建

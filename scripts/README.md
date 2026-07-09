@@ -17,6 +17,7 @@ This directory contains active smoke checks, ontology pipeline utilities, deploy
 | `inspect_governance_decision_csv.py` | Inspect filled decision CSV completion before running the post-review loop |
 | `fill_governance_decision_csv.py` | Fill selected decision CSV rows from explicit reviewer decision inputs |
 | `convert_governance_decision_csv.py` | Convert filled CSV governance decisions into precheckable decision JSON |
+| `build_public_benchmark_decisions.py` | Build explicitly labeled public benchmark fixture decisions; not enterprise human review |
 | `precheck_governance_review_decisions.py` | Validate human-filled offline governance decisions before applying them |
 | `apply_governance_review_decisions.py` | Apply offline governance review decisions into accepted-change artifacts |
 | `run_post_review_semantic_loop.py` | Run the offline post-review chain from validated decisions through acceptance report |

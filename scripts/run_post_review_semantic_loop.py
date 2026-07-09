@@ -43,6 +43,11 @@ from precheck_governance_review_decisions import write_decision_precheck  # noqa
 
 
 REPORT_VERSION = "1.0"
+DEFAULT_DECISION_CONTEXT = {
+    "decision_mode": "not_available",
+    "not_enterprise_human_review": False,
+    "public_benchmark_fixture_only": False,
+}
 
 
 def _utc_now() -> str:
@@ -81,6 +86,38 @@ def _artifact(path: Path) -> dict[str, str | None]:
         "path": str(path),
         "sha256": _sha256(path),
     }
+
+
+def _decision_context_from_decisions(decisions: dict[str, Any]) -> dict[str, Any]:
+    boundaries = decisions.get("boundaries", {})
+    benchmark = decisions.get("benchmark", {})
+    is_public_fixture = (
+        decisions.get("pipeline") == "public_benchmark_governance_decisions"
+        or benchmark.get("decision_mode") == "public_benchmark_fixture"
+        or boundaries.get("public_benchmark_fixture_only") is True
+    )
+    if is_public_fixture:
+        return {
+            "decision_mode": "public_benchmark_fixture",
+            "not_enterprise_human_review": True,
+            "public_benchmark_fixture_only": True,
+        }
+    if decisions.get("decisions"):
+        return {
+            "decision_mode": "human_review",
+            "not_enterprise_human_review": False,
+            "public_benchmark_fixture_only": False,
+        }
+    return dict(DEFAULT_DECISION_CONTEXT)
+
+
+def _decision_context(data_dir: Path, precheck: dict[str, Any] | None) -> dict[str, Any]:
+    source_artifacts = precheck.get("source_artifacts", {}) if precheck else {}
+    path_text = source_artifacts.get("governance_review_decisions")
+    path = Path(path_text) if path_text else data_dir / "governance_review_decisions.json"
+    if not path.is_file():
+        return dict(DEFAULT_DECISION_CONTEXT)
+    return _decision_context_from_decisions(_read_json(path))
 
 
 def _missing_artifact() -> dict[str, str | None]:
@@ -127,6 +164,7 @@ def _artifact_map(
 def _summary_from_acceptance(
     precheck: dict[str, Any] | None,
     acceptance: dict[str, Any] | None,
+    decision_context: dict[str, Any],
 ) -> dict[str, Any]:
     precheck_summary = precheck.get("summary", {}) if precheck else {}
     if acceptance is None:
@@ -145,6 +183,13 @@ def _summary_from_acceptance(
             "binding_status": None,
             "query_status": None,
             "feedback_status": None,
+            "decision_mode": decision_context["decision_mode"],
+            "not_enterprise_human_review": decision_context[
+                "not_enterprise_human_review"
+            ],
+            "public_benchmark_fixture_only": decision_context[
+                "public_benchmark_fixture_only"
+            ],
         }
 
     acceptance_summary = acceptance.get("summary", {})
@@ -158,6 +203,13 @@ def _summary_from_acceptance(
         "binding_status": acceptance_summary.get("binding_status"),
         "query_status": acceptance_summary.get("query_status"),
         "feedback_status": acceptance_summary.get("feedback_status"),
+        "decision_mode": decision_context["decision_mode"],
+        "not_enterprise_human_review": decision_context[
+            "not_enterprise_human_review"
+        ],
+        "public_benchmark_fixture_only": decision_context[
+            "public_benchmark_fixture_only"
+        ],
     }
 
 
@@ -168,6 +220,7 @@ def _report(
     acceptance: dict[str, Any] | None,
     include_csv_inspection: bool = False,
 ) -> dict[str, Any]:
+    decision_context = _decision_context(data_dir, precheck)
     return {
         "report_version": REPORT_VERSION,
         "pipeline": "post_review_semantic_loop",
@@ -177,7 +230,11 @@ def _report(
             if acceptance is not None
             else (precheck or {}).get("data_pack", {"path": str(data_dir)})
         ),
-        "summary": _summary_from_acceptance(precheck, acceptance),
+        "summary": _summary_from_acceptance(
+            precheck,
+            acceptance,
+            decision_context,
+        ),
         "artifacts": _artifact_map(
             data_dir,
             include_csv_inspection=include_csv_inspection,
@@ -195,6 +252,12 @@ def _report(
             "auto_accepts_candidates": False,
             "requires_human_review": True,
             "requires_safety_lane_for_runtime": True,
+            "not_enterprise_human_review": decision_context[
+                "not_enterprise_human_review"
+            ],
+            "public_benchmark_fixture_only": decision_context[
+                "public_benchmark_fixture_only"
+            ],
         },
     }
 

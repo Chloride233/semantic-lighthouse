@@ -82,6 +82,41 @@ def _write_accepted_changes(data_dir: Path, undecided: int = 48) -> None:
     )
 
 
+def _write_public_benchmark_decisions(data_dir: Path) -> None:
+    _write_json(
+        data_dir / "governance_review_decisions.json",
+        {
+            "decision_version": "1.0",
+            "pipeline": "public_benchmark_governance_decisions",
+            "review_batch": "public-benchmark-fixture",
+            "benchmark": {
+                "name": "AdventureWorks public benchmark",
+                "decision_mode": "public_benchmark_fixture",
+                "not_enterprise_human_review": True,
+            },
+            "summary": {
+                "submitted_decisions": 48,
+                "accepted_decisions": 48,
+            },
+            "decisions": [
+                {
+                    "review_item_id": "gov-0001",
+                    "decision": "accept",
+                    "reviewer": "public_benchmark_fixture",
+                    "reviewed_at": "2026-07-09T08:00:00+00:00",
+                    "rationale": "Accepted as public benchmark fixture.",
+                    "decision_mode": "public_benchmark_fixture",
+                    "not_enterprise_human_review": True,
+                }
+            ],
+            "boundaries": {
+                "not_enterprise_human_review": True,
+                "public_benchmark_fixture_only": True,
+            },
+        },
+    )
+
+
 def _write_drafts(data_dir: Path, draft_count: int = 0) -> None:
     _write_json(
         data_dir / "accepted_ontology_drafts.json",
@@ -216,6 +251,9 @@ def test_not_ready_chain_outputs_blocked_acceptance_report(tmp_path):
         "feedback_items": 4,
         "ready_for_db_backed_runtime": False,
         "requires_human_review": True,
+        "decision_mode": "not_available",
+        "not_enterprise_human_review": False,
+        "public_benchmark_fixture_only": False,
     }
     assert result["stages"] == [
         {
@@ -283,7 +321,7 @@ def test_not_ready_chain_outputs_blocked_acceptance_report(tmp_path):
             "status": "PASS",
         },
         {
-            "criterion": "Governance candidates have human decisions",
+            "criterion": "Governance candidates have review decisions",
             "status": "BLOCKED",
         },
         {
@@ -327,6 +365,33 @@ def test_query_planned_chain_remains_safety_lane_required(tmp_path):
         "criterion": "Runtime query is ready for Safety Lane promotion",
         "status": "PASS",
     }
+
+
+def test_public_benchmark_fixture_is_not_reported_as_enterprise_human_review(
+    tmp_path,
+):
+    mod = _load_module()
+    _write_semantic_ci(tmp_path)
+    _write_review_workspace(tmp_path, pending=0)
+    _write_public_benchmark_decisions(tmp_path)
+    _write_accepted_changes(tmp_path, undecided=0)
+    _write_drafts(tmp_path, draft_count=1)
+    _write_package(tmp_path, "BUILT")
+    _write_binding(tmp_path, "BOUND")
+    _write_runtime_plan(tmp_path, "QUERY_PLANNED")
+    _write_feedback(tmp_path, status="BACKLOG_OPEN", item_count=1)
+
+    result = mod.build_offline_acceptance_report(tmp_path)
+
+    assert result["summary"]["decision_mode"] == "public_benchmark_fixture"
+    assert result["summary"]["not_enterprise_human_review"] is True
+    assert result["summary"]["public_benchmark_fixture_only"] is True
+    assert result["boundaries"]["not_enterprise_human_review"] is True
+    assert result["boundaries"]["public_benchmark_fixture_only"] is True
+    assert {
+        "criterion": "Governance candidates have public benchmark fixture decisions",
+        "status": "PASS",
+    } in result["acceptance_criteria"]
 
 
 def test_missing_semantic_asset_feedback_fails_clearly(tmp_path):
