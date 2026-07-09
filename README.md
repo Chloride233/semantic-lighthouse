@@ -103,6 +103,9 @@ the manufacturing contract, then run Semantic CI:
 .\.venv\Scripts\python scripts\build_governance_review_workspace.py `
     --data-pack .tmp\adventureworks-semantic
 
+.\.venv\Scripts\python scripts\build_governance_decision_template.py `
+    --data-pack .tmp\adventureworks-semantic
+
 .\.venv\Scripts\python scripts\apply_governance_review_decisions.py `
     --data-pack .tmp\adventureworks-semantic
 
@@ -131,6 +134,10 @@ object types, FK relationship candidates, and derived-class candidates still
 require human review before model package publication or runtime use.
 The review workspace writes pending decision records for governance candidates
 without applying model changes or creating real governance issues.
+The decision template writes `governance_review_decisions_template.json` for
+human editing. It is not ready for apply until a reviewer fills decision,
+reviewer, reviewed_at, and rationale fields and saves the result as
+`governance_review_decisions.json`.
 To produce accepted changes, create
 `.tmp\adventureworks-semantic\governance_review_decisions.json` with reviewed
 decisions such as:

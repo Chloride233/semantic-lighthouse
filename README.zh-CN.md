@@ -103,6 +103,9 @@ manufacturing contract，最后跑 Semantic CI：
 .\.venv\Scripts\python scripts\build_governance_review_workspace.py `
     --data-pack .tmp\adventureworks-semantic
 
+.\.venv\Scripts\python scripts\build_governance_decision_template.py `
+    --data-pack .tmp\adventureworks-semantic
+
 .\.venv\Scripts\python scripts\apply_governance_review_decisions.py `
     --data-pack .tmp\adventureworks-semantic
 
@@ -130,6 +133,7 @@ Ontology seed 会生成 `adventureworks_ontology_seed.json` 和
 FK 关系候选和派生类候选仍需人工审阅，不能直接当作已发布模型包或 runtime
 硬推理来源。
 Review workspace 会为治理候选生成待决策记录，但不会应用模型变更，也不会创建真实治理 issue。
+Decision template 会生成 `governance_review_decisions_template.json` 给人工填写。它不是可直接 apply 的正式决策文件；需要 reviewer 填入 decision、reviewer、reviewed_at 和 rationale 后，另存为 `governance_review_decisions.json`。
 如果要生成 accepted changes，需要先创建
 `.tmp\adventureworks-semantic\governance_review_decisions.json`，写入已审阅决策，例如：
 
