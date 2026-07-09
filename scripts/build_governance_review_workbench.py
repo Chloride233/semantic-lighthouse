@@ -144,16 +144,19 @@ def _html_document(payload: dict[str, Any]) -> str:
     css = """
 :root {
   color-scheme: light;
-  --bg: #f6f7f4;
-  --ink: #17201b;
-  --muted: #657066;
-  --line: #d9ded5;
+  --bg: #f3f4f1;
+  --ink: #151b17;
+  --muted: #69736b;
+  --line: #d6dcd2;
   --panel: #ffffff;
-  --accent: #23684f;
-  --warn: #a45d18;
+  --soft: #edf1ea;
+  --accent: #1f6b4f;
+  --accent-soft: #e5f1eb;
+  --warn: #9b5a14;
   --danger: #9b2d30;
 }
 * { box-sizing: border-box; }
+* { min-width: 0; }
 body {
   margin: 0;
   background: var(--bg);
@@ -166,12 +169,12 @@ button, input, select, textarea {
 }
 .shell {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
   min-height: 100vh;
 }
 .sidebar {
   border-right: 1px solid var(--line);
-  background: #eef1ea;
+  background: var(--soft);
   padding: 20px;
   position: sticky;
   top: 0;
@@ -184,10 +187,51 @@ button, input, select, textarea {
 .title {
   font-size: 24px;
   line-height: 1.15;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
 }
 .muted {
   color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.section-label {
+  margin: 20px 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.flow {
+  display: grid;
+  gap: 8px;
+}
+.flow-step {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.58);
+}
+.flow-step strong {
+  display: block;
+  font-size: 13px;
+}
+.flow-index {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+.flow-note {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 .metric {
   display: grid;
@@ -201,7 +245,7 @@ button, input, select, textarea {
   border: 1px solid var(--line);
   background: var(--panel);
   border-radius: 8px;
-  padding: 10px;
+  padding: 12px;
   text-align: left;
   margin-top: 8px;
   cursor: pointer;
@@ -224,6 +268,7 @@ button, input, select, textarea {
   border-radius: 8px;
   padding: 9px 12px;
   cursor: pointer;
+  white-space: nowrap;
 }
 .button.secondary {
   background: transparent;
@@ -233,8 +278,12 @@ button, input, select, textarea {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 16px;
+  padding: 18px;
   margin-bottom: 14px;
+}
+.panel h3 {
+  margin: 0 0 12px;
+  font-size: 17px;
 }
 .group-title {
   display: flex;
@@ -256,13 +305,46 @@ button, input, select, textarea {
   font-size: 12px;
   background: #f7f8f5;
 }
+.badge.strong {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.stat {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fafbf8;
+}
+.stat span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.stat strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+}
 .checks, .samples {
   display: grid;
   gap: 8px;
 }
+.work-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+  gap: 14px;
+  align-items: start;
+}
 .batch-grid {
   display: grid;
-  grid-template-columns: minmax(140px, 180px) repeat(3, minmax(140px, 1fr)) auto;
+  grid-template-columns: minmax(130px, 170px) minmax(120px, 1fr) minmax(170px, 1fr) minmax(200px, 1.2fr) auto;
   gap: 10px;
   align-items: end;
 }
@@ -287,9 +369,31 @@ button, input, select, textarea {
 }
 .decision-grid {
   display: grid;
-  grid-template-columns: minmax(140px, 180px) repeat(4, minmax(120px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   align-items: start;
+}
+.queue-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcfa;
+  overflow: hidden;
+}
+.queue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.queue-meta span {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 6px;
+  background: white;
+  font-size: 12px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .field {
   display: grid;
@@ -301,6 +405,7 @@ button, input, select, textarea {
 }
 select, input, textarea {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: white;
@@ -341,6 +446,8 @@ textarea {
 @media (max-width: 900px) {
   .shell { grid-template-columns: 1fr; }
   .sidebar { position: static; height: auto; }
+  .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .work-grid { grid-template-columns: 1fr; }
   .batch-grid { grid-template-columns: 1fr; }
   .decision-grid { grid-template-columns: 1fr; }
 }
@@ -350,6 +457,12 @@ const state = window.REVIEW_WORKBENCH;
 const rowsById = new Map(state.decision_rows.map((row) => [row.review_item_id, {...row}]));
 let activeGroupKey = state.review_groups[0]?.group_key || "";
 let batchMessage = "";
+const decisionLabels = {
+  accept: "接受",
+  reject: "拒绝",
+  defer: "暂缓",
+  needs_more_evidence: "需要更多证据",
+};
 
 function csvEscape(value) {
   const text = String(value ?? "");
@@ -363,6 +476,28 @@ function rowComplete(row) {
   return Boolean(row.decision && row.reviewer && row.reviewed_at && row.rationale);
 }
 
+function currentGroup() {
+  return state.review_groups.find((item) => item.group_key === activeGroupKey) || state.review_groups[0];
+}
+
+function groupRows(group) {
+  return group.review_item_ids.map((id) => rowsById.get(id)).filter(Boolean);
+}
+
+function groupCompletedCount(group) {
+  return groupRows(group).filter(rowComplete).length;
+}
+
+function groupPendingCount(group) {
+  return groupRows(group).filter((row) => !row.decision).length;
+}
+
+function statusLabel(row) {
+  if (rowComplete(row)) return "已完成";
+  if (row.decision) return "缺少字段";
+  return "待处理";
+}
+
 function renderSidebar() {
   const sidebar = document.querySelector("#groups");
   sidebar.innerHTML = "";
@@ -371,13 +506,32 @@ function renderSidebar() {
     button.className = "group-nav";
     button.type = "button";
     button.setAttribute("aria-current", group.group_key === activeGroupKey ? "true" : "false");
-    button.innerHTML = `<strong>${group.source_table} / ${group.derived_class}</strong><br><span class="muted">${group.pending_decision_items} pending · ${group.total_items} total</span>`;
+    const completed = groupCompletedCount(group);
+    const pending = groupPendingCount(group);
+    button.innerHTML = `<strong>${group.source_table} / ${group.derived_class}</strong><br><span class="muted">${pending} 待处理 · ${completed} 已完成 · ${group.total_items} 总计</span>`;
     button.addEventListener("click", () => {
       activeGroupKey = group.group_key;
+      batchMessage = "";
       render();
     });
     sidebar.appendChild(button);
   });
+}
+
+function renderWorkflow() {
+  const group = currentGroup();
+  const pending = group ? groupPendingCount(group) : 0;
+  const hasEvidence = Boolean(group?.source_row_samples?.length);
+  const flow = document.querySelector("#workflow");
+  flow.innerHTML = `
+    <div class="section-label">审查流程</div>
+    <div class="flow" data-step="review-flow">
+      <div class="flow-step"><span class="flow-index">1</span><div><strong>选择分组</strong><div class="flow-note">${group ? `${group.source_table} / ${group.derived_class}` : "暂无分组"}</div></div></div>
+      <div class="flow-step"><span class="flow-index">2</span><div><strong>核验证据</strong><div class="flow-note">${hasEvidence ? "查看源数据样例和规则证据" : "当前分组没有样例"}</div></div></div>
+      <div class="flow-step"><span class="flow-index">3</span><div><strong>记录决策</strong><div class="flow-note">${pending} 条待处理，可批量或逐条填写</div></div></div>
+      <div class="flow-step"><span class="flow-index">4</span><div><strong>导出CSV</strong><div class="flow-note">下载后交给 post-review runner</div></div></div>
+    </div>
+  `;
 }
 
 function renderSummary() {
@@ -385,10 +539,10 @@ function renderSummary() {
   const complete = rows.filter(rowComplete).length;
   const pending = rows.length - complete;
   document.querySelector("#summary").innerHTML = `
-    <div class="metric"><span>Total rows</span><strong>${rows.length}</strong></div>
-    <div class="metric"><span>Completed</span><strong>${complete}</strong></div>
-    <div class="metric"><span>Pending</span><strong>${pending}</strong></div>
-    <div class="metric"><span>Groups</span><strong>${state.review_groups.length}</strong></div>
+    <div class="metric"><span>总行数</span><strong>${rows.length}</strong></div>
+    <div class="metric"><span>已完成</span><strong>${complete}</strong></div>
+    <div class="metric"><span>待审</span><strong>${pending}</strong></div>
+    <div class="metric"><span>分组</span><strong>${state.review_groups.length}</strong></div>
   `;
 }
 
@@ -410,16 +564,16 @@ function decisionSelect(row) {
   const wrap = document.createElement("div");
   wrap.className = "field";
   const label = document.createElement("label");
-  label.textContent = "Decision";
+  label.textContent = "决策";
   const select = document.createElement("select");
   const blank = document.createElement("option");
   blank.value = "";
-  blank.textContent = "Select";
+  blank.textContent = "请选择";
   select.appendChild(blank);
   state.decision_options.forEach((option) => {
     const item = document.createElement("option");
     item.value = option;
-    item.textContent = option;
+    item.textContent = decisionLabels[option] || option;
     select.appendChild(item);
   });
   select.value = row.decision || "";
@@ -439,29 +593,37 @@ function decisionEditor(group) {
     const row = rowsById.get(id);
     if (!row) return;
     const panel = document.createElement("div");
-    panel.className = "panel";
+    panel.className = "queue-item";
     const status = rowComplete(row) ? "complete" : "incomplete";
-    panel.innerHTML = `<div class="group-title"><div><strong>${id}</strong><div class="muted">${row.finding_message || ""}</div></div><span class="row-status ${status}">${status}</span></div>`;
+    panel.innerHTML = `
+      <div class="group-title">
+        <div>
+          <strong>${id}</strong>
+          <div class="muted">${row.finding_message || ""}</div>
+          <div class="queue-meta">
+            <span>推荐动作: ${row.recommended_decision || "无"}</span>
+            <span>证据锚点: ${row.evidence_anchor || "无"}</span>
+          </div>
+        </div>
+        <span class="row-status ${status}">${statusLabel(row)}</span>
+      </div>
+    `;
     const grid = document.createElement("div");
     grid.className = "decision-grid";
     grid.appendChild(decisionSelect(row));
-    grid.appendChild(inputField("Reviewer", row.reviewer, (value) => { row.reviewer = value; }));
-    grid.appendChild(inputField("Reviewed at", row.reviewed_at, (value) => { row.reviewed_at = value; }, {placeholder: "2026-07-09T08:00:00+00:00"}));
-    grid.appendChild(inputField("Rationale", row.rationale, (value) => { row.rationale = value; }, {textarea: true}));
+    grid.appendChild(inputField("审查人", row.reviewer, (value) => { row.reviewer = value; }));
+    grid.appendChild(inputField("审查时间", row.reviewed_at, (value) => { row.reviewed_at = value; }, {placeholder: "2026-07-09T08:00:00+00:00"}));
+    grid.appendChild(inputField("理由", row.rationale, (value) => { row.rationale = value; }, {textarea: true}));
     panel.appendChild(grid);
     container.appendChild(panel);
   });
   return container;
 }
 
-function groupRows(group) {
-  return group.review_item_ids.map((id) => rowsById.get(id)).filter(Boolean);
-}
-
 function decisionOptionsMarkup() {
   return [
-    '<option value="">Select</option>',
-    ...state.decision_options.map((option) => `<option value="${option}">${option}</option>`),
+    '<option value="">请选择</option>',
+    ...state.decision_options.map((option) => `<option value="${option}">${decisionLabels[option] || option}</option>`),
   ].join("");
 }
 
@@ -472,7 +634,7 @@ function applyGroupDecision(group) {
   const rationale = document.querySelector("#group-rationale").value.trim();
   const status = document.querySelector("#group-apply-status");
   if (!decision || !reviewer || !reviewedAt || !rationale) {
-    status.textContent = "Decision, reviewer, reviewed_at, and rationale are required.";
+    status.textContent = "决策、审查人、审查时间和理由都必须填写。";
     return;
   }
   let updated = 0;
@@ -484,7 +646,7 @@ function applyGroupDecision(group) {
     row.rationale = rationale;
     updated += 1;
   });
-  batchMessage = `${updated} pending rows updated; existing decisions are preserved.`;
+  batchMessage = `已更新 ${updated} 条待审记录；已有决策会保留。`;
   status.textContent = batchMessage;
   renderSummary();
   renderMain();
@@ -494,27 +656,27 @@ function renderBatchControls(group) {
   const panel = document.createElement("div");
   panel.className = "panel";
   panel.innerHTML = `
-    <h3>Batch decision</h3>
+    <h3>批量决策</h3>
     <div class="batch-grid">
       <div class="field">
-        <label for="group-decision">Decision</label>
+        <label for="group-decision">决策</label>
         <select id="group-decision">${decisionOptionsMarkup()}</select>
       </div>
       <div class="field">
-        <label for="group-reviewer">Reviewer</label>
+        <label for="group-reviewer">审查人</label>
         <input id="group-reviewer" autocomplete="off">
       </div>
       <div class="field">
-        <label for="group-reviewed-at">Reviewed at</label>
+        <label for="group-reviewed-at">审查时间</label>
         <input id="group-reviewed-at" placeholder="2026-07-09T08:00:00+00:00">
       </div>
       <div class="field">
-        <label for="group-rationale">Rationale</label>
+        <label for="group-rationale">理由</label>
         <textarea id="group-rationale"></textarea>
       </div>
-      <button class="button" id="apply-group" type="button">Apply</button>
+      <button class="button" id="apply-group" type="button">应用</button>
     </div>
-    <div class="hint">Applies to pending rows in this group; existing decisions are preserved.</div>
+    <div class="hint">只应用到当前分组的待审记录；已有决策会保留。</div>
     <div class="status-line" id="group-apply-status">${batchMessage}</div>
   `;
   panel.querySelector("#apply-group").addEventListener("click", () => applyGroupDecision(group));
@@ -524,47 +686,89 @@ function renderBatchControls(group) {
 function samples(group) {
   const wrap = document.createElement("div");
   wrap.className = "samples";
+  if (!group.source_row_samples.length) {
+    wrap.innerHTML = "<div class='sample muted'>没有源数据样例。</div>";
+    return wrap;
+  }
   group.source_row_samples.forEach((sample) => {
     const item = document.createElement("div");
     item.className = "sample";
     const values = Object.entries(sample.values || {}).map(([key, value]) => `<span>${key}: ${value}</span>`).join("");
-    item.innerHTML = `<strong>${sample.review_item_id}</strong> <span class="muted">${sample.table} row ${sample.row}</span><div class="kv">${values}</div>`;
+    item.innerHTML = `<strong>${sample.review_item_id}</strong> <span class="muted">${sample.table} 行 ${sample.row}</span><div class="kv">${values}</div>`;
     wrap.appendChild(item);
   });
   return wrap;
 }
 
-function renderMain() {
-  const group = state.review_groups.find((item) => item.group_key === activeGroupKey) || state.review_groups[0];
-  const main = document.querySelector("#main");
-  if (!group) {
-    main.innerHTML = "<div class='panel'>No review groups available.</div>";
-    return;
-  }
-  main.innerHTML = `
-    <div class="panel">
+function renderActiveGroupSummary(group) {
+  const completed = groupCompletedCount(group);
+  const pending = groupPendingCount(group);
+  const panel = document.createElement("div");
+  panel.className = "panel";
+  panel.innerHTML = `
+      <div class="section-label">当前分组</div>
       <div class="group-title">
         <div>
           <h2>${group.source_table} / ${group.derived_class}</h2>
-          <div class="muted">${group.total_items} items · ${group.pending_decision_items} pending</div>
+          <div class="muted">${(group.finding_messages || []).join(" ")}</div>
         </div>
-        <span class="badge">${group.owner_roles.join(", ") || "reviewer"}</span>
+        <span class="badge strong">${group.owner_roles.join(", ") || "reviewer"}</span>
       </div>
-      <div class="muted">${(group.finding_messages || []).join(" ")}</div>
+      <div class="stat-strip">
+        <div class="stat"><span>待处理事项</span><strong>${pending}</strong></div>
+        <div class="stat"><span>已完成</span><strong>${completed}</strong></div>
+        <div class="stat"><span>证据样例</span><strong>${group.source_row_samples.length}</strong></div>
+        <div class="stat"><span>总事项</span><strong>${group.total_items}</strong></div>
+      </div>
       <div class="kv">${(group.required_checks || []).map((check) => `<span>${check}</span>`).join("")}</div>
+  `;
+  return panel;
+}
+
+function renderQueueOverview(group) {
+  const panel = document.createElement("div");
+  panel.className = "panel";
+  const rows = groupRows(group);
+  const pending = rows.filter((row) => !row.decision).length;
+  panel.innerHTML = `
+    <div class="group-title">
+      <div>
+        <h3>决策队列</h3>
+        <div class="muted">${pending} 条待处理。逐条填写可修正当前行。</div>
+      </div>
+      <span class="badge">${rows.length} 条</span>
     </div>
   `;
+  panel.appendChild(decisionEditor(group));
+  return panel;
+}
+
+function renderMain() {
+  const group = currentGroup();
+  const main = document.querySelector("#main");
+  if (!group) {
+    main.innerHTML = "<div class='panel'>没有可审查分组。</div>";
+    return;
+  }
+  main.innerHTML = "";
+  main.appendChild(renderActiveGroupSummary(group));
   main.appendChild(renderBatchControls(group));
+  const grid = document.createElement("div");
+  grid.className = "work-grid";
   const samplePanel = document.createElement("div");
   samplePanel.className = "panel";
-  samplePanel.innerHTML = "<h3>Source row samples</h3>";
+  samplePanel.innerHTML = `
+    <div class="group-title">
+      <div>
+        <h3>源数据样例</h3>
+        <div class="muted">先核对样例，再决定是否进入 accepted ontology。</div>
+      </div>
+    </div>
+  `;
   samplePanel.appendChild(samples(group));
-  main.appendChild(samplePanel);
-  const decisionPanel = document.createElement("div");
-  decisionPanel.className = "panel";
-  decisionPanel.innerHTML = "<h3>Decisions</h3>";
-  decisionPanel.appendChild(decisionEditor(group));
-  main.appendChild(decisionPanel);
+  grid.appendChild(samplePanel);
+  grid.appendChild(renderQueueOverview(group));
+  main.appendChild(grid);
 }
 
 function downloadCsv() {
@@ -590,6 +794,7 @@ function setReviewedAtNow() {
 }
 
 function render() {
+  renderWorkflow();
   renderSidebar();
   renderSummary();
   renderMain();
@@ -600,29 +805,30 @@ document.querySelector("#timestamp").addEventListener("click", setReviewedAtNow)
 render();
 """
     return f"""<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Governance Review Workbench</title>
+  <title>治理审查工作台</title>
   <style>{css}</style>
 </head>
 <body data-review-workbench>
   <div class="shell">
     <aside class="sidebar">
-      <h1 class="title">Governance Review Workbench</h1>
-      <p class="muted">Offline review surface. It edits browser state and exports CSV only.</p>
+      <h1 class="title">治理审查工作台</h1>
+      <p class="muted">离线审查界面。只编辑浏览器状态，并导出 CSV。</p>
+      <div id="workflow"></div>
       <div id="summary"></div>
       <div class="toolbar">
-        <button class="button" id="download" type="button">Download CSV</button>
-        <button class="button secondary" id="timestamp" type="button">Set missing reviewed_at</button>
+        <button class="button" id="download" type="button">下载 CSV</button>
+        <button class="button secondary" id="timestamp" type="button">填充缺失审查时间</button>
       </div>
       <div id="groups"></div>
       <ul hidden>
         {preloaded_groups}
       </ul>
       <div class="boundary">
-        <strong>Boundaries</strong><br>
+        <strong>边界</strong><br>
         offlineOnly: true<br>
         writesToDatabase: false<br>
         createsRealGovernanceIssues: false<br>

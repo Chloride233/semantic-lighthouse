@@ -186,7 +186,8 @@ def test_write_workbench_outputs_static_html(tmp_path):
 
     assert result["source_artifacts"]["workbench_html"] == str(output)
     html = output.read_text(encoding="utf-8")
-    assert "<title>Governance Review Workbench</title>" in html
+    assert "<title>治理审查工作台</title>" in html
+    assert "离线审查界面。只编辑浏览器状态，并导出 CSV。" in html
     assert "equipment / at_risk_equipment" in html
     assert "CNC Asset" in html
     assert "data-review-workbench" in html
@@ -209,14 +210,51 @@ def test_workbench_includes_group_decision_controls(tmp_path):
     mod.write_governance_review_workbench(tmp_path, csv_path, output)
 
     html = output.read_text(encoding="utf-8")
-    assert "Batch decision" in html
+    assert "批量决策" in html
+    assert "决策" in html
+    assert "审查人" in html
+    assert "审查时间" in html
+    assert "理由" in html
     assert "id=\"group-decision\"" in html
     assert "id=\"group-reviewer\"" in html
     assert "id=\"group-reviewed-at\"" in html
     assert "id=\"group-rationale\"" in html
     assert "id=\"apply-group\"" in html
     assert "applyGroupDecision" in html
-    assert "existing decisions are preserved" in html
+    assert "已有决策会保留" in html
+    assert 'accept: "接受"' in html
+    assert 'reject: "拒绝"' in html
+    assert 'defer: "暂缓"' in html
+    assert 'needs_more_evidence: "需要更多证据"' in html
+    assert "item.value = option" in html
+    assert "source_path" not in html
+    assert "C:/unsafe" not in html
+
+
+def test_workbench_explains_review_flow_and_current_work(tmp_path):
+    mod = _load_module()
+    _write_briefing(tmp_path)
+    csv_path = tmp_path / "governance_review_decisions_template.csv"
+    _write_decision_csv(csv_path)
+    output = tmp_path / "governance_review_workbench.html"
+
+    mod.write_governance_review_workbench(tmp_path, csv_path, output)
+
+    html = output.read_text(encoding="utf-8")
+    assert "审查流程" in html
+    assert "选择分组" in html
+    assert "核验证据" in html
+    assert "记录决策" in html
+    assert "导出CSV" in html
+    assert "当前分组" in html
+    assert "待处理事项" in html
+    assert "决策队列" in html
+    assert "推荐动作" in html
+    assert "证据锚点" in html
+    assert "renderWorkflow" in html
+    assert "renderActiveGroupSummary" in html
+    assert "renderQueueOverview" in html
+    assert "data-step=\"review-flow\"" in html
     assert "source_path" not in html
     assert "C:/unsafe" not in html
 
