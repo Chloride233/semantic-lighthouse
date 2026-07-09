@@ -127,6 +127,40 @@ def _write_workspace(data_dir: Path) -> None:
     )
 
 
+def _write_source_csvs(data_dir: Path) -> None:
+    equipment_rows = [
+        {
+            "equipment_id": "EQP-1",
+            "equipment_name": "CNC Asset",
+            "status": "degraded",
+            "source_path": "C:/unsafe/raw.csv",
+        },
+        {
+            "equipment_id": "EQP-2",
+            "equipment_name": "Lathe Asset",
+            "status": "operational",
+            "source_path": "C:/unsafe/raw.csv",
+        },
+    ]
+    with (data_dir / "equipment.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(equipment_rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(equipment_rows)
+
+    material_rows = [
+        {
+            "material_id": f"MAT-{index}",
+            "material_name": f"Material {index}",
+            "abc_class": "A" if index == 10 else "C",
+        }
+        for index in range(1, 11)
+    ]
+    with (data_dir / "materials.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(material_rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(material_rows)
+
+
 def _write_csv(path: Path) -> None:
     rows = [
         {
@@ -166,6 +200,7 @@ def _write_csv(path: Path) -> None:
 def test_build_review_briefing_groups_pending_items_and_commands(tmp_path):
     mod = _load_module()
     _write_workspace(tmp_path)
+    _write_source_csvs(tmp_path)
     csv_path = tmp_path / "governance_review_decisions_template.csv"
     _write_csv(csv_path)
 
@@ -178,6 +213,7 @@ def test_build_review_briefing_groups_pending_items_and_commands(tmp_path):
         "group_count": 2,
         "pending_decision_items": 2,
         "completed_decision_items": 1,
+        "groups_with_source_row_samples": 2,
         "requires_human_review": True,
     }
     assert result["decision_options"] == [
@@ -204,7 +240,28 @@ def test_build_review_briefing_groups_pending_items_and_commands(tmp_path):
     assert "--derived-class at_risk_equipment" in equipment["fill_command_template"]
     assert "--decision <decision>" in equipment["fill_command_template"]
     assert "accept " not in equipment["fill_command_template"]
-
+    assert equipment["source_row_samples"] == [
+        {
+            "review_item_id": "gov-0001",
+            "table": "equipment",
+            "row": "1",
+            "values": {
+                "equipment_id": "EQP-1",
+                "equipment_name": "CNC Asset",
+                "status": "degraded",
+            },
+        },
+        {
+            "review_item_id": "gov-0002",
+            "table": "equipment",
+            "row": "2",
+            "values": {
+                "equipment_id": "EQP-2",
+                "equipment_name": "Lathe Asset",
+                "status": "operational",
+            },
+        },
+    ]
     serialized = json.dumps(result)
     assert "source_path" not in serialized
     assert "C:/unsafe" not in serialized
@@ -224,6 +281,7 @@ def test_build_review_briefing_groups_pending_items_and_commands(tmp_path):
 def test_write_review_briefing_outputs_json_and_markdown(tmp_path):
     mod = _load_module()
     _write_workspace(tmp_path)
+    _write_source_csvs(tmp_path)
     csv_path = tmp_path / "governance_review_decisions_template.csv"
     _write_csv(csv_path)
     json_path = tmp_path / "briefing.json"
@@ -242,6 +300,7 @@ def test_write_review_briefing_outputs_json_and_markdown(tmp_path):
     assert "equipment" in markdown
     assert "at_risk_equipment" in markdown
     assert "--decision <decision>" in markdown
+    assert "CNC Asset" in markdown
     assert "does not record decisions" in markdown
 
 

@@ -172,7 +172,7 @@ precheck. Blank decision rows are skipped so partial review can be prechecked.
 `inspect_governance_decision_csv.py` reports whether the filled CSV is complete
 enough for the post-review runner and lists missing decision fields by row.
 `build_governance_review_briefing.py` groups pending review items by source
-table and derived class so reviewers can decide in explicit batches.
+table and derived class, with bounded source row samples for explicit review.
 `fill_governance_decision_csv.py` can write selected rows when a reviewer has
 already made an explicit decision; it requires at least one filter and does not
 infer or auto-accept candidates.

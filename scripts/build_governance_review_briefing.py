@@ -25,6 +25,9 @@ from typing import Any
 BRIEFING_VERSION = "1.0"
 DECISION_OPTIONS = ["accept", "reject", "defer", "needs_more_evidence"]
 REQUIRED_DECISION_FIELDS = ["decision", "reviewer", "reviewed_at", "rationale"]
+UNSAFE_FIELD_NAMES = {"source_path", "storage_path"}
+MAX_SOURCE_ROW_SAMPLES_PER_GROUP = 3
+MAX_SOURCE_ROW_SAMPLE_FIELDS = 12
 
 
 def _utc_now() -> str:
@@ -65,6 +68,20 @@ def _decision_complete(row: dict[str, str] | None) -> bool:
     return all(_clean(row.get(field)) for field in REQUIRED_DECISION_FIELDS)
 
 
+def _table_csv_files(data_dir: Path) -> dict[str, Path]:
+    manifest_path = data_dir / "manifest.json"
+    if not manifest_path.is_file():
+        return {}
+    manifest = _read_json(manifest_path)
+    paths = {}
+    for table in manifest.get("tables", []):
+        table_name = _clean(table.get("table_name"))
+        csv_file = _clean(table.get("csv_file"))
+        if table_name and csv_file:
+            paths[table_name] = data_dir / csv_file
+    return paths
+
+
 def _safe_anchor(anchor: dict[str, Any]) -> dict[str, Any]:
     return {
         "source": anchor.get("source"),
@@ -82,6 +99,83 @@ def _item_anchor(item: dict[str, Any]) -> dict[str, Any]:
     if anchors:
         return _safe_anchor(anchors[0] or {})
     return {}
+
+
+def _source_csv_path(
+    *,
+    data_dir: Path,
+    table_csv_files: dict[str, Path],
+    table: str,
+) -> Path:
+    return table_csv_files.get(table) or (data_dir / f"{table}.csv")
+
+
+def _safe_source_values(row: dict[str, str]) -> dict[str, str]:
+    values = {}
+    for key, value in row.items():
+        if key in UNSAFE_FIELD_NAMES:
+            continue
+        values[key] = value
+        if len(values) >= MAX_SOURCE_ROW_SAMPLE_FIELDS:
+            break
+    return values
+
+
+def _source_row_sample(
+    *,
+    data_dir: Path,
+    table_csv_files: dict[str, Path],
+    review_item_id: str,
+    anchor: dict[str, Any],
+) -> dict[str, Any] | None:
+    table = _clean(anchor.get("table"))
+    row_number = _clean(anchor.get("row"))
+    if not table or not row_number:
+        return None
+    try:
+        row_index = int(row_number) - 1
+    except ValueError:
+        return None
+    if row_index < 0:
+        return None
+
+    csv_path = _source_csv_path(
+        data_dir=data_dir,
+        table_csv_files=table_csv_files,
+        table=table,
+    )
+    if not csv_path.is_file():
+        return None
+    with csv_path.open(encoding="utf-8-sig", newline="") as handle:
+        for index, row in enumerate(csv.DictReader(handle)):
+            if index != row_index:
+                continue
+            return {
+                "review_item_id": review_item_id,
+                "table": table,
+                "row": row_number,
+                "values": _safe_source_values(row),
+            }
+    return None
+
+
+def _source_row_samples(
+    *,
+    data_dir: Path,
+    table_csv_files: dict[str, Path],
+    items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    samples = []
+    for item in items[:MAX_SOURCE_ROW_SAMPLES_PER_GROUP]:
+        sample = _source_row_sample(
+            data_dir=data_dir,
+            table_csv_files=table_csv_files,
+            review_item_id=_clean(item.get("review_item_id")),
+            anchor=_item_anchor(item),
+        )
+        if sample is not None:
+            samples.append(sample)
+    return samples
 
 
 def _item_scope(item: dict[str, Any]) -> tuple[str, str]:
@@ -133,11 +227,13 @@ def _fill_command_template(
 
 def _review_group(
     *,
+    data_dir: Path,
     source_table: str,
     derived_class: str,
     items: list[dict[str, Any]],
     decisions_by_id: dict[str, dict[str, str]],
     csv_path: Path | None,
+    table_csv_files: dict[str, Path],
 ) -> dict[str, Any]:
     complete_ids = []
     pending_ids = []
@@ -174,6 +270,11 @@ def _review_group(
         "required_checks": _required_checks(items),
         "finding_messages": _finding_messages(items),
         "evidence_samples": [_item_anchor(item) for item in items[:3]],
+        "source_row_samples": _source_row_samples(
+            data_dir=data_dir,
+            table_csv_files=table_csv_files,
+            items=items,
+        ),
         "fill_command_template": _fill_command_template(
             csv_path=csv_path,
             source_table=source_table,
@@ -203,18 +304,24 @@ def build_governance_review_briefing(
     workspace = _read_json(workspace_path)
     review_items = workspace.get("review_items", [])
     decisions_by_id = _read_decision_csv(csv_path)
+    table_csv_files = _table_csv_files(data_dir)
     groups = [
         _review_group(
+            data_dir=data_dir,
             source_table=source_table,
             derived_class=derived_class,
             items=items,
             decisions_by_id=decisions_by_id,
             csv_path=csv_path,
+            table_csv_files=table_csv_files,
         )
         for (source_table, derived_class), items in _group_items(review_items).items()
     ]
     pending_count = sum(group["pending_decision_items"] for group in groups)
     completed_count = sum(group["completed_decision_items"] for group in groups)
+    groups_with_samples = sum(
+        1 for group in groups if group.get("source_row_samples")
+    )
 
     return {
         "briefing_version": BRIEFING_VERSION,
@@ -230,6 +337,7 @@ def build_governance_review_briefing(
             "group_count": len(groups),
             "pending_decision_items": pending_count,
             "completed_decision_items": completed_count,
+            "groups_with_source_row_samples": groups_with_samples,
             "requires_human_review": pending_count > 0,
         },
         "decision_options": DECISION_OPTIONS,
@@ -279,9 +387,17 @@ def render_markdown(result: dict[str, Any]) -> str:
         )
     lines.extend(["", "## Fill Command Templates", ""])
     for group in result["review_groups"]:
+        sample_lines = [
+            f"- `{sample['review_item_id']}` row `{sample['row']}`: "
+            f"`{json.dumps(sample['values'], ensure_ascii=False)}`"
+            for sample in group.get("source_row_samples", [])
+        ]
         lines.extend(
             [
                 f"### {group['source_table']} / {group['derived_class']}",
+                "",
+                "Source row samples:",
+                *(sample_lines or ["- No source row samples available."]),
                 "",
                 "```powershell",
                 group["fill_command_template"],
