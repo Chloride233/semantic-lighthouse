@@ -195,7 +195,22 @@ post-review loop：
 .\.venv\Scripts\python scripts\run_post_review_semantic_loop.py `
     --data-pack .tmp\adventureworks-semantic `
     --review-batch public-benchmark-fixture
+
+.\.venv\Scripts\python scripts\run_db_runtime_query_smoke.py `
+    --data-pack .tmp\adventureworks-semantic `
+    --max-plans 5
+
+.\.venv\Scripts\python scripts\build_semantic_asset_feedback.py `
+    --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\build_offline_acceptance_report.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
+
+DB runtime smoke 会创建临时 in-memory SQLite 和临时 dataset-storage 副本，
+然后调用现有 runtime query service。它会读取有限数据行并写 runtime audit，
+但不会写应用数据库、不会发布 package、不会激活 runtime，也不会创建真实
+governance issue。
 
 如果要生成 accepted changes，需要先创建
 `.tmp\adventureworks-semantic\governance_review_decisions.json`，写入已审阅决策，例如：

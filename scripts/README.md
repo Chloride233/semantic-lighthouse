@@ -25,6 +25,7 @@ This directory contains active smoke checks, ontology pipeline utilities, deploy
 | `build_offline_model_package.py` | Build offline model package bridge artifact from accepted ontology drafts |
 | `build_offline_dataset_binding.py` | Build offline dataset binding bridge artifact from a built model package and data-pack metadata |
 | `build_offline_runtime_query_plan.py` | Build offline explain-only runtime query dry-run plans from dataset bindings |
+| `run_db_runtime_query_smoke.py` | Run temporary DB-backed runtime query smoke from offline query plans and write audit-backed report |
 | `build_semantic_asset_feedback.py` | Build offline semantic asset feedback backlog from review, package, binding, and runtime readiness state |
 | `build_offline_acceptance_report.py` | Build offline end-to-end semantic loop acceptance report from all chain artifacts |
 | `export_adventureworks.py` | Export a focused AdventureWorks raw CSV + manifest benchmark pack through SSH/sqlcmd |

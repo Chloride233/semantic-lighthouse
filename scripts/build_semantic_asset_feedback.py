@@ -212,19 +212,63 @@ def _runtime_activation_feedback(query_plan: dict[str, Any]) -> dict[str, Any] |
     )
 
 
+def _runtime_smoke_passed(runtime_smoke: dict[str, Any] | None) -> bool:
+    if not runtime_smoke:
+        return False
+    summary = runtime_smoke.get("summary", {})
+    return (
+        summary.get("runtime_execution_status") == "PASS"
+        and summary.get("executes_runtime_query") is True
+        and summary.get("creates_audit_records") is True
+    )
+
+
+def _runtime_smoke_feedback(
+    runtime_smoke: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if not runtime_smoke:
+        return None
+    summary = runtime_smoke.get("summary", {})
+    if summary.get("runtime_execution_status") == "PASS":
+        return None
+    return _feedback_item(
+        feedback_id="semantic-feedback-db-runtime-smoke-failed",
+        target_asset_type="runtime_query_execution",
+        severity="high",
+        source_artifact="db_runtime_query_smoke_report.json",
+        message="DB-backed runtime query smoke did not pass.",
+        recommended_action=(
+            "Resolve runtime smoke readiness issues before treating the "
+            "semantic loop as executable."
+        ),
+        evidence={
+            "runtime_execution_status": summary.get("runtime_execution_status"),
+            "executed_query_count": int(
+                summary.get("executed_query_count", 0) or 0
+            ),
+            "audit_record_count": int(summary.get("audit_record_count", 0) or 0),
+        },
+    )
+
+
 def _feedback_items(
     *,
     query_plan: dict[str, Any],
     changes: dict[str, Any] | None,
     drafts: dict[str, Any] | None,
     package: dict[str, Any] | None,
+    runtime_smoke: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
+    runtime_gap = None
+    if not _runtime_smoke_passed(runtime_smoke):
+        runtime_gap = _runtime_activation_feedback(query_plan)
     items = [
         _human_review_feedback(changes),
         _draft_feedback(drafts),
         _package_feedback(package),
         _runtime_not_ready_feedback(query_plan),
-        _runtime_activation_feedback(query_plan),
+        runtime_gap,
+        _runtime_smoke_feedback(runtime_smoke),
     ]
     return [item for item in items if item is not None]
 
@@ -246,16 +290,19 @@ def build_semantic_asset_feedback(data_dir: Path) -> dict[str, Any]:
     drafts = _read_optional_json(data_dir / "accepted_ontology_drafts.json")
     package = _read_optional_json(data_dir / "offline_model_package.json")
     binding = _read_optional_json(data_dir / "offline_dataset_binding.json")
+    runtime_smoke = _read_optional_json(data_dir / "db_runtime_query_smoke_report.json")
 
     items = _feedback_items(
         query_plan=query_plan,
         changes=changes,
         drafts=drafts,
         package=package,
+        runtime_smoke=runtime_smoke,
     )
     runtime_query_ready = bool(
         query_plan.get("summary", {}).get("runtime_query_ready", False)
     )
+    smoke_summary = (runtime_smoke or {}).get("summary", {})
     requires_human_review = bool(items)
 
     return {
@@ -279,6 +326,9 @@ def build_semantic_asset_feedback(data_dir: Path) -> dict[str, Any]:
             "offline_dataset_binding": _artifact(
                 data_dir / "offline_dataset_binding.json"
             ),
+            "db_runtime_query_smoke_report": _artifact(
+                data_dir / "db_runtime_query_smoke_report.json"
+            ),
         },
         "summary": {
             "feedback_status": "BACKLOG_OPEN" if items else "NO_OPEN_FEEDBACK",
@@ -287,6 +337,16 @@ def build_semantic_asset_feedback(data_dir: Path) -> dict[str, Any]:
             "requires_human_review": requires_human_review,
             "writes_to_database": False,
             "creates_real_governance_issues": False,
+            "runtime_execution_status": smoke_summary.get(
+                "runtime_execution_status",
+                "NOT_RUN",
+            ),
+            "executes_runtime_query": bool(
+                smoke_summary.get("executes_runtime_query", False)
+            ),
+            "creates_audit_records": bool(
+                smoke_summary.get("creates_audit_records", False)
+            ),
             "by_severity": _count_by_severity(items),
         },
         "feedback_items": items,
@@ -296,6 +356,7 @@ def build_semantic_asset_feedback(data_dir: Path) -> dict[str, Any]:
             "package_summary": (package or {}).get("summary", {}),
             "draft_summary": (drafts or {}).get("summary", {}),
             "accepted_change_summary": (changes or {}).get("summary", {}),
+            "runtime_smoke_summary": smoke_summary,
         },
         "boundaries": {
             "offline_only": True,

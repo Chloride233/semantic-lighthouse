@@ -202,6 +202,9 @@ def test_not_ready_chain_outputs_semantic_asset_backlog(tmp_path):
         "requires_human_review": True,
         "writes_to_database": False,
         "creates_real_governance_issues": False,
+        "runtime_execution_status": "NOT_RUN",
+        "executes_runtime_query": False,
+        "creates_audit_records": False,
         "by_severity": {"high": 1, "medium": 3},
     }
     assert [item["feedback_id"] for item in result["feedback_items"]] == [

@@ -230,6 +230,27 @@ def _runtime_stage(query_plan: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _runtime_smoke_stage(runtime_smoke: dict[str, Any] | None) -> dict[str, Any]:
+    summary = (runtime_smoke or {}).get("summary", {})
+    status = summary.get("runtime_execution_status", "NOT_RUN")
+    return _stage(
+        "db_runtime_query_smoke",
+        str(status),
+        {
+            "executed_query_count": int(
+                summary.get("executed_query_count", 0) or 0
+            ),
+            "returned_row_count": int(summary.get("returned_row_count", 0) or 0),
+            "audit_record_count": int(
+                summary.get("audit_record_count", 0) or 0
+            ),
+            "writes_to_application_database": bool(
+                summary.get("writes_to_application_database", False)
+            ),
+        },
+    )
+
+
 def _feedback_stage(feedback: dict[str, Any]) -> dict[str, Any]:
     summary = feedback.get("summary", {})
     return _stage(
@@ -247,6 +268,8 @@ def _feedback_stage(feedback: dict[str, Any]) -> dict[str, Any]:
 def _chain_status(summary: dict[str, Any]) -> str:
     if summary["pending_review_items"] > 0:
         return "BLOCKED_BY_HUMAN_REVIEW"
+    if summary.get("runtime_execution_status") == "PASS":
+        return "DB_RUNTIME_SMOKE_PASS"
     if summary["query_status"] == "QUERY_PLANNED":
         return "READY_FOR_SAFETY_LANE"
     if summary["feedback_items"] > 0:
@@ -266,6 +289,11 @@ def _acceptance_criteria(summary: dict[str, Any]) -> list[dict[str, str]]:
         and summary["binding_status"] == "BOUND"
     )
     query_planned = summary["query_status"] == "QUERY_PLANNED"
+    runtime_smoke_passed = (
+        summary.get("runtime_execution_status") == "PASS"
+        and summary.get("executes_runtime_query") is True
+        and summary.get("runtime_audit_record_count", 0) > 0
+    )
     feedback_ready = summary["feedback_status"] in {
         "BACKLOG_OPEN",
         "NO_OPEN_FEEDBACK",
@@ -297,6 +325,10 @@ def _acceptance_criteria(summary: dict[str, Any]) -> list[dict[str, str]]:
             "PASS" if query_planned else "BLOCKED",
         ),
         _criterion(
+            "DB-backed runtime smoke executed with audit",
+            "PASS" if runtime_smoke_passed else "BLOCKED",
+        ),
+        _criterion(
             "Semantic asset feedback backlog is generated",
             "PASS" if feedback_ready else "FAIL",
         ),
@@ -314,6 +346,7 @@ def _summary(
     query_plan: dict[str, Any],
     feedback: dict[str, Any],
     decision_context: dict[str, Any],
+    runtime_smoke: dict[str, Any] | None,
 ) -> dict[str, Any]:
     semantic_summary = semantic_ci.get("summary", {})
     data_pack = semantic_ci.get("data_pack", feedback.get("data_pack", {}))
@@ -323,6 +356,7 @@ def _summary(
     binding_summary = binding.get("summary", {})
     query_summary = query_plan.get("summary", {})
     feedback_summary = feedback.get("summary", {})
+    runtime_smoke_summary = (runtime_smoke or {}).get("summary", {})
 
     summary = {
         "chain_status": "UNKNOWN",
@@ -351,6 +385,16 @@ def _summary(
         "requires_human_review": bool(
             feedback_summary.get("requires_human_review", False)
             or _effective_pending_review_items(workspace, changes) > 0
+        ),
+        "runtime_execution_status": runtime_smoke_summary.get(
+            "runtime_execution_status",
+            "NOT_RUN",
+        ),
+        "executes_runtime_query": bool(
+            runtime_smoke_summary.get("executes_runtime_query", False)
+        ),
+        "runtime_audit_record_count": int(
+            runtime_smoke_summary.get("audit_record_count", 0) or 0
         ),
         "decision_mode": decision_context["decision_mode"],
         "not_enterprise_human_review": decision_context[
@@ -402,6 +446,14 @@ def build_offline_acceptance_report(data_dir: Path) -> dict[str, Any]:
         data_dir / "offline_runtime_query_plan.json",
         "offline_runtime_query_plan.json",
     )
+    runtime_smoke = (
+        _read_json(
+            data_dir / "db_runtime_query_smoke_report.json",
+            "db_runtime_query_smoke_report.json",
+        )
+        if (data_dir / "db_runtime_query_smoke_report.json").is_file()
+        else None
+    )
     decision_context = _decision_context(data_dir)
 
     summary = _summary(
@@ -414,6 +466,7 @@ def build_offline_acceptance_report(data_dir: Path) -> dict[str, Any]:
         query_plan=query_plan,
         feedback=feedback,
         decision_context=decision_context,
+        runtime_smoke=runtime_smoke,
     )
     criteria_summary = dict(summary)
     criteria_summary["semantic_ci_hard_failures"] = int(
@@ -433,6 +486,7 @@ def build_offline_acceptance_report(data_dir: Path) -> dict[str, Any]:
             _package_stage(package),
             _binding_stage(binding),
             _runtime_stage(query_plan),
+            _runtime_smoke_stage(runtime_smoke),
             _feedback_stage(feedback),
         ],
         "acceptance_criteria": _acceptance_criteria(criteria_summary),
@@ -458,6 +512,9 @@ def build_offline_acceptance_report(data_dir: Path) -> dict[str, Any]:
             ),
             "offline_runtime_query_plan": _artifact(
                 data_dir / "offline_runtime_query_plan.json"
+            ),
+            "db_runtime_query_smoke_report": _artifact(
+                data_dir / "db_runtime_query_smoke_report.json"
             ),
             "semantic_asset_feedback": _artifact(
                 data_dir / "semantic_asset_feedback.json"

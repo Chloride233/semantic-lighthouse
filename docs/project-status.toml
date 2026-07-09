@@ -20,20 +20,22 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R3F FK indexing delivered"
-description = "R3F complete. Two local micro-optimizations in runtime_traverse.py: _build_target_index uses defaultdict(list) instead of setdefault() to avoid wasted [] allocations per row; _convert_row_fields pre-computes field→value_type mapping once per field list instead of calling prop_map.get().get() for every row/field. Both optimizations are zero-behavior-change. Existing scan_limit and scan_truncated were already delivered pre-R3F. 2 new tests (122 total). No migration, no API/schema change, no new dependencies."
+current = "DB runtime query smoke bridge delivered"
+description = "Safety Lane slice advances the public benchmark chain beyond offline QUERY_PLANNED. Added run_db_runtime_query_smoke.py, which seeds temporary in-memory SQLite plus temporary dataset-storage, calls the existing runtime query service, reads bounded CSV rows, and verifies OntologyRuntimeAudit records without writing the application database, publishing packages, activating runtime, or creating real governance issues. AdventureWorks public benchmark fixture smoke executed 5 runtime queries, returned 70 rows, wrote 5 runtime audit records, rebuilt semantic feedback to NO_OPEN_FEEDBACK, and rebuilt acceptance status to DB_RUNTIME_SMOKE_PASS. Public benchmark fixture remains explicitly not enterprise human review."
 
 [next_decision_gate]
-name = "R3 runtime closeout complete / next product decision"
-description = "R3A-R3F all delivered. Runtime enhancement line is complete: R3A planning, R3B grouped response, R3C filter pushdown, R3D bidirectional traversal, R3E1 sorting, R3F FK indexing. Aggregation (R3E2) deferred indefinitely per design decision. Next product direction requires explicit user decision — no automatic phase expansion to R4, Phase 20, MCP, or new feature lines."
+name = "Runtime smoke complete / production promotion decision"
+description = "The benchmark chain now proves temporary DB-backed runtime query execution and audit from offline artifacts. Next production-grade step is a separate Safety Lane decision: persist reviewed packages and dataset bindings into the real app database with explicit authorization, audit, rollback, and human approval semantics. Public benchmark fixture is sufficient for engineering validation, not for enterprise semantic approval."
 
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "f4bccfb"
-backend_pytest = 848
+latest_commit = "pending-current-safety-slice"
+backend_pytest = "full pytest timed out locally after 10 minutes; related semantic-loop tests passed"
 ruff = "clean"
 migration_head = "0029"
 traverse_tests = 122
+runtime_smoke_tests = 3
+semantic_loop_tests = 25

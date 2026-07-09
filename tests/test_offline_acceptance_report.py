@@ -189,10 +189,38 @@ def _write_runtime_plan(
     )
 
 
+def _write_runtime_smoke(data_dir: Path, status: str = "PASS") -> None:
+    _write_json(
+        data_dir / "db_runtime_query_smoke_report.json",
+        {
+            "report_version": "1.0",
+            "pipeline": "db_runtime_query_smoke",
+            "data_pack": {"path": str(data_dir)},
+            "summary": {
+                "runtime_execution_status": status,
+                "query_plan_count": 1,
+                "executed_query_count": 1 if status == "PASS" else 0,
+                "returned_row_count": 2 if status == "PASS" else 0,
+                "audit_record_count": 1 if status == "PASS" else 0,
+                "executes_runtime_query": status == "PASS",
+                "reads_dataset_rows": status == "PASS",
+                "creates_audit_records": status == "PASS",
+                "writes_to_application_database": False,
+                "database_scope": "temporary_sqlite_smoke",
+            },
+            "boundaries": {
+                "temporary_sqlite_only": True,
+                "writes_to_application_database": False,
+            },
+        },
+    )
+
+
 def _write_feedback(
     data_dir: Path,
     status: str = "BACKLOG_OPEN",
     item_count: int = 4,
+    runtime_execution_status: str = "NOT_RUN",
 ) -> None:
     _write_json(
         data_dir / "semantic_asset_feedback.json",
@@ -211,6 +239,9 @@ def _write_feedback(
                 "runtime_query_ready": False,
                 "total_feedback_items": item_count,
                 "requires_human_review": item_count > 0,
+                "runtime_execution_status": runtime_execution_status,
+                "executes_runtime_query": runtime_execution_status == "PASS",
+                "creates_audit_records": runtime_execution_status == "PASS",
             },
         },
     )
@@ -254,6 +285,9 @@ def test_not_ready_chain_outputs_blocked_acceptance_report(tmp_path):
         "decision_mode": "not_available",
         "not_enterprise_human_review": False,
         "public_benchmark_fixture_only": False,
+        "runtime_execution_status": "NOT_RUN",
+        "executes_runtime_query": False,
+        "runtime_audit_record_count": 0,
     }
     assert result["stages"] == [
         {
@@ -307,6 +341,16 @@ def test_not_ready_chain_outputs_blocked_acceptance_report(tmp_path):
             },
         },
         {
+            "stage": "db_runtime_query_smoke",
+            "status": "NOT_RUN",
+            "evidence": {
+                "executed_query_count": 0,
+                "returned_row_count": 0,
+                "audit_record_count": 0,
+                "writes_to_application_database": False,
+            },
+        },
+        {
             "stage": "semantic_asset_feedback",
             "status": "BACKLOG_OPEN",
             "evidence": {
@@ -337,6 +381,10 @@ def test_not_ready_chain_outputs_blocked_acceptance_report(tmp_path):
             "status": "BLOCKED",
         },
         {
+            "criterion": "DB-backed runtime smoke executed with audit",
+            "status": "BLOCKED",
+        },
+        {
             "criterion": "Semantic asset feedback backlog is generated",
             "status": "PASS",
         },
@@ -361,10 +409,14 @@ def test_query_planned_chain_remains_safety_lane_required(tmp_path):
     assert result["summary"]["chain_status"] == "READY_FOR_SAFETY_LANE"
     assert result["summary"]["ready_for_db_backed_runtime"] is False
     assert result["summary"]["query_status"] == "QUERY_PLANNED"
-    assert result["acceptance_criteria"][-2] == {
+    assert {
         "criterion": "Runtime query is ready for Safety Lane promotion",
         "status": "PASS",
-    }
+    } in result["acceptance_criteria"]
+    assert {
+        "criterion": "DB-backed runtime smoke executed with audit",
+        "status": "BLOCKED",
+    } in result["acceptance_criteria"]
 
 
 def test_public_benchmark_fixture_is_not_reported_as_enterprise_human_review(
@@ -390,6 +442,35 @@ def test_public_benchmark_fixture_is_not_reported_as_enterprise_human_review(
     assert result["boundaries"]["public_benchmark_fixture_only"] is True
     assert {
         "criterion": "Governance candidates have public benchmark fixture decisions",
+        "status": "PASS",
+    } in result["acceptance_criteria"]
+
+
+def test_db_runtime_smoke_pass_updates_acceptance_status(tmp_path):
+    mod = _load_module()
+    _write_semantic_ci(tmp_path)
+    _write_review_workspace(tmp_path, pending=0)
+    _write_accepted_changes(tmp_path, undecided=0)
+    _write_drafts(tmp_path, draft_count=1)
+    _write_package(tmp_path, "BUILT")
+    _write_binding(tmp_path, "BOUND")
+    _write_runtime_plan(tmp_path, "QUERY_PLANNED")
+    _write_runtime_smoke(tmp_path, "PASS")
+    _write_feedback(
+        tmp_path,
+        status="NO_OPEN_FEEDBACK",
+        item_count=0,
+        runtime_execution_status="PASS",
+    )
+
+    result = mod.build_offline_acceptance_report(tmp_path)
+
+    assert result["summary"]["chain_status"] == "DB_RUNTIME_SMOKE_PASS"
+    assert result["summary"]["runtime_execution_status"] == "PASS"
+    assert result["summary"]["executes_runtime_query"] is True
+    assert result["summary"]["runtime_audit_record_count"] == 1
+    assert {
+        "criterion": "DB-backed runtime smoke executed with audit",
         "status": "PASS",
     } in result["acceptance_criteria"]
 

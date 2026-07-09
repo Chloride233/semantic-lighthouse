@@ -217,7 +217,23 @@ the post-review loop:
 .\.venv\Scripts\python scripts\run_post_review_semantic_loop.py `
     --data-pack .tmp\adventureworks-semantic `
     --review-batch public-benchmark-fixture
+
+.\.venv\Scripts\python scripts\run_db_runtime_query_smoke.py `
+    --data-pack .tmp\adventureworks-semantic `
+    --max-plans 5
+
+.\.venv\Scripts\python scripts\build_semantic_asset_feedback.py `
+    --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\build_offline_acceptance_report.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
+
+The DB runtime smoke seeds a temporary in-memory SQLite database plus a
+temporary dataset-storage copy, then calls the existing runtime query service.
+It reads bounded rows and creates runtime audit records, but it does not write
+the application database, publish packages, activate runtime, or create real
+governance issues.
 
 To produce accepted changes, create
 `.tmp\adventureworks-semantic\governance_review_decisions.json` with reviewed
