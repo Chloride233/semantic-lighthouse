@@ -120,6 +120,9 @@ the manufacturing contract, then run Semantic CI:
 
 .\.venv\Scripts\python scripts\build_semantic_asset_feedback.py `
     --data-pack .tmp\adventureworks-semantic
+
+.\.venv\Scripts\python scripts\build_offline_acceptance_report.py `
+    --data-pack .tmp\adventureworks-semantic
 ```
 
 The ontology seed writes `adventureworks_ontology_seed.json` and
@@ -162,6 +165,9 @@ does not read rows, execute runtime queries, or create audit records.
 The semantic asset feedback loop converts review, package, binding, and query
 readiness gaps into an offline backlog artifact. It does not write the
 database or create real governance issues.
+The offline acceptance report summarizes the whole chain and names the current
+gate, such as `BLOCKED_BY_HUMAN_REVIEW` when review decisions are still
+missing.
 
 To inspect each step separately, run the offline ontology operationalization chain:
 
