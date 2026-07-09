@@ -69,6 +69,7 @@ def test_complete_decision_csv_passes_inspection(tmp_path):
         "ready_for_post_review_runner": True,
     }
     assert result["findings"] == []
+    assert result["incomplete_review_items"] == []
     assert result["boundaries"] == {
         "offline_only": True,
         "writes_to_database": False,
@@ -127,6 +128,34 @@ def test_incomplete_decision_csv_reports_missing_fields(tmp_path):
             "message": "rationale is required when decision is set.",
         },
     ]
+    assert result["incomplete_review_items"] == [
+        {
+            "row_number": 2,
+            "review_item_id": "gov-0002",
+            "recommended_decision": "consider_modeling",
+            "review_owner_role": "ontology_steward",
+            "severity": "info",
+            "source_table": "equipment",
+            "derived_class": "at_risk_equipment",
+            "finding_id": "derived_class-0001",
+            "rule_id": "derived_class",
+            "required_checks": "confirm_business_meaning",
+            "missing_fields": ["decision"],
+        },
+        {
+            "row_number": 3,
+            "review_item_id": "gov-0003",
+            "recommended_decision": "consider_modeling",
+            "review_owner_role": "ontology_steward",
+            "severity": "info",
+            "source_table": "equipment",
+            "derived_class": "at_risk_equipment",
+            "finding_id": "derived_class-0001",
+            "rule_id": "derived_class",
+            "required_checks": "confirm_business_meaning",
+            "missing_fields": ["reviewer", "rationale"],
+        },
+    ]
     serialized = json.dumps(result)
     assert "source_path" not in serialized
     assert "C:/unsafe" not in serialized
@@ -148,6 +177,7 @@ def test_write_inspection_outputs_json_and_markdown(tmp_path):
     assert json.loads(json_path.read_text(encoding="utf-8")) == result
     markdown = markdown_path.read_text(encoding="utf-8")
     assert "# Governance Decision CSV Inspection" in markdown
+    assert "## Review Todo" in markdown
     assert "Inspection status: `PASS`" in markdown
     assert "Ready for post-review runner: `true`" in markdown
 

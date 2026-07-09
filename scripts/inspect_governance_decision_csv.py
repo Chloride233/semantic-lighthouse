@@ -85,6 +85,36 @@ def _row_findings(row: dict[str, str], row_number: int) -> list[dict[str, Any]]:
     return findings
 
 
+def _missing_fields(row: dict[str, str]) -> list[str]:
+    if not _clean(row.get("decision")):
+        return ["decision"]
+    return [
+        field
+        for field in REQUIRED_WHEN_DECIDED
+        if not _clean(row.get(field))
+    ]
+
+
+def _incomplete_review_item(
+    row: dict[str, str],
+    row_number: int,
+    missing_fields: list[str],
+) -> dict[str, Any]:
+    return {
+        "row_number": row_number,
+        "review_item_id": _clean(row.get("review_item_id")),
+        "recommended_decision": _clean(row.get("recommended_decision")),
+        "review_owner_role": _clean(row.get("review_owner_role")),
+        "severity": _clean(row.get("severity")),
+        "source_table": _clean(row.get("source_table")),
+        "derived_class": _clean(row.get("derived_class")),
+        "finding_id": _clean(row.get("finding_id")),
+        "rule_id": _clean(row.get("rule_id")),
+        "required_checks": _clean(row.get("required_checks")),
+        "missing_fields": missing_fields,
+    }
+
+
 def _read_csv(csv_path: Path) -> list[dict[str, str]]:
     if not csv_path.is_file():
         raise FileNotFoundError(f"{csv_path.name} not found at {csv_path}")
@@ -98,9 +128,11 @@ def inspect_governance_decision_csv(csv_path: Path) -> dict[str, Any]:
     complete_rows = 0
     blank_decision_rows = 0
     incomplete_rows = 0
+    incomplete_review_items = []
 
     for index, row in enumerate(rows, start=2):
         row_findings = _row_findings(row, index)
+        missing_fields = _missing_fields(row)
         findings.extend(row_findings)
         if not _clean(row.get("decision")):
             blank_decision_rows += 1
@@ -108,6 +140,10 @@ def inspect_governance_decision_csv(csv_path: Path) -> dict[str, Any]:
             incomplete_rows += 1
         else:
             complete_rows += 1
+        if missing_fields:
+            incomplete_review_items.append(
+                _incomplete_review_item(row, index, missing_fields)
+            )
 
     ready = not findings
     return {
@@ -127,6 +163,7 @@ def inspect_governance_decision_csv(csv_path: Path) -> dict[str, Any]:
             "ready_for_post_review_runner": ready,
         },
         "findings": findings,
+        "incomplete_review_items": incomplete_review_items,
         "boundaries": {
             "offline_only": True,
             "writes_to_database": False,
@@ -153,11 +190,35 @@ def render_markdown(result: dict[str, Any]) -> str:
         f"- Incomplete rows: `{summary['incomplete_rows']}`",
         f"- Ready for post-review runner: `{str(summary['ready_for_post_review_runner']).lower()}`",
         "",
+        "## Review Todo",
+        "",
+        "| Row | Review item | Owner | Recommended | Severity | Table | Derived class | Missing fields | Required checks |",
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
+    for item in result["incomplete_review_items"]:
+        required_checks = str(item.get("required_checks") or "").replace("|", "\\|")
+        missing_fields = ", ".join(item.get("missing_fields", []))
+        lines.append(
+            "| "
+            f"{item.get('row_number')} | "
+            f"{item.get('review_item_id')} | "
+            f"{item.get('review_owner_role')} | "
+            f"{item.get('recommended_decision')} | "
+            f"{item.get('severity')} | "
+            f"{item.get('source_table')} | "
+            f"{item.get('derived_class')} | "
+            f"{missing_fields} | "
+            f"{required_checks} |"
+        )
+    lines.extend(
+        [
+            "",
         "## Findings",
         "",
         "| Severity | Code | Row | Review item | Message |",
         "|---|---|---|---|---|",
-    ]
+        ]
+    )
     for finding in result["findings"]:
         message = str(finding.get("message") or "").replace("|", "\\|")
         lines.append(
