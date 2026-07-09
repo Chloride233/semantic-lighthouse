@@ -260,6 +260,12 @@ button, input, select, textarea {
   display: grid;
   gap: 8px;
 }
+.batch-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 180px) repeat(3, minmax(140px, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+}
 .sample {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -314,6 +320,17 @@ textarea {
 .row-status.incomplete {
   color: var(--warn);
 }
+.hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.status-line {
+  min-height: 18px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--accent);
+}
 .boundary {
   font-size: 12px;
   line-height: 1.5;
@@ -324,6 +341,7 @@ textarea {
 @media (max-width: 900px) {
   .shell { grid-template-columns: 1fr; }
   .sidebar { position: static; height: auto; }
+  .batch-grid { grid-template-columns: 1fr; }
   .decision-grid { grid-template-columns: 1fr; }
 }
 """
@@ -331,6 +349,7 @@ textarea {
 const state = window.REVIEW_WORKBENCH;
 const rowsById = new Map(state.decision_rows.map((row) => [row.review_item_id, {...row}]));
 let activeGroupKey = state.review_groups[0]?.group_key || "";
+let batchMessage = "";
 
 function csvEscape(value) {
   const text = String(value ?? "");
@@ -435,6 +454,73 @@ function decisionEditor(group) {
   return container;
 }
 
+function groupRows(group) {
+  return group.review_item_ids.map((id) => rowsById.get(id)).filter(Boolean);
+}
+
+function decisionOptionsMarkup() {
+  return [
+    '<option value="">Select</option>',
+    ...state.decision_options.map((option) => `<option value="${option}">${option}</option>`),
+  ].join("");
+}
+
+function applyGroupDecision(group) {
+  const decision = document.querySelector("#group-decision").value;
+  const reviewer = document.querySelector("#group-reviewer").value.trim();
+  const reviewedAt = document.querySelector("#group-reviewed-at").value.trim();
+  const rationale = document.querySelector("#group-rationale").value.trim();
+  const status = document.querySelector("#group-apply-status");
+  if (!decision || !reviewer || !reviewedAt || !rationale) {
+    status.textContent = "Decision, reviewer, reviewed_at, and rationale are required.";
+    return;
+  }
+  let updated = 0;
+  groupRows(group).forEach((row) => {
+    if (row.decision) return;
+    row.decision = decision;
+    row.reviewer = reviewer;
+    row.reviewed_at = reviewedAt;
+    row.rationale = rationale;
+    updated += 1;
+  });
+  batchMessage = `${updated} pending rows updated; existing decisions are preserved.`;
+  status.textContent = batchMessage;
+  renderSummary();
+  renderMain();
+}
+
+function renderBatchControls(group) {
+  const panel = document.createElement("div");
+  panel.className = "panel";
+  panel.innerHTML = `
+    <h3>Batch decision</h3>
+    <div class="batch-grid">
+      <div class="field">
+        <label for="group-decision">Decision</label>
+        <select id="group-decision">${decisionOptionsMarkup()}</select>
+      </div>
+      <div class="field">
+        <label for="group-reviewer">Reviewer</label>
+        <input id="group-reviewer" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="group-reviewed-at">Reviewed at</label>
+        <input id="group-reviewed-at" placeholder="2026-07-09T08:00:00+00:00">
+      </div>
+      <div class="field">
+        <label for="group-rationale">Rationale</label>
+        <textarea id="group-rationale"></textarea>
+      </div>
+      <button class="button" id="apply-group" type="button">Apply</button>
+    </div>
+    <div class="hint">Applies to pending rows in this group; existing decisions are preserved.</div>
+    <div class="status-line" id="group-apply-status">${batchMessage}</div>
+  `;
+  panel.querySelector("#apply-group").addEventListener("click", () => applyGroupDecision(group));
+  return panel;
+}
+
 function samples(group) {
   const wrap = document.createElement("div");
   wrap.className = "samples";
@@ -468,6 +554,7 @@ function renderMain() {
       <div class="kv">${(group.required_checks || []).map((check) => `<span>${check}</span>`).join("")}</div>
     </div>
   `;
+  main.appendChild(renderBatchControls(group));
   const samplePanel = document.createElement("div");
   samplePanel.className = "panel";
   samplePanel.innerHTML = "<h3>Source row samples</h3>";

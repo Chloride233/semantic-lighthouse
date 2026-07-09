@@ -199,6 +199,28 @@ def test_write_workbench_outputs_static_html(tmp_path):
     assert "autoAcceptsCandidates: false" in html
 
 
+def test_workbench_includes_group_decision_controls(tmp_path):
+    mod = _load_module()
+    _write_briefing(tmp_path)
+    csv_path = tmp_path / "governance_review_decisions_template.csv"
+    _write_decision_csv(csv_path)
+    output = tmp_path / "governance_review_workbench.html"
+
+    mod.write_governance_review_workbench(tmp_path, csv_path, output)
+
+    html = output.read_text(encoding="utf-8")
+    assert "Batch decision" in html
+    assert "id=\"group-decision\"" in html
+    assert "id=\"group-reviewer\"" in html
+    assert "id=\"group-reviewed-at\"" in html
+    assert "id=\"group-rationale\"" in html
+    assert "id=\"apply-group\"" in html
+    assert "applyGroupDecision" in html
+    assert "existing decisions are preserved" in html
+    assert "source_path" not in html
+    assert "C:/unsafe" not in html
+
+
 def test_missing_briefing_fails_clearly(tmp_path):
     mod = _load_module()
 
