@@ -379,6 +379,7 @@ http://127.0.0.1:8000/docs
 | `PRODUCT.md` | 产品定位与边界 |
 | `docs/project-status.toml` | 当前项目状态的唯一事实源 |
 | `docs/project-roadmap.md` | 当前决策路线图 |
+| `docs/mac-development-migration.md` | Windows 到 Mac 的开发迁移指南 |
 | `docs/deployment-v3-cloud.md` | 云部署说明 |
 | `docs/CODEMAPS/` | 架构、后端、数据与前端结构快照 |
 

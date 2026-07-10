@@ -415,6 +415,7 @@ Full backend regression and UI smoke are lane-dependent. See `docs/development-w
 | `PRODUCT.md` | Product positioning and boundaries |
 | `docs/project-status.toml` | Canonical current project state |
 | `docs/project-roadmap.md` | Current decision roadmap |
+| `docs/mac-development-migration.md` | Windows-to-Mac development migration |
 | `docs/deployment-v3-cloud.md` | Cloud deployment guide |
 | `docs/CODEMAPS/` | Architecture, backend, data, and frontend structure snapshots |
 
