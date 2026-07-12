@@ -20,20 +20,33 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R3F FK indexing delivered"
-description = "R3F complete. Two local micro-optimizations in runtime_traverse.py: _build_target_index uses defaultdict(list) instead of setdefault() to avoid wasted [] allocations per row; _convert_row_fields pre-computes field→value_type mapping once per field list instead of calling prop_map.get().get() for every row/field. Both optimizations are zero-behavior-change. Existing scan_limit and scan_truncated were already delivered pre-R3F. 2 new tests (122 total). No migration, no API/schema change, no new dependencies."
+current = "Phase 1 citation-grounded RAG evaluation dataset delivered"
+description = "Issue #1 acceptance item 1 complete. The offline retrieval evaluation set now contains 60 unique gold-standard questions across 15 source documents. Every item includes a reference answer, expected document title, fixture path, and verbatim evidence quote. Contract tests enforce the 50-100 item boundary, unique IDs, non-empty answers/evidence, title alignment, fixture existence, and exact quote traceability. No runtime RAG behavior, provider configuration, database schema, or group isolation changed."
 
 [next_decision_gate]
-name = "R3 runtime closeout complete / next product decision"
-description = "R3A-R3F all delivered. Runtime enhancement line is complete: R3A planning, R3B grouped response, R3C filter pushdown, R3D bidirectional traversal, R3E1 sorting, R3F FK indexing. Aggregation (R3E2) deferred indefinitely per design decision. Next product direction requires explicit user decision — no automatic phase expansion to R4, Phase 20, MCP, or new feature lines."
+name = "Phase 1 RAG metric implementation"
+description = "Proceed to Issue #1 acceptance item 2: measure Recall@k, MRR, citation correctness, faithfulness, and refusal accuracy against the 60-item gold dataset. Do not claim retrieval-method improvements or safety coverage until their later acceptance items have reproducible evidence."
+
+[phase1_rag_evaluation]
+issue = 1
+status = "acceptance item 1 of 5 complete"
+dataset_queries = 60
+source_documents = 15
+implementation_commit = "f3f52a8"
+resume_evidence = "docs/eval/phase1-resume-evidence.md"
+risk = "Gold answers and quotes are deterministic offline fixtures; they do not yet prove production-provider answer quality or retrieval-method superiority."
 
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "f4bccfb"
-backend_pytest = 848
+latest_commit = "f3f52a8"
+backend_pytest = 1102
 ruff = "clean"
 migration_head = "0029"
 traverse_tests = 122
+full_pytest_passed = 1120
+full_pytest_skipped = 3
+e2e_pytest = 18
+eval_tests = 8
