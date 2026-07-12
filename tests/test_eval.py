@@ -35,7 +35,7 @@ class TestEvalReport:
         fixtures_dir = Path(__file__).parent / "eval" / "fixtures"
 
         queries = json.loads(queries_path.read_text(encoding="utf-8"))
-        assert len(queries) == 20
+        assert 50 <= len(queries) <= 100
 
         fixtures = sorted(fixtures_dir.glob("*.md"))
         assert len(fixtures) == 15
@@ -48,10 +48,29 @@ class TestEvalReport:
                     all_titles.add(line.split(":", 1)[1].strip())
                     break
 
+        query_ids = [q["id"] for q in queries]
+        assert len(query_ids) == len(set(query_ids))
+
         for q in queries:
-            for title in q["expected_document_titles"]:
+            assert q["query"].strip()
+            assert q["reference_answer"].strip()
+            assert q["evidence_sources"]
+
+            expected_titles = set(q["expected_document_titles"])
+            evidence_titles = {source["document_title"] for source in q["evidence_sources"]}
+            assert evidence_titles == expected_titles
+
+            for title in expected_titles:
                 assert title in all_titles, (
                     f"q{q['id']}: expected '{title}' not in fixtures {sorted(all_titles)}"
+                )
+
+            for source in q["evidence_sources"]:
+                fixture = fixtures_dir / source["fixture"]
+                assert fixture.is_file(), f"{q['id']}: missing fixture {fixture.name}"
+                fixture_text = fixture.read_text(encoding="utf-8")
+                assert source["quote"] in fixture_text, (
+                    f"{q['id']}: evidence quote not found in {fixture.name}"
                 )
 
     def test_eval_runner_produces_valid_report(self):
@@ -73,7 +92,7 @@ class TestEvalReport:
 
         assert report is not None, "No JSON in eval output"
         assert report["corpus"]["document_count"] == 15
-        assert report["corpus"]["query_count"] == 20
+        assert report["corpus"]["query_count"] == 60
 
         for method in ("keyword", "semantic", "hybrid"):
             m = report["methods"][method]
