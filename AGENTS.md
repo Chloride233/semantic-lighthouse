@@ -127,3 +127,14 @@ Commit:
 ```
 
 Fast Lane ends with `git diff --check`, `git status --short`, and a commit. Standard and Safety Lane closure follows `docs/development-workflow.md`.
+
+## Evidence Roadmap
+
+Advance these phases in order. Do not start a later phase until the current issue's acceptance criteria have verifiable evidence:
+
+1. Phase 1: [citation-grounded RAG evaluation](https://github.com/Chloride233/semantic-lighthouse/issues/1)
+2. Phase 2: [controlled Agent and security boundaries](https://github.com/Chloride233/semantic-lighthouse/issues/4)
+3. Phase 3: [concurrency, reliability, and degradation](https://github.com/Chloride233/semantic-lighthouse/issues/2)
+4. Phase 4: [manufacturing pilot and user validation](https://github.com/Chloride233/semantic-lighthouse/issues/3)
+
+New implementation must serve the current phase. Close a phase only when its code, tests, metrics, or user evidence are reproducible. Plans, deferred scope, and design-only capabilities must not be presented as delivered behavior.
