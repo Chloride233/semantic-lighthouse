@@ -93,6 +93,20 @@ $env:DATABASE_URL = "sqlite+pysqlite:///" + $dbPath.Replace("\\","/").Replace("\
 - Knowledge-base default path is `./knowledge-graph` (configurable via `KNOWLEDGE_BASE_PATH` env var).
 - Runtime storage paths include `document-storage`, `upload-tmp`, and `dataset-storage`; keep them out of commits.
 
+### macOS workspace
+
+When running in the local macOS workspace, use POSIX paths and the repository-local virtual environment:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
+.venv/bin/python -m pip install -e .
+.venv/bin/python -m pytest tests/test_specific.py -p no:cacheprovider
+.venv/bin/python -m ruff check src tests
+```
+
+Translate PowerShell-only examples to their POSIX equivalent. Do not introduce Windows paths into new scripts or documentation unless the task explicitly targets Windows.
+
 ## Frontend Work
 
 - Frontend F2 is complete; future UI work is incremental and lane-scoped.
