@@ -183,3 +183,43 @@ Success means:
 - PostgreSQL is healthy and Alembic reaches head
 - focused semantic pipeline tests pass
 - no secret or runtime artifact appears in `git status`
+
+## Verified Migration Closeout (2026-07-12)
+
+The Windows-to-Mac development migration is complete on an M4 Mac mini using
+the `codex/ontology-article-knowledge` branch.
+
+Verified local environment:
+
+- Python 3.14.6 on arm64 in a new `.venv`
+- Docker Desktop 4.81.0 with an aarch64 Docker Engine
+- PostgreSQL 17.10 with pgvector 0.8.5
+- Alembic at `0029_v29_traverse_audit_columns`
+- GitHub CLI authenticated for HTTPS Git operations
+
+Verified AdventureWorks state:
+
+- raw pack: 10 tables and 144,593 rows
+- semantic pack: 13 tables and 187,508 rows
+- 25 of 25 recorded source-artifact SHA-256 references matched
+- 48 governance decisions accepted and 48 ontology drafts retained
+- model package `BUILT`, dataset binding `BOUND`, query plan `QUERY_PLANNED`
+- temporary SQLite runtime smoke `PASS`: 5 queries, 70 returned rows, and 5
+  temporary audit records
+- acceptance `DB_RUNTIME_SMOKE_PASS` and feedback `NO_OPEN_FEEDBACK`
+
+Focused migration verification passed 12 of 12 tests across AdventureWorks
+export, semantic mapping, ontology seed, Semantic CI, and DB runtime query
+smoke. Doc alignment, Ruff, and `git diff --check` also passed. The focused
+tests emit a non-blocking Starlette deprecation warning about a future
+`httpx2` migration.
+
+The smoke remains isolated to in-memory SQLite and temporary dataset storage.
+The local application database retained zero dataset assets, model packages,
+dataset bindings, and runtime audit rows before and after the smoke. The
+Tencent Cloud SQL Server was not changed. Secrets, `.env`, `.tmp`, storage
+directories, database files, SSH keys, and Docker volumes remain outside Git.
+
+The next production-grade step is a separate Safety Lane decision to persist
+reviewed packages and bindings into the application database with explicit
+authorization, audit, rollback, and human approval semantics.

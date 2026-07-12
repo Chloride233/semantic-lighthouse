@@ -10,7 +10,7 @@ version = 1
 [product]
 phase = "Phase 19"
 status = "closeout complete"
-summary = "Phase 19 Ontology Operationalization complete (19.1-19.6). Delivered full offline chain: CSV -> manifest -> mapping_contract -> rule_validation_report -> governance_feedback. 29 tests, 5 offline JSON artifacts, 8 rule categories, 3 governance candidate types. All boundaries preserved: no DB writes, no API changes, no external data. AdventureWorks is a recognised follow-up external benchmark candidate."
+summary = "Phase 19 Ontology Operationalization complete (19.1-19.6). Delivered the offline semantic chain and the AdventureWorks public benchmark through Semantic CI, governance decisions, accepted ontology drafts, model package, dataset binding, runtime query planning, temporary DB runtime query smoke, runtime audit, and acceptance feedback. All benchmark boundaries remain explicit: no application DB writes, no package publication, no runtime activation, and no enterprise human-review claim."
 
 [frontend]
 status = "F2 complete + visual baseline closeout accepted"
@@ -39,3 +39,8 @@ migration_head = "0029"
 traverse_tests = 122
 runtime_smoke_tests = 3
 semantic_loop_tests = 25
+mac_migration = "complete on M4 Mac mini arm64, verified 2026-07-12"
+mac_python = "3.14.6 arm64"
+mac_database = "PostgreSQL 17.10 with pgvector 0.8.5; Alembic 0029"
+mac_migration_tests = "12/12 focused migration tests passed"
+mac_adventureworks = "10 raw tables / 144593 rows; 13 semantic tables / 187508 rows; 25/25 recorded SHA references verified; runtime smoke 5 queries / 70 rows / 5 temporary audit records; application DB unchanged"
