@@ -93,6 +93,7 @@ risk = "Fake-provider tests prove deterministic backend containment of malicious
 [phase3_reliability]
 issue = 2
 status = "in progress (baseline acceptance items 1-2 of 5)"
+baseline_commit = "9ba8cf5"
 design = "docs/superpowers/specs/2026-07-13-phase3-reliability-design.md"
 evidence_report = "docs/eval/phase3-reliability-report.md"
 baseline_command = ".venv/bin/python scripts/run_phase3_load_baseline.py"
@@ -115,7 +116,7 @@ runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "f40ca6f"
+latest_commit = "9ba8cf5"
 backend_pytest = 1120
 ruff = "clean"
 migration_head = "0029"
