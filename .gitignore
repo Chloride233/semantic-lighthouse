@@ -47,3 +47,6 @@ dataset-storage/
 
 # Claude Code (local agent artifacts, plans, settings)
 .claude/
+
+# Local agent learning logs
+.learnings/

@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Evidence Roadmap Phase 2 complete"
-description = "GitHub Issue #4 acceptance items 1-5 complete. Delivered a 12-case deterministic Agent security suite covering prompt injection containment, invalid tools, unauthorized writes, server-derived RBAC, cross-group isolation, HITL, and audit; hardened authorization-before-confirmation and locked pending runs against repeat execution. Closeout stabilized the positive-integer RAG duration audit contract and restored the canonical Agent handoff entry document. The Phase 2 gate passes 12/12, related regression passes 71/71, RAG regression passes 49/49, browser E2E passes 18/18, doc alignment passes, and the full suite passes 1,135 with 3 skipped."
+current = "Evidence Roadmap Phase 3 in progress"
+description = "GitHub Issue #2 baseline slice covers acceptance items 1-2: a reproducible authenticated fake-provider RAG runner now measures 100 requests at 1, 10, and 50 concurrency with throughput, P50/P95/P99, error rate, CPU, peak RSS, and correlated request IDs. The first local run completed 300/300 requests with no errors; P95 rose from 4.01 ms at concurrency 1 to 257.98 ms at concurrency 50. Reliability controls and fault degradation remain open and are not presented as delivered."
 
 [next_decision_gate]
-name = "Evidence Roadmap Phase 3 decision"
-description = "Phase 2 is complete. The next ordered evidence phase is GitHub Issue #2 (concurrency, reliability, and degradation). Do not start Phase 3 automatically without a new iteration; preserve the Phase 1 quality gate and Phase 2 Agent security gate."
+name = "Evidence Roadmap Phase 3 reliability controls"
+description = "Use the measured RAG baseline to verify timeout, cancellation, retry, idempotency, rate limiting, and queue backpressure, then inject model-unavailable, quota-exhausted, and database-failure cases. Preserve the Phase 1 quality gate and Phase 2 Agent security gate."
 
 [phase1_rag_evaluation]
 issue = 1
@@ -90,19 +90,40 @@ full_pytest_failed = 0
 doc_alignment = "pass"
 risk = "Fake-provider tests prove deterministic backend containment of malicious model decisions, not real-provider prompt-injection resistance. Concurrent confirmation requests are not stress-tested."
 
+[phase3_reliability]
+issue = 2
+status = "in progress (baseline acceptance items 1-2 of 5)"
+design = "docs/superpowers/specs/2026-07-13-phase3-reliability-design.md"
+evidence_report = "docs/eval/phase3-reliability-report.md"
+baseline_command = ".venv/bin/python scripts/run_phase3_load_baseline.py"
+requests_per_level = 100
+concurrency_levels = [1, 10, 50]
+requests_passed = 300
+requests_failed = 0
+concurrency_1_throughput_rps = 333.45
+concurrency_1_p95_ms = 4.01
+concurrency_10_throughput_rps = 317.29
+concurrency_10_p95_ms = 72.07
+concurrency_50_throughput_rps = 297.49
+concurrency_50_p95_ms = 257.98
+concurrency_50_p99_ms = 297.00
+concurrency_50_peak_rss_mb = 135.55
+risk = "The baseline is in-process ASGI with SQLite and fake providers; it does not prove reverse-proxy, multi-worker, PostgreSQL pool, hosted-model latency, quota, timeout, cancellation, retry, rate-limit, or backpressure behavior."
+
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
 latest_commit = "f40ca6f"
-backend_pytest = 1117
+backend_pytest = 1120
 ruff = "clean"
 migration_head = "0029"
 traverse_tests = 122
-full_pytest_passed = 1135
+full_pytest_passed = 1138
 full_pytest_skipped = 3
 full_pytest_failed = 0
 e2e_pytest = 18
 eval_tests = 10
 phase2_security_tests = 12
+phase3_load_runner_tests = 3
