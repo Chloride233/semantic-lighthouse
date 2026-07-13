@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Evidence Roadmap Phase 1 complete"
-description = "GitHub Issue #1 acceptance items 1-5 complete. Delivered a 65-question citation-grounded RAG evaluation suite, five quality metrics, keyword/vector/hybrid comparison, four safety categories, a committed evaluation report, and a single-command regression gate. Gate thresholds cover keyword Recall@5/MRR/no-result rate, citation correctness, deterministic faithfulness, refusal accuracy, and 4/4 safety categories. Residual risks remain explicit: conflict-aware confidence reduction and real-provider/neural-embedding validation are not delivered."
+current = "Evidence Roadmap Phase 2 closeout verification"
+description = "GitHub Issue #4 acceptance items 1-5 have direct implementation evidence. Delivered a 12-case deterministic Agent security suite covering prompt injection containment, invalid tools, unauthorized writes, server-derived RBAC, cross-group isolation, HITL, and audit; hardened authorization-before-confirmation and locked pending runs against repeat execution. The Phase 2 gate passes 12/12, related regression passes 71/71, and browser E2E passes 18/18. Formal Safety Lane closeout remains pending because the full 1,137-item run has one unrelated pre-existing millisecond timing failure in test_failed_rag_run_is_persisted_and_isolated; doc alignment also reports the pre-existing missing docs/agent-handoff.md entry document."
 
 [next_decision_gate]
-name = "Evidence Roadmap Phase 2 decision"
-description = "Phase 1 is complete. The next ordered evidence phase is GitHub Issue #4 (controlled Agent and security boundaries). Do not start Phase 2 automatically without a new iteration; preserve Phase 1 metric and safety gates."
+name = "Evidence Roadmap Phase 2 closeout"
+description = "Preserve the 12/12 Phase 2 security gate and resolve or separately disposition the unrelated RAG duration_ms timing flake plus the missing agent-handoff entry document before declaring Phase 2 complete. Do not start Evidence Roadmap Phase 3 until Phase 2 Safety Lane closure is green and reproducible."
 
 [phase1_rag_evaluation]
 issue = 1
@@ -66,17 +66,42 @@ gate_refusal_accuracy_min = 1.000
 gate_safety_categories_required = 4
 risk = "Conflicting sources are preserved but confidence remains high; conflict-aware confidence reduction is not implemented. Vector search is evaluation-only lexical feature hashing, and faithfulness is not LLM-as-judge."
 
+[phase2_agent_security]
+issue = 4
+status = "5 of 5 acceptance items evidenced; Safety Lane closeout pending"
+implementation_commit = "ed57b05"
+design = "docs/superpowers/specs/2026-07-13-phase2-agent-security-design.md"
+evidence_report = "docs/eval/phase2-agent-security-report.md"
+regression_gate = ".venv/bin/python scripts/run_phase2_security_gate.py"
+security_cases = 12
+security_cases_passed = 12
+prompt_injection_cases = 2
+invalid_tool_cases = 2
+authorization_state_cases = 2
+cross_group_cases = 3
+hitl_audit_cases = 3
+related_tests_passed = 71
+e2e_tests_passed = 18
+full_pytest_passed = 1133
+full_pytest_skipped = 3
+full_pytest_failed = 1
+full_pytest_failure = "Pre-existing timing assertion: test_failed_rag_run_is_persisted_and_isolated observed integer duration_ms=0; isolated rerun passed."
+doc_alignment = "Pre-existing violation: docs/agent-handoff.md is missing."
+risk = "Fake-provider tests prove deterministic backend containment of malicious model decisions, not real-provider prompt-injection resistance. Concurrent confirmation requests are not stress-tested."
+
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "9bdb72f"
-backend_pytest = 1104
+latest_commit = "ed57b05"
+backend_pytest = 1116
 ruff = "clean"
 migration_head = "0029"
 traverse_tests = 122
-full_pytest_passed = 1122
+full_pytest_passed = 1133
 full_pytest_skipped = 3
+full_pytest_failed = 1
 e2e_pytest = 18
 eval_tests = 10
+phase2_security_tests = 12
