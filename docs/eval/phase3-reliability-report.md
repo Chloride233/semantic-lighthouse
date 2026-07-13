@@ -105,6 +105,7 @@ SQLite migration smoke upgraded an empty database through
 - Migration smoke: `0030` upgrade, downgrade to `0029`, and re-upgrade passed
 - Ruff: clean across `src`, `tests`, Phase 3 scripts, and migration
 - Documentation alignment and `git diff --check`: passed
+- Implementation commit: `66467ea`
 
 ## Claim Boundary
 
