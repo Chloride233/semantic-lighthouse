@@ -17,6 +17,7 @@ import sys
 import tempfile
 import time
 from collections.abc import Generator
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -31,13 +32,15 @@ from sqlalchemy.orm import Session, sessionmaker
 from semantic_lighthouse.main import create_app
 from semantic_lighthouse.database import get_db
 from semantic_lighthouse.config import Settings, get_settings
-from semantic_lighthouse.models import Base
+from semantic_lighthouse.models import Base, DocumentChunk
 import semantic_lighthouse.main as app_main
 import semantic_lighthouse.routers.documents as documents_router
+import semantic_lighthouse.services.embeddings as embeddings_service
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "tests" / "eval" / "fixtures"
 QUERIES_FILE = Path(__file__).resolve().parent.parent / "tests" / "eval" / "queries.json"
 TOP_K = 5
+EVAL_EMBEDDING_DIMENSION = 256
 
 
 def _temp_db() -> tuple[Any, sessionmaker]:
@@ -64,7 +67,7 @@ def _make_client(db_session: Session, tmp_dir: Path) -> TestClient:
             knowledge_base_path=str(tmp_dir),
             embedding_provider="fake",
             embedding_model="fake-embedding",
-            embedding_dimension=8,
+            embedding_dimension=EVAL_EMBEDDING_DIMENSION,
             chat_provider="fake",
             chat_model="fake-chat",
             rag_top_k=TOP_K,
@@ -178,6 +181,25 @@ def _content_tokens(text: str) -> set[str]:
     return {token for token in tokens if token}
 
 
+def _eval_embedding(text: str, dimension: int) -> list[float]:
+    """Create a deterministic feature-hashing vector for offline comparison."""
+    vector = [0.0] * dimension
+    for token in _content_tokens(text):
+        digest = sha256(token.encode("utf-8")).digest()
+        index = int.from_bytes(digest[:4], "big") % dimension
+        vector[index] += 1.0 if digest[4] % 2 == 0 else -1.0
+    norm = sum(value * value for value in vector) ** 0.5
+    return [value / norm for value in vector] if norm else vector
+
+
+def _seed_eval_embeddings(db: Session) -> None:
+    """Write deterministic vectors to the temporary evaluation corpus."""
+    for chunk in db.query(DocumentChunk).all():
+        chunk.embedding = _eval_embedding(chunk.content, EVAL_EMBEDDING_DIMENSION)
+        chunk.embedding_model = "eval-feature-hash"
+    db.commit()
+
+
 def _faithfulness(answer: str, citations: list[dict[str, Any]]) -> float:
     """Measure answer-token coverage by returned citation snippets.
 
@@ -202,6 +224,8 @@ def _correct_refusal(response: dict[str, Any]) -> bool:
 def run_eval() -> dict[str, Any]:
     t0 = time.monotonic()
     engine = None
+    embedding_patch = mock.patch.object(embeddings_service, "_hash_embedding", _eval_embedding)
+    embedding_patch.start()
 
     try:
         engine, _maker = _temp_db()
@@ -218,6 +242,7 @@ def run_eval() -> dict[str, Any]:
 
             for fp in fixtures:
                 _upload(client, gid, headers, fp)
+            _seed_eval_embeddings(session)
 
             queries = json.loads(QUERIES_FILE.read_text(encoding="utf-8"))
 
@@ -228,6 +253,7 @@ def run_eval() -> dict[str, Any]:
                 "corpus": {"document_count": len(fixtures), "query_count": len(queries)},
                 "methods": {},
                 "rag_metrics": {},
+                "comparison": {},
                 "duration_ms": 0,
             }
 
@@ -292,6 +318,30 @@ def run_eval() -> dict[str, Any]:
                     "per_query": per_query,
                 }
 
+            ranking = sorted(
+                methods,
+                key=lambda name: (
+                    report["methods"][name]["recall_at_5"],
+                    report["methods"][name]["mrr"],
+                    report["methods"][name]["precision_at_5"],
+                ),
+                reverse=True,
+            )
+            keyword = report["methods"]["keyword"]
+            hybrid = report["methods"]["hybrid"]
+            report["comparison"] = {
+                "embedding": "deterministic 256-dimension English-word and CJK-trigram feature hash",
+                "ranking": ranking,
+                "best_method": ranking[0],
+                "hybrid_vs_keyword": {
+                    "recall_at_5_delta": round(hybrid["recall_at_5"] - keyword["recall_at_5"], 3),
+                    "mrr_delta": round(hybrid["mrr"] - keyword["mrr"], 3),
+                    "precision_at_5_delta": round(
+                        hybrid["precision_at_5"] - keyword["precision_at_5"], 3
+                    ),
+                },
+            }
+
             citation_hits = 0
             citation_total = 0
             faithfulness_scores: list[float] = []
@@ -343,6 +393,7 @@ def run_eval() -> dict[str, Any]:
             return report
 
     finally:
+        embedding_patch.stop()
         if engine is not None:
             engine.dispose()
 
@@ -363,7 +414,15 @@ def _generate_markdown(report: dict[str, Any]) -> str:
             f"{data['mrr']} | {data['precision_at_5']} | {data['no_result_rate']} |"
         )
     rag = report.get("rag_metrics", {})
+    comparison = report.get("comparison", {})
     lines += [
+        "",
+        "## Method Comparison",
+        "",
+        f"- Best method: {comparison.get('best_method', 'n/a')}",
+        f"- Ranking: {' > '.join(comparison.get('ranking', []))}",
+        f"- Embedding baseline: {comparison.get('embedding', 'n/a')}",
+        f"- Hybrid vs keyword: {comparison.get('hybrid_vs_keyword', {})}",
         "",
         "## RAG Grounding Metrics",
         "",
@@ -372,7 +431,7 @@ def _generate_markdown(report: dict[str, Any]) -> str:
         f"- Refusal accuracy: {rag.get('refusal_accuracy', 0)}",
         f"- Answerable / refusal queries: {rag.get('answerable_queries', 0)} / {rag.get('refusal_queries', 0)}",
         "",
-        "**Known limitations**: fake embeddings degrade semantic/hybrid metrics. ",
+        "**Known limitations**: vector search uses a deterministic lexical feature hash, not a neural semantic model. ",
         "Faithfulness is a deterministic token-overlap proxy, not an LLM-as-judge score. ",
         "Real-provider evaluation remains separate from this offline baseline.",
     ]

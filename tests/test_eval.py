@@ -114,9 +114,18 @@ class TestEvalReport:
         assert 0.0 <= rag["refusal_accuracy"] <= 1.0
         assert len(rag["per_query"]) == 60
         assert len(rag["refusal_results"]) == 5
-        assert rag["citation_correctness"] == 0.217
-        assert rag["faithfulness"] == 0.34
+        assert rag["citation_correctness"] == 0.196
+        assert rag["faithfulness"] == 0.293
         assert rag["refusal_accuracy"] == 1.0
+
+        comparison = report["comparison"]
+        assert comparison["best_method"] == "keyword"
+        assert comparison["ranking"] == ["keyword", "hybrid", "semantic"]
+        assert comparison["hybrid_vs_keyword"] == {
+            "recall_at_5_delta": 0.0,
+            "mrr_delta": 0.0,
+            "precision_at_5_delta": -0.048,
+        }
 
         assert report["duration_ms"] > 0
 
