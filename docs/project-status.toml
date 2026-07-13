@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Evidence Roadmap Phase 1 complete"
-description = "GitHub Issue #1 acceptance items 1-5 complete. Delivered a 65-question citation-grounded RAG evaluation suite, five quality metrics, keyword/vector/hybrid comparison, four safety categories, a committed evaluation report, and a single-command regression gate. Gate thresholds cover keyword Recall@5/MRR/no-result rate, citation correctness, deterministic faithfulness, refusal accuracy, and 4/4 safety categories. Residual risks remain explicit: conflict-aware confidence reduction and real-provider/neural-embedding validation are not delivered."
+current = "Evidence Roadmap Phase 2 complete"
+description = "GitHub Issue #4 acceptance items 1-5 complete. Delivered a 12-case deterministic Agent security suite covering prompt injection containment, invalid tools, unauthorized writes, server-derived RBAC, cross-group isolation, HITL, and audit; hardened authorization-before-confirmation and locked pending runs against repeat execution. Closeout stabilized the positive-integer RAG duration audit contract and restored the canonical Agent handoff entry document. The Phase 2 gate passes 12/12, related regression passes 71/71, RAG regression passes 49/49, browser E2E passes 18/18, doc alignment passes, and the full suite passes 1,135 with 3 skipped."
 
 [next_decision_gate]
-name = "Evidence Roadmap Phase 2 decision"
-description = "Phase 1 is complete. The next ordered evidence phase is GitHub Issue #4 (controlled Agent and security boundaries). Do not start Phase 2 automatically without a new iteration; preserve Phase 1 metric and safety gates."
+name = "Evidence Roadmap Phase 3 decision"
+description = "Phase 2 is complete. The next ordered evidence phase is GitHub Issue #2 (concurrency, reliability, and degradation). Do not start Phase 3 automatically without a new iteration; preserve the Phase 1 quality gate and Phase 2 Agent security gate."
 
 [phase1_rag_evaluation]
 issue = 1
@@ -66,17 +66,43 @@ gate_refusal_accuracy_min = 1.000
 gate_safety_categories_required = 4
 risk = "Conflicting sources are preserved but confidence remains high; conflict-aware confidence reduction is not implemented. Vector search is evaluation-only lexical feature hashing, and faithfulness is not LLM-as-judge."
 
+[phase2_agent_security]
+issue = 4
+status = "complete (5 of 5 acceptance items)"
+implementation_commit = "ed57b05"
+closeout_commit = "f40ca6f"
+design = "docs/superpowers/specs/2026-07-13-phase2-agent-security-design.md"
+evidence_report = "docs/eval/phase2-agent-security-report.md"
+regression_gate = ".venv/bin/python scripts/run_phase2_security_gate.py"
+security_cases = 12
+security_cases_passed = 12
+prompt_injection_cases = 2
+invalid_tool_cases = 2
+authorization_state_cases = 2
+cross_group_cases = 3
+hitl_audit_cases = 3
+related_tests_passed = 71
+rag_tests_passed = 49
+e2e_tests_passed = 18
+full_pytest_passed = 1135
+full_pytest_skipped = 3
+full_pytest_failed = 0
+doc_alignment = "pass"
+risk = "Fake-provider tests prove deterministic backend containment of malicious model decisions, not real-provider prompt-injection resistance. Concurrent confirmation requests are not stress-tested."
+
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "9bdb72f"
-backend_pytest = 1104
+latest_commit = "f40ca6f"
+backend_pytest = 1117
 ruff = "clean"
 migration_head = "0029"
 traverse_tests = 122
-full_pytest_passed = 1122
+full_pytest_passed = 1135
 full_pytest_skipped = 3
+full_pytest_failed = 0
 e2e_pytest = 18
 eval_tests = 10
+phase2_security_tests = 12

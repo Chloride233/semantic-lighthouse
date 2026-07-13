@@ -38,6 +38,10 @@ class RetrievedChunk:
 MAX_CITATIONS_PER_DOCUMENT_FIRST_PASS = 2
 
 
+def _elapsed_ms(started_at: float) -> int:
+    return max(1, int((time.monotonic() - started_at) * 1000))
+
+
 @router.post("/answer", response_model=RagAnswerResponse)
 def answer_question(
     group_id: str,
@@ -114,7 +118,7 @@ def _answer_question_in_scope(
 
     if not citations:
         response = _no_evidence_response(request.question, retrieval_method)
-        duration_ms = int((time.monotonic() - t0) * 1000)
+        duration_ms = _elapsed_ms(t0)
         return _persist_rag_run(
             db,
             group_id,
@@ -130,7 +134,7 @@ def _answer_question_in_scope(
     try:
         answer = client.answer_question(request.question, citations)
     except ChatError as exc:
-        duration_ms = int((time.monotonic() - t0) * 1000)
+        duration_ms = _elapsed_ms(t0)
         try:
             _persist_failed_run(
                 db,
@@ -166,7 +170,7 @@ def _answer_question_in_scope(
         retrieval_method=retrieval_method,
         model=answer.model,
     )
-    duration_ms = int((time.monotonic() - t0) * 1000)
+    duration_ms = _elapsed_ms(t0)
     return _persist_rag_run(
         db,
         group_id,
