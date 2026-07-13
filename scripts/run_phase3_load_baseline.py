@@ -195,6 +195,7 @@ async def run_baseline(request_count: int) -> dict:
             chat_provider="fake",
             chat_model="fake-chat",
             rag_top_k=3,
+            rag_rate_limit_requests=10_000,
         )
         app = create_app()
 

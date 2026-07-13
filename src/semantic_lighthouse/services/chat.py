@@ -8,10 +8,20 @@ from pydantic import BaseModel, Field, ValidationError
 
 from semantic_lighthouse.config import Settings
 from semantic_lighthouse.schemas import EvidenceQuality, RagCitation
+from semantic_lighthouse.services.reliability import post_with_retry
 
 
 class ChatError(RuntimeError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        kind: str = "bad_gateway",
+        retry_after_seconds: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.kind = kind
+        self.retry_after_seconds = retry_after_seconds
 
 
 @dataclass(frozen=True)
@@ -75,6 +85,35 @@ class DeepSeekChatClient(ChatClient):
         self.base_url = settings.chat_base_url.rstrip("/")
         self.model = settings.chat_model
         self.timeout_seconds = settings.chat_timeout_seconds
+        self.max_attempts = settings.provider_max_attempts
+        self.retry_backoff_seconds = settings.provider_retry_backoff_seconds
+
+    def _post(self, payload: dict) -> httpx.Response:
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        try:
+            return post_with_retry(
+                f"{self.base_url}/chat/completions",
+                json=payload,
+                headers=headers,
+                timeout=self.timeout_seconds,
+                max_attempts=self.max_attempts,
+                backoff_seconds=self.retry_backoff_seconds,
+            )
+        except httpx.HTTPStatusError as exc:
+            raise _chat_error_from_http_status(exc) from exc
+        except httpx.TimeoutException as exc:
+            raise ChatError(
+                f"Chat provider timed out after {self.timeout_seconds} seconds",
+                kind="timeout",
+            ) from exc
+        except httpx.TransportError as exc:
+            raise ChatError(
+                "Chat provider is temporarily unavailable",
+                kind="unavailable",
+            ) from exc
 
     def answer_question(
         self,
@@ -92,19 +131,7 @@ class DeepSeekChatClient(ChatClient):
             "response_format": {"type": "json_object"},
         }
         _disable_thinking_for_structured_json(payload, self.model)
-        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        try:
-            response = httpx.post(
-                f"{self.base_url}/chat/completions",
-                json=payload,
-                headers=headers,
-                timeout=self.timeout_seconds,
-            )
-            response.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            raise ChatError(_format_provider_http_error(exc)) from exc
-        except httpx.HTTPError as exc:
-            raise ChatError(f"Chat provider request failed: {exc}") from exc
+        response = self._post(payload)
 
         try:
             content = response.json()["choices"][0]["message"]["content"]
@@ -138,19 +165,7 @@ class DeepSeekChatClient(ChatClient):
             "response_format": {"type": "json_object"},
         }
         _disable_thinking_for_structured_json(payload, self.model)
-        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        try:
-            response = httpx.post(
-                f"{self.base_url}/chat/completions",
-                json=payload,
-                headers=headers,
-                timeout=self.timeout_seconds,
-            )
-            response.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            raise ChatError(_format_provider_http_error(exc)) from exc
-        except httpx.HTTPError as exc:
-            raise ChatError(f"Chat provider request failed: {exc}") from exc
+        response = self._post(payload)
 
         try:
             content = response.json()["choices"][0]["message"]["content"]
@@ -187,17 +202,7 @@ class DeepSeekChatClient(ChatClient):
             "response_format": {"type": "json_object"},
         }
         _disable_thinking_for_structured_json(payload, self.model)
-        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        try:
-            response = httpx.post(
-                f"{self.base_url}/chat/completions",
-                json=payload, headers=headers, timeout=self.timeout_seconds,
-            )
-            response.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            raise ChatError(_format_provider_http_error(exc)) from exc
-        except httpx.HTTPError as exc:
-            raise ChatError(f"Chat provider request failed: {exc}") from exc
+        response = self._post(payload)
 
         try:
             content = response.json()["choices"][0]["message"]["content"]
@@ -354,6 +359,21 @@ def _format_provider_http_error(exc: httpx.HTTPStatusError) -> str:
     if len(detail) > 500:
         detail = detail[:500] + "..."
     return f"Chat provider request failed: HTTP {response.status_code}: {detail or response.reason_phrase}"
+
+
+def _chat_error_from_http_status(exc: httpx.HTTPStatusError) -> ChatError:
+    status_code = exc.response.status_code
+    if status_code == 429:
+        retry_after = exc.response.headers.get("Retry-After")
+        retry_after_seconds = int(retry_after) if retry_after and retry_after.isdigit() else 1
+        return ChatError(
+            _format_provider_http_error(exc),
+            kind="quota",
+            retry_after_seconds=retry_after_seconds,
+        )
+    if status_code == 408 or status_code >= 500:
+        return ChatError(_format_provider_http_error(exc), kind="unavailable")
+    return ChatError(_format_provider_http_error(exc))
 
 
 def _format_citations(citations: list[RagCitation]) -> str:

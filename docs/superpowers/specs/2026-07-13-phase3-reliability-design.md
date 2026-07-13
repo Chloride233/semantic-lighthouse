@@ -55,6 +55,54 @@ pooling or hosted-model latency.
 - No runtime MCP, schema migration, public API, or production default changes
   are part of the baseline slice.
 
+## Reliability Controls
+
+### Provider Calls
+
+Chat and embedding HTTP calls share a small retry helper. A request is retried
+only for connect/transport failures, timeouts, HTTP 408, HTTP 429, and HTTP 5xx.
+HTTP 4xx validation/authentication failures are never retried. The configured
+attempt count includes the first call and backoff is bounded and deterministic
+in tests.
+
+Terminal errors are classified as `timeout`, `quota`, `unavailable`, or
+`bad_gateway`. RAG maps them to 504, 503, 503, and 502 respectively while
+preserving the existing failed-run audit. Provider response bodies remain
+bounded by the existing 500-character formatter.
+
+### Admission And Backpressure
+
+Authenticated RAG answer requests pass through an in-process admission
+controller before retrieval or Provider work. It enforces:
+
+- a per-authenticated-user fixed-window request limit
+- a process-local maximum active RAG request count
+- a bounded waiting queue
+- a maximum queue wait time
+
+Rate rejection returns 429. A full queue or queue timeout returns 503. Waiting
+task cancellation removes the waiter and never consumes a capacity slot. An
+active request always releases its slot in dependency cleanup. This proves
+safe cancellation while queued; it does not claim that cancelling a synchronous
+third-party HTTP call stops work already accepted by the Provider.
+
+### Idempotency
+
+Clients may send `Idempotency-Key` on RAG answer requests. The server reserves a
+group-scoped, user-scoped, endpoint-scoped `pending` RAG run before retrieval.
+A database unique constraint makes the reservation authoritative across
+concurrent workers.
+Completed keys replay the stored response without another Provider call;
+pending keys return 409; failed keys replay the stored terminal error. Keys are
+never trusted for group or user scope and are capped at 128 visible ASCII
+characters.
+
+### Database Degradation
+
+Unhandled SQLAlchemy failures return a bounded HTTP 503 response with the
+request ID and no SQL, connection string, storage path, or exception detail.
+Provider audit persistence still must not mask the original Provider failure.
+
 ## Verification
 
 The baseline slice requires:
