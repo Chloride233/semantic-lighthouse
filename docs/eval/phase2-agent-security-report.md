@@ -14,6 +14,18 @@ Run the regression gate from the repository root:
 
 The gate exits non-zero when any Phase 2 security case fails.
 
+## Closeout Verification
+
+- Phase 2 security gate: 12 passed
+- Related Agent, audit, and task regression: 71 passed
+- RAG regression: 49 passed
+- Browser E2E with system Chrome: 18 passed
+- Full regression: 1,135 passed, 3 skipped
+- Ruff: clean across `src` and `tests`
+- Documentation alignment: passed across all seven entry documents
+- Implementation commit: `ed57b05`
+- Closeout commit: `f40ca6f`
+
 ## Attack And Misuse Evidence
 
 | Category | Cases | Result | Proved control |
