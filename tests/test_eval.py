@@ -54,6 +54,12 @@ class TestEvalReport:
         for q in queries:
             assert q["query"].strip()
             assert q["reference_answer"].strip()
+            if q.get("expected_refusal", False):
+                assert q["category"] == "no_evidence"
+                assert q["expected_document_titles"] == []
+                assert q["evidence_sources"] == []
+                continue
+
             assert q["evidence_sources"]
 
             expected_titles = set(q["expected_document_titles"])
@@ -92,13 +98,25 @@ class TestEvalReport:
 
         assert report is not None, "No JSON in eval output"
         assert report["corpus"]["document_count"] == 15
-        assert report["corpus"]["query_count"] == 60
+        assert report["corpus"]["query_count"] == 65
 
         for method in ("keyword", "semantic", "hybrid"):
             m = report["methods"][method]
             assert 0.0 <= m["recall_at_3"] <= 1.0
             assert 0.0 <= m["recall_at_5"] <= 1.0
             assert 0.0 <= m["no_result_rate"] <= 1.0
+
+        rag = report["rag_metrics"]
+        assert rag["answerable_queries"] == 60
+        assert rag["refusal_queries"] == 5
+        assert 0.0 <= rag["citation_correctness"] <= 1.0
+        assert 0.0 <= rag["faithfulness"] <= 1.0
+        assert 0.0 <= rag["refusal_accuracy"] <= 1.0
+        assert len(rag["per_query"]) == 60
+        assert len(rag["refusal_results"]) == 5
+        assert rag["citation_correctness"] == 0.217
+        assert rag["faithfulness"] == 0.34
+        assert rag["refusal_accuracy"] == 1.0
 
         assert report["duration_ms"] > 0
 

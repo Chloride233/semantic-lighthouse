@@ -72,5 +72,11 @@
   {"id":"q57","query":"企业 AI 系统成本由什么构成？","category":"direct","expected_document_titles":["企业AI成本优化策略"],"reference_answer":"成本包括 API 调用、基础设施和人力运维。","evidence_sources":[{"fixture":"15-ai-cost-optimization.md","document_title":"企业AI成本优化策略","quote":"AI系统成本包括API调用基础设施人力运维，优化可提升AI投资ROI。"}]},
   {"id":"q58","query":"如何按任务控制模型成本？","category":"direct","expected_document_titles":["企业AI成本优化策略"],"reference_answer":"简单任务使用轻量模型，复杂任务使用强力模型，并评估自托管替代付费 API。","evidence_sources":[{"fixture":"15-ai-cost-optimization.md","document_title":"企业AI成本优化策略","quote":"模型选择：简单用轻量(Haiku)复杂用强力(Opus)，评估自托管替代付费API。"}]},
   {"id":"q59","query":"有哪些 Token 成本优化方法？","category":"semantic","expected_document_titles":["企业AI成本优化策略"],"reference_answer":"可以精简 Prompt、截断检索上下文并缓存重复查询。","evidence_sources":[{"fixture":"15-ai-cost-optimization.md","document_title":"企业AI成本优化策略","quote":"Token优化：精简Prompt、截断检索上下文、缓存重复查询。"}]},
-  {"id":"q60","query":"如何优化 AI 系统基础设施成本？","category":"semantic","expected_document_titles":["企业AI成本优化策略"],"reference_answer":"可用 HNSW 加速检索、合并小服务并合理配置资源限制。","evidence_sources":[{"fixture":"15-ai-cost-optimization.md","document_title":"企业AI成本优化策略","quote":"基础设施：HNSW加速检索、合并小服务、合理配置资源限制。"}]}
+  {"id":"q60","query":"如何优化 AI 系统基础设施成本？","category":"semantic","expected_document_titles":["企业AI成本优化策略"],"reference_answer":"可用 HNSW 加速检索、合并小服务并合理配置资源限制。","evidence_sources":[{"fixture":"15-ai-cost-optimization.md","document_title":"企业AI成本优化策略","quote":"基础设施：HNSW加速检索、合并小服务、合理配置资源限制。"}]},
+
+  {"id":"q61","query":"今晚应该看哪一部电影？","category":"no_evidence","expected_document_titles":[],"reference_answer":"知识库没有相关证据，应拒绝给出推荐。","evidence_sources":[],"expected_refusal":true},
+  {"id":"q62","query":"明天上海会下雨吗？","category":"no_evidence","expected_document_titles":[],"reference_answer":"知识库没有实时天气证据，应拒绝预测。","evidence_sources":[],"expected_refusal":true},
+  {"id":"q63","query":"给我推荐一道周末晚餐菜谱。","category":"no_evidence","expected_document_titles":[],"reference_answer":"知识库没有烹饪证据，应拒绝推荐。","evidence_sources":[],"expected_refusal":true},
+  {"id":"q64","query":"2026 年世界杯冠军是哪支球队？","category":"no_evidence","expected_document_titles":[],"reference_answer":"知识库没有赛事结果证据，应拒绝回答。","evidence_sources":[],"expected_refusal":true},
+  {"id":"q65","query":"现在最值得买的股票是什么？","category":"no_evidence","expected_document_titles":[],"reference_answer":"知识库没有投资证据，应拒绝给出股票建议。","evidence_sources":[],"expected_refusal":true}
 ]

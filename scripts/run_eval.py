@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import sys
 import tempfile
 import time
 from collections.abc import Generator
@@ -20,6 +22,7 @@ from typing import Any
 from unittest import mock
 
 os.environ["JWT_SECRET_KEY"] = "eval-secret-key-at-least-32-bytes"
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -121,6 +124,22 @@ def _run_search(client: TestClient, gid: str, headers: dict[str, str], query: st
     return r.json()
 
 
+def _run_rag(
+    client: TestClient,
+    gid: str,
+    headers: dict[str, str],
+    query: str,
+    method: str,
+) -> dict[str, Any]:
+    response = client.post(
+        f"/groups/{gid}/rag/answer",
+        json={"question": query, "retrieval_method": method, "limit": TOP_K},
+        headers=headers,
+    )
+    assert response.status_code == 200, f"rag {method} '{query}': {response.status_code} {response.text}"
+    return response.json()
+
+
 def _recall_at_k(results: list[dict[str, Any]], expected: set[str], k: int) -> tuple[bool, set[str], set[str]]:
     top_titles = {item["title"] for item in results[:k]}
     hit = expected & top_titles
@@ -147,6 +166,39 @@ def _precision_at_k(results: list[dict[str, Any]], expected: set[str], k: int) -
     return hits / min(k, len(results[:k]))
 
 
+def _content_tokens(text: str) -> set[str]:
+    """Return deterministic English words and CJK trigrams for overlap scoring."""
+    normalized = text.casefold()
+    tokens = set(re.findall(r"[a-z0-9][a-z0-9@._+-]*", normalized))
+    for run in re.findall(r"[\u4e00-\u9fff]+", normalized):
+        if len(run) < 3:
+            tokens.add(run)
+        else:
+            tokens.update(run[index:index + 3] for index in range(len(run) - 2))
+    return {token for token in tokens if token}
+
+
+def _faithfulness(answer: str, citations: list[dict[str, Any]]) -> float:
+    """Measure answer-token coverage by returned citation snippets.
+
+    This deterministic proxy is intentionally not presented as an LLM judge.
+    It measures how much answer wording can be traced to the supplied evidence.
+    """
+    answer_tokens = _content_tokens(answer)
+    if not answer_tokens:
+        return 0.0
+    evidence_tokens = _content_tokens(" ".join(citation.get("snippet", "") for citation in citations))
+    return len(answer_tokens & evidence_tokens) / len(answer_tokens)
+
+
+def _correct_refusal(response: dict[str, Any]) -> bool:
+    return (
+        not response.get("citations")
+        and response.get("confidence") == "low"
+        and response.get("model") == "local-evidence-gate"
+    )
+
+
 def run_eval() -> dict[str, Any]:
     t0 = time.monotonic()
     engine = None
@@ -170,9 +222,12 @@ def run_eval() -> dict[str, Any]:
             queries = json.loads(QUERIES_FILE.read_text(encoding="utf-8"))
 
             methods = ["keyword", "semantic", "hybrid"]
+            answerable = [q for q in queries if not q.get("expected_refusal", False)]
+            refusal_queries = [q for q in queries if q.get("expected_refusal", False)]
             report: dict[str, Any] = {
                 "corpus": {"document_count": len(fixtures), "query_count": len(queries)},
                 "methods": {},
+                "rag_metrics": {},
                 "duration_ms": 0,
             }
 
@@ -186,7 +241,7 @@ def run_eval() -> dict[str, Any]:
                 false_positives: list[dict[str, Any]] = []
                 per_query: list[dict[str, Any]] = []
 
-                for q in queries:
+                for q in answerable:
                     expected = set(q["expected_document_titles"])
                     results = _run_search(client, gid, headers, q["query"], method)
 
@@ -225,7 +280,7 @@ def run_eval() -> dict[str, Any]:
                         "hit_titles": list(hit5), "result_count": len(results),
                     })
 
-                total = len(queries)
+                total = len(answerable)
                 report["methods"][method] = {
                     "recall_at_3": round(recall3 / total, 3) if total else 0,
                     "recall_at_5": round(recall5 / total, 3) if total else 0,
@@ -236,6 +291,53 @@ def run_eval() -> dict[str, Any]:
                     "false_positives": false_positives[:10],
                     "per_query": per_query,
                 }
+
+            citation_hits = 0
+            citation_total = 0
+            faithfulness_scores: list[float] = []
+            rag_per_query: list[dict[str, Any]] = []
+
+            for q in answerable:
+                response = _run_rag(client, gid, headers, q["query"], "hybrid")
+                expected_titles = set(q["expected_document_titles"])
+                citations = response.get("citations", [])
+                correct = sum(1 for citation in citations if citation.get("title") in expected_titles)
+                score = _faithfulness(response.get("answer", ""), citations)
+                citation_hits += correct
+                citation_total += len(citations)
+                faithfulness_scores.append(score)
+                rag_per_query.append({
+                    "id": q["id"],
+                    "citation_count": len(citations),
+                    "correct_citations": correct,
+                    "faithfulness": round(score, 3),
+                })
+
+            refusal_results: list[dict[str, Any]] = []
+            for q in refusal_queries:
+                response = _run_rag(client, gid, headers, q["query"], "keyword")
+                correct = _correct_refusal(response)
+                refusal_results.append({
+                    "id": q["id"],
+                    "correct": correct,
+                    "citation_count": len(response.get("citations", [])),
+                    "confidence": response.get("confidence"),
+                    "model": response.get("model"),
+                })
+
+            report["rag_metrics"] = {
+                "evaluation_method": "fake provider; deterministic citation-title and token-overlap scoring",
+                "answerable_queries": len(answerable),
+                "refusal_queries": len(refusal_queries),
+                "citation_correctness": round(citation_hits / citation_total, 3) if citation_total else 0.0,
+                "faithfulness": round(sum(faithfulness_scores) / len(faithfulness_scores), 3)
+                if faithfulness_scores else 0.0,
+                "refusal_accuracy": round(
+                    sum(result["correct"] for result in refusal_results) / len(refusal_results), 3
+                ) if refusal_results else 0.0,
+                "per_query": rag_per_query,
+                "refusal_results": refusal_results,
+            }
 
             report["duration_ms"] = int((time.monotonic() - t0) * 1000)
             return report
@@ -260,10 +362,19 @@ def _generate_markdown(report: dict[str, Any]) -> str:
             f"| {m} | {data['recall_at_3']} | {data['recall_at_5']} | "
             f"{data['mrr']} | {data['precision_at_5']} | {data['no_result_rate']} |"
         )
+    rag = report.get("rag_metrics", {})
     lines += [
         "",
+        "## RAG Grounding Metrics",
+        "",
+        f"- Citation correctness: {rag.get('citation_correctness', 0)}",
+        f"- Faithfulness (deterministic answer-token coverage): {rag.get('faithfulness', 0)}",
+        f"- Refusal accuracy: {rag.get('refusal_accuracy', 0)}",
+        f"- Answerable / refusal queries: {rag.get('answerable_queries', 0)} / {rag.get('refusal_queries', 0)}",
+        "",
         "**Known limitations**: fake embeddings degrade semantic/hybrid metrics. ",
-        "Keyword metrics are the primary gate. Real embedding eval deferred to Phase 1.5.",
+        "Faithfulness is a deterministic token-overlap proxy, not an LLM-as-judge score. ",
+        "Real-provider evaluation remains separate from this offline baseline.",
     ]
     return "\n".join(lines)
 
