@@ -23,6 +23,7 @@ missing fixture files, and quotes that cannot be found in the declared source.
 
 - Implementation: commit `f3f52a8`
 - Metric implementation: commit `08463a4`
+- Retrieval comparison: commit `d208491`
 - Dataset: `tests/eval/queries.json`
 - Contract tests: `tests/test_eval.py`
 - Targeted verification: 8 passed
@@ -45,12 +46,17 @@ Measured results:
 | Keyword Recall@3 | 0.933 |
 | Keyword Recall@5 | 0.950 |
 | Keyword MRR | 0.901 |
+| Vector Recall@3 | 0.667 |
+| Vector Recall@5 | 0.750 |
+| Vector MRR | 0.556 |
+| Vector Precision@5 | 0.167 |
 | Hybrid Recall@3 | 0.933 |
 | Hybrid Recall@5 | 0.950 |
 | Hybrid MRR | 0.901 |
-| Semantic Recall@5 | 0.000 |
-| Citation correctness | 0.217 |
-| Faithfulness proxy | 0.340 |
+| Hybrid Precision@5 | 0.199 |
+| Keyword Precision@5 | 0.247 |
+| Citation correctness | 0.196 |
+| Faithfulness proxy | 0.293 |
 | Refusal accuracy | 1.000 |
 
 Citation correctness is the fraction of returned citations whose title matches
@@ -58,17 +64,23 @@ the gold source title. Faithfulness is deterministic answer-token coverage by
 the returned citation snippets, using English tokens and Chinese character
 trigrams. It is not an LLM-as-judge score.
 
+The vector baseline uses an evaluation-only deterministic 256-dimension feature
+hash over English words and Chinese character trigrams. On this corpus, keyword
+retrieval ranks first. Hybrid matches keyword Recall@5 and MRR but lowers
+Precision@5 by 0.048, so it does not demonstrate uplift.
+
 ## Resume-Ready Statement
 
 Built a 65-question citation-grounded RAG evaluation suite across 15 enterprise
 AI documents, including 60 gold-answer and 5 evidence-gated refusal cases;
-measured Recall@5 0.950, MRR 0.901, citation correctness 0.217,
-deterministic faithfulness 0.340, and refusal accuracy 1.000, with 1,120 tests
-passing across the repository.
+measured keyword Recall@5 0.950 and MRR 0.901 against a deterministic vector
+baseline, showing hybrid added no recall uplift and reduced Precision@5 by
+0.048; also measured citation correctness 0.196, deterministic faithfulness
+0.293, and refusal accuracy 1.000, with 1,120 tests passing across the repository.
 
 ## Claim Boundary
 
-This slice proves deterministic offline measurement and exposes a weak citation
-precision/faithfulness baseline. Fake embeddings produce semantic Recall@5 of
-0.000, so vector quality and hybrid uplift are not yet valid claims. Real-provider
-quality and adversarial safety results remain pending later Issue #1 items.
+This slice proves deterministic offline method comparison and exposes weak
+citation precision/faithfulness. The vector baseline is lexical feature hashing,
+not a neural semantic model, so real-provider vector quality remains unproven.
+Adversarial safety results remain pending later Issue #1 items.
