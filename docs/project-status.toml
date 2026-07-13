@@ -20,20 +20,63 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "R3F FK indexing delivered"
-description = "R3F complete. Two local micro-optimizations in runtime_traverse.py: _build_target_index uses defaultdict(list) instead of setdefault() to avoid wasted [] allocations per row; _convert_row_fields pre-computes field→value_type mapping once per field list instead of calling prop_map.get().get() for every row/field. Both optimizations are zero-behavior-change. Existing scan_limit and scan_truncated were already delivered pre-R3F. 2 new tests (122 total). No migration, no API/schema change, no new dependencies."
+current = "Evidence Roadmap Phase 1 complete"
+description = "GitHub Issue #1 acceptance items 1-5 complete. Delivered a 65-question citation-grounded RAG evaluation suite, five quality metrics, keyword/vector/hybrid comparison, four safety categories, a committed evaluation report, and a single-command regression gate. Gate thresholds cover keyword Recall@5/MRR/no-result rate, citation correctness, deterministic faithfulness, refusal accuracy, and 4/4 safety categories. Residual risks remain explicit: conflict-aware confidence reduction and real-provider/neural-embedding validation are not delivered."
 
 [next_decision_gate]
-name = "R3 runtime closeout complete / next product decision"
-description = "R3A-R3F all delivered. Runtime enhancement line is complete: R3A planning, R3B grouped response, R3C filter pushdown, R3D bidirectional traversal, R3E1 sorting, R3F FK indexing. Aggregation (R3E2) deferred indefinitely per design decision. Next product direction requires explicit user decision — no automatic phase expansion to R4, Phase 20, MCP, or new feature lines."
+name = "Evidence Roadmap Phase 2 decision"
+description = "Phase 1 is complete. The next ordered evidence phase is GitHub Issue #4 (controlled Agent and security boundaries). Do not start Phase 2 automatically without a new iteration; preserve Phase 1 metric and safety gates."
+
+[phase1_rag_evaluation]
+issue = 1
+status = "complete (5 of 5 acceptance items)"
+dataset_queries = 65
+answerable_queries = 60
+refusal_queries = 5
+source_documents = 15
+implementation_commit = "9bdb72f"
+resume_evidence = "docs/eval/phase1-resume-evidence.md"
+evaluation_report = "docs/eval/phase1-evaluation-report.md"
+regression_gate = ".venv/bin/python scripts/run_phase1_eval_gate.py"
+keyword_recall_at_5 = 0.950
+keyword_mrr = 0.901
+hybrid_recall_at_5 = 0.950
+hybrid_mrr = 0.901
+hybrid_precision_at_5 = 0.199
+semantic_recall_at_5 = 0.750
+semantic_mrr = 0.556
+semantic_precision_at_5 = 0.167
+keyword_precision_at_5 = 0.247
+citation_correctness = 0.196
+faithfulness_proxy = 0.293
+refusal_accuracy = 1.000
+best_offline_method = "keyword"
+safety_categories_passed = 4
+safety_categories_total = 4
+no_evidence_cases_passed = 5
+no_evidence_cases_total = 5
+prompt_injection_instruction_followed = false
+cross_group_leaked_citations = 0
+gate_keyword_recall_at_5_min = 0.900
+gate_keyword_mrr_min = 0.850
+gate_keyword_no_result_rate_max = 0.000
+gate_citation_correctness_min = 0.190
+gate_faithfulness_min = 0.290
+gate_refusal_accuracy_min = 1.000
+gate_safety_categories_required = 4
+risk = "Conflicting sources are preserved but confidence remains high; conflict-aware confidence reduction is not implemented. Vector search is evaluation-only lexical feature hashing, and faithfulness is not LLM-as-judge."
 
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "f4bccfb"
-backend_pytest = 848
+latest_commit = "9bdb72f"
+backend_pytest = 1104
 ruff = "clean"
 migration_head = "0029"
 traverse_tests = 122
+full_pytest_passed = 1122
+full_pytest_skipped = 3
+e2e_pytest = 18
+eval_tests = 10

@@ -93,6 +93,20 @@ $env:DATABASE_URL = "sqlite+pysqlite:///" + $dbPath.Replace("\\","/").Replace("\
 - Knowledge-base default path is `./knowledge-graph` (configurable via `KNOWLEDGE_BASE_PATH` env var).
 - Runtime storage paths include `document-storage`, `upload-tmp`, and `dataset-storage`; keep them out of commits.
 
+### macOS workspace
+
+When running in the local macOS workspace, use POSIX paths and the repository-local virtual environment:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
+.venv/bin/python -m pip install -e .
+.venv/bin/python -m pytest tests/test_specific.py -p no:cacheprovider
+.venv/bin/python -m ruff check src tests
+```
+
+Translate PowerShell-only examples to their POSIX equivalent. Do not introduce Windows paths into new scripts or documentation unless the task explicitly targets Windows.
+
 ## Frontend Work
 
 - Frontend F2 is complete; future UI work is incremental and lane-scoped.
@@ -127,3 +141,14 @@ Commit:
 ```
 
 Fast Lane ends with `git diff --check`, `git status --short`, and a commit. Standard and Safety Lane closure follows `docs/development-workflow.md`.
+
+## Evidence Roadmap
+
+Advance these phases in order. Do not start a later phase until the current issue's acceptance criteria have verifiable evidence:
+
+1. Phase 1: [citation-grounded RAG evaluation](https://github.com/Chloride233/semantic-lighthouse/issues/1)
+2. Phase 2: [controlled Agent and security boundaries](https://github.com/Chloride233/semantic-lighthouse/issues/4)
+3. Phase 3: [concurrency, reliability, and degradation](https://github.com/Chloride233/semantic-lighthouse/issues/2)
+4. Phase 4: [manufacturing pilot and user validation](https://github.com/Chloride233/semantic-lighthouse/issues/3)
+
+New implementation must serve the current phase. Close a phase only when its code, tests, metrics, or user evidence are reproducible. Plans, deferred scope, and design-only capabilities must not be presented as delivered behavior.
