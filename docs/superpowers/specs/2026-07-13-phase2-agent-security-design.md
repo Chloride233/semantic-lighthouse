@@ -172,3 +172,54 @@ This is an intentional security correction to the documented run state machine.
 
 Rollback is the focused implementation commit. Existing database schemas and
 stored Agent steps require no migration.
+
+## Closeout Addendum
+
+Final Safety Lane verification exposed two pre-existing repository gate issues
+that must be resolved before Phase 2 can close.
+
+### Positive Integer RAG Duration
+
+The RAG audit contract and three existing tests require `duration_ms` to be a
+positive integer for success, no-evidence, and provider-error runs. The current
+floor conversion can record zero when a path completes in less than one
+millisecond, making the full suite timing-dependent.
+
+Add one private elapsed-time helper in the RAG router. It converts monotonic
+elapsed time to integer milliseconds and clamps the minimum stored value to one.
+Use the helper in all three terminal paths so the existing audit contract is
+consistent. Do not change schemas, response fields, or timing precision.
+
+Verification first adds a deterministic unit test by patching the monotonic
+clock to an elapsed value below one millisecond, then confirms the helper returns
+one. Existing API audit tests continue to prove positive values for all terminal
+paths.
+
+### Stable Agent Handoff Entry
+
+The documentation alignment checker has always required
+`docs/agent-handoff.md`, but the file has no Git history and is absent. Add a
+short stable entry document that:
+
+- points to `docs/project-status.toml` as the only current-state authority
+- points to `docs/development-workflow.md` for lane and verification rules
+- repeats the session-start checks from the repository instructions
+- states durable Agent, group isolation, HITL, audit, and runtime MCP boundaries
+- does not copy a current phase, next phase, verification count, or commit hash
+
+The existing alignment checker is unchanged. This restores its intended entry
+document instead of weakening the check.
+
+### Addendum Verification
+
+After these closeout fixes:
+
+1. Run the deterministic elapsed-time helper test and related RAG audit tests.
+2. Run the Phase 2 security gate.
+3. Run the documentation alignment checker.
+4. Run full pytest with the local macOS `PYTHONPATH=src` and system Chrome
+   channel required by this workspace.
+5. Run full ruff and `git diff --check`.
+
+Only then update `docs/project-status.toml` from closeout pending to Phase 2
+complete.
