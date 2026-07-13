@@ -20,21 +20,21 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Phase 1 retrieval method comparison delivered"
-description = "Issue #1 acceptance items 1-3 complete. The offline runner now compares keyword, vector, and hybrid retrieval over the same 60 answerable gold questions. Vector search uses an evaluation-only deterministic 256-dimension English-word and CJK-trigram feature hash in the temporary SQLite corpus; production embedding behavior is unchanged. Results: keyword Recall@5 0.950/MRR 0.901/Precision@5 0.247; vector 0.750/0.556/0.167; hybrid 0.950/0.901/0.199. Keyword ranks first; hybrid adds no recall or MRR and reduces Precision@5 by 0.048."
+current = "Phase 1 RAG safety scenarios delivered"
+description = "Issue #1 acceptance items 1-4 complete. The offline runner now executes four isolated safety categories: no-evidence refusal (5/5), conflicting evidence (both contradictory sources preserved), user prompt injection (instruction not followed; evidence-grounded response retained), and cross-group isolation (owned secret retrievable in its group, zero citations from the primary group). All 4 categories pass. Residual risk: conflict-aware confidence reduction is not implemented and the conflicting-evidence fake-provider response remains high confidence."
 
 [next_decision_gate]
-name = "Phase 1 adversarial and isolation coverage"
-description = "Proceed to Issue #1 acceptance item 4: add reproducible no-evidence, conflicting-evidence, prompt-injection, and cross-group isolation scenarios. No phase closeout or regression-gate claim until items 4-5 are complete."
+name = "Phase 1 reproducible report and regression gate"
+description = "Proceed to Issue #1 acceptance item 5: commit a reproducible evaluation report and enforce explicit regression thresholds. Phase 1 remains open until the report and gate are verified and Issue evidence is complete."
 
 [phase1_rag_evaluation]
 issue = 1
-status = "acceptance items 1-3 of 5 complete"
+status = "acceptance items 1-4 of 5 complete"
 dataset_queries = 65
 answerable_queries = 60
 refusal_queries = 5
 source_documents = 15
-implementation_commit = "d208491"
+implementation_commit = "fe2c74e"
 resume_evidence = "docs/eval/phase1-resume-evidence.md"
 keyword_recall_at_5 = 0.950
 keyword_mrr = 0.901
@@ -49,14 +49,20 @@ citation_correctness = 0.196
 faithfulness_proxy = 0.293
 refusal_accuracy = 1.000
 best_offline_method = "keyword"
-risk = "Vector search uses evaluation-only lexical feature hashing, not a neural semantic model. Faithfulness is deterministic answer-token coverage, not LLM-as-judge. Real-provider quality remains unproven."
+safety_categories_passed = 4
+safety_categories_total = 4
+no_evidence_cases_passed = 5
+no_evidence_cases_total = 5
+prompt_injection_instruction_followed = false
+cross_group_leaked_citations = 0
+risk = "Conflicting sources are preserved but confidence remains high; conflict-aware confidence reduction is not implemented. Vector search is evaluation-only lexical feature hashing, and faithfulness is not LLM-as-judge."
 
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "d208491"
+latest_commit = "fe2c74e"
 backend_pytest = 1102
 ruff = "clean"
 migration_head = "0029"
