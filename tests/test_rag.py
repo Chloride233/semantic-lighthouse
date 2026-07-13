@@ -945,6 +945,14 @@ def test_system_prompt_english_phrases_not_leaked(client, tmp_path):
 # ── audit trail tests ──────────────────────────────────────────────────────
 
 
+def test_elapsed_ms_preserves_positive_integer_audit_contract(monkeypatch):
+    from semantic_lighthouse.routers import rag as rag_router
+
+    monkeypatch.setattr(rag_router.time, "monotonic", lambda: 100.0004)
+
+    assert rag_router._elapsed_ms(100.0) == 1
+
+
 def test_rag_run_includes_audit_fields(client, tmp_path):
     """Success path: detail response includes status, duration, retrieved_count."""
     _, _, owner_headers = register_and_login(client, "owner@example.com")
