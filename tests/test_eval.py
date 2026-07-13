@@ -166,3 +166,62 @@ class TestEvalReport:
         a = _metrics()
         b = _metrics()
         assert a == b, f"Metrics drift: {a} vs {b}"
+
+    def test_phase1_regression_gate_passes(self, tmp_path):
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        cwd = str(Path(__file__).resolve().parent.parent)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "scripts/run_phase1_eval_gate.py",
+                "--json", str(tmp_path / "report.json"),
+                "--markdown", str(tmp_path / "report.md"),
+            ],
+            capture_output=True,
+            text=True,
+            cwd=cwd,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "All thresholds PASSED" in result.stdout
+        assert (tmp_path / "report.json").is_file()
+        assert (tmp_path / "report.md").is_file()
+
+    def test_phase1_regression_gate_rejects_metric_drop(self, tmp_path):
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        report = {
+            "methods": {"keyword": {"recall_at_5": 0.95, "mrr": 0.90, "no_result_rate": 0.0}},
+            "rag_metrics": {
+                "citation_correctness": 0.10,
+                "faithfulness": 0.30,
+                "refusal_accuracy": 1.0,
+            },
+            "safety": {"passed": True, "passed_categories": 4, "total_categories": 4},
+        }
+        report_path = tmp_path / "regressed.json"
+        report_path.write_text(json.dumps(report), encoding="utf-8")
+        cwd = str(Path(__file__).resolve().parent.parent)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "scripts/check_eval_thresholds.py",
+                str(report_path),
+                "--min-recall5", "0.90",
+                "--max-noresult", "0.0",
+                "--min-mrr", "0.85",
+                "--min-citation-correctness", "0.19",
+                "--min-faithfulness", "0.29",
+                "--min-refusal-accuracy", "1.0",
+                "--require-safety",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=cwd,
+        )
+        assert result.returncode == 1
+        assert "FAIL: citation correctness = 0.1 < 0.19" in result.stdout
