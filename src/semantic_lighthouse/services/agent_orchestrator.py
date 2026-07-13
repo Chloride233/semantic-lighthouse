@@ -72,6 +72,13 @@ def _validate_role(tool: ToolDef, user_role: str) -> bool:
     return order.get(user_role, -1) >= order.get(tool.required_role, 0)
 
 
+def tool_role_error(name: str, user_role: str) -> str | None:
+    tool = _tool_by_name(name)
+    if tool is None or _validate_role(tool, user_role):
+        return None
+    return f"Error: '{name}' requires '{tool.required_role}' role."
+
+
 def execute_tool(
     name: str,
     arguments: dict,
@@ -84,8 +91,9 @@ def execute_tool(
     tool = _tool_by_name(name)
     if tool is None:
         return f"Error: unknown tool '{name}'."
-    if not _validate_role(tool, user_role):
-        return f"Error: '{name}' requires '{tool.required_role}' role."
+    role_error = tool_role_error(name, user_role)
+    if role_error:
+        return role_error
 
     allowed_docs = _project_doc_ids(db, group_id, project_id) if project_id else None
 
@@ -245,6 +253,19 @@ def agent_loop(
                 db.commit()
                 last_step = step
                 continue
+
+            role_error = tool_role_error(tool_name, user_role)
+            if role_error:
+                step = add_step(
+                    db, run, phase="execute", step_index=step_idx,
+                    thought=decision.thought, action_type="tool_call",
+                    action_detail={"tool": tool_name, "arguments": tool_args},
+                    observation=role_error, error_message=role_error,
+                    status="failed",
+                )
+                fail_run(db, run, role_error)
+                db.refresh(step)
+                return step
 
             if tool.is_risky and not (
                 run.project_id is not None and tool_name == "archive_document"

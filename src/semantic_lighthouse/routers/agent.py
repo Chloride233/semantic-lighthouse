@@ -30,6 +30,7 @@ from semantic_lighthouse.services.agent_orchestrator import (
     fail_run,
     finalize_run,
     is_risky_tool,
+    tool_role_error,
     upsert_memory,
 )
 
@@ -226,7 +227,12 @@ def execute_agent_step(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Cannot execute Agent run scoped to an archived project",
             )
-    if run.status not in ("planning", "executing", "awaiting_confirmation"):
+    if run.status == "awaiting_confirmation":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Run is awaiting confirmation; respond before continuing",
+        )
+    if run.status not in ("planning", "executing"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Run is {run.status}, cannot execute")
 
     # ── V1: deterministic single-tool path (eval / manual) ──────────
@@ -279,6 +285,24 @@ def _execute_single_tool(
 ) -> AgentStep:
     """V1 deterministic single-tool execution — preserved for eval regression."""
     tool_args: dict = {"query": run.goal} if tool == "search_knowledge_base" else {"title": run.goal} if tool == "archive_document" else {}
+
+    role_error = tool_role_error(tool, user_role)
+    if role_error:
+        run.status = "executing"
+        run.current_phase = "execute"
+        run.updated_at = utc_now()
+        step = add_step(
+            db, run, phase="execute", step_index=len(run.steps) if run.steps else 0,
+            thought=f"Tool authorization failed: {tool}",
+            action_type="tool_call",
+            action_detail={"tool": tool, "arguments": tool_args},
+            observation=role_error,
+            error_message=role_error,
+            status="failed",
+        )
+        fail_run(db, run, role_error)
+        db.refresh(step)
+        return step
 
     if is_risky_tool(tool) and not (run.project_id is not None and tool == "archive_document"):
         run.status = "awaiting_confirmation"
