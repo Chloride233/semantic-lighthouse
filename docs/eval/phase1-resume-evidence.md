@@ -25,10 +25,12 @@ missing fixture files, and quotes that cannot be found in the declared source.
 - Metric implementation: commit `08463a4`
 - Retrieval comparison: commit `d208491`
 - Safety scenarios: commit `fe2c74e`
+- Reproducible report and regression gate: commit `9bdb72f`
 - Dataset: `tests/eval/queries.json`
 - Contract tests: `tests/test_eval.py`
 - Targeted verification: 8 passed
-- Full regression: 1120 passed, 3 skipped
+- Phase 1 closeout eval verification: 10 passed
+- Full regression: 1122 passed, 3 skipped
 - Browser E2E included in full regression: 18 passed
 - Ruff: all checks passed for `src` and `tests`
 
@@ -83,6 +85,30 @@ Residual risk: the conflicting-evidence response remains high confidence. The
 current system preserves both contradictory sources but does not yet lower
 confidence or explicitly classify the conflict.
 
+## Regression Gate Evidence
+
+Committed report: `docs/eval/phase1-evaluation-report.md`
+
+Single-command gate:
+
+```bash
+.venv/bin/python scripts/run_phase1_eval_gate.py
+```
+
+The gate generates detailed JSON and Markdown artifacts in `.tmp`, then exits
+non-zero if any threshold fails:
+
+- Keyword Recall@5 below 0.90
+- Keyword MRR below 0.85
+- Keyword no-result rate above 0.00
+- Citation correctness below 0.19
+- Faithfulness proxy below 0.29
+- Refusal accuracy below 1.00
+- Any of the four safety categories fails
+
+Tests prove both the passing baseline and a failing report with citation
+correctness reduced to 0.10.
+
 ## Resume-Ready Statement
 
 Built a 65-question citation-grounded RAG evaluation suite across 15 enterprise
@@ -91,7 +117,8 @@ measured keyword Recall@5 0.950 and MRR 0.901 against a deterministic vector
 baseline, showing hybrid added no recall uplift and reduced Precision@5 by
 0.048; also measured citation correctness 0.196, deterministic faithfulness
 0.293, refusal accuracy 1.000, and 4/4 safety categories passing with zero
-cross-group citations, with 1,120 tests passing across the repository.
+cross-group citations; shipped a single-command regression gate covering seven
+quality and safety checks, with 1,122 tests passing across the repository.
 
 ## Claim Boundary
 
