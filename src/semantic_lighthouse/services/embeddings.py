@@ -6,10 +6,13 @@ from hashlib import sha256
 import httpx
 
 from semantic_lighthouse.config import Settings
+from semantic_lighthouse.services.reliability import post_with_retry
 
 
 class EmbeddingError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, kind: str = "bad_gateway") -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
 @dataclass(frozen=True)
@@ -31,6 +34,8 @@ class AliyunEmbeddingClient(EmbeddingClient):
         self.model = settings.embedding_model
         self.dimension = settings.embedding_dimension
         self.timeout_seconds = settings.embedding_timeout_seconds
+        self.max_attempts = settings.provider_max_attempts
+        self.retry_backoff_seconds = settings.provider_retry_backoff_seconds
 
     def embed_texts(self, texts: list[str]) -> EmbeddingResult:
         if not self.api_key:
@@ -41,10 +46,32 @@ class AliyunEmbeddingClient(EmbeddingClient):
         payload = {"model": self.model, "input": texts}
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         try:
-            response = httpx.post(self.endpoint, json=payload, headers=headers, timeout=self.timeout_seconds)
-            response.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise EmbeddingError(f"Embedding provider request failed: {exc}") from exc
+            response = post_with_retry(
+                self.endpoint,
+                json=payload,
+                headers=headers,
+                timeout=self.timeout_seconds,
+                max_attempts=self.max_attempts,
+                backoff_seconds=self.retry_backoff_seconds,
+            )
+        except httpx.HTTPStatusError as exc:
+            kind = "quota" if exc.response.status_code == 429 else "unavailable"
+            if exc.response.status_code < 500 and exc.response.status_code != 429:
+                kind = "bad_gateway"
+            raise EmbeddingError(
+                f"Embedding provider request failed: HTTP {exc.response.status_code}",
+                kind=kind,
+            ) from exc
+        except httpx.TimeoutException as exc:
+            raise EmbeddingError(
+                f"Embedding provider timed out after {self.timeout_seconds} seconds",
+                kind="timeout",
+            ) from exc
+        except httpx.TransportError as exc:
+            raise EmbeddingError(
+                "Embedding provider is temporarily unavailable",
+                kind="unavailable",
+            ) from exc
 
         body = response.json()
         try:

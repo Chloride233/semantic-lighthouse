@@ -20,12 +20,12 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Evidence Roadmap Phase 2 complete"
-description = "GitHub Issue #4 acceptance items 1-5 complete. Delivered a 12-case deterministic Agent security suite covering prompt injection containment, invalid tools, unauthorized writes, server-derived RBAC, cross-group isolation, HITL, and audit; hardened authorization-before-confirmation and locked pending runs against repeat execution. Closeout stabilized the positive-integer RAG duration audit contract and restored the canonical Agent handoff entry document. The Phase 2 gate passes 12/12, related regression passes 71/71, RAG regression passes 49/49, browser E2E passes 18/18, doc alignment passes, and the full suite passes 1,135 with 3 skipped."
+current = "Evidence Roadmap Phase 3 complete"
+description = "GitHub Issue #2 acceptance items 1-5 complete. Delivered reproducible 1/10/50 authenticated RAG load scenarios, Provider timeout/retry/error classification, per-user rate limiting, bounded concurrency and queue backpressure, queued cancellation safety, DB-backed scoped Idempotency-Key replay, bounded SQLAlchemy 503 degradation, request-ID fault traces, and migration 0030. The Phase 3 gate passes 22/22, Phase 1 and Phase 2 gates remain green, browser E2E passes 18/18, and the full suite passes 1,157 with 3 skipped."
 
 [next_decision_gate]
-name = "Evidence Roadmap Phase 3 decision"
-description = "Phase 2 is complete. The next ordered evidence phase is GitHub Issue #2 (concurrency, reliability, and degradation). Do not start Phase 3 automatically without a new iteration; preserve the Phase 1 quality gate and Phase 2 Agent security gate."
+name = "Evidence Roadmap Phase 4 decision"
+description = "Phase 3 is complete. The next ordered evidence phase is GitHub Issue #3 (manufacturing pilot and user validation). Do not start Phase 4 automatically without a new iteration; preserve the Phase 1 quality, Phase 2 Agent security, and Phase 3 reliability gates."
 
 [phase1_rag_evaluation]
 issue = 1
@@ -90,19 +90,59 @@ full_pytest_failed = 0
 doc_alignment = "pass"
 risk = "Fake-provider tests prove deterministic backend containment of malicious model decisions, not real-provider prompt-injection resistance. Concurrent confirmation requests are not stress-tested."
 
+[phase3_reliability]
+issue = 2
+status = "complete (5 of 5 acceptance items)"
+baseline_commit = "9ba8cf5"
+implementation_commit = "66467ea"
+design = "docs/superpowers/specs/2026-07-13-phase3-reliability-design.md"
+evidence_report = "docs/eval/phase3-reliability-report.md"
+baseline_command = ".venv/bin/python scripts/run_phase3_load_baseline.py"
+regression_gate = ".venv/bin/python scripts/run_phase3_reliability_gate.py"
+requests_per_level = 100
+concurrency_levels = [1, 10, 50]
+requests_passed = 300
+requests_failed = 0
+concurrency_1_throughput_rps = 333.45
+concurrency_1_p95_ms = 4.01
+concurrency_10_throughput_rps = 317.29
+concurrency_10_p95_ms = 72.07
+concurrency_50_throughput_rps = 297.49
+concurrency_50_p95_ms = 257.98
+concurrency_50_p99_ms = 297.00
+concurrency_50_peak_rss_mb = 135.55
+after_controls_requests_passed = 300
+after_controls_requests_failed = 0
+after_controls_concurrency_50_throughput_rps = 249.82
+after_controls_concurrency_50_p95_ms = 247.48
+after_controls_concurrency_50_p99_ms = 299.12
+reliability_tests = 19
+gate_tests = 22
+migration_head = "0030"
+phase1_gate = "pass"
+phase2_gate = "12/12"
+e2e_tests = "18/18"
+full_pytest_passed = 1157
+full_pytest_skipped = 3
+full_pytest_failed = 0
+risk = "Admission and rate limits are process-local and the production example uses one worker; queued cancellation is proven but an active synchronous Provider call may finish after disconnect; Provider retry can duplicate billing if the remote service loses a completed response; fake-provider SQLite load does not prove PostgreSQL or hosted-model capacity."
+
 [mcp]
 runtime_status = "not started"
 summary = "MCP is a future Agent-facing adapter candidate only. No MCP server/client, SDK, dependency, resource, or tool is implemented. Requires a dedicated Safety Lane plan after Phase 14 review."
 
 [verification]
-latest_commit = "f40ca6f"
-backend_pytest = 1117
+latest_commit = "66467ea"
+backend_pytest = 1139
 ruff = "clean"
-migration_head = "0029"
+migration_head = "0030"
 traverse_tests = 122
-full_pytest_passed = 1135
+full_pytest_passed = 1157
 full_pytest_skipped = 3
 full_pytest_failed = 0
 e2e_pytest = 18
 eval_tests = 10
 phase2_security_tests = 12
+phase3_load_runner_tests = 3
+phase3_reliability_tests = 19
+phase3_gate_tests = 22

@@ -1,9 +1,13 @@
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
+from hashlib import sha256
+import json
 import re
 import time
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from sqlalchemy import case, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from semantic_lighthouse.config import Settings, get_settings
@@ -19,6 +23,7 @@ from semantic_lighthouse.schemas import (
 )
 from semantic_lighthouse.services.chat import ChatError, adjusted_confidence, compute_evidence_quality, create_chat_client, sanitize_references
 from semantic_lighthouse.services.embeddings import EmbeddingError, create_embedding_client
+from semantic_lighthouse.services.reliability import AdmissionRejected, RagAdmissionController
 from semantic_lighthouse.services.retrieval import project_document_ids
 
 from ._shared import snippet, validate_pgvector_dimension
@@ -42,6 +47,58 @@ def _elapsed_ms(started_at: float) -> int:
     return max(1, int((time.monotonic() - started_at) * 1000))
 
 
+async def _admit_rag_request(
+    request: Request,
+    group_id: str,
+    current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> AsyncGenerator[None, None]:
+    signature = (
+        settings.rag_max_concurrency,
+        settings.rag_max_queue,
+        settings.rag_queue_timeout_seconds,
+        settings.rag_rate_limit_requests,
+        settings.rag_rate_limit_window_seconds,
+    )
+    controller = getattr(request.app.state, "rag_admission_controller", None)
+    if controller is None or getattr(request.app.state, "rag_admission_signature", None) != signature:
+        controller = RagAdmissionController(
+            max_concurrency=settings.rag_max_concurrency,
+            max_queue=settings.rag_max_queue,
+            queue_timeout_seconds=settings.rag_queue_timeout_seconds,
+            rate_limit_requests=settings.rag_rate_limit_requests,
+            rate_limit_window_seconds=settings.rag_rate_limit_window_seconds,
+        )
+        request.app.state.rag_admission_controller = controller
+        request.app.state.rag_admission_signature = signature
+    try:
+        lease = await controller.acquire(current_user.id)
+    except AdmissionRejected as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.detail,
+            headers={"Retry-After": str(exc.retry_after_seconds)},
+        ) from exc
+    try:
+        yield
+    finally:
+        lease.release()
+
+
+def _provider_http_exception(exc: ChatError | EmbeddingError) -> HTTPException:
+    kind = getattr(exc, "kind", "bad_gateway")
+    if kind == "timeout":
+        return HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=str(exc))
+    if kind in {"quota", "unavailable"}:
+        retry_after = getattr(exc, "retry_after_seconds", None) or 1
+        return HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+            headers={"Retry-After": str(retry_after)},
+        )
+    return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+
 @router.post("/answer", response_model=RagAnswerResponse)
 def answer_question(
     group_id: str,
@@ -49,8 +106,11 @@ def answer_question(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
+    _admission: None = Depends(_admit_rag_request),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> RagAnswerResponse:
     get_membership_or_404(db, current_user.id, group_id)
+    idempotency_key = _validate_idempotency_key(idempotency_key)
     return _answer_question_in_scope(
         db,
         settings,
@@ -59,6 +119,8 @@ def answer_question(
         request,
         project_id=None,
         allowed_document_ids=None,
+        idempotency_key=idempotency_key,
+        idempotency_scope="group",
     )
 
 
@@ -70,6 +132,8 @@ def answer_project_question(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
+    _admission: None = Depends(_admit_rag_request),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> RagAnswerResponse:
     get_membership_or_404(db, current_user.id, group_id)
     project = db.get(BusinessProject, project_id)
@@ -81,6 +145,7 @@ def answer_project_question(
             detail="Archived projects cannot create project-scoped RAG answers",
         )
 
+    idempotency_key = _validate_idempotency_key(idempotency_key)
     allowed_document_ids = project_document_ids(db, group_id, project_id)
     return _answer_question_in_scope(
         db,
@@ -90,6 +155,8 @@ def answer_project_question(
         request,
         project_id=project_id,
         allowed_document_ids=allowed_document_ids,
+        idempotency_key=idempotency_key,
+        idempotency_scope=f"project:{project_id}",
     )
 
 
@@ -102,18 +169,57 @@ def _answer_question_in_scope(
     *,
     project_id: str | None,
     allowed_document_ids: set[str] | None,
+    idempotency_key: str | None,
+    idempotency_scope: str,
 ) -> RagAnswerResponse:
     t0 = time.monotonic()
+    reserved_run: RagRun | None = None
+    if idempotency_key is not None:
+        fingerprint = _idempotency_fingerprint(request, idempotency_scope)
+        reserved_run, created = _reserve_idempotent_run(
+            db,
+            group_id=group_id,
+            user_id=user_id,
+            project_id=project_id,
+            request=request,
+            idempotency_key=idempotency_key,
+            idempotency_scope=idempotency_scope,
+            fingerprint=fingerprint,
+        )
+        if not created:
+            return _replay_idempotent_run(reserved_run, fingerprint)
+
     limit = request.limit or settings.rag_top_k
-    retrieved, retrieval_method = _retrieve(
-        db,
-        group_id,
-        request.question,
-        request.retrieval_method,
-        limit,
-        settings,
-        allowed_document_ids=allowed_document_ids,
-    )
+    try:
+        retrieved, retrieval_method = _retrieve(
+            db,
+            group_id,
+            request.question,
+            request.retrieval_method,
+            limit,
+            settings,
+            allowed_document_ids=allowed_document_ids,
+        )
+    except EmbeddingError as exc:
+        duration_ms = _elapsed_ms(t0)
+        try:
+            _persist_failed_run(
+                db,
+                group_id,
+                user_id,
+                request.question,
+                [],
+                request.retrieval_method,
+                str(exc),
+                duration_ms,
+                0,
+                project_id=project_id,
+                run=reserved_run,
+                error_kind=exc.kind,
+            )
+        except Exception:
+            pass
+        raise _provider_http_exception(exc) from exc
     citations = _citations(retrieved, request.question, settings.rag_max_context_chars)
 
     if not citations:
@@ -128,6 +234,7 @@ def _answer_question_in_scope(
             status="no_evidence",
             duration_ms=duration_ms,
             retrieved_count=len(retrieved),
+            run=reserved_run,
         )
 
     client = create_chat_client(settings)
@@ -147,11 +254,14 @@ def _answer_question_in_scope(
                 duration_ms,
                 len(retrieved),
                 project_id=project_id,
+                run=reserved_run,
+                error_kind=exc.kind,
+                retry_after_seconds=exc.retry_after_seconds,
             )
         except Exception:
             # Audit persistence failure must not mask the original ChatError.
             pass
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+        raise _provider_http_exception(exc) from exc
 
     sanitized = sanitize_references(answer.answer, citations)
     confidence, confidence_reason = adjusted_confidence(answer.confidence, citations)
@@ -180,6 +290,7 @@ def _answer_question_in_scope(
         status="success",
         duration_ms=duration_ms,
         retrieved_count=len(retrieved),
+        run=reserved_run,
     )
 
 
@@ -233,6 +344,125 @@ def _no_evidence_response(question: str, retrieval_method: str) -> RagAnswerResp
     )
 
 
+def _validate_idempotency_key(key: str | None) -> str | None:
+    if key is None:
+        return None
+    if not key or len(key) > 128 or any(ord(char) < 33 or ord(char) > 126 for char in key):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Idempotency-Key must contain 1-128 visible ASCII characters",
+        )
+    return key
+
+
+def _idempotency_fingerprint(request: RagAnswerRequest, scope: str) -> str:
+    canonical = json.dumps(
+        {
+            "scope": scope,
+            "question": request.question,
+            "retrieval_method": request.retrieval_method,
+            "limit": request.limit,
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _reserve_idempotent_run(
+    db: Session,
+    *,
+    group_id: str,
+    user_id: str,
+    project_id: str | None,
+    request: RagAnswerRequest,
+    idempotency_key: str,
+    idempotency_scope: str,
+    fingerprint: str,
+) -> tuple[RagRun, bool]:
+    run = RagRun(
+        group_id=group_id,
+        user_id=user_id,
+        project_id=project_id,
+        question=request.question,
+        answer="RAG request is in progress.",
+        confidence="low",
+        retrieval_method=request.retrieval_method,
+        model="pending",
+        citations=[],
+        knowledge_gaps=[],
+        next_steps=[],
+        status="pending",
+        idempotency_key=idempotency_key,
+        idempotency_scope=idempotency_scope,
+        idempotency_fingerprint=fingerprint,
+    )
+    db.add(run)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        existing = db.scalar(
+            select(RagRun).where(
+                RagRun.group_id == group_id,
+                RagRun.user_id == user_id,
+                RagRun.idempotency_scope == idempotency_scope,
+                RagRun.idempotency_key == idempotency_key,
+            )
+        )
+        if existing is None:
+            raise exc
+        return existing, False
+    db.refresh(run)
+    return run, True
+
+
+def _replay_idempotent_run(run: RagRun, fingerprint: str) -> RagAnswerResponse:
+    if run.idempotency_fingerprint != fingerprint:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Idempotency-Key was already used for a different request",
+        )
+    if run.status == "pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Request with this Idempotency-Key is still in progress",
+            headers={"Retry-After": "1"},
+        )
+    if run.status == "error":
+        error = ChatError(
+            run.error_message or "RAG answer generation failed",
+            kind=run.error_kind or "bad_gateway",
+            retry_after_seconds=run.retry_after_seconds,
+        )
+        raise _provider_http_exception(error)
+    if run.status not in {"success", "no_evidence"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Idempotent RAG request is not in a replayable state",
+        )
+    return _rag_answer_from_run(run)
+
+
+def _rag_answer_from_run(run: RagRun) -> RagAnswerResponse:
+    citations = [RagCitation.model_validate(item) for item in run.citations or []]
+    _, confidence_reason = adjusted_confidence(run.confidence, citations)
+    return RagAnswerResponse(
+        run_id=run.id,
+        question=run.question,
+        answer=run.answer,
+        confidence=run.confidence,
+        confidence_reason=confidence_reason,
+        evidence_quality=compute_evidence_quality(citations),
+        knowledge_gaps=run.knowledge_gaps or [],
+        next_steps=run.next_steps or [],
+        citations=citations,
+        retrieval_method=run.retrieval_method,
+        model=run.model,
+    )
+
+
 def _persist_rag_run(
     db: Session,
     group_id: str,
@@ -243,24 +473,25 @@ def _persist_rag_run(
     status: str = "success",
     duration_ms: int | None = None,
     retrieved_count: int | None = None,
+    run: RagRun | None = None,
 ) -> RagAnswerResponse:
-    run = RagRun(
-        group_id=group_id,
-        user_id=user_id,
-        project_id=project_id,
-        question=response.question,
-        answer=response.answer,
-        confidence=response.confidence,
-        retrieval_method=response.retrieval_method,
-        model=response.model,
-        citations=[citation.model_dump() for citation in response.citations],
-        knowledge_gaps=response.knowledge_gaps,
-        next_steps=response.next_steps,
-        status=status,
-        duration_ms=duration_ms,
-        retrieved_count=retrieved_count,
-    )
-    db.add(run)
+    if run is None:
+        run = RagRun(group_id=group_id, user_id=user_id, project_id=project_id)
+        db.add(run)
+    run.question = response.question
+    run.answer = response.answer
+    run.confidence = response.confidence
+    run.retrieval_method = response.retrieval_method
+    run.model = response.model
+    run.citations = [citation.model_dump() for citation in response.citations]
+    run.knowledge_gaps = response.knowledge_gaps
+    run.next_steps = response.next_steps
+    run.status = status
+    run.error_message = None
+    run.error_kind = None
+    run.retry_after_seconds = None
+    run.duration_ms = duration_ms
+    run.retrieved_count = retrieved_count
     db.commit()
     db.refresh(run)
     return response.model_copy(update={"run_id": run.id})
@@ -278,25 +509,27 @@ def _persist_failed_run(
     retrieved_count: int,
     *,
     project_id: str | None = None,
+    run: RagRun | None = None,
+    error_kind: str = "bad_gateway",
+    retry_after_seconds: int | None = None,
 ) -> None:
-    run = RagRun(
-        group_id=group_id,
-        user_id=user_id,
-        project_id=project_id,
-        question=question,
-        answer="RAG 回答生成失败，详见 error_message。",
-        confidence="low",
-        retrieval_method=retrieval_method,
-        model="error",
-        citations=[citation.model_dump() for citation in citations],
-        knowledge_gaps=[],
-        next_steps=[],
-        status="error",
-        error_message=error_message,
-        duration_ms=duration_ms,
-        retrieved_count=retrieved_count,
-    )
-    db.add(run)
+    if run is None:
+        run = RagRun(group_id=group_id, user_id=user_id, project_id=project_id)
+        db.add(run)
+    run.question = question
+    run.answer = "RAG 回答生成失败，详见 error_message。"
+    run.confidence = "low"
+    run.retrieval_method = retrieval_method
+    run.model = "error"
+    run.citations = [citation.model_dump() for citation in citations]
+    run.knowledge_gaps = []
+    run.next_steps = []
+    run.status = "error"
+    run.error_message = error_message
+    run.error_kind = error_kind
+    run.retry_after_seconds = retry_after_seconds
+    run.duration_ms = duration_ms
+    run.retrieved_count = retrieved_count
     db.commit()
 
 
@@ -359,17 +592,14 @@ def _retrieve(
             db, group_id, question, limit, allowed_document_ids=allowed_document_ids
         ), "keyword"
     if retrieval_method == "semantic":
-        try:
-            return _semantic_search(
-                db,
-                group_id,
-                question,
-                limit,
-                settings,
-                allowed_document_ids=allowed_document_ids,
-            ), "semantic"
-        except EmbeddingError as exc:
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+        return _semantic_search(
+            db,
+            group_id,
+            question,
+            limit,
+            settings,
+            allowed_document_ids=allowed_document_ids,
+        ), "semantic"
     if retrieval_method == "hybrid":
         from semantic_lighthouse.services.retrieval import hybrid_search as hs
 

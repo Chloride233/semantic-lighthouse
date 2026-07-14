@@ -1,17 +1,22 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+import logging
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from semantic_lighthouse.config import get_settings
 from semantic_lighthouse.database import SessionLocal
 from semantic_lighthouse.models import Document, IngestionJob, utc_now
 from semantic_lighthouse.routers import agent, auth, conversations, datasets, documents, groups, ontology, outcomes, projects, rag, runtime, tasks
+
+
+logger = logging.getLogger(__name__)
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -79,9 +84,27 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def _request_id_middleware(request: Request, call_next) -> Response:
         request_id = request.headers.get("X-Request-ID", str(uuid4()))
+        request.state.request_id = request_id
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         return response
+
+    @app.exception_handler(SQLAlchemyError)
+    async def _database_error_handler(request: Request, _exc: SQLAlchemyError) -> JSONResponse:
+        request_id = getattr(request.state, "request_id", str(uuid4()))
+        logger.error(
+            "Database request failed request_id=%s path=%s",
+            request_id,
+            request.url.path,
+        )
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "Database temporarily unavailable",
+                "request_id": request_id,
+            },
+            headers={"X-Request-ID": request_id, "Retry-After": "1"},
+        )
 
     @app.get("/health")
     def health() -> dict:

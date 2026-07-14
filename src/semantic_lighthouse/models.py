@@ -228,6 +228,15 @@ class IngestionJob(Base):
 
 class RagRun(Base):
     __tablename__ = "rag_runs"
+    __table_args__ = (
+        UniqueConstraint(
+            "group_id",
+            "user_id",
+            "idempotency_scope",
+            "idempotency_key",
+            name="uq_rag_runs_idempotency_scope_key",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), index=True, nullable=False)
@@ -247,6 +256,11 @@ class RagRun(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     retrieved_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    idempotency_scope: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    idempotency_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_kind: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    retry_after_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
 

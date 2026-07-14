@@ -1,7 +1,7 @@
 from functools import lru_cache
 import os
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Settings(BaseModel):
@@ -31,8 +31,15 @@ class Settings(BaseModel):
     chat_base_url: str = "https://api.deepseek.com"
     chat_model: str = "deepseek-v4-flash"
     chat_timeout_seconds: int = 60
+    provider_max_attempts: int = Field(default=2, ge=1, le=5)
+    provider_retry_backoff_seconds: float = Field(default=0.1, ge=0, le=10)
     rag_top_k: int = 5
     rag_max_context_chars: int = 6000
+    rag_max_concurrency: int = Field(default=20, ge=1, le=1000)
+    rag_max_queue: int = Field(default=40, ge=0, le=10_000)
+    rag_queue_timeout_seconds: float = Field(default=2.0, gt=0, le=300)
+    rag_rate_limit_requests: int = Field(default=120, ge=1, le=1_000_000)
+    rag_rate_limit_window_seconds: float = Field(default=60.0, gt=0, le=3600)
     chunk_target_chars: int = 800
     chunk_max_chars: int = 1200
     chunk_min_chars: int = 200
@@ -150,9 +157,43 @@ def get_settings() -> Settings:
         chat_timeout_seconds=int(
             os.getenv("CHAT_TIMEOUT_SECONDS", str(Settings.model_fields["chat_timeout_seconds"].default))
         ),
+        provider_max_attempts=int(
+            os.getenv(
+                "PROVIDER_MAX_ATTEMPTS",
+                str(Settings.model_fields["provider_max_attempts"].default),
+            )
+        ),
+        provider_retry_backoff_seconds=float(
+            os.getenv(
+                "PROVIDER_RETRY_BACKOFF_SECONDS",
+                str(Settings.model_fields["provider_retry_backoff_seconds"].default),
+            )
+        ),
         rag_top_k=int(os.getenv("RAG_TOP_K", str(Settings.model_fields["rag_top_k"].default))),
         rag_max_context_chars=int(
             os.getenv("RAG_MAX_CONTEXT_CHARS", str(Settings.model_fields["rag_max_context_chars"].default))
+        ),
+        rag_max_concurrency=int(
+            os.getenv("RAG_MAX_CONCURRENCY", str(Settings.model_fields["rag_max_concurrency"].default))
+        ),
+        rag_max_queue=int(os.getenv("RAG_MAX_QUEUE", str(Settings.model_fields["rag_max_queue"].default))),
+        rag_queue_timeout_seconds=float(
+            os.getenv(
+                "RAG_QUEUE_TIMEOUT_SECONDS",
+                str(Settings.model_fields["rag_queue_timeout_seconds"].default),
+            )
+        ),
+        rag_rate_limit_requests=int(
+            os.getenv(
+                "RAG_RATE_LIMIT_REQUESTS",
+                str(Settings.model_fields["rag_rate_limit_requests"].default),
+            )
+        ),
+        rag_rate_limit_window_seconds=float(
+            os.getenv(
+                "RAG_RATE_LIMIT_WINDOW_SECONDS",
+                str(Settings.model_fields["rag_rate_limit_window_seconds"].default),
+            )
         ),
         chunk_target_chars=int(
             os.getenv("CHUNK_TARGET_CHARS", str(Settings.model_fields["chunk_target_chars"].default))
