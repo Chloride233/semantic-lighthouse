@@ -79,8 +79,7 @@ that future real-user task.
 
 ## Deferred Issue #3 Work
 
-- Recruit and observe 3–5 real users.
-- Record task completion, duration, failure points, manual edits, and feedback.
-- Implement and verify at least one product iteration based on that feedback.
-- Publish the pilot result, boundary, and next decision with only real-user
-  metrics represented as real-user evidence.
+Real-user validation is not feasible in the current project context. The
+remaining Issue #3 acceptance items stay blocked: 3–5 user sessions,
+feedback-driven iteration, and a real Pilot result. This local rehearsal and
+its simulated records must not be presented as substitutes.
