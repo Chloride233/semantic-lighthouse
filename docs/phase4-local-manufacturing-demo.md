@@ -72,6 +72,10 @@ The summary always reports `real_user_sessions` separately from
 evidence. Do not enter names, email addresses, credentials, raw documents, or
 other sensitive content in participant identifiers or feedback.
 
+The fixed future task prompt, completion rubric, and timing boundary are in
+`docs/phase4-manufacturing-pilot-protocol.md`. This rehearsal does not satisfy
+that future real-user task.
+
 ## Deferred Issue #3 Work
 
 - Recruit and observe 3–5 real users.
