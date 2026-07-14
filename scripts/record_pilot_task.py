@@ -19,6 +19,8 @@ from uuid import uuid4
 
 SESSION_TYPES = ("simulated", "real_user")
 OUTCOMES = ("completed", "incomplete", "abandoned")
+DEFAULT_PROTOCOL_ID = "phase4-manufacturing-v1"
+UNVERSIONED_PROTOCOL_ID = "unversioned"
 
 
 def _parse_timestamp(value: str) -> datetime:
@@ -37,11 +39,14 @@ def _record(args: argparse.Namespace) -> int:
     completed_at = _parse_timestamp(args.completed_at)
     if completed_at <= started_at:
         raise ValueError("completed-at must be later than started-at")
+    if not args.protocol_id.strip():
+        raise ValueError("protocol-id cannot be empty")
 
     record = {
         "schema_version": 1,
         "record_id": str(uuid4()),
         "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "protocol_id": args.protocol_id,
         "session_type": args.session_type,
         "participant_id": args.participant_id,
         "task_id": args.task_id,
@@ -92,17 +97,43 @@ def _metrics(records: list[dict[str, Any]]) -> dict[str, int | float | None]:
     }
 
 
+def _cohort_summary(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    cohorts: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for record in records:
+        key = (
+            str(record.get("protocol_id") or UNVERSIONED_PROTOCOL_ID),
+            str(record.get("task_id") or "unknown"),
+        )
+        cohorts.setdefault(key, []).append(record)
+
+    return [
+        {
+            "protocol_id": protocol_id,
+            "task_id": task_id,
+            "all_sessions": _metrics(cohort_records),
+            "real_user_sessions": _metrics(
+                [r for r in cohort_records if r.get("session_type") == "real_user"]
+            ),
+            "simulated_sessions": _metrics(
+                [r for r in cohort_records if r.get("session_type") == "simulated"]
+            ),
+        }
+        for (protocol_id, task_id), cohort_records in sorted(cohorts.items())
+    ]
+
+
 def _summary(args: argparse.Namespace) -> int:
     records = _load_records(args.record_file)
-    real_user_records = [r for r in records if r.get("session_type") == "real_user"]
-    simulated_records = [r for r in records if r.get("session_type") == "simulated"]
+    cohorts = _cohort_summary(records)
     summary = {
         "schema_version": 1,
         "record_file": str(args.record_file),
-        "all_sessions": _metrics(records),
-        "real_user_sessions": _metrics(real_user_records),
-        "simulated_sessions": _metrics(simulated_records),
-        "note": "Only real_user_sessions support GitHub Issue #3 user-validation evidence.",
+        "cohort_count": len(cohorts),
+        "cohorts": cohorts,
+        "note": (
+            "Metrics are cohort-specific. Do not combine protocol_id/task_id "
+            "cohorts; only real_user_sessions support GitHub Issue #3 evidence."
+        ),
     }
     rendered = json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True)
     if args.output is not None:
@@ -118,6 +149,7 @@ def _parser() -> argparse.ArgumentParser:
 
     record = subcommands.add_parser("record", help="Append one completed task observation.")
     record.add_argument("--record-file", type=Path, required=True)
+    record.add_argument("--protocol-id", default=DEFAULT_PROTOCOL_ID)
     record.add_argument("--session-type", choices=SESSION_TYPES, default="simulated")
     record.add_argument("--participant-id", required=True, help="Use a pseudonymous study identifier.")
     record.add_argument("--task-id", required=True)

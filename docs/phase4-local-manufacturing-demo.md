@@ -50,6 +50,7 @@ Use a pseudonymous participant identifier and keep records outside Git:
 ```bash
 .venv/bin/python scripts/record_pilot_task.py record \
   --record-file .tmp/phase4-task-records.jsonl \
+  --protocol-id phase4-manufacturing-v1 \
   --participant-id rehearsal-001 \
   --task-id manufacturing-demo-v1 \
   --outcome completed \

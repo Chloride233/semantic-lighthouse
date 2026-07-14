@@ -63,6 +63,7 @@ to a command or input, and unprompted feedback in the existing local recorder:
 ```bash
 .venv/bin/python scripts/record_pilot_task.py record \
   --record-file .tmp/phase4-task-records.jsonl \
+  --protocol-id phase4-manufacturing-v1 \
   --session-type real_user \
   --participant-id pilot-001 \
   --task-id manufacturing-demo-v1 \
@@ -74,8 +75,9 @@ to a command or input, and unprompted feedback in the existing local recorder:
   --feedback "The PASS summary was easy to interpret"
 ```
 
-Summaries distinguish `real_user_sessions` from `simulated_sessions`. Do not
-combine the two when calculating Issue #3 completion rate or task duration.
+Summaries distinguish `real_user_sessions` from `simulated_sessions`, and
+group metrics by `protocol_id` and `task_id`. Do not combine cohorts or session
+types when calculating Issue #3 completion rate or task duration.
 
 ## Local Dry-Run
 

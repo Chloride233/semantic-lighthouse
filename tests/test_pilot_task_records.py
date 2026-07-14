@@ -36,6 +36,7 @@ def test_record_writes_derived_duration_and_observation_fields(tmp_path):
 
     assert result.returncode == 0, result.stderr
     record = json.loads(record_file.read_text(encoding="utf-8"))
+    assert record["protocol_id"] == "phase4-manufacturing-v1"
     assert record["session_type"] == "simulated"
     assert record["duration_seconds"] == 300
     assert record["manual_edit_count"] == 2
@@ -43,7 +44,7 @@ def test_record_writes_derived_duration_and_observation_fields(tmp_path):
     assert record["feedback"] == ["clear flow"]
 
 
-def test_summary_keeps_simulated_and_real_user_metrics_separate(tmp_path):
+def test_summary_keeps_cohorts_and_session_types_separate(tmp_path):
     record_file = tmp_path / "records.jsonl"
     common = (
         "record", "--record-file", str(record_file), "--task-id", "manufacturing-demo-v1",
@@ -54,16 +55,46 @@ def test_summary_keeps_simulated_and_real_user_metrics_separate(tmp_path):
     real = _run_recorder(
         *common, "--participant-id", "pilot-001", "--session-type", "real_user",
     )
-    assert simulated.returncode == real.returncode == 0
+    second_task = _run_recorder(
+        "record", "--record-file", str(record_file), "--participant-id", "rehearsal-002",
+        "--protocol-id", "phase4-manufacturing-v2", "--task-id", "manufacturing-demo-v2",
+        "--outcome", "incomplete", "--started-at", "2026-07-14T10:00:00Z",
+        "--completed-at", "2026-07-14T10:03:00Z",
+    )
+    assert simulated.returncode == real.returncode == second_task.returncode == 0
 
     result = _run_recorder("summary", "--record-file", str(record_file))
 
     assert result.returncode == 0, result.stderr
     summary = json.loads(result.stdout)
-    assert summary["all_sessions"]["session_count"] == 2
-    assert summary["simulated_sessions"]["session_count"] == 1
-    assert summary["real_user_sessions"]["session_count"] == 1
-    assert "Only real_user_sessions" in summary["note"]
+    assert summary["cohort_count"] == 2
+    assert "all_sessions" not in summary
+    cohorts = {(c["protocol_id"], c["task_id"]): c for c in summary["cohorts"]}
+    first = cohorts[("phase4-manufacturing-v1", "manufacturing-demo-v1")]
+    assert first["all_sessions"]["session_count"] == 2
+    assert first["simulated_sessions"]["session_count"] == 1
+    assert first["real_user_sessions"]["session_count"] == 1
+    second = cohorts[("phase4-manufacturing-v2", "manufacturing-demo-v2")]
+    assert second["all_sessions"]["completion_rate"] == 0.0
+    assert "Do not combine" in summary["note"]
+
+
+def test_summary_labels_legacy_records_as_unversioned(tmp_path):
+    record_file = tmp_path / "records.jsonl"
+    record_file.write_text(
+        json.dumps({
+            "task_id": "legacy-task", "session_type": "simulated",
+            "outcome": "completed", "duration_seconds": 30,
+            "failure_points": [], "manual_edit_count": 0, "feedback": [],
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    result = _run_recorder("summary", "--record-file", str(record_file))
+
+    assert result.returncode == 0, result.stderr
+    summary = json.loads(result.stdout)
+    assert summary["cohorts"][0]["protocol_id"] == "unversioned"
 
 
 def test_record_rejects_non_positive_duration_without_writing(tmp_path):
