@@ -91,6 +91,8 @@ def _metrics(records: list[dict[str, Any]]) -> dict[str, int | float | None]:
         "completed_count": len(completed),
         "completion_rate": round(len(completed) / len(records), 3) if records else None,
         "median_duration_seconds": statistics.median(durations) if durations else None,
+        "min_duration_seconds": min(durations) if durations else None,
+        "max_duration_seconds": max(durations) if durations else None,
         "failure_point_count": sum(len(record.get("failure_points", [])) for record in records),
         "manual_edit_count": sum(record.get("manual_edit_count", 0) for record in records),
         "feedback_count": sum(len(record.get("feedback", [])) for record in records),
@@ -143,6 +145,81 @@ def _summary(args: argparse.Namespace) -> int:
     return 0
 
 
+def _require_text(value: str, name: str) -> str:
+    text = value.strip()
+    if not text:
+        raise ValueError(f"{name} cannot be empty")
+    return text
+
+
+def _report(args: argparse.Namespace) -> int:
+    if args.min_real_users < 1:
+        raise ValueError("min-real-users must be at least 1")
+
+    protocol_id = _require_text(args.protocol_id, "protocol-id")
+    task_id = _require_text(args.task_id, "task-id")
+    iteration_summary = _require_text(args.iteration_summary, "iteration-summary")
+    time_change_note = _require_text(args.time_change_note, "time-change-note")
+    boundary = _require_text(args.boundary, "boundary")
+    decision = _require_text(args.decision, "decision")
+
+    records = _load_records(args.record_file)
+    cohort_records = [
+        record
+        for record in records
+        if record.get("protocol_id") == protocol_id and record.get("task_id") == task_id
+    ]
+    if not cohort_records:
+        raise ValueError("no records found for the requested protocol-id/task-id cohort")
+
+    real_user_records = [
+        record for record in cohort_records if record.get("session_type") == "real_user"
+    ]
+    if len(real_user_records) < args.min_real_users:
+        raise ValueError(
+            f"report requires at least {args.min_real_users} real_user records; "
+            f"found {len(real_user_records)}"
+        )
+    if any(not record.get("feedback") for record in real_user_records):
+        raise ValueError("each real_user record must contain at least one feedback item")
+
+    metrics = _metrics(real_user_records)
+    report = "\n".join([
+        "# Phase 4 Manufacturing Pilot Result",
+        "",
+        "## Evidence Scope",
+        f"- Protocol: `{protocol_id}`",
+        f"- Task: `{task_id}`",
+        f"- Real-user sessions: {metrics['session_count']}",
+        f"- Simulated sessions excluded: {len(cohort_records) - len(real_user_records)}",
+        "",
+        "## Task Metrics",
+        f"- Completion rate: {metrics['completion_rate']:.1%}",
+        f"- Median duration: {metrics['median_duration_seconds']} seconds",
+        f"- Duration range: {metrics['min_duration_seconds']} to {metrics['max_duration_seconds']} seconds",
+        f"- Failure points recorded: {metrics['failure_point_count']}",
+        f"- Manual edits recorded: {metrics['manual_edit_count']}",
+        f"- Feedback items recorded: {metrics['feedback_count']}",
+        "",
+        "## Product Iteration",
+        iteration_summary,
+        "",
+        "## Time Change",
+        time_change_note,
+        "",
+        "## Boundaries",
+        boundary,
+        "",
+        "## Next Decision",
+        decision,
+        "",
+    ])
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(report, encoding="utf-8")
+    print(report, end="")
+    return 0
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Record local Phase 4 pilot-task observations.")
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -165,6 +242,21 @@ def _parser() -> argparse.ArgumentParser:
     summary.add_argument("--record-file", type=Path, required=True)
     summary.add_argument("--output", type=Path)
     summary.set_defaults(handler=_summary)
+
+    report = subcommands.add_parser(
+        "report",
+        help="Generate a formal report from one sufficiently evidenced real-user cohort.",
+    )
+    report.add_argument("--record-file", type=Path, required=True)
+    report.add_argument("--protocol-id", required=True)
+    report.add_argument("--task-id", required=True)
+    report.add_argument("--output", type=Path, required=True)
+    report.add_argument("--iteration-summary", required=True)
+    report.add_argument("--time-change-note", required=True)
+    report.add_argument("--boundary", required=True)
+    report.add_argument("--decision", required=True)
+    report.add_argument("--min-real-users", type=int, default=3)
+    report.set_defaults(handler=_report)
     return parser
 
 

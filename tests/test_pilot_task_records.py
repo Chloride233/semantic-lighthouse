@@ -97,6 +97,70 @@ def test_summary_labels_legacy_records_as_unversioned(tmp_path):
     assert summary["cohorts"][0]["protocol_id"] == "unversioned"
 
 
+def test_report_refuses_insufficient_real_user_evidence(tmp_path):
+    record_file = tmp_path / "records.jsonl"
+    for participant_id in ("pilot-001", "pilot-002"):
+        result = _run_recorder(
+            "record", "--record-file", str(record_file), "--session-type", "real_user",
+            "--participant-id", participant_id, "--task-id", "manufacturing-demo-v1",
+            "--outcome", "completed", "--started-at", "2026-07-14T10:00:00Z",
+            "--completed-at", "2026-07-14T10:04:00Z", "--feedback", "clear",
+        )
+        assert result.returncode == 0, result.stderr
+
+    output = tmp_path / "report.md"
+    result = _run_recorder(
+        "report", "--record-file", str(record_file),
+        "--protocol-id", "phase4-manufacturing-v1", "--task-id", "manufacturing-demo-v1",
+        "--output", str(output), "--iteration-summary", "Improved copy.",
+        "--time-change-note", "No baseline.", "--boundary", "Local only.",
+        "--decision", "Do not close the pilot.",
+    )
+
+    assert result.returncode == 2
+    assert "requires at least 3 real_user records" in result.stderr
+    assert not output.exists()
+
+
+def test_report_uses_one_real_user_cohort_and_excludes_simulated_records(tmp_path):
+    record_file = tmp_path / "records.jsonl"
+    outcomes = ("completed", "completed", "incomplete")
+    for index, outcome in enumerate(outcomes, 1):
+        result = _run_recorder(
+            "record", "--record-file", str(record_file), "--session-type", "real_user",
+            "--participant-id", f"pilot-{index:03}", "--task-id", "manufacturing-demo-v1",
+            "--outcome", outcome, "--started-at", "2026-07-14T10:00:00Z",
+            "--completed-at", f"2026-07-14T10:0{index}:00Z",
+            "--failure-point", "command typo" if index == 3 else "",
+            "--feedback", f"feedback {index}",
+        )
+        assert result.returncode == 0, result.stderr
+    simulated = _run_recorder(
+        "record", "--record-file", str(record_file), "--participant-id", "rehearsal-001",
+        "--task-id", "manufacturing-demo-v1", "--outcome", "completed",
+        "--started-at", "2026-07-14T10:00:00Z", "--completed-at", "2026-07-14T10:05:00Z",
+        "--feedback", "rehearsal",
+    )
+    assert simulated.returncode == 0, simulated.stderr
+
+    output = tmp_path / "report.md"
+    result = _run_recorder(
+        "report", "--record-file", str(record_file),
+        "--protocol-id", "phase4-manufacturing-v1", "--task-id", "manufacturing-demo-v1",
+        "--output", str(output), "--iteration-summary", "Clarified the command hint.",
+        "--time-change-note", "No pre-iteration baseline was collected.",
+        "--boundary", "Synthetic data and fake providers only.",
+        "--decision", "Collect a post-iteration cohort before closure.",
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = output.read_text(encoding="utf-8")
+    assert "Real-user sessions: 3" in report
+    assert "Simulated sessions excluded: 1" in report
+    assert "Completion rate: 66.7%" in report
+    assert "Clarified the command hint." in report
+
+
 def test_record_rejects_non_positive_duration_without_writing(tmp_path):
     record_file = tmp_path / "records.jsonl"
 

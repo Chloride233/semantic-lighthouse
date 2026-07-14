@@ -79,6 +79,23 @@ Summaries distinguish `real_user_sessions` from `simulated_sessions`, and
 group metrics by `protocol_id` and `task_id`. Do not combine cohorts or session
 types when calculating Issue #3 completion rate or task duration.
 
+After at least three real-user records exist for one cohort, generate the
+formal result only with the recorder's gated report command. It requires an
+iteration summary, time-change note, boundary, and next decision; it refuses
+to use simulated sessions or insufficient evidence:
+
+```bash
+.venv/bin/python scripts/record_pilot_task.py report \
+  --record-file .tmp/phase4-task-records.jsonl \
+  --protocol-id phase4-manufacturing-v1 \
+  --task-id manufacturing-demo-v1 \
+  --output pilot-records/phase4-manufacturing-result.md \
+  --iteration-summary "Describe the product change made from feedback." \
+  --time-change-note "Describe observed duration change or the missing baseline." \
+  --boundary "State the evidence and runtime limits." \
+  --decision "State the next evidence-backed decision."
+```
+
 ## Local Dry-Run
 
 For the current no-contact iteration, run the task yourself with
