@@ -26,6 +26,7 @@ logs/
 *.log
 .runtime/
 .tmp/
+pilot-records/
 
 # External datasets (downloaded / generated for testing)
 data/ecommerce/
