@@ -9,10 +9,11 @@ It is a local protocol only: it does not recruit participants, contain a
 contact list, or report any user metrics. The current rehearsal record remains
 `simulated` and is not evidence that a user completed the task.
 
-**Current disposition:** Round 1 has two real-user records. Their clarified
-feedback led to the v2 PASS-explanation iteration; Round 2 now needs three
-real-user records. The Pilot remains incomplete until the gated result report
-is generated from that evidence.
+**Current disposition:** The local pilot is complete: two Round 1 records led
+to the v2 PASS-explanation iteration, followed by three Round 2 records and a
+gated result report. The result does not claim time improvement because the
+recorded durations are unreliable, and one participant still found some English
+copy unclear.
 
 ## Task
 
@@ -125,6 +126,6 @@ task duration for real users.
 - Simulated records remain excluded from future real-user metrics.
 - No user invitation or contact occurs in this slice.
 
-GitHub Issue #3 remains open. Do not enter simulated data as `real_user`, and
-do not generate or publish a Pilot conclusion until three Round 2 records allow
-the gated report to run.
+Do not enter simulated data as `real_user`. A future cycle should localize the
+remaining English session copy and use a validated timing procedure before any
+speed-improvement claim.

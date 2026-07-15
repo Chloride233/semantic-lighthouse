@@ -79,7 +79,8 @@ that future real-user task.
 
 ## Deferred Issue #3 Work
 
-Real-user validation is not feasible in the current project context. The
-remaining Issue #3 acceptance items stay blocked: 3–5 user sessions,
-feedback-driven iteration, and a real Pilot result. This local rehearsal and
-its simulated records must not be presented as substitutes.
+The local Pilot completed five real-user sessions: two Round 1 sessions, a
+clarity iteration, and three Round 2 sessions. It does not support a time
+improvement claim because recorded durations were unreliable, and it does not
+validate production operations, real ERP or MES integration, or the remaining
+English session copy.
