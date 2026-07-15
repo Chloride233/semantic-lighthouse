@@ -101,3 +101,10 @@ def test_command_launcher_is_executable_and_uses_local_venv():
     assert os.access(launcher, os.X_OK)
     assert ".venv/bin/python" in content
     assert "run_phase4_pilot_session.py" in content
+
+
+def test_participant_summary_explains_pass_boundary_and_next_step():
+    summary = session._participant_summary()
+    assert "All 11 local checks" in summary
+    assert "not a production maintenance action" in summary
+    assert "recording feedback" in summary

@@ -50,6 +50,9 @@ uses the local environment, displays this task, runs the rehearsal, times the
 session, and saves an anonymous record. It allows two Round 1 records, then
 requires a recorded iteration before allowing three Round 2 records.
 
+After a successful rehearsal, the assistant explains what PASS proves, what it
+does not prove, and what the participant should explain before giving feedback.
+
 Before a future session, the facilitator runs the same command once locally:
 
 ```bash

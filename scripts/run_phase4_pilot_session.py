@@ -149,6 +149,15 @@ def _ask_outcome(default: str) -> str:
     return value
 
 
+def _participant_summary() -> str:
+    return (
+        "\nWhat the PASS result means:\n"
+        "- All 11 local checks completed, including the bounded outcome artifact gate.\n"
+        "- The result shows a governed manufacturing demo chain, not a production maintenance action.\n"
+        "- The next step is to explain this distinction in your own words before recording feedback."
+    )
+
+
 def _run_interactive_session(record_file: Path, iteration_file: Path) -> int:
     _preflight()
     round_name, protocol_id = _next_round(record_file, iteration_file)
@@ -162,6 +171,8 @@ def _run_interactive_session(record_file: Path, iteration_file: Path) -> int:
     started_at = datetime.now(timezone.utc)
     result = subprocess.run([str(DEFAULT_PYTHON), str(DEMO_SCRIPT)], cwd=REPO_ROOT)
     completed_at = datetime.now(timezone.utc)
+    if result.returncode == 0:
+        print(_participant_summary())
     default_outcome = "completed" if result.returncode == 0 else "failed"
     outcome = _ask_outcome(default_outcome)
     manual_edits = _ask("Manual edit count [0]: ") or "0"

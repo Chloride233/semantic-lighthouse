@@ -58,11 +58,15 @@ def _record(args: argparse.Namespace) -> int:
         "manual_edit_count": args.manual_edit_count,
         "feedback": args.feedback,
     }
-    args.record_file.parent.mkdir(parents=True, exist_ok=True)
-    with args.record_file.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+    _append_record(args.record_file, record)
     print(json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
+
+
+def _append_record(record_file: Path, record: dict) -> None:
+    record_file.parent.mkdir(parents=True, exist_ok=True)
+    with record_file.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 def _load_records(record_file: Path) -> list[dict[str, Any]]:
@@ -102,6 +106,8 @@ def _metrics(records: list[dict[str, Any]]) -> dict[str, int | float | None]:
 def _cohort_summary(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     cohorts: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for record in records:
+        if record.get("record_type", "session") != "session":
+            continue
         key = (
             str(record.get("protocol_id") or UNVERSIONED_PROTOCOL_ID),
             str(record.get("task_id") or "unknown"),
@@ -130,6 +136,9 @@ def _summary(args: argparse.Namespace) -> int:
     summary = {
         "schema_version": 1,
         "record_file": str(args.record_file),
+        "feedback_correction_count": sum(
+            record.get("record_type") == "feedback_correction" for record in records
+        ),
         "cohort_count": len(cohorts),
         "cohorts": cohorts,
         "note": (
@@ -142,6 +151,36 @@ def _summary(args: argparse.Namespace) -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(rendered + "\n", encoding="utf-8")
     print(rendered)
+    return 0
+
+
+def _correct_feedback(args: argparse.Namespace) -> int:
+    feedback = _require_text(args.feedback, "feedback")
+    reason = _require_text(args.reason, "reason")
+    records = _load_records(args.record_file)
+    target = next(
+        (
+            record
+            for record in records
+            if record.get("record_id") == args.record_id
+            and record.get("record_type", "session") == "session"
+        ),
+        None,
+    )
+    if target is None:
+        raise ValueError("session record not found")
+
+    correction = {
+        "schema_version": 1,
+        "record_type": "feedback_correction",
+        "record_id": str(uuid4()),
+        "target_record_id": args.record_id,
+        "feedback": [feedback],
+        "reason": reason,
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _append_record(args.record_file, correction)
+    print(json.dumps(correction, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
 
@@ -257,6 +296,16 @@ def _parser() -> argparse.ArgumentParser:
     report.add_argument("--decision", required=True)
     report.add_argument("--min-real-users", type=int, default=3)
     report.set_defaults(handler=_report)
+
+    correction = subcommands.add_parser(
+        "correct-feedback",
+        help="Append a feedback correction without changing the original session record.",
+    )
+    correction.add_argument("--record-file", type=Path, required=True)
+    correction.add_argument("--record-id", required=True)
+    correction.add_argument("--feedback", required=True)
+    correction.add_argument("--reason", required=True)
+    correction.set_defaults(handler=_correct_feedback)
     return parser
 
 

@@ -97,6 +97,31 @@ def test_summary_labels_legacy_records_as_unversioned(tmp_path):
     assert summary["cohorts"][0]["protocol_id"] == "unversioned"
 
 
+def test_feedback_correction_is_append_only_and_not_counted_as_session(tmp_path):
+    record_file = tmp_path / "records.jsonl"
+    created = _run_recorder(
+        "record", "--record-file", str(record_file),
+        "--participant-id", "pilot-001", "--task-id", "manufacturing-demo-v1",
+        "--outcome", "completed", "--started-at", "2026-07-15T10:00:00Z",
+        "--completed-at", "2026-07-15T10:04:00Z", "--feedback", "clear",
+    )
+    assert created.returncode == 0, created.stderr
+    record_id = json.loads(created.stdout)["record_id"]
+
+    correction = _run_recorder(
+        "correct-feedback", "--record-file", str(record_file), "--record-id", record_id,
+        "--feedback", "Could not interpret the PASS output.",
+        "--reason", "Facilitator corrected the entered feedback after the session.",
+    )
+    assert correction.returncode == 0, correction.stderr
+
+    summary = _run_recorder("summary", "--record-file", str(record_file))
+    assert summary.returncode == 0, summary.stderr
+    payload = json.loads(summary.stdout)
+    assert payload["feedback_correction_count"] == 1
+    assert payload["cohorts"][0]["all_sessions"]["session_count"] == 1
+
+
 def test_report_refuses_insufficient_real_user_evidence(tmp_path):
     record_file = tmp_path / "records.jsonl"
     for participant_id in ("pilot-001", "pilot-002"):
