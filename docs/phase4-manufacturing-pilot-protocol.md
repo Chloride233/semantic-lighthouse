@@ -45,6 +45,11 @@ point, not evidence of participant failure by itself.
 
 ## Session Setup
 
+On macOS, double-click `scripts/run_phase4_pilot_session.command`. The assistant
+uses the local environment, displays this task, runs the rehearsal, times the
+session, and saves an anonymous record. It allows two Round 1 records, then
+requires a recorded iteration before allowing three Round 2 records.
+
 Before a future session, the facilitator runs the same command once locally:
 
 ```bash

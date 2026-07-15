@@ -18,7 +18,7 @@ from uuid import uuid4
 
 
 SESSION_TYPES = ("simulated", "real_user")
-OUTCOMES = ("completed", "incomplete", "abandoned")
+OUTCOMES = ("completed", "incomplete", "abandoned", "failed")
 DEFAULT_PROTOCOL_ID = "phase4-manufacturing-v1"
 UNVERSIONED_PROTOCOL_ID = "unversioned"
 
