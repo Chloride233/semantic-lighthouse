@@ -24,20 +24,29 @@ current = "Evidence Roadmap Phase 3 complete"
 description = "GitHub Issue #2 acceptance items 1-5 complete. Delivered reproducible 1/10/50 authenticated RAG load scenarios, Provider timeout/retry/error classification, per-user rate limiting, bounded concurrency and queue backpressure, queued cancellation safety, DB-backed scoped Idempotency-Key replay, bounded SQLAlchemy 503 degradation, request-ID fault traces, and migration 0030. The Phase 3 gate passes 22/22, Phase 1 and Phase 2 gates remain green, browser E2E passes 18/18, and the full suite passes 1,157 with 3 skipped."
 
 [next_decision_gate]
-name = "Phase 4 pilot disposition"
-description = "GitHub Issue #3 has local readiness evidence but real-user validation is not feasible in the current project context. Keep the issue open or formally rescope it; do not claim user validation, feedback-driven iteration, or a completed Phase 4 pilot from simulated records."
+name = "Phase 4 Round 2 evidence"
+description = "Round 1 has two real-user records and a feedback-driven v2 clarity iteration. Collect three Round 2 real-user sessions, then generate the gated Pilot result. Do not close Issue #3 before that report is evidence-backed."
 
 [phase4_manufacturing_pilot]
 issue = 3
-status = "blocked (local readiness complete; real-user validation not feasible)"
+status = "in progress (Round 1 complete; Round 2 ready)"
 local_rehearsal_commit = "d1dba9e"
 protocol_commit = "4f94994"
 cohort_recording_commit = "b77f828"
 report_gate_commit = "5fc5e40"
-real_user_sessions = 0
-local_readiness = "5-minute manufacturing rehearsal, versioned task protocol, JSONL recording, cohort-only summaries, and report gate requiring at least three real-user records"
-blocker = "The project cannot recruit or observe 3-5 real users. No real feedback exists for a product iteration."
-risk = "Simulated records validate tooling mechanics only and must not be presented as user validation or Pilot results."
+session_assistant_commit = "6c3d8e2"
+round1_clarity_iteration_commit = "887c882"
+round1_real_user_sessions = 2
+round1_completed_sessions = 2
+round1_completion_rate = 1.000
+round1_duration_seconds_min = 1
+round1_duration_seconds_max = 487
+round1_feedback_corrections = 2
+round2_protocol_id = "phase4-manufacturing-v2"
+round2_real_user_sessions = 0
+local_readiness = "5-minute manufacturing rehearsal, versioned task protocol, JSONL recording, cohort-only summaries, report gate, and macOS observed-session assistant"
+iteration = "Round 1 participants could not interpret technical PASS output. The v2 assistant now explains the 11 checks, artifact gate, non-production boundary, and expected participant response."
+risk = "The 1-second Round 1 duration is an outlier and may reflect a timing artifact. Preserve it, do not infer broad usability from two sessions, and compare Round 2 durations before reporting a time change."
 
 [phase1_rag_evaluation]
 issue = 1

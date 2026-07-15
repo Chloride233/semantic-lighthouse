@@ -9,9 +9,10 @@ It is a local protocol only: it does not recruit participants, contain a
 contact list, or report any user metrics. The current rehearsal record remains
 `simulated` and is not evidence that a user completed the task.
 
-**Current disposition:** real-user validation is not feasible in the current
-project context. This protocol and its tooling remain local readiness evidence;
-they do not satisfy Issue #3 and must not be presented as Pilot results.
+**Current disposition:** Round 1 has two real-user records. Their clarified
+feedback led to the v2 PASS-explanation iteration; Round 2 now needs three
+real-user records. The Pilot remains incomplete until the gated result report
+is generated from that evidence.
 
 ## Task
 
@@ -124,6 +125,6 @@ task duration for real users.
 - Simulated records remain excluded from future real-user metrics.
 - No user invitation or contact occurs in this slice.
 
-GitHub Issue #3 remains blocked because the project cannot recruit or observe
-3–5 real users. Do not enter simulated data as `real_user`, and do not generate
-or publish a Pilot conclusion without the missing evidence.
+GitHub Issue #3 remains open. Do not enter simulated data as `real_user`, and
+do not generate or publish a Pilot conclusion until three Round 2 records allow
+the gated report to run.
