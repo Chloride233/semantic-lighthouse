@@ -20,12 +20,39 @@ latest_verified_e2e = "18/18"
 screenshots_path = ".tmp/legacy-polish/"
 
 [focus]
-current = "Evidence Roadmap Phase 3 complete"
-description = "GitHub Issue #2 acceptance items 1-5 complete. Delivered reproducible 1/10/50 authenticated RAG load scenarios, Provider timeout/retry/error classification, per-user rate limiting, bounded concurrency and queue backpressure, queued cancellation safety, DB-backed scoped Idempotency-Key replay, bounded SQLAlchemy 503 degradation, request-ID fault traces, and migration 0030. The Phase 3 gate passes 22/22, Phase 1 and Phase 2 gates remain green, browser E2E passes 18/18, and the full suite passes 1,157 with 3 skipped."
+current = "Evidence Roadmap Phase 4 complete with local pilot evidence"
+description = "GitHub Issue #3 acceptance items are evidenced through a five-session local manufacturing pilot: two Round 1 real-user sessions, a feedback-driven v2 clarity iteration, three Round 2 real-user sessions, and a bounded Pilot result. The result reports 100% Round 2 completion but explicitly does not claim time improvement because recorded durations are not reliable."
 
 [next_decision_gate]
-name = "Evidence Roadmap Phase 4 decision"
-description = "Phase 3 is complete. The next ordered evidence phase is GitHub Issue #3 (manufacturing pilot and user validation). Do not start Phase 4 automatically without a new iteration; preserve the Phase 1 quality, Phase 2 Agent security, and Phase 3 reliability gates."
+name = "Post-Pilot evidence use"
+description = "Phase 4 local pilot evidence is complete. Decide whether to close GitHub Issue #3 with its stated limits, and whether a later validation cycle should localize remaining English session copy and use a validated timing procedure."
+
+[phase4_manufacturing_pilot]
+issue = 3
+status = "complete (5-session local pilot with explicit measurement limits)"
+local_rehearsal_commit = "d1dba9e"
+protocol_commit = "4f94994"
+cohort_recording_commit = "b77f828"
+report_gate_commit = "5fc5e40"
+session_assistant_commit = "6c3d8e2"
+round1_clarity_iteration_commit = "887c882"
+round1_real_user_sessions = 2
+round1_completed_sessions = 2
+round1_completion_rate = 1.000
+round1_duration_seconds_min = 1
+round1_duration_seconds_max = 487
+round1_feedback_corrections = 2
+round2_protocol_id = "phase4-manufacturing-v2"
+round2_real_user_sessions = 3
+round2_completed_sessions = 3
+round2_completion_rate = 1.000
+round2_duration_seconds_min = 1
+round2_duration_seconds_max = 1
+total_real_user_sessions = 5
+local_readiness = "5-minute manufacturing rehearsal, versioned task protocol, JSONL recording, cohort-only summaries, report gate, and macOS observed-session assistant"
+iteration = "Round 1 participants could not interpret technical PASS output. The v2 assistant now explains the 11 checks, artifact gate, non-production boundary, and expected participant response."
+pilot_result = "Round 2 completion rate was 100%; no simulated sessions were included. The local result records boundaries and a next decision."
+risk = "Round 1 durations ranged from 1 to 487 seconds and all Round 2 durations were 1 second. The timing data is not reliable enough to claim improvement. One Round 2 participant still found some English copy unclear. The pilot does not validate production operations, real ERP or MES integration, or speed improvement."
 
 [phase1_rag_evaluation]
 issue = 1
