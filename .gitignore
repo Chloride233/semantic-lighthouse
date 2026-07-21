@@ -45,6 +45,7 @@ dataset-storage/
 # IDE
 .vscode/
 .idea/
+.DS_Store
 
 # Claude Code (local agent artifacts, plans, settings)
 .claude/
